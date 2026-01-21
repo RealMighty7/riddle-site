@@ -52,9 +52,16 @@ function clearTimers() {
 }
 
 function isEmptyClick(e) {
-  const tag = e.target?.tagName?.toLowerCase();
-  return !["img", "p", "h1", "h2", "input", "button", "label", "pre"].includes(tag);
+  const t = e.target;
+  if (!t) return true;
+
+  // Don't count clicks on interactive stuff or images
+  if (t.closest("button, input, label, pre, img")) return false;
+
+  // Count everything else (including card backgrounds)
+  return true;
 }
+
 
 function typeLineAppend(text, delay = 0) {
   timers.push(setTimeout(() => {
