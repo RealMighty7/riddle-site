@@ -51,7 +51,7 @@ const btnProceed = document.getElementById("btnProceed");
    TIMING (225 WPM + padded)
 ====================== */
 const WPM = 500;
-const MS_PER_WORD = 60000 / WPM; // ~266ms
+const MS_PER_WORD = 45000 / WPM; // ~266ms
 
 function wordsCount(s) {
   return String(s || "").trim().split(/\s+/).filter(Boolean).length;
