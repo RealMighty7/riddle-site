@@ -49,6 +49,29 @@
     </section>
   </main>
 
+  <!-- =========================
+       SIMULATION ROOM (HIDDEN)
+       ========================= -->
+  <section id="simRoom" class="sim hidden" aria-live="polite">
+    <div class="sim-bg"></div>
+
+    <div class="sim-panel">
+      <div class="sim-title">OUTSIDE // SIMULATION</div>
+
+      <pre id="simText" class="sim-text"></pre>
+
+      <div id="simChoices" class="sim-choices hidden">
+        <button id="choiceNeed" class="sim-btn">i need something first</button>
+        <button id="choiceLie" class="sim-btn">i clicked by accident</button>
+        <button id="choiceRun" class="sim-btn danger">run</button>
+      </div>
+
+      <div id="simContinue" class="sim-choices hidden">
+        <button id="btnProceed" class="sim-btn">proceed</button>
+      </div>
+    </div>
+  </section>
+
   <script src="/main.js"></script>
 </body>
 </html>
