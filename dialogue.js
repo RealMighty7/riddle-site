@@ -1,4 +1,10 @@
 // dialogue.js
+// All narrative + quest steps. main.js "plays" this.
+// Steps can be:
+// { say: [ ...lines ] }
+// { task: "anchors"|"reorder"|"checksum"|"hold"|"pattern"|"mismatch", args: {...} }
+// { filler: { count: N, pool: "filler_standard"|"filler_hard" } }
+
 window.DIALOGUE = {
   intro: [
     `Security: "All stations, freeze."`,
@@ -29,142 +35,186 @@ window.DIALOGUE = {
     `Security: "We are listening."`
   ],
 
+  // Pools used by { filler: {count, pool:"..."} }
+  fillerPools: {
+    filler_standard: [
+      {
+        say: [
+          `System: "RECOVERY MODE: MANUAL."`,
+          `Worker 2: "The reboot is old. It needs hands."`,
+          `Security: "No commentary. Assign tasks."`,
+        ],
+        task: { id: "anchors", args: { base: 5 } }
+      },
+      {
+        say: [
+          `Security: "Reconstruct the log. No mistakes."`,
+          `System: "FRAGMENTS: OUT OF ORDER."`,
+        ],
+        task: { id: "reorder", args: {
+          items: ["impact", "fracture", "alarm", "lockdown", "observer"],
+          correct: ["observer", "impact", "fracture", "alarm", "lockdown"]
+        }}
+      },
+      {
+        say: [
+          `Security: "Checksum verification."`,
+          `System: "INPUT REQUIRED."`,
+        ],
+        task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } }
+      },
+      {
+        say: [
+          `Security: "Stabilize the boundary. Hold."`,
+          `Worker 1: "If it slips, we start over."`,
+        ],
+        task: { id: "hold", args: { baseMs: 3000 } }
+      },
+      {
+        say: [
+          `Security: "Pattern gate. Confirm you can follow."`,
+          `System: "SHORT-TERM MEMORY TEST."`,
+        ],
+        task: { id: "pattern", args: { base: 5 } }
+      },
+      {
+        say: [
+          `Security: "Mismatch scan. Find the corruption."`,
+          `System: "ONE FRAGMENT IS WRONG."`,
+        ],
+        task: { id: "mismatch", args: { base: 7 } }
+      },
+    ],
+
+    // harder filler used when player is more resistant
+    filler_hard: [
+      {
+        say: [
+          `Security: "You’re destabilizing the corridor."`,
+          `Security: "So you will work longer."`,
+          `System: "RECOVERY WINDOW: NARROW."`,
+        ],
+        task: { id: "anchors", args: { base: 7 } }
+      },
+      {
+        say: [
+          `Security: "Reorder again. Faster."`,
+          `Worker 3: "If they loop it, we wipe them."`,
+        ],
+        task: { id: "reorder", args: {
+          items: ["panic", "push", "crack", "alarm", "seal"],
+          correct: ["push", "crack", "alarm", "seal", "panic"]
+        }}
+      },
+      {
+        say: [
+          `Security: "Checksum. Last chance."`,
+          `System: "REQUIRED."`,
+        ],
+        task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } }
+      },
+      {
+        say: [
+          `Security: "Stabilize. Longer hold."`,
+          `System: "BOUNDARY: UNSTABLE."`,
+        ],
+        task: { id: "hold", args: { baseMs: 3600 } }
+      },
+      {
+        say: [
+          `Security: "Pattern lock. You don’t get many tries."`,
+          `System: "ATTEMPTS LIMITED."`,
+        ],
+        task: { id: "pattern", args: { base: 6 } }
+      },
+      {
+        say: [
+          `Security: "Mismatch scan. If you guess wrong, we reset."`,
+          `Worker 2: "That’s… harsh."`,
+          `Security: "So are breaches."`,
+        ],
+        task: { id: "mismatch", args: { base: 9 } }
+      },
+    ]
+  },
+
   branches: {
+    // Compliant
     need: {
       preface: [
         `You: "I need something first."`,
         `Security: "Correct."`,
-        `Security: "Compliance is the only language this corridor recognizes."`
+        `Security: "Compliance is the only language this corridor recognizes."`,
+        `System: "RESTART TRIGGERED BY BOUNDARY DAMAGE."`,
+        `System: "RECOVERY MODE: MANUAL."`
       ],
-      quest: [
+      steps: [
         { say: [
-          `Security: "Good. You understand procedure."`,
-          `Security: "You will comply with restart protocol until containment stabilizes."`,
-          `System: "RESTART TRIGGERED BY BOUNDARY DAMAGE."`,
-          `System: "RECOVERY MODE: MANUAL."`,
-          `Worker 2: "We can salvage this if they follow instructions."`,
-          `Security: "No commentary. Keep it clinical."`
+          `Security: "You will comply with restart chores until containment stabilizes."`,
+          `Worker 2: "If they follow, we can reseal it cleanly."`,
+          `Security: "Begin."`,
         ]},
-        { task: "anchors", args: { base: 5 } },
-
+        { filler: { count: 3, pool: "filler_standard" } },
         { say: [
-          `System: "ANCHOR SYNC: PARTIAL."`,
-          `Security: "Continue."`,
-          `Security: "Reconstruct the event timeline."`
+          `System: "PHASE CHECK: INCOMPLETE."`,
+          `Security: "Not done."`,
+          `Security: "Again."`
         ]},
-        { task: "reorder", args: {
-          items: ["impact", "fracture", "alarm", "lockdown", "observer"],
-          correct: ["observer", "impact", "fracture", "alarm", "lockdown"]
-        }},
-
+        { filler: { count: 2, pool: "filler_standard" } },
         { say: [
-          `Security: "Checksum verification."`,
-          `Worker 3: "Wrong input loops the failure state."`,
-          `Security: "Then don’t be wrong."`
-        ]},
-        { task: "checksum", args: { phrase: "ECHOECHO-VAULT" } },
-
-        { say: [
-          `Security: "Stabilize. Hold it."`,
-          `System: "BOUNDARY INTEGRITY: DEGRADED."`
-        ]},
-        { task: "hold", args: { baseMs: 3000 } },
-
-        { say: [
-          `System: "RESTART PHASE 1 COMPLETE."`,
-          `Security: "Do not celebrate."`,
-          `Security: "Proceed."`
+          `System: "PHASE 1: STABLE."`,
+          `Security: "Good."`,
+          `Security: "Do not confuse survival for permission."`
         ]}
       ]
     },
 
+    // Compliant-ish (still “following the dialogue”)
     lie: {
       preface: [
         `You: "I clicked by accident."`,
         `Security: "No."`,
-        `Security: "Accidents do not produce controlled fractures."`
+        `Security: "Accidents do not produce controlled fractures."`,
+        `System: "BEHAVIORAL FLAG: DECEPTIVE."`,
+        `Security: "Manual restart chores. Now."`
       ],
-      quest: [
+      steps: [
+        { filler: { count: 3, pool: "filler_standard" } },
         { say: [
-          `System: "BEHAVIORAL FLAG: DECEPTIVE."`,
-          `Security: "You will correct that."`,
-          `Security: "Manual restart chores. Now."`
+          `Worker 1: "They’re still here."`,
+          `Security: "Of course they are."`,
+          `Security: "Next phase."`
         ]},
-        { task: "anchors", args: { base: 6 } },
-
+        { filler: { count: 2, pool: "filler_standard" } },
         { say: [
-          `Security: "Timeline reconstruction."`,
-          `Worker 2: "They’re… actually doing it."`,
-          `Security: "Of course they are. They want out."`
-        ]},
-        { task: "pattern", args: { base: 5 } },
-
-        { say: [
-          `Security: "Checksum."`,
-          `System: "REQUIRED: PHRASE MATCH."`
-        ]},
-        { task: "checksum", args: { phrase: "ECHOECHO-VAULT" } },
-
-        { say: [
-          `Security: "Stabilize."`,
-          `Security: "Hold it. Don’t let go."`
-        ]},
-        { task: "hold", args: { baseMs: 3400 } },
-
-        { say: [
-          `System: "RESTART PHASE 1 COMPLETE."`,
+          `System: "PHASE 1: STABLE."`,
           `Security: "Better."`,
-          `Security: "Don’t waste my time again."`
+          `Security: "Try honesty next time."`
         ]}
       ]
     },
 
+    // Non-compliant
     run: {
       preface: [
         `You: "Run."`,
         `Security: "Stop."`,
-        `Security: "Escalation noted."`
+        `Security: "Escalation noted."`,
+        `System: "THREAT SCORE: INCREASING."`,
+        `Security: "If you resist, we make the chores heavier."`
       ],
-      quest: [
+      steps: [
+        { filler: { count: 3, pool: "filler_hard" } },
         { say: [
-          `System: "THREAT SCORE: INCREASING."`,
-          `Security: "Keep them busy. Keep them contained."`,
-          `Worker 1: "If they panic, it collapses the corridor."`,
-          `Security: "Then don’t let them panic."`
+          `Security: "Containment isn’t clean."`,
+          `Worker 3: "They keep pushing."`,
+          `Security: "Then keep them busy."`
         ]},
-        { task: "anchors", args: { base: 7 } },
-
+        { filler: { count: 2, pool: "filler_hard" } },
         { say: [
-          `Security: "Stabilize. Now."`,
-          `System: "BOUNDARY STILL UNSTABLE."`
-        ]},
-        { task: "hold", args: { baseMs: 3600 } },
-
-        { say: [
-          `Security: "Scan mismatch."`,
-          `Security: "Find the corrupted fragment."`
-        ]},
-        { task: "mismatch", args: { base: 7 } },
-
-        { say: [
-          `Security: "Reconstruct the timeline."`,
-          `Worker 3: "If it loops, you start over."`
-        ]},
-        { task: "reorder", args: {
-          items: ["panic", "push", "crack", "alarm", "seal"],
-          correct: ["push", "crack", "alarm", "seal", "panic"]
-        }},
-
-        { say: [
-          `Security: "Checksum. Last chance."`,
-          `System: "REQUIRED."`
-        ]},
-        { task: "checksum", args: { phrase: "ECHOECHO-VAULT" } },
-
-        { say: [
-          `System: "RESTART PHASE 1 COMPLETE."`,
-          `Security: "You’re unstable, but you’re useful."`,
-          `Security: "Proceed."`
+          `System: "PHASE 1: STABLE."`,
+          `Security: "You’re unstable."`,
+          `Security: "But you’re useful."`
         ]}
       ]
     }
