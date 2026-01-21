@@ -20,7 +20,7 @@
       </p>
     </header>
 
-    <section class="grid card" aria-label="media">
+    <section class="grid card">
       <img data-slot="0" alt="">
       <img data-slot="1" alt="">
       <img data-slot="2" alt="">
@@ -28,12 +28,13 @@
       <img data-slot="4" alt="">
       <img data-slot="5" alt="">
     </section>
-      <div id="cracks" class="cracks hidden" aria-hidden="true"></div>
 
-    <section id="system" class="system card hidden" aria-live="polite">
-      <div class="sysline" id="l1"></div>
-      <div class="sysline" id="l2"></div>
-      <div class="sysline small" id="l3"></div>
+    <div id="cracks" class="cracks hidden"></div>
+
+    <section id="system" class="system card hidden">
+      <div id="l1" class="sysline"></div>
+      <div id="l2" class="sysline"></div>
+      <div id="l3" class="sysline small"></div>
     </section>
 
     <section id="finish" class="finish card hidden">
@@ -42,7 +43,7 @@
 
       <label class="label">
         Discord username
-        <input id="discordName" maxlength="64" placeholder="name#0000 or display name" />
+        <input id="discordName" />
       </label>
 
       <button id="submitBtn">Submit</button>
@@ -50,29 +51,25 @@
     </section>
   </main>
 
-  <!-- =========================
-       SIMULATION ROOM (HIDDEN)
-       ========================= -->
-  <section id="simRoom" class="sim hidden" aria-live="polite">
+  <!-- SIMULATION ROOM -->
+  <section id="simRoom" class="sim hidden">
     <div class="sim-bg"></div>
-
     <div class="sim-panel">
       <div class="sim-title">OUTSIDE // SIMULATION</div>
-
       <pre id="simText" class="sim-text"></pre>
 
       <div id="simChoices" class="sim-choices hidden">
-        <button id="choiceNeed" class="sim-btn">i need something first</button>
-        <button id="choiceLie" class="sim-btn">i clicked by accident</button>
-        <button id="choiceRun" class="sim-btn danger">run</button>
+        <button id="choiceNeed">i need something first</button>
+        <button id="choiceLie">i clicked by accident</button>
+        <button id="choiceRun" class="danger">run</button>
       </div>
 
       <div id="simContinue" class="sim-choices hidden">
-        <button id="btnProceed" class="sim-btn">proceed</button>
+        <button id="btnProceed">proceed</button>
       </div>
     </div>
   </section>
 
-  <script src="/main.js?v=2"></script>
+  <script src="/main.js?v=9"></script>
 </body>
 </html>
