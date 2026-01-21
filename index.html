@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>index</title>
 
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
 </head>
 
@@ -21,33 +21,36 @@
     </header>
 
     <section class="grid card">
-      <img data-slot="0" alt="">
-      <img data-slot="1" alt="">
-      <img data-slot="2" alt="">
-      <img data-slot="3" alt="">
-      <img data-slot="4" alt="">
-      <img data-slot="5" alt="">
+      <img data-slot="0">
+      <img data-slot="1">
+      <img data-slot="2">
+      <img data-slot="3">
+      <img data-slot="4">
+      <img data-slot="5">
     </section>
 
+    <!-- crack overlay -->
     <div id="cracks" class="cracks hidden"></div>
 
+    <!-- system warning -->
     <section id="system" class="system card hidden">
       <div id="l1" class="sysline"></div>
       <div id="l2" class="sysline"></div>
       <div id="l3" class="sysline small"></div>
     </section>
 
+    <!-- completion -->
     <section id="finish" class="finish card hidden">
       <h2>Completion</h2>
       <p class="muted">Identification only. Never enter passwords.</p>
 
-      <label class="label">
+      <label>
         Discord username
-        <input id="discordName" />
+        <input id="discordName">
       </label>
 
       <button id="submitBtn">Submit</button>
-      <pre id="result" class="result hidden"></pre>
+      <pre id="result" class="hidden"></pre>
     </section>
   </main>
 
@@ -70,6 +73,6 @@
     </div>
   </section>
 
-  <script src="/main.js?v=9"></script>
+  <script src="/main.js"></script>
 </body>
 </html>
