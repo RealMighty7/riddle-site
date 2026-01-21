@@ -142,6 +142,10 @@ function typeLineAppend(text, delay = 0) {
 }
 
 function openSimRoom() {
+  // hide cracks once we leave the normal page
+  cracks.classList.add("hidden");
+  cracks.classList.remove("show");
+  cracks.innerHTML = "";
   stage = 4;
   simRoom.classList.remove("hidden");
   simText.textContent = "";
@@ -186,13 +190,42 @@ wrap.addEventListener("click", e => {
   lastClickAt = now;
 
   // -------- STAGE 1 --------
-  if (stage === 1) {
-    bgClicks++;
+if (stage === 1) {
+  bgClicks++;
 
-    if (bgClicks === 3) {
-      document.body.style.transform = "translateX(1px)";
-      setTimeout(() => document.body.style.transform = "", 50);
-    }
+  // crack stages (not on every click)
+  // happens BEFORE the warning text, so it feels like they are "damaging" the page
+  if (bgClicks === 4) advanceCracks();
+  if (bgClicks === 6) advanceCracks();
+  if (bgClicks === 8) advanceCracks();
+
+  if (bgClicks === 3) {
+    document.body.style.transform = "translateX(1px)";
+    setTimeout(() => document.body.style.transform = "", 50);
+  }
+
+  if (bgClicks >= 9) {
+    // Now show the Stage 2 warning and keep it as the last normal-page thing
+    stage = 2;
+    systemBox.classList.remove("hidden");
+    clearTimers();
+
+    l1.textContent = "That isn’t how this page is supposed to be used.";
+    timers.push(setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, 1800));
+    timers.push(setTimeout(() => { l3.textContent = "Stop."; }, 3200));
+
+    // After "Stop.", final crack spike then break into sim room
+    timers.push(setTimeout(() => {
+      advanceCracks();
+      setTimeout(() => openSimRoom(), 400);
+    }, 3800));
+
+    return;
+  }
+
+  return;
+}
+
 
 if (bgClicks >= 5) {
   stage = 2;
