@@ -191,3 +191,36 @@ button:disabled {
 .sim.alerting .sim-bg {
   animation: redFlash 0.55s linear infinite;
 }
+/* =========================
+   CRACK OVERLAY
+   ========================= */
+
+.cracks {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998; /* under sim room (9999), above page */
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.cracks.show {
+  opacity: 1;
+}
+
+.cracks svg {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.35));
+}
+
+@keyframes crackPop {
+  0%   { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.crack-pop {
+  animation: crackPop 240ms ease-out;
+}
