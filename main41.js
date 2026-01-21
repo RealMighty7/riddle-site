@@ -1,26 +1,21 @@
 (() => {
   function boot() {
+    // Wait until the DOM exists (prevents "required element missing" on Vercel/head loads)
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", boot, { once: true });
       return;
     }
 
-    // debug: you should see this in console ONCE
-    console.log("[main41] loaded");
-
     const DIALOGUE = window.DIALOGUE;
     const TASKS = window.TASKS;
-    if (!DIALOGUE || !TASKS) return;
 
-    // prevent text highlighting (keeps buttons clickable)
-    document.addEventListener("selectstart", (e) => {
-      const t = e.target;
-      if (t && t.closest && t.closest("input, textarea")) return;
-      e.preventDefault();
-    });
+    if (!DIALOGUE || !TASKS) {
+      console.error("Missing dialogue.js or tasks.js. Check script order.");
+      return;
+    }
 
     /* ======================
-       RANDOM IMAGES
+       RANDOM IMAGES (12 pool)
     ====================== */
     const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
     document.querySelectorAll(".grid img").forEach(img => {
@@ -28,7 +23,7 @@
     });
 
     /* ======================
-       ELEMENTS (silent fail)
+       ELEMENTS (required IDs)
     ====================== */
     const ids = [
       "system","l1","l2","l3","cracks",
@@ -36,35 +31,42 @@
       "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
       "resetOverlay","resetTitle","resetBody"
     ];
-    const el = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
-    if (ids.some(id => !el[id])) return; // <-- NO banner, no spam
 
-    const systemBox = el.system;
-    const l1 = el.l1, l2 = el.l2, l3 = el.l3;
-    const cracks = el.cracks;
+    const els = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+    const missing = ids.filter(id => !els[id]);
 
-    const simRoom = el.simRoom;
-    const simText = el.simText;
-    const simChoices = el.simChoices;
-    const choiceNeed = el.choiceNeed;
-    const choiceLie = el.choiceLie;
-    const choiceRun = el.choiceRun;
+    if (missing.length) {
+      // Helpful debug, but doesn't spam your banner forever
+      console.error("Missing required element IDs:", missing);
+      return;
+    }
 
-    const taskUI = el.taskUI;
-    const taskTitle = el.taskTitle;
-    const taskDesc = el.taskDesc;
-    const taskBody = el.taskBody;
-    const taskPrimary = el.taskPrimary;
-    const taskSecondary = el.taskSecondary;
+    const systemBox = els.system;
+    const l1 = els.l1, l2 = els.l2, l3 = els.l3;
+    const cracks = els.cracks;
 
-    const resetOverlay = el.resetOverlay;
-    const resetTitle = el.resetTitle;
-    const resetBody = el.resetBody;
+    const simRoom = els.simRoom;
+    const simText = els.simText;
+    const simChoices = els.simChoices;
+    const choiceNeed = els.choiceNeed;
+    const choiceLie = els.choiceLie;
+    const choiceRun = els.choiceRun;
+
+    const taskUI = els.taskUI;
+    const taskTitle = els.taskTitle;
+    const taskDesc = els.taskDesc;
+    const taskBody = els.taskBody;
+    const taskPrimary = els.taskPrimary;
+    const taskSecondary = els.taskSecondary;
+
+    const resetOverlay = els.resetOverlay;
+    const resetTitle = els.resetTitle;
+    const resetBody = els.resetBody;
 
     resetOverlay.classList.add("hidden");
 
     /* ======================
-       TIMING
+       TIMING (225 WPM)
     ====================== */
     const WPM = 225;
     const MS_PER_WORD = 60000 / WPM;
@@ -81,7 +83,7 @@
     /* ======================
        STATE
     ====================== */
-    let stage = 1;
+    let stage = 1;         // 1 landing, 2 warning, 99 sim
     let clicks = 0;
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
@@ -92,6 +94,7 @@
     let choiceCompliant = 0;
 
     let resistanceScore = 0;
+
     function difficultyBoost() {
       return Math.max(0, Math.min(4, resistanceScore));
     }
@@ -103,7 +106,7 @@
     function clearTimers() { timers.forEach(t => clearTimeout(t)); timers = []; }
 
     /* ======================
-       UI
+       UI helpers
     ====================== */
     function appendSimLine(line) {
       simText.textContent += (line ? line : "") + "\n";
@@ -126,7 +129,9 @@
       simChoices.classList.remove("hidden");
       taskUI.classList.add("hidden");
     }
-    function hideChoices() { simChoices.classList.add("hidden"); }
+    function hideChoices() {
+      simChoices.classList.add("hidden");
+    }
 
     function showTaskUI(title, desc) {
       taskUI.classList.remove("hidden");
@@ -168,24 +173,39 @@
     /* ======================
        TASK RUNNER
     ====================== */
-    const taskContext = { taskPrimary, taskSecondary, taskBody, showTaskUI, doReset, difficultyBoost };
+    const taskContext = {
+      taskPrimary,
+      taskSecondary,
+      taskBody,
+      showTaskUI,
+      doReset,
+      difficultyBoost
+    };
 
     async function runSteps(steps) {
       for (const step of steps) {
-        if (step.say) { await playLines(step.say); continue; }
+        if (step.say) {
+          await playLines(step.say);
+          continue;
+        }
+
         if (step.task) {
           const fn = TASKS[step.task];
           if (fn) await fn(taskContext, step.args || {});
           continue;
         }
+
         if (step.filler) {
           const count = Number(step.filler.count || 1);
           const poolName = String(step.filler.pool || "filler_standard");
           const pool = DIALOGUE.fillerPools?.[poolName] || [];
+
           for (let i = 0; i < count; i++) {
             if (!pool.length) break;
             const pick = pool[Math.floor(Math.random() * pool.length)];
+
             if (pick.say) await playLines(pick.say);
+
             if (pick.task?.id) {
               const fn = TASKS[pick.task.id];
               if (fn) await fn(taskContext, pick.task.args || {});
@@ -195,12 +215,16 @@
       }
     }
 
+    /* ======================
+       SIM ENTRY
+    ====================== */
     async function openSimRoom() {
       stage = 99;
       simRoom.classList.remove("hidden");
       hideChoices();
       taskUI.classList.add("hidden");
       simText.textContent = "";
+
       await playLines(DIALOGUE.intro);
       showChoices();
     }
@@ -211,6 +235,7 @@
     choiceNeed.addEventListener("click", async () => {
       if (!recordChoice(true)) return;
       resistanceScore = Math.max(0, resistanceScore - 1);
+
       hideChoices();
       await playLines(DIALOGUE.branches.need.preface);
       await runSteps(DIALOGUE.branches.need.steps);
@@ -219,6 +244,7 @@
 
     choiceLie.addEventListener("click", async () => {
       if (!recordChoice(true)) return;
+
       hideChoices();
       await playLines(DIALOGUE.branches.lie.preface);
       await runSteps(DIALOGUE.branches.lie.steps);
@@ -228,12 +254,16 @@
     choiceRun.addEventListener("click", async () => {
       if (!recordChoice(false)) return;
       resistanceScore = Math.min(6, resistanceScore + 1);
+
       hideChoices();
       await playLines(DIALOGUE.branches.run.preface);
       await runSteps(DIALOGUE.branches.run.steps);
       showChoices();
     });
 
+    /* ======================
+       CLICK FILTER
+    ====================== */
     function isCountableClick(e) {
       const t = e.target;
       if (!t) return true;
@@ -242,7 +272,7 @@
     }
 
     /* ======================
-       CRACKS (GLASS SAFE)
+       CRACKS (fixed shards)
     ====================== */
     let crackBuilt = false;
 
@@ -258,13 +288,17 @@
       let x = startX, y = startY;
       let d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
       let a = angle;
+
       for (let i = 0; i < segments; i++) {
-        const tt = (i + 1) / segments;
-        a += (rnd() - 0.5) * (0.16 + wanderScale * tt);
+        const t = (i + 1) / segments;
+        a += (rnd() - 0.5) * (0.16 + wanderScale * t);
+
         const step = length / segments;
-        const jitter = (rnd() - 0.5) * (8 + 28 * tt);
+        const jitter = (rnd() - 0.5) * (8 + 28 * t);
+
         const dx = Math.cos(a) * step + Math.cos(a + Math.PI / 2) * jitter;
         const dy = Math.sin(a) * step + Math.sin(a + Math.PI / 2) * jitter;
+
         x += dx; y += dy;
         d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
       }
@@ -287,9 +321,9 @@
       const triple = (d) => {
         const dash = 999;
         return `
-          <path class="crack-under crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-          <path class="crack-line  crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-          <path class="crack-glint crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
+          <path class="crack-under crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
+          <path class="crack-line  crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
+          <path class="crack-glint crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
         `;
       };
 
@@ -299,6 +333,7 @@
           const baseAngle = rnd() * Math.PI * 2;
           const len = cfg.len[0] + rnd() * (cfg.len[1] - cfg.len[0]);
           const seg = cfg.seg[0] + Math.floor(rnd() * (cfg.seg[1] - cfg.seg[0] + 1));
+
           const d = makeWobblyPath(rnd, sx, sy, baseAngle, len, seg, cfg.wander);
           parts.push(triple(d));
 
@@ -306,9 +341,11 @@
             const bAngle = baseAngle + (rnd() < 0.5 ? -1 : 1) * (0.55 + rnd() * 0.60);
             const bLen = 60 + rnd() * (120 + cfg.id * 40);
             const bSeg = 3 + Math.floor(rnd() * 5);
+
             const anchorDist = len * (0.28 + rnd() * 0.22);
             const bx = sx + Math.cos(baseAngle) * anchorDist;
             const by = sy + Math.sin(baseAngle) * anchorDist;
+
             const bd = makeWobblyPath(rnd, bx, by, bAngle, bLen, bSeg, cfg.wander + 0.12);
             parts.push(triple(bd));
           }
@@ -316,7 +353,7 @@
         return `<g class="crack-stage" data-stage="${cfg.id}" style="display:none">${parts.join("")}</g>`;
       }).join("");
 
-      // shards: polyline (cannot fill)
+      // ✅ SHARDS: polyline (cannot "fill wedge"), stroke forced inline
       const shards = [];
       for (let i = 0; i < 18; i++) {
         const a = rnd() * Math.PI * 2;
@@ -334,14 +371,20 @@
         const delay = (0.03 * i + rnd() * 0.10).toFixed(2);
         const dur = (0.95 + rnd() * 0.55).toFixed(2);
 
-        shards.push(
-          `<polyline class="shard" fill="none" points="${p1} ${p2} ${p3}"
-            style="animation-delay:${delay}s;animation-duration:${dur}s;"/>`
-        );
+        shards.push(`
+          <polyline
+            class="shard"
+            fill="none"
+            stroke="rgba(235,245,255,.55)"
+            stroke-width="1.1"
+            points="${p1} ${p2} ${p3}"
+            style="animation-delay:${delay}s;animation-duration:${dur}s;"
+          />
+        `);
       }
 
       return `
-        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 1000 1000" fill="none" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
           ${stageMarkup}
           ${shards.join("")}
         </svg>
@@ -366,13 +409,17 @@
 
     function shatterToSim() {
       cracks.classList.add("flash", "shatter");
-      document.body.classList.add("sim-transition");
+      document.body.classList.add("shake", "sim-transition");
+
       setTimeout(() => {
         cracks.classList.add("hidden");
         openSimRoom();
       }, 1250);
     }
 
+    /* ======================
+       LANDING CLICK -> WARNING -> SHATTER
+    ====================== */
     document.addEventListener("click", (e) => {
       if (stage !== 1) return;
       if (!isCountableClick(e)) return;
@@ -392,8 +439,10 @@
         systemBox.classList.remove("hidden");
 
         l1.textContent = "That isn’t how this page is supposed to be used.";
+
         const t2 = msToRead(l1.textContent);
         setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, t2);
+
         const t3 = t2 + msToRead("You weren’t meant to interact with this.");
         setTimeout(() => { l3.textContent = "Stop."; }, t3);
 
