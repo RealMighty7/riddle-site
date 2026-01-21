@@ -8,6 +8,16 @@ body { margin: 0; background: #f6f7f9; color: #111; }
   padding: 0 16px 48px;
   transition: opacity .28s ease, transform .28s ease;
 }
+/* No text highlighting / dragging */
+*{
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+html, body{
+  -webkit-tap-highlight-color: transparent;
+}
 
 body.sim-transition #wrap { opacity: 0; transform: scale(.995); }
 
@@ -85,21 +95,21 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 9999;
+  z-index: 10000;
   opacity: 0;
   transform: translateZ(0);
 }
 
 #cracks.cracks.show{ opacity: 1; }
 
-/* subtle "glass" haze */
+/* lighter glass haze (no strong blue wash) */
 #cracks.cracks::before{
   content:"";
   position:absolute;
   inset:0;
-  backdrop-filter: blur(1.25px) saturate(1.05);
-  -webkit-backdrop-filter: blur(1.25px) saturate(1.05);
-  opacity: .35;
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  background: rgba(255,255,255,0.06);
 }
 
 #cracks.cracks svg{
@@ -109,7 +119,6 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   height:100%;
 }
 
-/* IMPORTANT: prevent ANY CSS from filling shards */
 #cracks .shard,
 #cracks .crack-path{
   fill: none !important;
@@ -121,20 +130,17 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   stroke-linejoin: round;
 }
 
-/* 3-layer crack look */
 #cracks .crack-under{
   stroke: rgba(0,0,0,.22);
   stroke-width: 3.25;
   filter: blur(.6px);
   opacity: .65;
 }
-
 #cracks .crack-line{
   stroke: rgba(255,255,255,.88);
   stroke-width: 1.8;
   opacity: .9;
 }
-
 #cracks .crack-glint{
   stroke: rgba(170,220,255,.85);
   stroke-width: 1.1;
@@ -142,27 +148,22 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   opacity: .9;
 }
 
-/* draw animation */
 #cracks.show .crack-path{
   animation: crackDraw 1.05s ease-out forwards;
 }
-@keyframes crackDraw{
-  to{ stroke-dashoffset: 0; }
-}
+@keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
 
-/* shards: thin, glassy lines (NOT solid wedges) */
 #cracks .shard{
   stroke: rgba(235,245,255,.55);
   stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
   opacity: 0;
   filter: drop-shadow(0 0 12px rgba(180,220,255,.35));
   animation: shardFly 1.15s ease-out forwards;
 }
-
-#cracks.shatter .shard{
-  opacity: 1;
-}
+#cracks.shatter .shard{ opacity: 1; }
 
 @keyframes shardFly{
   0%   { transform: translate(0,0) scale(1);   opacity: 0; }
@@ -170,7 +171,6 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   100% { transform: translate(0,0) scale(1.08); opacity: 0; }
 }
 
-/* quick flash */
 #cracks.flash::after{
   content:"";
   position:absolute;
@@ -184,6 +184,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   35%{opacity:.55}
   100%{opacity:0}
 }
+
 
 /* =========================
    SIM ROOM
