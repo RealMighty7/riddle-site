@@ -16,7 +16,7 @@ function populateImages() {
 populateImages();
 
 // ---------------------------
-// INTERACTION + PERSONAL ESCALATION
+// MAIN PAGE INTERACTION
 // ---------------------------
 const wrap = document.getElementById("wrap");
 const systemBox = document.getElementById("system");
@@ -29,10 +29,21 @@ const submitBtn = document.getElementById("submitBtn");
 const discordName = document.getElementById("discordName");
 const result = document.getElementById("result");
 
+// Simulation room elements
+const simRoom = document.getElementById("simRoom");
+const simText = document.getElementById("simText");
+const simChoices = document.getElementById("simChoices");
+const simContinue = document.getElementById("simContinue");
+const choiceNeed = document.getElementById("choiceNeed");
+const choiceLie = document.getElementById("choiceLie");
+const choiceRun = document.getElementById("choiceRun");
+const btnProceed = document.getElementById("btnProceed");
+
 let bgClicks = 0;
 let lastClickAt = 0;
-let stage = 1;
+let stage = 1;            // 1 = landing, 2 = warning, 3 = personal, 4 = sim room
 let postStopClicks = 0;
+
 let timers = [];
 
 function clearTimers() {
@@ -43,6 +54,49 @@ function clearTimers() {
 function isEmptyClick(e) {
   const tag = e.target?.tagName?.toLowerCase();
   return !["img", "p", "h1", "h2", "input", "button", "label", "pre"].includes(tag);
+}
+
+function typeLineAppend(text, delay = 0) {
+  timers.push(setTimeout(() => {
+    simText.textContent += text + "\n";
+  }, delay));
+}
+
+function openSimRoom() {
+  stage = 4;
+  simRoom.classList.remove("hidden");
+  simText.textContent = "";
+  simChoices.classList.add("hidden");
+  simContinue.classList.add("hidden");
+  simRoom.classList.remove("alerting");
+
+  // Cutscene script (personal)
+  typeLineAppend("...", 200);
+  typeLineAppend("hey—", 900);
+  typeLineAppend("you aren’t supposed to be here.", 1500);
+  typeLineAppend("this isn’t part of the puzzle.", 2200);
+  typeLineAppend("", 2500);
+  typeLineAppend("wait.", 2900);
+  typeLineAppend("how did you even get through?", 3400);
+
+  // Alarm escalation (still personal, but panicking)
+  timers.push(setTimeout(() => { simRoom.classList.add("alerting"); }, 4200));
+  typeLineAppend("", 4300);
+  typeLineAppend("code 3. CODE 3.", 4600);
+  typeLineAppend("no— don’t say it like that.", 5100);
+  typeLineAppend("stop calling it a code.", 5600);
+  typeLineAppend("…they’re going to hear you.", 6200);
+  typeLineAppend("", 6600);
+  typeLineAppend("listen.", 7000);
+  typeLineAppend("if you try to leave now, they’ll lock it.", 7500);
+  typeLineAppend("you need something first.", 8100);
+  typeLineAppend("something you can show them so they let you pass.", 8700);
+
+  // Stop flashing and show choices
+  timers.push(setTimeout(() => {
+    simRoom.classList.remove("alerting");
+    simChoices.classList.remove("hidden");
+  }, 9400));
 }
 
 wrap.addEventListener("click", e => {
@@ -96,22 +150,74 @@ wrap.addEventListener("click", e => {
     timers.push(setTimeout(() => l3.textContent = "Don’t make me report this.", 3600));
 
     timers.push(setTimeout(() => {
-      if (systemBox.querySelector("button")) return;
+      if (systemBox.querySelector("button[data-come-here='1']")) return;
 
       const btn = document.createElement("button");
       btn.textContent = "fine. come here.";
+      btn.dataset.comeHere = "1";
       btn.style.marginTop = "12px";
 
       btn.onclick = () => {
-        l1.textContent = "…okay. don’t touch anything.";
-        l2.textContent = "if someone asks, you were never here.";
+        // Transition into simulation room
+        l1.textContent = "";
+        l2.textContent = "";
         l3.textContent = "";
         btn.remove();
+
+        openSimRoom();
       };
 
       systemBox.appendChild(btn);
     }, 4300));
   }
+});
+
+// ---------------------------
+// SIM ROOM CHOICES
+// ---------------------------
+choiceNeed.addEventListener("click", () => {
+  simChoices.classList.add("hidden");
+  simText.textContent += "\n";
+  simText.textContent += "good.\n";
+  simText.textContent += "say it like you mean it.\n";
+  simText.textContent += "you were looking for answers, not trouble.\n";
+  simText.textContent += "\n";
+  simText.textContent += "take this. it’s proof you were sent.\n";
+  simText.textContent += "once you have it, they’ll let you slip out.\n";
+
+  simContinue.classList.remove("hidden");
+});
+
+choiceLie.addEventListener("click", () => {
+  simChoices.classList.add("hidden");
+  simText.textContent += "\n";
+  simText.textContent += "no.\n";
+  simText.textContent += "you don’t ‘accidentally’ push on a wall until it opens.\n";
+  simText.textContent += "don’t insult me.\n";
+
+  simContinue.classList.remove("hidden");
+});
+
+choiceRun.addEventListener("click", () => {
+  simChoices.classList.add("hidden");
+  simText.textContent += "\n";
+  simText.textContent += "don’t.\n";
+  simText.textContent += "if you run now, you’ll get reset.\n";
+  simText.textContent += "and i won’t remember you.\n";
+
+  simContinue.classList.remove("hidden");
+});
+
+// Proceed button: reveal completion panel in-universe
+btnProceed.addEventListener("click", () => {
+  simText.textContent += "\n";
+  simText.textContent += "you escaped the simulation and may proceed.\n";
+  simText.textContent += "enter your discord username below.\n";
+
+  // Scroll the old completion panel into view (still on main page)
+  simRoom.classList.add("hidden");
+  finish.classList.remove("hidden");
+  finish.scrollIntoView({ behavior: "smooth" });
 });
 
 // ---------------------------
@@ -135,9 +241,7 @@ submitBtn.addEventListener("click", async () => {
     if (!res.ok) throw new Error(data.error || "Failed");
 
     result.textContent =
-`You escaped the simulation and may proceed.
-
-verification:
+`verification:
 ${data.token}`;
     result.classList.remove("hidden");
   } catch (err) {
