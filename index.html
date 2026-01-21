@@ -1,1 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>index</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main id="wrap">
+    <header class="card">
+      <h1>Welcome</h1>
+      <p>
+        This page is currently under revision.<br><br>
+        Some content may be incomplete or displayed incorrectly.
+        If you believe you’ve reached this page in error, you may close it at any time.
+      </p>
+    </header>
+
+    <section class="grid card" aria-label="media">
+      <img src="https://images.unsplash.com/photo-1523966211575-eb4a01e7dd51?auto=format&fit=crop&w=600&q=60" alt="">
+      <img src="https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=600&q=60" alt="">
+      <img src="https://images.unsplash.com/photo-1520975958225-5a6d6b8a6c1a?auto=format&fit=crop&w=600&q=60" alt="">
+      <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=60" alt="">
+      <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=60" alt="">
+      <img src="https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?auto=format&fit=crop&w=600&q=60" alt="">
+    </section>
+
+    <section id="system" class="system card hidden" aria-live="polite">
+      <div class="sysline" id="l1"></div>
+      <div class="sysline" id="l2"></div>
+      <div class="sysline small" id="l3"></div>
+    </section>
+
+    <section id="finish" class="finish card hidden">
+      <h2>Completion</h2>
+      <p class="muted">Identification only. Never enter passwords.</p>
+
+      <label class="label">
+        Discord username
+        <input id="discordName" maxlength="64" placeholder="name#0000 or display name" />
+      </label>
+
+      <button id="submitBtn">Submit</button>
+
+      <pre id="result" class="result hidden"></pre>
+    </section>
+  </main>
+
+  <script src="/main.js"></script>
+</body>
+</html>
 
