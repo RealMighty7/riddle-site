@@ -1,469 +1,435 @@
 (() => {
   function boot() {
-    // If DOM isn't built yet, wait.
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", boot, { once: true });
       return;
     }
-  // If this page doesn't have the app root, just do nothing (prevents false errors)
-  if (!document.getElementById("simRoom") || !document.getElementById("cracks")) {
-    return;
-  }
 
+    const DIALOGUE = window.DIALOGUE;
+    const TASKS = window.TASKS;
+    if (!DIALOGUE || !TASKS) return;
 
-    // ---- your existing code starts here (keep everything else the same) ----
+    // If this script is ever loaded on a different page, just do nothing (no console spam).
+    if (!document.getElementById("simRoom") || !document.getElementById("cracks")) return;
 
-  const DIALOGUE = window.DIALOGUE;
-  const TASKS = window.TASKS;
-
-  if (!DIALOGUE || !TASKS) {
-    console.error("Missing dialogue.js or tasks.js. Check script order.");
-    return;
-  }
-
-  /* ======================
-     RANDOM IMAGES (12 pool)
-  ====================== */
-  const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
-  document.querySelectorAll(".grid img").forEach(img => {
-    img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
-  });
-
-  /* ======================
-      Check IDs
-  ======================= */
-  console.log("boot ok", {
-    readyState: document.readyState,
-    url: location.href,
-    hasSimRoom: !!document.getElementById("simRoom"),
-    hasSystem: !!document.getElementById("system"),
-    hasCracks: !!document.getElementById("cracks")
-  });
-
-  /* ======================
-     ELEMENTS (required IDs)
-  ====================== */
-  const requiredIds = [
-    "system","l1","l2","l3","cracks",
-    "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
-    "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
-    "resetOverlay","resetTitle","resetBody"
-  ];
-
-  const els = Object.fromEntries(requiredIds.map(id => [id, document.getElementById(id)]));
-  const missing = requiredIds.filter(id => !els[id]);
-  if (missing.length) {
-    console.error("Missing required element IDs:", missing);
-    return;
-  }
-
-  const systemBox = els.system;
-  const l1 = els.l1, l2 = els.l2, l3 = els.l3;
-  const cracks = els.cracks;
-
-  const simRoom = els.simRoom;
-  const simText = els.simText;
-  const simChoices = els.simChoices;
-  const choiceNeed = els.choiceNeed;
-  const choiceLie = els.choiceLie;
-  const choiceRun = els.choiceRun;
-
-  const taskUI = els.taskUI;
-  const taskTitle = els.taskTitle;
-  const taskDesc = els.taskDesc;
-  const taskBody = els.taskBody;
-  const taskPrimary = els.taskPrimary;
-  const taskSecondary = els.taskSecondary;
-
-  const resetOverlay = els.resetOverlay;
-  const resetTitle = els.resetTitle;
-  const resetBody = els.resetBody;
-
-  resetOverlay.classList.add("hidden");
-
-  /* ======================
-     TIMING (225 WPM)
-  ====================== */
-  const WPM = 225;
-  const MS_PER_WORD = 60000 / WPM;
-
-  function wordsCount(s) {
-    return String(s || "").trim().split(/\s+/).filter(Boolean).length;
-  }
-  function msToRead(line) {
-    const w = wordsCount(line);
-    if (!w) return 850;
-    return Math.max(1450, w * MS_PER_WORD + 850);
-  }
-
-  /* ======================
-     STATE
-  ====================== */
-  let stage = 1;         // 1 landing, 2 warning, 99 sim
-  let clicks = 0;
-  let lastClick = 0;
-  const CLICK_COOLDOWN = 650;
-
-  const MAX_COMPLIANT_RATIO = 0.40;
-  const MIN_CHOICES_BEFORE_CHECK = 10;
-  let choiceTotal = 0;
-  let choiceCompliant = 0;
-
-  let resistanceScore = 0;
-
-  function difficultyBoost() {
-    return Math.max(0, Math.min(4, resistanceScore));
-  }
-
-  /* ======================
-     TIMERS
-  ====================== */
-  let timers = [];
-  function clearTimers() { timers.forEach(t => clearTimeout(t)); timers = []; }
-
-  /* ======================
-     UI helpers
-  ====================== */
-  function appendSimLine(line) {
-    simText.textContent += (line ? line : "") + "\n";
-    simText.scrollTop = simText.scrollHeight;
-  }
-
-  function playLines(lines) {
-    clearTimers();
-    return new Promise(resolve => {
-      let t = 350;
-      for (const line of lines) {
-        timers.push(setTimeout(() => appendSimLine(line), t));
-        t += msToRead(line || " ");
-      }
-      timers.push(setTimeout(resolve, t + 250));
+    /* ======================
+       RANDOM IMAGES
+    ====================== */
+    const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
+    document.querySelectorAll(".grid img").forEach(img => {
+      img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
     });
-  }
 
-  function showChoices() {
-    simChoices.classList.remove("hidden");
-    taskUI.classList.add("hidden");
-  }
-  function hideChoices() {
-    simChoices.classList.add("hidden");
-  }
+    /* ======================
+       ELEMENTS
+    ====================== */
+    const ids = [
+      "system","l1","l2","l3","cracks",
+      "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
+      "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
+      "resetOverlay","resetTitle","resetBody"
+    ];
+    const el = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+    // If anything is missing, silently stop (prevents your bug banner forever).
+    if (ids.some(id => !el[id])) return;
 
-  function showTaskUI(title, desc) {
-    taskUI.classList.remove("hidden");
-    taskTitle.textContent = title;
-    taskDesc.textContent = desc;
-    taskBody.innerHTML = "";
-    taskSecondary.classList.add("hidden");
-    taskPrimary.disabled = false;
-  }
+    const systemBox = el.system;
+    const l1 = el.l1, l2 = el.l2, l3 = el.l3;
+    const cracks = el.cracks;
 
-  function hardReload() {
-    window.location.href = window.location.href.split("#")[0];
-  }
+    const simRoom = el.simRoom;
+    const simText = el.simText;
+    const simChoices = el.simChoices;
+    const choiceNeed = el.choiceNeed;
+    const choiceLie = el.choiceLie;
+    const choiceRun = el.choiceRun;
 
-  function doReset(reasonTitle, reasonBody) {
-    resetTitle.textContent = reasonTitle || "RESET";
-    resetBody.textContent = reasonBody || "";
-    resetOverlay.classList.remove("hidden");
-    setTimeout(hardReload, 1800);
-  }
+    const taskUI = el.taskUI;
+    const taskTitle = el.taskTitle;
+    const taskDesc = el.taskDesc;
+    const taskBody = el.taskBody;
+    const taskPrimary = el.taskPrimary;
+    const taskSecondary = el.taskSecondary;
 
-  function recordChoice(isCompliant) {
-    choiceTotal++;
-    if (isCompliant) choiceCompliant++;
+    const resetOverlay = el.resetOverlay;
+    const resetTitle = el.resetTitle;
+    const resetBody = el.resetBody;
 
-    if (choiceTotal >= MIN_CHOICES_BEFORE_CHECK) {
-      const ratio = choiceCompliant / choiceTotal;
-      if (ratio > MAX_COMPLIANT_RATIO) {
-        doReset(
-          "TOO COMPLIANT",
-          `Compliance threshold exceeded.\n\ncompliant: ${choiceCompliant}\ntotal: ${choiceTotal}\nratio: ${(ratio * 100).toFixed(0)}%\n\nReinitializing simulation…`
-        );
-        return false;
-      }
+    resetOverlay.classList.add("hidden");
+
+    /* ======================
+       TIMING
+    ====================== */
+    const WPM = 225;
+    const MS_PER_WORD = 60000 / WPM;
+
+    function wordsCount(s) {
+      return String(s || "").trim().split(/\s+/).filter(Boolean).length;
     }
-    return true;
-  }
+    function msToRead(line) {
+      const w = wordsCount(line);
+      if (!w) return 850;
+      return Math.max(1450, w * MS_PER_WORD + 850);
+    }
 
-  /* ======================
-     TASK RUNNER
-  ====================== */
-  const taskContext = {
-    taskPrimary,
-    taskSecondary,
-    taskBody,
-    showTaskUI,
-    doReset,
-    difficultyBoost
-  };
+    /* ======================
+       STATE
+    ====================== */
+    let stage = 1; // 1 landing, 2 warning, 99 sim
+    let clicks = 0;
+    let lastClick = 0;
+    const CLICK_COOLDOWN = 650;
 
-  async function runSteps(steps) {
-    for (const step of steps) {
-      if (step.say) {
-        await playLines(step.say);
-        continue;
+    const MAX_COMPLIANT_RATIO = 0.40;
+    const MIN_CHOICES_BEFORE_CHECK = 10;
+    let choiceTotal = 0;
+    let choiceCompliant = 0;
+
+    let resistanceScore = 0;
+    function difficultyBoost() {
+      return Math.max(0, Math.min(4, resistanceScore));
+    }
+
+    /* ======================
+       TIMERS
+    ====================== */
+    let timers = [];
+    function clearTimers() { timers.forEach(t => clearTimeout(t)); timers = []; }
+
+    /* ======================
+       UI helpers
+    ====================== */
+    function appendSimLine(line) {
+      simText.textContent += (line ? line : "") + "\n";
+      simText.scrollTop = simText.scrollHeight;
+    }
+
+    function playLines(lines) {
+      clearTimers();
+      return new Promise(resolve => {
+        let t = 350;
+        for (const line of lines) {
+          timers.push(setTimeout(() => appendSimLine(line), t));
+          t += msToRead(line || " ");
+        }
+        timers.push(setTimeout(resolve, t + 250));
+      });
+    }
+
+    function showChoices() {
+      simChoices.classList.remove("hidden");
+      taskUI.classList.add("hidden");
+    }
+    function hideChoices() {
+      simChoices.classList.add("hidden");
+    }
+
+    function showTaskUI(title, desc) {
+      taskUI.classList.remove("hidden");
+      taskTitle.textContent = title;
+      taskDesc.textContent = desc;
+      taskBody.innerHTML = "";
+      taskSecondary.classList.add("hidden");
+      taskPrimary.disabled = false;
+    }
+
+    function hardReload() {
+      window.location.href = window.location.href.split("#")[0];
+    }
+
+    function doReset(reasonTitle, reasonBody) {
+      resetTitle.textContent = reasonTitle || "RESET";
+      resetBody.textContent = reasonBody || "";
+      resetOverlay.classList.remove("hidden");
+      setTimeout(hardReload, 1800);
+    }
+
+    function recordChoice(isCompliant) {
+      choiceTotal++;
+      if (isCompliant) choiceCompliant++;
+
+      if (choiceTotal >= MIN_CHOICES_BEFORE_CHECK) {
+        const ratio = choiceCompliant / choiceTotal;
+        if (ratio > MAX_COMPLIANT_RATIO) {
+          doReset(
+            "TOO COMPLIANT",
+            `Compliance threshold exceeded.\n\ncompliant: ${choiceCompliant}\ntotal: ${choiceTotal}\nratio: ${(ratio * 100).toFixed(0)}%\n\nReinitializing simulation…`
+          );
+          return false;
+        }
       }
+      return true;
+    }
 
-      if (step.task) {
-        const fn = TASKS[step.task];
-        if (fn) await fn(taskContext, step.args || {});
-        continue;
-      }
+    /* ======================
+       TASK RUNNER
+    ====================== */
+    const taskContext = {
+      taskPrimary,
+      taskSecondary,
+      taskBody,
+      showTaskUI,
+      doReset,
+      difficultyBoost
+    };
 
-      if (step.filler) {
-        const count = Number(step.filler.count || 1);
-        const poolName = String(step.filler.pool || "filler_standard");
-        const pool = DIALOGUE.fillerPools?.[poolName] || [];
-
-        for (let i = 0; i < count; i++) {
-          if (!pool.length) break;
-          const pick = pool[Math.floor(Math.random() * pool.length)];
-
-          if (pick.say) await playLines(pick.say);
-
-          if (pick.task?.id) {
-            const fn = TASKS[pick.task.id];
-            if (fn) await fn(taskContext, pick.task.args || {});
+    async function runSteps(steps) {
+      for (const step of steps) {
+        if (step.say) {
+          await playLines(step.say);
+          continue;
+        }
+        if (step.task) {
+          const fn = TASKS[step.task];
+          if (fn) await fn(taskContext, step.args || {});
+          continue;
+        }
+        if (step.filler) {
+          const count = Number(step.filler.count || 1);
+          const poolName = String(step.filler.pool || "filler_standard");
+          const pool = DIALOGUE.fillerPools?.[poolName] || [];
+          for (let i = 0; i < count; i++) {
+            if (!pool.length) break;
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            if (pick.say) await playLines(pick.say);
+            if (pick.task?.id) {
+              const fn = TASKS[pick.task.id];
+              if (fn) await fn(taskContext, pick.task.args || {});
+            }
           }
         }
-        continue;
       }
     }
-  }
 
-  /* ======================
-     SIM ENTRY
-  ====================== */
-  async function openSimRoom() {
-    stage = 99;
-    simRoom.classList.remove("hidden");
-    hideChoices();
-    taskUI.classList.add("hidden");
-    simText.textContent = "";
+    /* ======================
+       SIM ENTRY
+    ====================== */
+    async function openSimRoom() {
+      stage = 99;
+      simRoom.classList.remove("hidden");
+      hideChoices();
+      taskUI.classList.add("hidden");
+      simText.textContent = "";
 
-    await playLines(DIALOGUE.intro);
-    showChoices();
-  }
-
-  /* ======================
-     CHOICES
-  ====================== */
-  choiceNeed.addEventListener("click", async () => {
-    if (!recordChoice(true)) return;
-    resistanceScore = Math.max(0, resistanceScore - 1);
-
-    hideChoices();
-    await playLines(DIALOGUE.branches.need.preface);
-    await runSteps(DIALOGUE.branches.need.steps);
-    showChoices();
-  });
-
-  choiceLie.addEventListener("click", async () => {
-    if (!recordChoice(true)) return;
-
-    hideChoices();
-    await playLines(DIALOGUE.branches.lie.preface);
-    await runSteps(DIALOGUE.branches.lie.steps);
-    showChoices();
-  });
-
-  choiceRun.addEventListener("click", async () => {
-    if (!recordChoice(false)) return;
-    resistanceScore = Math.min(6, resistanceScore + 1);
-
-    hideChoices();
-    await playLines(DIALOGUE.branches.run.preface);
-    await runSteps(DIALOGUE.branches.run.steps);
-    showChoices();
-  });
-
-  /* ======================
-     CLICK FILTER
-  ====================== */
-  function isCountableClick(e) {
-    const t = e.target;
-    if (!t) return true;
-    if (t.closest("button, input, textarea, select, label, a, pre, img")) return false;
-    return true;
-  }
-
-  /* ======================
-     CRACKS (GLASS SAFE SVG)
-  ====================== */
-  let crackBuilt = false;
-
-  function seededRandFactory() {
-    let seed = Math.floor(Math.random() * 2147483647);
-    return function rnd() {
-      seed = (1103515245 * seed + 12345) % 2147483647;
-      return seed / 2147483647;
-    };
-  }
-
-  function makeWobblyPath(rnd, startX, startY, angle, length, segments, wanderScale) {
-    let x = startX, y = startY;
-    let d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
-    let a = angle;
-
-    for (let i = 0; i < segments; i++) {
-      const t = (i + 1) / segments;
-      a += (rnd() - 0.5) * (0.16 + wanderScale * t);
-
-      const step = length / segments;
-      const jitter = (rnd() - 0.5) * (8 + 28 * t);
-
-      const dx = Math.cos(a) * step + Math.cos(a + Math.PI / 2) * jitter;
-      const dy = Math.sin(a) * step + Math.sin(a + Math.PI / 2) * jitter;
-
-      x += dx; y += dy;
-      d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
-    }
-    return d;
-  }
-
-  function buildCrackSVG() {
-    const rnd = seededRandFactory();
-    const cx = 500, cy = 500;
-
-    const sx = cx + (rnd() - 0.5) * 12;
-    const sy = cy + (rnd() - 0.5) * 12;
-
-    const stages = [
-      { id: 1, main: 3, branchChance: 0.35, len: [110, 190], seg: [4, 6], wander: 0.20 },
-      { id: 2, main: 5, branchChance: 0.55, len: [170, 280], seg: [5, 8], wander: 0.28 },
-      { id: 3, main: 7, branchChance: 0.75, len: [240, 420], seg: [6, 10], wander: 0.36 },
-    ];
-
-    const triple = (d) => {
-      const dash = 999;
-      return `
-        <path class="crack-under crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-        <path class="crack-line  crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-        <path class="crack-glint crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-      `;
-    };
-
-    const stageMarkup = stages.map(cfg => {
-      const parts = [];
-      for (let i = 0; i < cfg.main; i++) {
-        const baseAngle = rnd() * Math.PI * 2;
-        const len = cfg.len[0] + rnd() * (cfg.len[1] - cfg.len[0]);
-        const seg = cfg.seg[0] + Math.floor(rnd() * (cfg.seg[1] - cfg.seg[0] + 1));
-
-        const d = makeWobblyPath(rnd, sx, sy, baseAngle, len, seg, cfg.wander);
-        parts.push(triple(d));
-
-        if (rnd() < cfg.branchChance) {
-          const bAngle = baseAngle + (rnd() < 0.5 ? -1 : 1) * (0.55 + rnd() * 0.60);
-          const bLen = 60 + rnd() * (120 + cfg.id * 40);
-          const bSeg = 3 + Math.floor(rnd() * 5);
-
-          const anchorDist = len * (0.28 + rnd() * 0.22);
-          const bx = sx + Math.cos(baseAngle) * anchorDist;
-          const by = sy + Math.sin(baseAngle) * anchorDist;
-
-          const bd = makeWobblyPath(rnd, bx, by, bAngle, bLen, bSeg, cfg.wander + 0.12);
-          parts.push(triple(bd));
-        }
-      }
-      return `<g class="crack-stage" data-stage="${cfg.id}" style="display:none">${parts.join("")}</g>`;
-    }).join("");
-
-    const shards = [];
-    for (let i = 0; i < 18; i++) {
-      const a = rnd() * Math.PI * 2;
-      const r = 90 + rnd() * 340;
-      const px = cx + Math.cos(a) * r;
-      const py = cy + Math.sin(a) * r;
-
-      const size = 60 + rnd() * 130;
-      const a2 = a + (rnd() - 0.5) * 1.0;
-
-      const p1 = `${px.toFixed(1)},${py.toFixed(1)}`;
-      const p2 = `${(px + Math.cos(a2) * size).toFixed(1)},${(py + Math.sin(a2) * size).toFixed(1)}`;
-      const p3 = `${(px + Math.cos(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)},${(py + Math.sin(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)}`;
-
-      const delay = (0.03 * i + rnd() * 0.10).toFixed(2);
-      const dur = (0.95 + rnd() * 0.55).toFixed(2);
-
-      shards.push(
-        `<polyline class="shard" points="${p1} ${p2} ${p3}"
-          style="animation-delay:${delay}s;animation-duration:${dur}s;"/>`
-      );
+      await playLines(DIALOGUE.intro);
+      showChoices();
     }
 
-    return `
-      <svg viewBox="0 0 1000 1000" fill="none" preserveAspectRatio="none"
-           xmlns="http://www.w3.org/2000/svg">
-        ${stageMarkup}
-        ${shards.join("")}
-      </svg>
-    `;
-  }
+    /* ======================
+       CHOICES
+    ====================== */
+    choiceNeed.addEventListener("click", async () => {
+      if (!recordChoice(true)) return;
+      resistanceScore = Math.max(0, resistanceScore - 1);
 
-  function ensureCracks() {
-    if (crackBuilt) return;
-    cracks.innerHTML = buildCrackSVG();
-    crackBuilt = true;
-  }
-
-  function showCrackStage(n) {
-    ensureCracks();
-    cracks.classList.remove("hidden");
-    cracks.classList.add("show");
-    cracks.querySelectorAll(".crack-stage").forEach(g => {
-      const s = Number(g.getAttribute("data-stage"));
-      if (s <= n) g.style.display = "block";
+      hideChoices();
+      await playLines(DIALOGUE.branches.need.preface);
+      await runSteps(DIALOGUE.branches.need.steps);
+      showChoices();
     });
-  }
 
-  function shatterToSim() {
-    cracks.classList.add("flash", "shatter");
-    document.body.classList.add("shake", "sim-transition");
+    choiceLie.addEventListener("click", async () => {
+      if (!recordChoice(true)) return;
 
-    setTimeout(() => {
-      cracks.classList.add("hidden");
-      openSimRoom();
-    }, 1250);
-  }
+      hideChoices();
+      await playLines(DIALOGUE.branches.lie.preface);
+      await runSteps(DIALOGUE.branches.lie.steps);
+      showChoices();
+    });
 
-  /* ======================
-     LANDING CLICK -> WARNING -> SHATTER
-  ====================== */
-  document.addEventListener("click", (e) => {
-    if (stage !== 1) return;
-    if (!isCountableClick(e)) return;
+    choiceRun.addEventListener("click", async () => {
+      if (!recordChoice(false)) return;
+      resistanceScore = Math.min(6, resistanceScore + 1);
 
-    const now = Date.now();
-    if (now - lastClick < CLICK_COOLDOWN) return;
-    lastClick = now;
+      hideChoices();
+      await playLines(DIALOGUE.branches.run.preface);
+      await runSteps(DIALOGUE.branches.run.steps);
+      showChoices();
+    });
 
-    clicks++;
-
-    if (clicks === 4) showCrackStage(1);
-    if (clicks === 6) showCrackStage(2);
-    if (clicks === 8) showCrackStage(3);
-
-    if (clicks >= 9) {
-      stage = 2;
-      systemBox.classList.remove("hidden");
-
-      l1.textContent = "That isn’t how this page is supposed to be used.";
-
-      const t2 = msToRead(l1.textContent);
-      setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, t2);
-
-      const t3 = t2 + msToRead("You weren’t meant to interact with this.");
-      setTimeout(() => { l3.textContent = "Stop."; }, t3);
-
-      const tShatter = t3 + msToRead("Stop.") + 850;
-      setTimeout(shatterToSim, tShatter);
+    /* ======================
+       CLICK FILTER
+    ====================== */
+    function isCountableClick(e) {
+      const t = e.target;
+      if (!t) return true;
+      if (t.closest("button, input, textarea, select, label, a, pre, img")) return false;
+      return true;
     }
-  });
-    // ---- your existing code ends here ----
+
+    /* ======================
+       CRACKS (GLASS SAFE SVG)
+    ====================== */
+    let crackBuilt = false;
+
+    function seededRandFactory() {
+      let seed = Math.floor(Math.random() * 2147483647);
+      return function rnd() {
+        seed = (1103515245 * seed + 12345) % 2147483647;
+        return seed / 2147483647;
+      };
+    }
+
+    function makeWobblyPath(rnd, startX, startY, angle, length, segments, wanderScale) {
+      let x = startX, y = startY;
+      let d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
+      let a = angle;
+      for (let i = 0; i < segments; i++) {
+        const tt = (i + 1) / segments;
+        a += (rnd() - 0.5) * (0.16 + wanderScale * tt);
+
+        const step = length / segments;
+        const jitter = (rnd() - 0.5) * (8 + 28 * tt);
+
+        const dx = Math.cos(a) * step + Math.cos(a + Math.PI / 2) * jitter;
+        const dy = Math.sin(a) * step + Math.sin(a + Math.PI / 2) * jitter;
+
+        x += dx; y += dy;
+        d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+      }
+      return d;
+    }
+
+    function buildCrackSVG() {
+      const rnd = seededRandFactory();
+      const cx = 500, cy = 500;
+
+      const sx = cx + (rnd() - 0.5) * 12;
+      const sy = cy + (rnd() - 0.5) * 12;
+
+      const stages = [
+        { id: 1, main: 3, branchChance: 0.35, len: [110, 190], seg: [4, 6], wander: 0.20 },
+        { id: 2, main: 5, branchChance: 0.55, len: [170, 280], seg: [5, 8], wander: 0.28 },
+        { id: 3, main: 7, branchChance: 0.75, len: [240, 420], seg: [6, 10], wander: 0.36 },
+      ];
+
+      const triple = (d) => {
+        const dash = 999;
+        return `
+          <path class="crack-under crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
+          <path class="crack-line  crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
+          <path class="crack-glint crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
+        `;
+      };
+
+      const stageMarkup = stages.map(cfg => {
+        const parts = [];
+        for (let i = 0; i < cfg.main; i++) {
+          const baseAngle = rnd() * Math.PI * 2;
+          const len = cfg.len[0] + rnd() * (cfg.len[1] - cfg.len[0]);
+          const seg = cfg.seg[0] + Math.floor(rnd() * (cfg.seg[1] - cfg.seg[0] + 1));
+
+          const d = makeWobblyPath(rnd, sx, sy, baseAngle, len, seg, cfg.wander);
+          parts.push(triple(d));
+
+          if (rnd() < cfg.branchChance) {
+            const bAngle = baseAngle + (rnd() < 0.5 ? -1 : 1) * (0.55 + rnd() * 0.60);
+            const bLen = 60 + rnd() * (120 + cfg.id * 40);
+            const bSeg = 3 + Math.floor(rnd() * 5);
+
+            const anchorDist = len * (0.28 + rnd() * 0.22);
+            const bx = sx + Math.cos(baseAngle) * anchorDist;
+            const by = sy + Math.sin(baseAngle) * anchorDist;
+
+            const bd = makeWobblyPath(rnd, bx, by, bAngle, bLen, bSeg, cfg.wander + 0.12);
+            parts.push(triple(bd));
+          }
+        }
+        return `<g class="crack-stage" data-stage="${cfg.id}" style="display:none">${parts.join("")}</g>`;
+      }).join("");
+
+      // shards: polyline with fill="none" FORCED inline
+      const shards = [];
+      for (let i = 0; i < 18; i++) {
+        const a = rnd() * Math.PI * 2;
+        const r = 90 + rnd() * 340;
+        const px = cx + Math.cos(a) * r;
+        const py = cy + Math.sin(a) * r;
+
+        const size = 60 + rnd() * 130;
+        const a2 = a + (rnd() - 0.5) * 1.0;
+
+        const p1 = `${px.toFixed(1)},${py.toFixed(1)}`;
+        const p2 = `${(px + Math.cos(a2) * size).toFixed(1)},${(py + Math.sin(a2) * size).toFixed(1)}`;
+        const p3 = `${(px + Math.cos(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)},${(py + Math.sin(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)}`;
+
+        const delay = (0.03 * i + rnd() * 0.10).toFixed(2);
+        const dur = (0.95 + rnd() * 0.55).toFixed(2);
+
+        shards.push(
+          `<polyline class="shard" fill="none" points="${p1} ${p2} ${p3}"
+            style="animation-delay:${delay}s;animation-duration:${dur}s;"/>`
+        );
+      }
+
+      return `
+        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none"
+             xmlns="http://www.w3.org/2000/svg">
+          ${stageMarkup}
+          ${shards.join("")}
+        </svg>
+      `;
+    }
+
+    function ensureCracks() {
+      if (crackBuilt) return;
+      cracks.innerHTML = buildCrackSVG();
+      crackBuilt = true;
+    }
+
+    function showCrackStage(n) {
+      ensureCracks();
+      cracks.classList.remove("hidden");
+      cracks.classList.add("show");
+      cracks.querySelectorAll(".crack-stage").forEach(g => {
+        const s = Number(g.getAttribute("data-stage"));
+        if (s <= n) g.style.display = "block";
+      });
+    }
+
+    function shatterToSim() {
+      cracks.classList.add("flash", "shatter");
+      document.body.classList.add("sim-transition");
+      setTimeout(() => {
+        cracks.classList.add("hidden");
+        openSimRoom();
+      }, 1250);
+    }
+
+    /* ======================
+       LANDING CLICK -> WARNING -> SHATTER
+    ====================== */
+    document.addEventListener("click", (e) => {
+      if (stage !== 1) return;
+      if (!isCountableClick(e)) return;
+
+      const now = Date.now();
+      if (now - lastClick < CLICK_COOLDOWN) return;
+      lastClick = now;
+
+      clicks++;
+
+      if (clicks === 4) showCrackStage(1);
+      if (clicks === 6) showCrackStage(2);
+      if (clicks === 8) showCrackStage(3);
+
+      if (clicks >= 9) {
+        stage = 2;
+        systemBox.classList.remove("hidden");
+
+        l1.textContent = "That isn’t how this page is supposed to be used.";
+
+        const t2 = msToRead(l1.textContent);
+        setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, t2);
+
+        const t3 = t2 + msToRead("You weren’t meant to interact with this.");
+        setTimeout(() => { l3.textContent = "Stop."; }, t3);
+
+        const tShatter = t3 + msToRead("Stop.") + 850;
+        setTimeout(shatterToSim, tShatter);
+      }
+    });
   }
 
   boot();
 })();
-
