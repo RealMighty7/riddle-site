@@ -22,7 +22,7 @@ function clearTimers() { timers.forEach(t => clearTimeout(t)); timers = []; }
    too high => reset (too compliant)
 */
 let compliance = 0;
-const TOO_COMPLIANT = 3;
+const TOO_COMPLIANT = 5;
 
 /* ======================
    ELEMENTS
