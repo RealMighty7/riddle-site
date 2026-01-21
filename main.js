@@ -25,6 +25,16 @@
     /* ======================
        ELEMENTS (required IDs)
     ====================== */
+  const requiredIds = [
+    "system","l1","l2","l3","cracks",
+    "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
+    "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
+    "resetOverlay","resetTitle","resetBody"
+  ];
+
+  console.log("Missing IDs:", requiredIds.filter(id => !document.getElementById(id)));
+
+    
     const ids = [
       "system","l1","l2","l3","cracks",
       "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
