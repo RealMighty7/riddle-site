@@ -18,6 +18,15 @@ let bgClicks = 0;
 let triggered = false;
 let lastClickAt = 0;
 
+let stage = 1;            // 1 = landing, 2 = warning shown, 3 = personal mode
+let postStopClicks = 0;   // clicks after "Stop."
+let personalTimeouts = [];
+
+function clearPersonalTimers() {
+  for (const t of personalTimeouts) clearTimeout(t);
+  personalTimeouts = [];
+}
+
 function isClickOnEmptySpace(e) {
   // Treat clicks on images/text/inputs/buttons as NOT empty space
   const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
@@ -42,27 +51,74 @@ if (bgClicks === 3) {
   setTimeout(() => (document.body.style.transform = ""), 50);
 }
 
-if (bgClicks >= 5) {
-  triggered = true;
-  systemBox.classList.remove("hidden");
-
-  l1.textContent = "That isn’t how this page is supposed to be used.";
-  setTimeout(() => {
-    l2.textContent = "You weren’t meant to interact with this.";
-  }, 1800);
-  setTimeout(() => {
-    l3.textContent = "Stop.";
-  }, 3200);
+if (bgClicks === 3) {
+  // subtle flicker to make them question it
+  document.body.style.transform = "translateX(1px)";
+  setTimeout(() => (document.body.style.transform = ""), 50);
 }
 
+if (!triggered && bgClicks >= 5) {
+  triggered = true;
+  stage = 2;
 
-    // Reveal completion area after a short pause (later this becomes your next “phase”)
-    setTimeout(() => {
-      finish.classList.remove("hidden");
-      finish.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 5200);
+  systemBox.classList.remove("hidden");
+  l1.textContent = "That isn’t how this page is supposed to be used.";
+  personalTimeouts.push(setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, 1800));
+  personalTimeouts.push(setTimeout(() => { l3.textContent = "Stop."; }, 3200));
+
+  // Reveal completion area later (keep this for now)
+  personalTimeouts.push(setTimeout(() => {
+    finish.classList.remove("hidden");
+    finish.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 5200));
+
+  return;
+}
+
+// ---------------------------
+// STATE 3: Personal reaction
+// After "Stop.", one more empty click triggers "someone is watching" mode
+// ---------------------------
+if (stage === 2) {
+  postStopClicks += 1;
+
+  // Wait until the "Stop." line has appeared before reacting personally
+  const stopIsVisible = (l3.textContent || "").trim().length > 0;
+  if (!stopIsVisible) return;
+
+  if (postStopClicks >= 1) {
+    stage = 3;
+    clearPersonalTimers();
+
+    // Replace lines with personal dialogue
+    l1.textContent = "...";
+    l2.textContent = "";
+    l3.textContent = "";
+
+    personalTimeouts.push(setTimeout(() => { l1.textContent = "Hey."; }, 900));
+    personalTimeouts.push(setTimeout(() => { l2.textContent = "Why are you still clicking?"; }, 1800));
+    personalTimeouts.push(setTimeout(() => { l3.textContent = "You can’t be here."; }, 2700));
+    personalTimeouts.push(setTimeout(() => { l3.textContent = "Don’t make me report this."; }, 3600));
+
+    // Add a single "come here" button after the last line
+    personalTimeouts.push(setTimeout(() => {
+      const btn = document.createElement("button");
+      btn.textContent = "fine. come here.";
+      btn.style.marginTop = "12px";
+
+      btn.addEventListener("click", () => {
+        // Next chapter placeholder
+        l1.textContent = "…okay. don’t touch anything.";
+        l2.textContent = "if someone asks, you were never here.";
+        l3.textContent = "";
+        btn.remove();
+      });
+
+      systemBox.appendChild(btn);
+    }, 4300));
   }
-});
+}
+
 
 // ---------------------------
 // Completion submit -> calls /api/complete (hosted on Vercel)
