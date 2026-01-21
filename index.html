@@ -7,7 +7,6 @@
 
   <link rel="stylesheet" href="/styles.css?v=40">
 
-  <!-- Load once, in order, after parsing HTML -->
   <script src="/dialogue.js?v=40" defer></script>
   <script src="/tasks.js?v=40" defer></script>
   <script src="/main.js?v=40" defer></script>
@@ -35,32 +34,15 @@
       <img data-slot="5" alt="">
     </section>
 
-    <!-- crack overlay -->
     <div id="cracks" class="cracks hidden" aria-hidden="true"></div>
 
-    <!-- system warning -->
     <section id="system" class="system card hidden" aria-live="polite">
       <div id="l1" class="sysline"></div>
       <div id="l2" class="sysline"></div>
       <div id="l3" class="sysline small"></div>
     </section>
-
-    <!-- completion (NOT used yet) -->
-    <section id="finish" class="finish card hidden">
-      <h2>Completion</h2>
-      <p class="muted">Identification only. Never enter passwords.</p>
-
-      <label class="label">
-        Discord username
-        <input id="discordName" maxlength="64" placeholder="name#0000 or display name">
-      </label>
-
-      <button id="submitBtn">Submit</button>
-      <pre id="result" class="result hidden"></pre>
-    </section>
   </main>
 
-  <!-- SIMULATION ROOM -->
   <section id="simRoom" class="sim hidden" aria-live="polite">
     <div class="sim-bg"></div>
     <div class="sim-panel">
@@ -86,7 +68,6 @@
       </div>
     </div>
 
-    <!-- reset overlay -->
     <div id="resetOverlay" class="reset hidden" aria-hidden="true">
       <div class="reset-card">
         <div id="resetTitle" class="reset-title"></div>
