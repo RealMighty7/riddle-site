@@ -1,44 +1,39 @@
 :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-
 body { margin: 0; background: #f6f7f9; color: #111; }
 
-#wrap {
-  max-width: 900px;
-  margin: 24px auto;
-  padding: 0 16px 48px;
-  transition: opacity .28s ease, transform .28s ease;
-}
-/* No text highlighting / dragging */
+/* === disable highlighting everywhere === */
 *{
   -webkit-user-select: none;
   user-select: none;
   -webkit-user-drag: none;
 }
+html, body { -webkit-tap-highlight-color: transparent; }
 
-html, body{
-  -webkit-tap-highlight-color: transparent;
+#wrap{
+  max-width: 900px;
+  margin: 24px auto;
+  padding: 0 16px 48px;
+  transition: opacity .28s ease, transform .28s ease;
 }
-
 body.sim-transition #wrap { opacity: 0; transform: scale(.995); }
 
-.card {
+.card{
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 16px;
 }
 
-h1 { margin: 0 0 8px; font-size: 20px; font-weight: 650; }
-p { margin: 0; line-height: 1.4; }
+h1{ margin: 0 0 8px; font-size: 20px; font-weight: 650; }
+p{ margin: 0; line-height: 1.4; }
 
-.grid {
+.grid{
   margin-top: 16px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
-
-.grid img {
+.grid img{
   width: 100%;
   height: 160px;
   object-fit: cover;
@@ -47,50 +42,14 @@ p { margin: 0; line-height: 1.4; }
 }
 
 .system { margin-top: 16px; }
-.sysline { font-size: 16px; margin: 6px 0; }
-.sysline.small { font-size: 13px; opacity: .7; }
+.sysline{ font-size: 16px; margin: 6px 0; }
+.sysline.small{ font-size: 13px; opacity: .7; }
 
-.hidden { display: none !important; }
-
-.finish { margin-top: 16px; }
-
-.label { display: block; margin: 10px 0; font-size: 14px; }
-
-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #d1d5db;
-}
-
-button {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #111;
-  background: #111;
-  color: #fff;
-  cursor: pointer;
-}
-
-button:disabled { opacity: .6; cursor: not-allowed; }
-
-.muted { opacity: .7; font-size: 13px; margin-bottom: 8px; }
-
-.result {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 10px;
-  background: #0b1020;
-  color: #e5e7eb;
-  overflow: auto;
-}
+.hidden{ display:none !important; }
 
 /* =========================
-   GLASS CRACK OVERLAY (FIX)
-   Put this at the END of styles.css
+   GLASS CRACK OVERLAY (hard-forced)
 ========================= */
-
 #cracks.cracks{
   position: fixed;
   inset: 0;
@@ -99,10 +58,9 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   opacity: 0;
   transform: translateZ(0);
 }
-
 #cracks.cracks.show{ opacity: 1; }
 
-/* lighter glass haze (no strong blue wash) */
+/* light haze (NOT a blue screen) */
 #cracks.cracks::before{
   content:"";
   position:absolute;
@@ -112,6 +70,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   background: rgba(255,255,255,0.06);
 }
 
+/* full screen SVG */
 #cracks.cracks svg{
   position:absolute;
   inset:0;
@@ -119,11 +78,12 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   height:100%;
 }
 
-#cracks .shard,
-#cracks .crack-path{
+/* FORCE no fill no matter what */
+#cracks svg *{
   fill: none !important;
 }
 
+/* cracks */
 #cracks .crack-path{
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
@@ -153,11 +113,10 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 @keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
 
+/* shards (thin glass lines, never filled) */
 #cracks .shard{
   stroke: rgba(235,245,255,.55);
   stroke-width: 1.1;
-  stroke-linecap: round;
-  stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
   opacity: 0;
   filter: drop-shadow(0 0 12px rgba(180,220,255,.35));
@@ -171,6 +130,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   100% { transform: translate(0,0) scale(1.08); opacity: 0; }
 }
 
+/* flash */
 #cracks.flash::after{
   content:"";
   position:absolute;
@@ -185,12 +145,10 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   100%{opacity:0}
 }
 
-
 /* =========================
    SIM ROOM
-   ========================= */
-
-.sim {
+========================= */
+.sim{
   position: fixed;
   inset: 0;
   background: #05070d;
@@ -198,7 +156,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   z-index: 9999;
 }
 
-.sim-bg {
+.sim-bg{
   position: absolute;
   inset: 0;
   background:
@@ -206,22 +164,19 @@ button:disabled { opacity: .6; cursor: not-allowed; }
     radial-gradient(900px 700px at 80% 60%, rgba(255,120,160,0.10), transparent 60%),
     linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.0));
 }
-
-.sim-panel {
+.sim-panel{
   position: relative;
   max-width: 900px;
   margin: 40px auto;
   padding: 20px;
 }
-
-.sim-title {
+.sim-title{
   font-size: 12px;
   letter-spacing: 0.22em;
   opacity: 0.7;
   margin-bottom: 12px;
 }
-
-.sim-text {
+.sim-text{
   background: rgba(10, 14, 28, 0.88);
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 14px;
@@ -231,32 +186,28 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   overflow: auto;
   white-space: pre-wrap;
 }
-
-.sim-choices {
+.sim-choices{
   margin-top: 12px;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
-
-.sim-btn {
+.sim-btn{
   border: 1px solid rgba(255,255,255,0.18);
   background: rgba(255,255,255,0.06);
   color: #e5e7eb;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
 }
-
-.sim-btn:hover { background: rgba(255,255,255,0.10); }
-
-.sim-btn.danger {
+.sim-btn:hover{ background: rgba(255,255,255,0.10); }
+.sim-btn.danger{
   border-color: rgba(255, 80, 80, 0.45);
   background: rgba(255, 80, 80, 0.12);
 }
+.task-actions{ margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
 
-/* =========================
-   RESET OVERLAY
-   ========================= */
-
-.reset {
+.reset{
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.72);
@@ -264,29 +215,25 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   place-items: center;
   z-index: 10001;
 }
-
-.reset-card {
+.reset-card{
   width: min(560px, 92vw);
   border-radius: 16px;
   padding: 18px;
   background: rgba(10, 14, 28, 0.95);
   border: 1px solid rgba(255,255,255,0.14);
 }
-
-.reset-title {
+.reset-title{
   font-size: 12px;
   letter-spacing: .20em;
   opacity: .85;
   margin-bottom: 10px;
 }
-
-.reset-body {
+.reset-body{
   white-space: pre-wrap;
   line-height: 1.45;
   opacity: .95;
 }
-
-.reset-hint {
+.reset-hint{
   margin-top: 12px;
   opacity: .7;
   font-size: 12px;
