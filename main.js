@@ -183,6 +183,7 @@ function openSimRoom() {
 }
 
 document.addEventListener("click", (e) => {
+  if (stage !== 1) return; // only allow the breaking/click puzzle once
   if (!isEmptyClick(e)) return;
 
   const now = Date.now();
@@ -332,6 +333,7 @@ choiceRun.addEventListener("click", () => {
 
 // Proceed button: reveal completion panel in-universe
 btnProceed.addEventListener("click", () => {
+  stage = 99;
   simText.textContent += "\n";
   simText.textContent += "you escaped the simulation and may proceed.\n";
   simText.textContent += "enter your discord username below.\n";
