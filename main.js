@@ -46,6 +46,78 @@ let postStopClicks = 0;
 
 let timers = [];
 
+// ---------------------------
+// CRACK EFFECT (builds in stages, random positions)
+// ---------------------------
+const cracks = document.getElementById("cracks");
+
+let crackStage = 0; // 0..3
+let crackSeed = Math.random();
+
+function rand(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function makeCrackSVG() {
+  // Simple hand-drawn crack lines (SVG)
+  const stroke = "rgba(255,255,255,0.65)";
+  const stroke2 = "rgba(0,0,0,0.25)";
+  return `
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <path d="M105 10 L90 40 L110 70 L80 100 L120 140 L95 180"
+        fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M105 10 L92 38 L112 72 L82 102 L118 142 L97 182"
+        fill="none" stroke="${stroke2}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+
+  <path d="M90 40 L55 55 L70 80"
+        fill="none" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M110 70 L150 85 L135 105"
+        fill="none" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M80 100 L45 120 L70 140"
+        fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M120 140 L155 155 L135 175"
+        fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+}
+
+function addCrackPiece() {
+  cracks.classList.remove("hidden");
+  cracks.classList.add("show");
+
+  const holder = document.createElement("div");
+  holder.className = "crack-pop";
+  holder.innerHTML = makeCrackSVG();
+
+  // random-ish placement, not where user clicks
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  const x = rand(vw * 0.15, vw * 0.75);
+  const y = rand(vh * 0.12, vh * 0.70);
+  const rot = rand(-25, 25);
+  const scale = rand(0.75, 1.15);
+
+  const svg = holder.querySelector("svg");
+  svg.style.left = `${x}px`;
+  svg.style.top = `${y}px`;
+  svg.style.transform = `translate(-50%, -50%) rotate(${rot}deg) scale(${scale})`;
+
+  cracks.appendChild(svg);
+
+  // prevent infinite buildup
+  if (cracks.childElementCount > 7) {
+    cracks.removeChild(cracks.firstElementChild);
+  }
+}
+
+function advanceCracks() {
+  crackStage++;
+  // add 1–2 pieces each stage
+  addCrackPiece();
+  if (Math.random() < 0.55) addCrackPiece();
+}
+
+
 function clearTimers() {
   timers.forEach(t => clearTimeout(t));
   timers = [];
