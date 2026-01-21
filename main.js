@@ -16,71 +16,43 @@
   });
 
   /* ======================
-     ELEMENTS (null-safe)
+     ELEMENTS (required IDs)
   ====================== */
-  const $ = (id) => document.getElementById(id);
+  const requiredIds = [
+    "system","l1","l2","l3","cracks",
+    "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
+    "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
+    "resetOverlay","resetTitle","resetBody"
+  ];
 
-  const systemBox = $("system");
-  const l1 = $("l1"), l2 = $("l2"), l3 = $("l3");
-  const cracks = $("cracks");
+  const els = Object.fromEntries(requiredIds.map(id => [id, document.getElementById(id)]));
+  const missing = requiredIds.filter(id => !els[id]);
+  if (missing.length) {
+    console.error("Missing required element IDs:", missing);
+    return;
+  }
 
-  const simRoom = $("simRoom");
-  const simText = $("simText");
-  const simChoices = $("simChoices");
-  const choiceNeed = $("choiceNeed");
-  const choiceLie = $("choiceLie");
-  const choiceRun = $("choiceRun");
+  const systemBox = els.system;
+  const l1 = els.l1, l2 = els.l2, l3 = els.l3;
+  const cracks = els.cracks;
 
-  const taskUI = $("taskUI");
-  const taskTitle = $("taskTitle");
-  const taskDesc = $("taskDesc");
-  const taskBody = $("taskBody");
-  const taskPrimary = $("taskPrimary");
-  const taskSecondary = $("taskSecondary");
+  const simRoom = els.simRoom;
+  const simText = els.simText;
+  const simChoices = els.simChoices;
+  const choiceNeed = els.choiceNeed;
+  const choiceLie = els.choiceLie;
+  const choiceRun = els.choiceRun;
 
-  const resetOverlay = $("resetOverlay");
-  const resetTitle = $("resetTitle");
-  const resetBody = $("resetBody");
+  const taskUI = els.taskUI;
+  const taskTitle = els.taskTitle;
+  const taskDesc = els.taskDesc;
+  const taskBody = els.taskBody;
+  const taskPrimary = els.taskPrimary;
+  const taskSecondary = els.taskSecondary;
 
-const requiredIds = [
-  "system","l1","l2","l3","cracks",
-  "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
-  "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
-  "resetOverlay","resetTitle","resetBody"
-];
-
-const els = Object.fromEntries(requiredIds.map(id => [id, document.getElementById(id)]));
-const missing = requiredIds.filter(id => !els[id]);
-
-if (missing.length) {
-  console.error("Missing required element IDs:", missing);
-  // optional: highlight if they exist but are duplicated (getElementById only returns first)
-  return;
-}
-
-// then assign:
-const systemBox = els.system;
-const l1 = els.l1, l2 = els.l2, l3 = els.l3;
-const cracks = els.cracks;
-
-const simRoom = els.simRoom;
-const simText = els.simText;
-const simChoices = els.simChoices;
-const choiceNeed = els.choiceNeed;
-const choiceLie = els.choiceLie;
-const choiceRun = els.choiceRun;
-
-const taskUI = els.taskUI;
-const taskTitle = els.taskTitle;
-const taskDesc = els.taskDesc;
-const taskBody = els.taskBody;
-const taskPrimary = els.taskPrimary;
-const taskSecondary = els.taskSecondary;
-
-const resetOverlay = els.resetOverlay;
-const resetTitle = els.resetTitle;
-const resetBody = els.resetBody;
-
+  const resetOverlay = els.resetOverlay;
+  const resetTitle = els.resetTitle;
+  const resetBody = els.resetBody;
 
   resetOverlay.classList.add("hidden");
 
@@ -291,129 +263,145 @@ const resetBody = els.resetBody;
     return true;
   }
 
-/* ======================
-   CRACK SVG (GLASS SAFE)
-====================== */
+  /* ======================
+     CRACKS (GLASS SAFE SVG)
+  ====================== */
+  let crackBuilt = false;
 
-function seededRandFactory() {
-  let seed = Math.floor(Math.random() * 2147483647);
-  return function rnd() {
-    seed = (1103515245 * seed + 12345) % 2147483647;
-    return seed / 2147483647;
-  };
-}
-
-function makeWobblyPath(rnd, startX, startY, angle, length, segments, wanderScale) {
-  let x = startX, y = startY;
-  let d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
-  let a = angle;
-
-  for (let i = 0; i < segments; i++) {
-    const t = (i + 1) / segments;
-    a += (rnd() - 0.5) * (0.16 + wanderScale * t);
-
-    const step = length / segments;
-    const jitter = (rnd() - 0.5) * (8 + 28 * t);
-
-    const dx = Math.cos(a) * step + Math.cos(a + Math.PI / 2) * jitter;
-    const dy = Math.sin(a) * step + Math.sin(a + Math.PI / 2) * jitter;
-
-    x += dx;
-    y += dy;
-    d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+  function seededRandFactory() {
+    let seed = Math.floor(Math.random() * 2147483647);
+    return function rnd() {
+      seed = (1103515245 * seed + 12345) % 2147483647;
+      return seed / 2147483647;
+    };
   }
-  return d;
-}
 
-function buildCrackSVG() {
-  const rnd = seededRandFactory();
-  const cx = 500, cy = 500;
+  function makeWobblyPath(rnd, startX, startY, angle, length, segments, wanderScale) {
+    let x = startX, y = startY;
+    let d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
+    let a = angle;
 
-  const sx = cx + (rnd() - 0.5) * 12;
-  const sy = cy + (rnd() - 0.5) * 12;
+    for (let i = 0; i < segments; i++) {
+      const t = (i + 1) / segments;
+      a += (rnd() - 0.5) * (0.16 + wanderScale * t);
 
-  const stages = [
-    { id: 1, main: 3, branchChance: 0.35, len: [110, 190], seg: [4, 6], wander: 0.20 },
-    { id: 2, main: 5, branchChance: 0.55, len: [170, 280], seg: [5, 8], wander: 0.28 },
-    { id: 3, main: 7, branchChance: 0.75, len: [240, 420], seg: [6, 10], wander: 0.36 },
-  ];
+      const step = length / segments;
+      const jitter = (rnd() - 0.5) * (8 + 28 * t);
 
-  const triple = (d) => {
-    const dash = 999;
-    return `
-      <path class="crack-under crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-      <path class="crack-line  crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-      <path class="crack-glint crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-    `;
-  };
+      const dx = Math.cos(a) * step + Math.cos(a + Math.PI / 2) * jitter;
+      const dy = Math.sin(a) * step + Math.sin(a + Math.PI / 2) * jitter;
 
-  const stageMarkup = stages.map(cfg => {
-    const parts = [];
+      x += dx; y += dy;
+      d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+    }
+    return d;
+  }
 
-    for (let i = 0; i < cfg.main; i++) {
-      const baseAngle = rnd() * Math.PI * 2;
-      const len = cfg.len[0] + rnd() * (cfg.len[1] - cfg.len[0]);
-      const seg = cfg.seg[0] + Math.floor(rnd() * (cfg.seg[1] - cfg.seg[0] + 1));
+  function buildCrackSVG() {
+    const rnd = seededRandFactory();
+    const cx = 500, cy = 500;
 
-      const d = makeWobblyPath(rnd, sx, sy, baseAngle, len, seg, cfg.wander);
-      parts.push(triple(d));
+    const sx = cx + (rnd() - 0.5) * 12;
+    const sy = cy + (rnd() - 0.5) * 12;
 
-      if (rnd() < cfg.branchChance) {
-        const bAngle = baseAngle + (rnd() < 0.5 ? -1 : 1) * (0.55 + rnd() * 0.60);
-        const bLen = 60 + rnd() * (120 + cfg.id * 40);
-        const bSeg = 3 + Math.floor(rnd() * 5);
+    const stages = [
+      { id: 1, main: 3, branchChance: 0.35, len: [110, 190], seg: [4, 6], wander: 0.20 },
+      { id: 2, main: 5, branchChance: 0.55, len: [170, 280], seg: [5, 8], wander: 0.28 },
+      { id: 3, main: 7, branchChance: 0.75, len: [240, 420], seg: [6, 10], wander: 0.36 },
+    ];
 
-        const anchorDist = len * (0.28 + rnd() * 0.22);
-        const bx = sx + Math.cos(baseAngle) * anchorDist;
-        const by = sy + Math.sin(baseAngle) * anchorDist;
+    const triple = (d) => {
+      const dash = 999;
+      return `
+        <path class="crack-under crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
+        <path class="crack-line  crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
+        <path class="crack-glint crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
+      `;
+    };
 
-        const bd = makeWobblyPath(rnd, bx, by, bAngle, bLen, bSeg, cfg.wander + 0.12);
-        parts.push(triple(bd));
+    const stageMarkup = stages.map(cfg => {
+      const parts = [];
+      for (let i = 0; i < cfg.main; i++) {
+        const baseAngle = rnd() * Math.PI * 2;
+        const len = cfg.len[0] + rnd() * (cfg.len[1] - cfg.len[0]);
+        const seg = cfg.seg[0] + Math.floor(rnd() * (cfg.seg[1] - cfg.seg[0] + 1));
+
+        const d = makeWobblyPath(rnd, sx, sy, baseAngle, len, seg, cfg.wander);
+        parts.push(triple(d));
+
+        if (rnd() < cfg.branchChance) {
+          const bAngle = baseAngle + (rnd() < 0.5 ? -1 : 1) * (0.55 + rnd() * 0.60);
+          const bLen = 60 + rnd() * (120 + cfg.id * 40);
+          const bSeg = 3 + Math.floor(rnd() * 5);
+
+          const anchorDist = len * (0.28 + rnd() * 0.22);
+          const bx = sx + Math.cos(baseAngle) * anchorDist;
+          const by = sy + Math.sin(baseAngle) * anchorDist;
+
+          const bd = makeWobblyPath(rnd, bx, by, bAngle, bLen, bSeg, cfg.wander + 0.12);
+          parts.push(triple(bd));
+        }
       }
+      return `<g class="crack-stage" data-stage="${cfg.id}" style="display:none">${parts.join("")}</g>`;
+    }).join("");
+
+    const shards = [];
+    for (let i = 0; i < 18; i++) {
+      const a = rnd() * Math.PI * 2;
+      const r = 90 + rnd() * 340;
+      const px = cx + Math.cos(a) * r;
+      const py = cy + Math.sin(a) * r;
+
+      const size = 60 + rnd() * 130;
+      const a2 = a + (rnd() - 0.5) * 1.0;
+
+      const p1 = `${px.toFixed(1)},${py.toFixed(1)}`;
+      const p2 = `${(px + Math.cos(a2) * size).toFixed(1)},${(py + Math.sin(a2) * size).toFixed(1)}`;
+      const p3 = `${(px + Math.cos(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)},${(py + Math.sin(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)}`;
+
+      const delay = (0.03 * i + rnd() * 0.10).toFixed(2);
+      const dur = (0.95 + rnd() * 0.55).toFixed(2);
+
+      shards.push(
+        `<polyline class="shard" points="${p1} ${p2} ${p3}"
+          style="animation-delay:${delay}s;animation-duration:${dur}s;"/>`
+      );
     }
 
-    return `<g class="crack-stage" data-stage="${cfg.id}" style="display:none">${parts.join("")}</g>`;
-  }).join("");
-
-  /* ======================
-     GLASS SHARDS (POLYLINE)
-     NEVER FILLED
-  ====================== */
-
-  const shards = [];
-  for (let i = 0; i < 18; i++) {
-    const a = rnd() * Math.PI * 2;
-    const r = 90 + rnd() * 340;
-    const px = cx + Math.cos(a) * r;
-    const py = cy + Math.sin(a) * r;
-
-    const size = 60 + rnd() * 130;
-    const a2 = a + (rnd() - 0.5) * 1.0;
-
-    const p1 = `${px.toFixed(1)},${py.toFixed(1)}`;
-    const p2 = `${(px + Math.cos(a2) * size).toFixed(1)},${(py + Math.sin(a2) * size).toFixed(1)}`;
-    const p3 = `${(px + Math.cos(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)},${(py + Math.sin(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)}`;
-
-    const delay = (0.03 * i + rnd() * 0.10).toFixed(2);
-    const dur = (0.95 + rnd() * 0.55).toFixed(2);
-
-    shards.push(`
-      <polyline
-        class="shard"
-        points="${p1} ${p2} ${p3}"
-        style="animation-delay:${delay}s;animation-duration:${dur}s;"
-      />
-    `);
+    return `
+      <svg viewBox="0 0 1000 1000" fill="none" preserveAspectRatio="none"
+           xmlns="http://www.w3.org/2000/svg">
+        ${stageMarkup}
+        ${shards.join("")}
+      </svg>
+    `;
   }
 
-  return `
-    <svg viewBox="0 0 1000 1000" fill="none" preserveAspectRatio="none"
-         xmlns="http://www.w3.org/2000/svg">
-      ${stageMarkup}
-      ${shards.join("")}
-    </svg>
-  `;
-}
+  function ensureCracks() {
+    if (crackBuilt) return;
+    cracks.innerHTML = buildCrackSVG();
+    crackBuilt = true;
+  }
+
+  function showCrackStage(n) {
+    ensureCracks();
+    cracks.classList.remove("hidden");
+    cracks.classList.add("show");
+    cracks.querySelectorAll(".crack-stage").forEach(g => {
+      const s = Number(g.getAttribute("data-stage"));
+      if (s <= n) g.style.display = "block";
+    });
+  }
+
+  function shatterToSim() {
+    cracks.classList.add("flash", "shatter");
+    document.body.classList.add("shake", "sim-transition");
+
+    setTimeout(() => {
+      cracks.classList.add("hidden");
+      openSimRoom();
+    }, 1250);
+  }
 
   /* ======================
      LANDING CLICK -> WARNING -> SHATTER
