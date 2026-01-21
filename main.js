@@ -1,4 +1,13 @@
 (() => {
+  function boot() {
+    // If DOM isn't built yet, wait.
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot, { once: true });
+      return;
+    }
+
+    // ---- your existing code starts here (keep everything else the same) ----
+
   const DIALOGUE = window.DIALOGUE;
   const TASKS = window.TASKS;
 
@@ -13,6 +22,17 @@
   const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
   document.querySelectorAll(".grid img").forEach(img => {
     img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
+  });
+
+  /* ======================
+      Check IDs
+  ======================= */
+  console.log("boot ok", {
+    readyState: document.readyState,
+    url: location.href,
+    hasSimRoom: !!document.getElementById("simRoom"),
+    hasSystem: !!document.getElementById("system"),
+    hasCracks: !!document.getElementById("cracks")
   });
 
   /* ======================
@@ -436,5 +456,9 @@
       setTimeout(shatterToSim, tShatter);
     }
   });
+    // ---- your existing code ends here ----
+  }
 
+  boot();
 })();
+
