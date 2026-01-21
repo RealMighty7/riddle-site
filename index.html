@@ -6,9 +6,12 @@
   <title>index</title>
 
   <link rel="stylesheet" href="/styles.css?v=40">
-  <script src="/dialogue.js?v=40"></script>
-  <script src="/tasks.js?v=40"></script>
-  <script src="/main.js?v=40"></script>
+
+  <!-- Load once, in order, after parsing HTML -->
+  <script src="/dialogue.js?v=40" defer></script>
+  <script src="/tasks.js?v=40" defer></script>
+  <script src="/main.js?v=40" defer></script>
+
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
 </head>
 
@@ -92,9 +95,5 @@
       </div>
     </div>
   </section>
-  <link rel="stylesheet" href="/styles.css?v=40">
-  <script src="/dialogue.js?v=40" defer></script>
-  <script src="/tasks.js?v=40" defer></script>
-  <script src="/main.js?v=40" defer></script>
 </body>
 </html>
