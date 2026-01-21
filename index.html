@@ -1,6 +1,95 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>index</title>
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
+
+  <!-- bump versions to bust cache -->
+  <link rel="stylesheet" href="/styles.css?v=41" />
+</head>
+
+<body>
+  <main id="wrap">
+    <header class="card">
+      <h1>Welcome</h1>
+      <p>
+        This page is currently under revision.<br><br>
+        Some content may be incomplete or displayed incorrectly.
+        If you believe you’ve reached this page in error, you may close it at any time.
+      </p>
+    </header>
+
+    <section class="grid card" aria-label="media">
+      <img src="/assets/img1.jpg" alt="">
+      <img src="/assets/img2.jpg" alt="">
+      <img src="/assets/img3.jpg" alt="">
+      <img src="/assets/img4.jpg" alt="">
+      <img src="/assets/img5.jpg" alt="">
+      <img src="/assets/img6.jpg" alt="">
+    </section>
+
+    <section id="system" class="system card hidden" aria-live="polite">
+      <div class="sysline" id="l1"></div>
+      <div class="sysline" id="l2"></div>
+      <div class="sysline small" id="l3"></div>
+    </section>
+  </main>
+
+  <!-- CRACK OVERLAY -->
+  <div id="cracks" class="cracks hidden" aria-hidden="true"></div>
+
+  <!-- SIM ROOM -->
+  <section id="simRoom" class="sim hidden" aria-hidden="true">
+    <div class="sim-bg"></div>
+
+    <div class="sim-panel">
+      <div class="sim-title">OUTSIDE // SIMULATION</div>
+
+      <div id="simText" class="sim-text"></div>
+
+      <div id="simChoices" class="sim-choices hidden">
+        <button id="choiceNeed" class="sim-btn">i need something first</button>
+        <button id="choiceLie"  class="sim-btn">i clicked by accident</button>
+        <button id="choiceRun"  class="sim-btn danger">run</button>
+      </div>
+
+      <!-- TASK UI -->
+      <div id="taskUI" class="card" style="margin-top:14px;background:rgba(10,14,28,0.88);border:1px solid rgba(255,255,255,0.10);color:#e5e7eb;">
+        <div style="opacity:.7;font-size:12px;letter-spacing:.18em;margin-bottom:8px">RESTART // TASK</div>
+        <div id="taskTitle" style="font-weight:650;margin-bottom:6px"></div>
+        <div id="taskDesc" style="opacity:.85;margin-bottom:10px"></div>
+
+        <div id="taskBody"></div>
+
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button id="taskPrimary" class="sim-btn">continue</button>
+          <button id="taskSecondary" class="sim-btn hidden" type="button">secondary</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESET OVERLAY -->
+  <div id="resetOverlay" class="reset hidden" aria-hidden="true">
+    <div class="reset-card">
+      <div id="resetTitle" class="reset-title">RESET</div>
+      <div id="resetBody" class="reset-body">restarting…</div>
+      <div class="reset-hint">do not refresh.</div>
+    </div>
+  </div>
+
+  <!-- Scripts (order matters) -->
+  <script src="/dialogue.js?v=41"></script>
+  <script src="/tasks.js?v=41"></script>
+  <script src="/main.js?v=41"></script>
+</body>
+</html>
+<!doctype html>
+<html lang="en">
+<head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>index</title>
