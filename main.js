@@ -122,22 +122,29 @@ wrap.addEventListener("click", e => {
       setTimeout(() => document.body.style.transform = "", 50);
     }
 
-    if (bgClicks >= 5) {
-      stage = 2;
-      systemBox.classList.remove("hidden");
-      clearTimers();
+if (bgClicks >= 5) {
+  stage = 2;
+  systemBox.classList.remove("hidden");
+  clearTimers();
 
-      l1.textContent = "That isn’t how this page is supposed to be used.";
-      timers.push(setTimeout(() => l2.textContent = "You weren’t meant to interact with this.", 1800));
-      timers.push(setTimeout(() => l3.textContent = "Stop.", 3200));
+  l1.textContent = "That isn’t how this page is supposed to be used.";
+  timers.push(setTimeout(() => {
+    l2.textContent = "You weren’t meant to interact with this.";
+  }, 1800));
 
-      timers.push(setTimeout(() => {
-        finish.classList.remove("hidden");
-        finish.scrollIntoView({ behavior: "smooth" });
-      }, 5200));
-    }
-    return;
-  }
+  timers.push(setTimeout(() => {
+    l3.textContent = "Stop.";
+  }, 3200));
+
+  // IMPORTANT: Stage 2 is the LAST thing on this page.
+  // After a short pause, transition into the simulation room (personal scene).
+  timers.push(setTimeout(() => {
+    openSimRoom(); // <-- your overlay cutscene starts here
+  }, 4200));
+
+  return;
+}
+
 
   // -------- STAGE 2 → 3 --------
   if (stage === 2 && l3.textContent.trim()) {
