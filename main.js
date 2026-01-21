@@ -5,6 +5,11 @@
       document.addEventListener("DOMContentLoaded", boot, { once: true });
       return;
     }
+  // If this page doesn't have the app root, just do nothing (prevents false errors)
+  if (!document.getElementById("simRoom") || !document.getElementById("cracks")) {
+    return;
+  }
+
 
     // ---- your existing code starts here (keep everything else the same) ----
 
