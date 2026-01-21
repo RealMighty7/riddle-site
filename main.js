@@ -127,10 +127,10 @@ function isEmptyClick(e) {
   const t = e.target;
   if (!t) return true;
 
-  // Don't count clicks on interactive stuff or images
-  if (t.closest("button, input, label, pre, img")) return false;
+  // Ignore clicks on actual interactive elements / typing areas / images
+  if (t.closest("button, input, textarea, select, label, a, pre, img")) return false;
 
-  // Count everything else (including card backgrounds)
+  // Everything else counts (cards, backgrounds, margins, etc.)
   return true;
 }
 
@@ -182,11 +182,12 @@ function openSimRoom() {
   }, 9400));
 }
 
-wrap.addEventListener("click", e => {
+document.addEventListener("click", (e) => {
   if (!isEmptyClick(e)) return;
 
   const now = Date.now();
-  if (now - lastClickAt < 180) return;
+  const CLICK_COOLDOWN_MS = 650;
+  if (now - lastClickAt < CLICK_COOLDOWN_MS) return;
   lastClickAt = now;
 
   // -------- STAGE 1 --------
@@ -211,14 +212,16 @@ if (stage === 1) {
     clearTimers();
 
     l1.textContent = "That isn’t how this page is supposed to be used.";
-    timers.push(setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, 1800));
-    timers.push(setTimeout(() => { l3.textContent = "Stop."; }, 3200));
-
+    timers.push(setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, 2600));
+    timers.push(setTimeout(() => { l3.textContent = "Stop."; }, 5200));
+    
     // After "Stop.", final crack spike then break into sim room
-    timers.push(setTimeout(() => {
-      advanceCracks();
-      setTimeout(() => openSimRoom(), 400);
-    }, 3800));
+  timers.push(setTimeout(() => {
+    advanceCracks();
+    setTimeout(() => openSimRoom(), 600);
+  }, 6100));
+
+  
 
     return;
   }
