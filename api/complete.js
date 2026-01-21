@@ -1,6 +1,7 @@
-import crypto from "crypto";
+// api/complete.js
+const crypto = require("crypto");
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -21,4 +22,4 @@ export default async function handler(req, res) {
   const token = Buffer.from(`${payload}|${sig}`).toString("base64url");
 
   return res.status(200).json({ token });
-}
+};
