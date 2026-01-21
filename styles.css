@@ -1,5 +1,5 @@
 :root {
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
 body {
@@ -13,7 +13,7 @@ body {
   max-width: 900px;
   margin: 24px auto;
   padding: 0 16px 48px;
-  transition: opacity .3s ease, transform .3s ease;
+  transition: opacity .28s ease, transform .28s ease;
 }
 
 body.sim-transition #wrap {
@@ -28,11 +28,19 @@ body.sim-transition #wrap {
   padding: 16px;
 }
 
+h1 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 650;
+}
+
+p { margin: 0; line-height: 1.4; }
+
 .grid {
-  display: grid;
-  grid-template-columns: repeat(3,1fr);
-  gap: 8px;
   margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 
 .grid img {
@@ -40,16 +48,52 @@ body.sim-transition #wrap {
   height: 160px;
   object-fit: cover;
   border-radius: 10px;
+  border: 1px solid #eee;
 }
 
 .system { margin-top: 16px; }
-.sysline { margin: 6px 0; }
+.sysline { font-size: 16px; margin: 6px 0; }
 .sysline.small { font-size: 13px; opacity: .7; }
 
-.finish { margin-top: 16px; }
 .hidden { display: none; }
 
-/* ================= CRACKS ================= */
+.finish { margin-top: 16px; }
+
+.label { display: block; margin: 10px 0; font-size: 14px; }
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+}
+
+button {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+}
+
+button:disabled { opacity: .6; cursor: not-allowed; }
+
+.muted { opacity: .7; font-size: 13px; margin-bottom: 8px; }
+
+.result {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #0b1020;
+  color: #e5e7eb;
+  overflow: auto;
+}
+
+/* =========================
+   CRACKS + SHATTER (CENTER-EXPAND)
+   ========================= */
 
 .cracks {
   position: fixed;
@@ -57,6 +101,7 @@ body.sim-transition #wrap {
   pointer-events: none;
   z-index: 9998;
   opacity: 0;
+  transition: opacity 220ms ease;
 }
 
 .cracks.show { opacity: 1; }
@@ -79,32 +124,33 @@ body.sim-transition #wrap {
   opacity: .38;
 }
 
-
 @keyframes draw {
-  from { stroke-dashoffset: 999; }
-  to { stroke-dashoffset: 0; }
+  from { stroke-dashoffset: 999; opacity: 0; }
+  to { stroke-dashoffset: 0; opacity: 1; }
 }
 
 .crack-path {
   stroke-dasharray: 999;
   stroke-dashoffset: 999;
-  animation: draw .9s ease forwards;
+  animation: draw .95s ease forwards;
 }
 
-/* shatter */
+/* shards only animate when shatter begins */
 .shard { opacity: 0; }
 
 @keyframes shardFall {
-  to { transform: translateY(120vh) rotate(20deg); opacity: 0; }
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(120vh) rotate(20deg); opacity: 0; }
 }
 
 .cracks.shatter .shard {
   opacity: 1;
-  animation: shardFall 1s cubic-bezier(.2,.8,.2,1) forwards;
+  animation: shardFall 1.05s cubic-bezier(.2,.8,.2,1) forwards;
 }
 
-/* flash + shake */
+/* shake + flash */
 @keyframes shake {
+  0%,100% { transform:none; }
   20% { transform: translate(-2px,1px); }
   40% { transform: translate(3px,-2px); }
   60% { transform: translate(-2px,2px); }
@@ -121,14 +167,17 @@ body.shake { animation: shake .55s; }
 }
 
 @keyframes flash {
-  30% { opacity:.6; }
+  0% { opacity: 0; }
+  25% { opacity: .65; }
+  60% { opacity: .12; }
+  100% { opacity: 0; }
 }
 
-.cracks.flash::before {
-  animation: flash .35s ease;
-}
+.cracks.flash::before { animation: flash .35s ease; }
 
-/* ================= SIM ROOM ================= */
+/* =========================
+   SIM ROOM + TASK UI
+   ========================= */
 
 .sim {
   position: fixed;
@@ -143,37 +192,108 @@ body.shake { animation: shake .55s; }
   inset: 0;
   background:
     radial-gradient(1000px 600px at 20% 20%, rgba(100,140,255,0.18), transparent 60%),
-    radial-gradient(900px 700px at 80% 60%, rgba(255,120,160,0.10), transparent 60%);
+    radial-gradient(900px 700px at 80% 60%, rgba(255,120,160,0.10), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.0));
 }
 
 .sim-panel {
+  position: relative;
   max-width: 900px;
   margin: 40px auto;
   padding: 20px;
 }
 
+.sim-title {
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  opacity: 0.7;
+  margin-bottom: 12px;
+}
+
 .sim-text {
-  background: #0b1020;
+  background: rgba(10, 14, 28, 0.88);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
   padding: 16px;
   min-height: 220px;
   white-space: pre-wrap;
+  line-height: 1.45;
 }
 
 .sim-choices {
   margin-top: 12px;
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-button {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #111;
-  background: #111;
-  color: #fff;
+.sim-btn {
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: #e5e7eb;
+}
+
+.sim-btn:hover { background: rgba(255,255,255,0.10); }
+
+.sim-btn.danger {
+  border-color: rgba(255, 80, 80, 0.45);
+  background: rgba(255, 80, 80, 0.12);
+}
+
+.task-ui {
+  margin-top: 12px;
+  padding: 14px 14px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(10, 14, 28, 0.72);
+}
+
+.task-title {
+  font-size: 12px;
+  letter-spacing: .16em;
+  opacity: .8;
+  margin-bottom: 8px;
+}
+
+.task-desc {
+  opacity: .9;
+  margin-bottom: 10px;
+}
+
+.task-body {
+  background: rgba(0,0,0,0.20);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 64px;
+}
+
+.task-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  margin: 6px 6px 0 0;
+  user-select: none;
+}
+
+.anchor {
+  position: fixed;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.10);
+  box-shadow: 0 0 18px rgba(120,180,255,0.30);
+  z-index: 10000;
   cursor: pointer;
-}
-
-button.danger {
-  background: #7a1111;
 }
