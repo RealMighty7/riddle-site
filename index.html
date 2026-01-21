@@ -39,7 +39,7 @@
       <div id="l3" class="sysline small"></div>
     </section>
 
-    <!-- completion (NOT used yet; we will keep it hidden until much later) -->
+    <!-- completion (NOT used yet) -->
     <section id="finish" class="finish card hidden">
       <h2>Completion</h2>
       <p class="muted">Identification only. Never enter passwords.</p>
@@ -71,7 +71,6 @@
       <div id="taskUI" class="task-ui hidden">
         <div id="taskTitle" class="task-title"></div>
         <div id="taskDesc" class="task-desc"></div>
-
         <div id="taskBody" class="task-body"></div>
 
         <div class="task-actions">
@@ -80,9 +79,18 @@
         </div>
       </div>
     </div>
+
+    <!-- reset overlay -->
+    <div id="resetOverlay" class="reset hidden" aria-hidden="true">
+      <div class="reset-card">
+        <div id="resetTitle" class="reset-title"></div>
+        <div id="resetBody" class="reset-body"></div>
+        <div class="reset-hint">restarting…</div>
+      </div>
+    </div>
   </section>
 
-  <script src="/dialogue.js"></script>
-  <script src="/main.js?v=12"></script>
+  <script src="/dialogue.js?v=1"></script>
+  <script src="/main.js?v=21"></script>
 </body>
 </html>
