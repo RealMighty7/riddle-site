@@ -42,16 +42,45 @@
   const resetTitle = $("resetTitle");
   const resetBody = $("resetBody");
 
-  const required = [
-    systemBox,l1,l2,l3,cracks,
-    simRoom,simText,simChoices,choiceNeed,choiceLie,choiceRun,
-    taskUI,taskTitle,taskDesc,taskBody,taskPrimary,taskSecondary,
-    resetOverlay,resetTitle,resetBody
-  ];
-  if (required.some(x => !x)) {
-    console.error("A required element is missing from index.html. Re-check IDs.");
-    return;
-  }
+const requiredIds = [
+  "system","l1","l2","l3","cracks",
+  "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
+  "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
+  "resetOverlay","resetTitle","resetBody"
+];
+
+const els = Object.fromEntries(requiredIds.map(id => [id, document.getElementById(id)]));
+const missing = requiredIds.filter(id => !els[id]);
+
+if (missing.length) {
+  console.error("Missing required element IDs:", missing);
+  // optional: highlight if they exist but are duplicated (getElementById only returns first)
+  return;
+}
+
+// then assign:
+const systemBox = els.system;
+const l1 = els.l1, l2 = els.l2, l3 = els.l3;
+const cracks = els.cracks;
+
+const simRoom = els.simRoom;
+const simText = els.simText;
+const simChoices = els.simChoices;
+const choiceNeed = els.choiceNeed;
+const choiceLie = els.choiceLie;
+const choiceRun = els.choiceRun;
+
+const taskUI = els.taskUI;
+const taskTitle = els.taskTitle;
+const taskDesc = els.taskDesc;
+const taskBody = els.taskBody;
+const taskPrimary = els.taskPrimary;
+const taskSecondary = els.taskSecondary;
+
+const resetOverlay = els.resetOverlay;
+const resetTitle = els.resetTitle;
+const resetBody = els.resetBody;
+
 
   resetOverlay.classList.add("hidden");
 
