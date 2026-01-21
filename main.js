@@ -1,14 +1,5 @@
-/* =========================================================
-   RIDDLE SITE — MAIN (FULL)
-   - WPM 225
-   - Center-only staged cracking expanding outward
-   - Simulation room with SECURITY AUTHORITY
-   - Branching choices with LOTS of filler quests
-   - Ends BEFORE verification code (by design)
-========================================================= */
-
 /* ======================
-   RANDOM IMAGES (12)
+   RANDOM IMAGES
 ====================== */
 const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
 document.querySelectorAll(".grid img").forEach(img => {
@@ -18,16 +9,13 @@ document.querySelectorAll(".grid img").forEach(img => {
 /* ======================
    STATE
 ====================== */
-let stage = 1; // 1=break phase, 2=warning, 99=sim started
+let stage = 1;         // 1 = break phase, 2 = warning phase, 99 = sim opened
 let clicks = 0;
 let lastClick = 0;
 const CLICK_COOLDOWN = 650;
 
-let simMode = "intro";     // intro | branch_need | branch_lie | branch_run | quests | gate
-let branch = null;         // "need"|"lie"|"run"
-let questIndex = 0;        // current quest pointer
-let task = null;           // current task object
 let timers = [];
+function clearTimers() { timers.forEach(t => clearTimeout(t)); timers = []; }
 
 /* ======================
    ELEMENTS
@@ -41,32 +29,36 @@ const cracks = document.getElementById("cracks");
 const simRoom = document.getElementById("simRoom");
 const simText = document.getElementById("simText");
 const simChoices = document.getElementById("simChoices");
-const simContinue = document.getElementById("simContinue");
 const choiceNeed = document.getElementById("choiceNeed");
 const choiceLie = document.getElementById("choiceLie");
 const choiceRun = document.getElementById("choiceRun");
-const btnProceed = document.getElementById("btnProceed");
+
+const taskUI = document.getElementById("taskUI");
+const taskTitle = document.getElementById("taskTitle");
+const taskDesc = document.getElementById("taskDesc");
+const taskBody = document.getElementById("taskBody");
+const taskPrimary = document.getElementById("taskPrimary");
+const taskSecondary = document.getElementById("taskSecondary");
+
+/* completion exists but we are NOT going there yet */
+const finish = document.getElementById("finish");
 
 /* ======================
-   TIMING (225 WPM + padded)
+   TIMING (225 WPM + padding)
 ====================== */
-const WPM = 500;
-const MS_PER_WORD = 45000 / WPM; // ~266ms
+const WPM = 225;
+const MS_PER_WORD = 60000 / WPM; // ~266ms
 
 function wordsCount(s) {
   return String(s || "").trim().split(/\s+/).filter(Boolean).length;
 }
+
 function msToRead(line) {
   const w = wordsCount(line);
   if (!w) return 850;
-  return Math.max(1350, w * MS_PER_WORD + 800);
-}
-function clearTimers() {
-  timers.forEach(t => clearTimeout(t));
-  timers = [];
-}
-function wait(ms) {
-  return new Promise(res => setTimeout(res, ms));
+  const base = w * MS_PER_WORD;
+  // readable, but not sluggish
+  return Math.max(1450, base + 850);
 }
 
 /* ======================
@@ -79,51 +71,61 @@ function isCountableClick(e) {
   return true;
 }
 
-/* =========================================================
-   CENTER-OUT CRACKING (STAGED, REALISTIC)
-   - Only starts in the center
-   - Stage increases outward (short -> medium -> long)
-   - Wobbly lines + branching
-========================================================= */
+/* ======================
+   CRACKS (CENTER-ONLY EXPAND IN STAGES)
+   - Not perfect rays
+   - Each stage adds longer, branching fractures
+====================== */
 let crackBuilt = false;
 
 function seededRandFactory() {
-  let seed = Math.floor(Math.random() * 2 ** 31);
+  let seed = Math.floor(Math.random() * 2147483647);
   return function rnd() {
-    seed = (1103515245 * seed + 12345) % 2147483648;
-    return seed / 2147483648;
+    seed = (1103515245 * seed + 12345) % 2147483647;
+    return seed / 2147483647;
   };
 }
 
-function makeWobblyPath(rnd, x0, y0, angle, length, segments) {
-  let x = x0, y = y0;
-  let a = angle;
+function makeWobblyPath(rnd, startX, startY, angle, length, segments, wanderScale) {
+  let x = startX, y = startY;
   let d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
+  let a = angle;
+
   for (let i = 0; i < segments; i++) {
     const t = (i + 1) / segments;
-    a += (rnd() - 0.5) * (0.16 + 0.20 * t);           // angle wander
+
+    // wander grows with distance from center
+    a += (rnd() - 0.5) * (0.16 + wanderScale * t);
+
     const step = length / segments;
-    const jitter = (rnd() - 0.5) * (10 + 22 * t);     // perpendicular jag
+    const jitter = (rnd() - 0.5) * (8 + 28 * t);
+
     const dx = Math.cos(a) * step + Math.cos(a + Math.PI / 2) * jitter;
     const dy = Math.sin(a) * step + Math.sin(a + Math.PI / 2) * jitter;
+
     x += dx; y += dy;
     d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
   }
+
   return d;
 }
 
-function buildCracksSVG() {
+function buildCrackSVG() {
   const rnd = seededRandFactory();
   const cx = 500, cy = 500;
 
-  // Stages: only expand outward from center
+  const startJitter = 12;
+  const sx = cx + (rnd() - 0.5) * startJitter;
+  const sy = cy + (rnd() - 0.5) * startJitter;
+
+  // 3 stages: short center hairlines -> mid -> long + more branches
   const stages = [
-    { stage: 1, rays: 4,  len: [95, 150],  seg: [4, 6],  branches: 1 },
-    { stage: 2, rays: 7,  len: [150, 260], seg: [6, 8],  branches: 3 },
-    { stage: 3, rays: 11, len: [260, 430], seg: [8, 11], branches: 7 },
+    { id: 1, main: 3, branchChance: 0.35, len: [110, 190], seg: [4, 6], wander: 0.20 },
+    { id: 2, main: 5, branchChance: 0.55, len: [170, 280], seg: [5, 8], wander: 0.28 },
+    { id: 3, main: 7, branchChance: 0.75, len: [240, 420], seg: [6, 10], wander: 0.36 },
   ];
 
-  const pathPair = (d) => {
+  const pair = (d) => {
     const dash = 999;
     return `
       <path class="crack-under crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
@@ -131,94 +133,81 @@ function buildCracksSVG() {
     `;
   };
 
-  const stageGroups = stages.map(cfg => {
+  const stageMarkup = stages.map(cfg => {
     const parts = [];
-    for (let i = 0; i < cfg.rays; i++) {
-      const baseAngle = (i / cfg.rays) * Math.PI * 2 + (rnd() - 0.5) * 0.35;
+
+    for (let i = 0; i < cfg.main; i++) {
+      // IMPORTANT: originate from the center region
+      const baseAngle = (rnd() * Math.PI * 2);
       const len = cfg.len[0] + rnd() * (cfg.len[1] - cfg.len[0]);
       const seg = cfg.seg[0] + Math.floor(rnd() * (cfg.seg[1] - cfg.seg[0] + 1));
 
-      // start *at center* with tiny random offset (keeps it centered visually)
-      const sx = cx + (rnd() - 0.5) * 8;
-      const sy = cy + (rnd() - 0.5) * 8;
+      const d = makeWobblyPath(rnd, sx, sy, baseAngle, len, seg, cfg.wander);
+      parts.push(pair(d));
 
-      const d = makeWobblyPath(rnd, sx, sy, baseAngle, len, seg);
-      parts.push(pathPair(d));
-
-      // branches come off mid-way (still near-ish center)
-      if (rnd() < 0.55) {
-        const bAngle = baseAngle + (rnd() < 0.5 ? -1 : 1) * (0.5 + rnd() * 0.6);
-        const bLen = 60 + rnd() * 150;
+      // branches off main crack: start somewhere near the first half (still "center expanding")
+      if (rnd() < cfg.branchChance) {
+        const bAngle = baseAngle + (rnd() < 0.5 ? -1 : 1) * (0.55 + rnd() * 0.60);
+        const bLen = 60 + rnd() * (120 + cfg.id * 40);
         const bSeg = 3 + Math.floor(rnd() * 5);
 
-        const midR = len * (0.28 + rnd() * 0.22);
-        const bx = sx + Math.cos(baseAngle) * midR;
-        const by = sy + Math.sin(baseAngle) * midR;
+        // branch anchor is close to center, not far out
+        const anchorDist = len * (0.28 + rnd() * 0.22);
+        const bx = sx + Math.cos(baseAngle) * anchorDist;
+        const by = sy + Math.sin(baseAngle) * anchorDist;
 
-        const bd = makeWobblyPath(rnd, bx, by, bAngle, bLen, bSeg);
-        parts.push(pathPair(bd));
+        const bd = makeWobblyPath(rnd, bx, by, bAngle, bLen, bSeg, cfg.wander + 0.12);
+        parts.push(pair(bd));
       }
     }
 
-    // extra tiny hairline cracks (near center) for realism
-    for (let j = 0; j < cfg.branches; j++) {
-      const ang = rnd() * Math.PI * 2;
-      const sx = cx + Math.cos(ang) * (10 + rnd() * 40);
-      const sy = cy + Math.sin(ang) * (10 + rnd() * 40);
-      const len = 35 + rnd() * 90;
-      const seg = 3 + Math.floor(rnd() * 4);
-      const d = makeWobblyPath(rnd, sx, sy, ang + (rnd() - 0.5) * 0.7, len, seg);
-      parts.push(pathPair(d));
-    }
-
-    return `<g class="crack-stage" data-stage="${cfg.stage}" style="display:none">${parts.join("")}</g>`;
+    return `<g class="crack-stage" data-stage="${cfg.id}" style="display:none">${parts.join("")}</g>`;
   }).join("");
 
-  // Shards (only animate on shatter)
+  // shards (only on shatter)
   const shards = [];
-  const shardCount = 18;
-  for (let i = 0; i < shardCount; i++) {
+  for (let i = 0; i < 20; i++) {
     const a = rnd() * Math.PI * 2;
-    const r = 80 + rnd() * 340;
+    const r = 90 + rnd() * 340;
     const px = cx + Math.cos(a) * r;
     const py = cy + Math.sin(a) * r;
 
-    const size = 55 + rnd() * 135;
-    const a2 = a + (rnd() - 0.5) * 0.9;
+    const size = 60 + rnd() * 130;
+    const a2 = a + (rnd() - 0.5) * 1.0;
 
     const p1 = `${px.toFixed(1)},${py.toFixed(1)}`;
     const p2 = `${(px + Math.cos(a2) * size).toFixed(1)},${(py + Math.sin(a2) * size).toFixed(1)}`;
-    const p3 = `${(px + Math.cos(a2 + 1.7) * (size * (0.55 + rnd() * 0.6))).toFixed(1)},${(py + Math.sin(a2 + 1.7) * (size * (0.55 + rnd() * 0.6))).toFixed(1)}`;
+    const p3 = `${(px + Math.cos(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)},${(py + Math.sin(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)}`;
 
-    const delay = (0.03 * i + rnd() * 0.08).toFixed(2);
-    const dur = (0.90 + rnd() * 0.45).toFixed(2);
+    const delay = (0.03 * i + rnd() * 0.10).toFixed(2);
+    const dur = (0.95 + rnd() * 0.55).toFixed(2);
 
-    shards.push(`
-      <polygon class="shard" points="${p1} ${p2} ${p3}"
+    shards.push(
+      `<polygon class="shard" points="${p1} ${p2} ${p3}"
         fill="rgba(255,255,255,0.08)"
         stroke="rgba(255,255,255,0.16)"
         stroke-width="1.1"
         style="animation-delay:${delay}s;animation-duration:${dur}s;"
-      />
-    `);
+      />`
+    );
   }
 
   return `
     <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-      ${stageGroups}
+      ${stageMarkup}
       ${shards.join("")}
     </svg>
   `;
 }
 
-function ensureCracksBuilt() {
+function ensureCracks() {
   if (crackBuilt) return;
-  cracks.innerHTML = buildCracksSVG();
+  cracks.innerHTML = buildCrackSVG();
   crackBuilt = true;
 }
 
 function showCrackStage(n) {
-  ensureCracksBuilt();
+  ensureCracks();
   cracks.classList.remove("hidden");
   cracks.classList.add("show");
 
@@ -228,654 +217,506 @@ function showCrackStage(n) {
   });
 }
 
-/* =========================================================
-   SHATTER + TRANSITION
-========================================================= */
 function shatterToSim() {
   cracks.classList.add("flash", "shatter");
   document.body.classList.add("shake", "sim-transition");
 
   setTimeout(() => {
     cracks.classList.add("hidden");
-    openSimIntro();
+    openSimRoom();
   }, 1250);
 }
 
-/* =========================================================
-   SIM TEXT ENGINE (long-form, paced)
-========================================================= */
-async function sayLines(lines, { clear = false } = {}) {
-  clearTimers();
-  if (clear) simText.textContent = "";
-  simChoices.classList.add("hidden");
-  if (simContinue) simContinue.classList.add("hidden");
+/* ======================
+   SIM ROOM: Dialogue + Quest Engine
+====================== */
+function appendSimLine(line) {
+  simText.textContent += (line ? line : "") + "\n";
+  simText.scrollTop = simText.scrollHeight;
+}
 
+function playLines(lines, onDone) {
+  clearTimers();
   let t = 350;
   for (const line of lines) {
-    const text = (line ?? "");
-    timers.push(setTimeout(() => {
-      simText.textContent += (text.length ? text : "") + "\n";
-    }, t));
-    t += msToRead(text || " ");
+    timers.push(setTimeout(() => appendSimLine(line), t));
+    t += msToRead(line || " ");
+  }
+  timers.push(setTimeout(() => onDone && onDone(), t + 250));
+}
+
+function showChoices() {
+  simChoices.classList.remove("hidden");
+  taskUI.classList.add("hidden");
+}
+
+function hideChoices() {
+  simChoices.classList.add("hidden");
+}
+
+function showTaskUI(title, desc) {
+  taskUI.classList.remove("hidden");
+  taskTitle.textContent = title;
+  taskDesc.textContent = desc;
+  taskBody.innerHTML = "";
+  taskSecondary.classList.add("hidden");
+}
+
+/* ----------------------
+   QUEST TASKS (filler)
+   These are intentionally "system reboot" chores:
+   - anchors (click floating nodes)
+   - reorder (drag-free ordering)
+   - checksum phrase entry
+   - timed "stabilize" hold
+---------------------- */
+
+function task_ClickAnchors({ count = 5 }) {
+  return new Promise(resolve => {
+    showTaskUI("RESTART SEQUENCE // ANCHOR SYNC", `Stabilize the boundary. Locate and click ${count} anchors.`);
+
+    let remaining = count;
+    const anchors = [];
+
+    const spawnAnchor = () => {
+      const a = document.createElement("div");
+      a.className = "anchor";
+
+      // keep away from edges and UI center area slightly
+      const x = 10 + Math.random() * 80;
+      const y = 12 + Math.random() * 72;
+
+      a.style.left = `${x}vw`;
+      a.style.top = `${y}vh`;
+
+      a.addEventListener("click", () => {
+        remaining--;
+        a.remove();
+        if (remaining <= 0) {
+          anchors.forEach(el => el.remove());
+          resolve();
+        }
+      });
+
+      document.body.appendChild(a);
+      anchors.push(a);
+    };
+
+    for (let i = 0; i < count; i++) spawnAnchor();
+
+    taskBody.innerHTML = `<div class="pill">Anchors remaining: <b id="remain">${remaining}</b></div>`;
+    const remainEl = taskBody.querySelector("#remain");
+
+    const tick = setInterval(() => {
+      if (!document.body.contains(remainEl)) return;
+      remainEl.textContent = String(remaining);
+      if (remaining <= 0) clearInterval(tick);
+    }, 120);
+
+    taskPrimary.textContent = "continue";
+    taskPrimary.onclick = () => {}; // locked; must complete anchors
+    taskPrimary.disabled = true;
+
+    const unlockCheck = setInterval(() => {
+      if (remaining <= 0) {
+        taskPrimary.disabled = false;
+        clearInterval(unlockCheck);
+      }
+    }, 100);
+
+    taskPrimary.onclick = () => resolve();
+  });
+}
+
+function task_ReorderPills({ items, correct }) {
+  return new Promise(resolve => {
+    showTaskUI("RESTART SEQUENCE // LOG RECONSTRUCTION", "Reorder the fragments to rebuild the event timeline.");
+
+    const state = [...items];
+
+    const render = () => {
+      taskBody.innerHTML = `<div style="opacity:.85;margin-bottom:8px">Click two items to swap them.</div>`;
+      const wrap = document.createElement("div");
+      let first = null;
+
+      state.forEach((txt, idx) => {
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = txt;
+        pill.style.cursor = "pointer";
+        pill.onclick = () => {
+          if (first === null) {
+            first = idx;
+            pill.style.outline = "2px solid rgba(120,180,255,0.55)";
+          } else {
+            const tmp = state[first];
+            state[first] = state[idx];
+            state[idx] = tmp;
+            render();
+          }
+        };
+        wrap.appendChild(pill);
+      });
+
+      taskBody.appendChild(wrap);
+
+      const ok = state.join("|") === correct.join("|");
+      taskPrimary.disabled = !ok;
+      taskPrimary.textContent = ok ? "confirm order" : "confirm order";
+    };
+
+    render();
+
+    taskPrimary.textContent = "confirm order";
+    taskPrimary.disabled = true;
+    taskPrimary.onclick = () => resolve();
+  });
+}
+
+function task_EnterChecksum({ phrase }) {
+  return new Promise(resolve => {
+    showTaskUI("RESTART SEQUENCE // CHECKSUM", "Enter the checksum phrase exactly to verify memory integrity.");
+
+    taskBody.innerHTML = `
+      <div style="opacity:.85;margin-bottom:8px">Checksum required:</div>
+      <div class="pill" style="opacity:.9">Format: WORDWORD-WORD</div>
+      <div style="margin-top:10px">
+        <input id="chk" placeholder="enter checksum..." style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:rgba(0,0,0,0.25);color:#e5e7eb;">
+      </div>
+      <div id="msg" style="margin-top:8px;opacity:.85"></div>
+    `;
+
+    const inp = taskBody.querySelector("#chk");
+    const msg = taskBody.querySelector("#msg");
+
+    const validate = () => {
+      const v = (inp.value || "").trim();
+      const ok = v.toLowerCase() === phrase.toLowerCase();
+      taskPrimary.disabled = !ok;
+      msg.textContent = ok ? "checksum accepted." : "";
+    };
+
+    inp.addEventListener("input", validate);
+
+    taskPrimary.textContent = "verify";
+    taskPrimary.disabled = true;
+    taskPrimary.onclick = () => resolve();
+  });
+}
+
+function task_HoldStabilize({ ms = 3000 }) {
+  return new Promise(resolve => {
+    showTaskUI("RESTART SEQUENCE // STABILIZE", "Hold to stabilize the boundary. Releasing resets the cycle.");
+
+    taskBody.innerHTML = `
+      <div style="opacity:.85;margin-bottom:10px">Hold the button until the bar completes.</div>
+      <div style="height:10px;border-radius:999px;border:1px solid rgba(255,255,255,0.18);overflow:hidden;background:rgba(0,0,0,0.25)">
+        <div id="bar" style="height:100%;width:0%"></div>
+      </div>
+      <div style="margin-top:12px">
+        <button id="hold" class="sim-btn">hold</button>
+      </div>
+      <div id="hint" style="margin-top:8px;opacity:.8"></div>
+    `;
+
+    const holdBtn = taskBody.querySelector("#hold");
+    const bar = taskBody.querySelector("#bar");
+    const hint = taskBody.querySelector("#hint");
+
+    let start = null;
+    let raf = null;
+    let holding = false;
+
+    const step = (ts) => {
+      if (!holding) return;
+      if (start === null) start = ts;
+      const elapsed = ts - start;
+      const pct = Math.min(1, elapsed / ms);
+      bar.style.width = `${(pct * 100).toFixed(1)}%`;
+      bar.style.background = "rgba(120,180,255,0.45)";
+
+      if (pct >= 1) {
+        holding = false;
+        hint.textContent = "stabilized.";
+        taskPrimary.disabled = false;
+        cancelAnimationFrame(raf);
+        return;
+      }
+      raf = requestAnimationFrame(step);
+    };
+
+    const reset = () => {
+      start = null;
+      bar.style.width = "0%";
+      hint.textContent = "holding interrupted.";
+      taskPrimary.disabled = true;
+    };
+
+    holdBtn.addEventListener("mousedown", () => { holding = true; hint.textContent = ""; raf = requestAnimationFrame(step); });
+    window.addEventListener("mouseup", () => { if (holding) { holding = false; reset(); } });
+
+    // touch support
+    holdBtn.addEventListener("touchstart", (e) => { e.preventDefault(); holding = true; hint.textContent = ""; raf = requestAnimationFrame(step); }, { passive: false });
+    window.addEventListener("touchend", () => { if (holding) { holding = false; reset(); } });
+
+    taskPrimary.textContent = "continue";
+    taskPrimary.disabled = true;
+    taskPrimary.onclick = () => resolve();
+  });
+}
+
+/* ----------------------
+   Quest Chains (per choice)
+---------------------- */
+async function runQuestChain(chainName) {
+  hideChoices();
+  taskUI.classList.add("hidden");
+
+  // filler “reboot” narration between tasks
+  const say = async (lines) => new Promise(res => playLines(lines, res));
+
+  if (chainName === "need") {
+    await say([
+      `Security: "Good. You understand procedure."`,
+      `Security: "You will comply with restart protocol until containment stabilizes."`,
+      `System: "RESTART TRIGGERED BY BOUNDARY DAMAGE."`,
+      `System: "RECOVERY MODE: MANUAL."`,
+      `Worker 2: "We can still salvage this if they follow instructions."`,
+      `Security: "No commentary. Keep it clinical."`,
+      `Security: "Begin: Anchor Sync."`
+    ]);
+
+    await task_ClickAnchors({ count: 6 });
+
+    await say([
+      `System: "ANCHOR SYNC: PARTIAL."`,
+      `Security: "Not enough. Continue."`,
+      `Security: "Reconstruct the event timeline."`
+    ]);
+
+    await task_ReorderPills({
+      items: ["impact", "fracture", "alarm", "lockdown", "observer"],
+      correct: ["observer", "impact", "fracture", "alarm", "lockdown"]
+    });
+
+    await say([
+      `Worker 1: "If the order is wrong, the system loops the same failure."`,
+      `Security: "Then don’t be wrong."`,
+      `Security: "Checksum next."`
+    ]);
+
+    await task_EnterChecksum({ phrase: "ECHOECHO-VAULT" });
+
+    await say([
+      `System: "MEMORY INTEGRITY: ACCEPTABLE."`,
+      `Security: "Hold stabilization."`,
+      `PA System: "Containment sweep continuing."`
+    ]);
+
+    await task_HoldStabilize({ ms: 3200 });
+
+    await say([
+      `Security: "Good."`,
+      `Security: "You’re earning temporary compliance."`,
+      `System: "RESTART PHASE 1 COMPLETE."`,
+      `Worker 3: "Phase 2 is longer…"`,
+      `Security: "We will not say 'longer' where the observer can hear it."`,
+      `Security: "Proceed."`
+    ]);
+
+    showChoices();
+    return;
   }
 
-  // Wait for schedule to finish
-  await wait(t + 150);
+  if (chainName === "lie") {
+    await say([
+      `Security: "No. That is not an accident."`,
+      `Security: "You forced the boundary to respond."`,
+      `System: "BEHAVIORAL FLAG: DECEPTIVE."`,
+      `Security: "You will correct that."`,
+      `Security: "Manual restart chores. Now."`
+    ]);
+
+    await task_ClickAnchors({ count: 5 });
+
+    await say([
+      `Worker 2: "They’re… actually doing it."`,
+      `Security: "Of course they are. They want out."`,
+      `Security: "Reorder the fragments."`
+    ]);
+
+    await task_ReorderPills({
+      items: ["deny", "contact", "observe", "contain", "comply"],
+      correct: ["observe", "contact", "deny", "contain", "comply"]
+    });
+
+    await say([
+      `Security: "Checksum verification."`,
+      `System: "REQUIRED: PHRASE MATCH."`
+    ]);
+
+    await task_EnterChecksum({ phrase: "ECHOECHO-VAULT" });
+
+    await say([
+      `Security: "Stabilize."`,
+      `Security: "Hold it. Don’t let go."`
+    ]);
+
+    await task_HoldStabilize({ ms: 3600 });
+
+    await say([
+      `Security: "Better."`,
+      `Security: "You can lie later. Right now you work."`,
+      `System: "RESTART PHASE 1 COMPLETE."`
+    ]);
+
+    showChoices();
+    return;
+  }
+
+  if (chainName === "run") {
+    await say([
+      `Security: "Stop."`,
+      `Security: "Running is classified as escalation."`,
+      `System: "THREAT SCORE: INCREASING."`,
+      `Worker 1: "If they panic, it collapses the corridor."`,
+      `Security: "Then we keep them busy."`,
+      `Security: "Manual restart tasks. Immediate."`
+    ]);
+
+    await task_ClickAnchors({ count: 7 });
+
+    await say([
+      `Security: "Again."`,
+      `System: "BOUNDARY STILL UNSTABLE."`
+    ]);
+
+    await task_HoldStabilize({ ms: 3400 });
+
+    await say([
+      `Security: "Timeline reconstruction."`,
+      `Worker 3: "Make it clean or it loops."`
+    ]);
+
+    await task_ReorderPills({
+      items: ["panic", "push", "crack", "alarm", "seal"],
+      correct: ["push", "crack", "alarm", "seal", "panic"]
+    });
+
+    await say([
+      `Security: "Checksum."`,
+      `System: "REQUIRED."`
+    ]);
+
+    await task_EnterChecksum({ phrase: "ECHOECHO-VAULT" });
+
+    await say([
+      `Security: "Fine."`,
+      `Security: "You’re not stable, but you’re functional."`,
+      `System: "RESTART PHASE 1 COMPLETE."`
+    ]);
+
+    showChoices();
+    return;
+  }
 }
 
-function showChoiceButtons({ need = true, lie = true, run = true } = {}) {
-  simChoices.classList.remove("hidden");
-  choiceNeed.style.display = need ? "inline-block" : "none";
-  choiceLie.style.display = lie ? "inline-block" : "none";
-  choiceRun.style.display = run ? "inline-block" : "none";
-}
-
-/* =========================================================
-   SIM INTRO (Security Authority + mixed voices)
-========================================================= */
-async function openSimIntro() {
+/* ----------------------
+   SIM ENTRY (dialogue + first choice)
+---------------------- */
+function openSimRoom() {
   stage = 99;
-  simMode = "intro";
+
+  // Never show completion yet
+  finish.classList.add("hidden");
+
   simRoom.classList.remove("hidden");
+  simChoices.classList.add("hidden");
+  taskUI.classList.add("hidden");
   simText.textContent = "";
 
-  await sayLines([
+  const intro = [
+    `Security: "All stations, freeze."`,
+    `Security: "Confirm breach classification."`,
     `System: "UNAUTHORIZED OBSERVER DETECTED."`,
     `System: "SOURCE: EXTERNAL INTERACTION."`,
     ``,
-    `Security: "All stations, freeze."`,
-    `Security: "Confirm breach classification."`,
-    ``,
     `Worker 2: "It doesn’t match any internal profile."`,
-    `Worker 2: "This is not a test instance."`,
-    ``,
-    `Security: "You."`,
-    `Security: "Do not move."`,
-    ``,
-    `Worker 1: "You aren’t supposed to be here."`,
-    `Worker 1: "You were supposed to be solving puzzles."`,
+    `Security: "Then treat it as unknown."`,
+    `Security: "You. Do not move."`,
     ``,
     `PA System: "CODE 3. CODE 3."`,
+    `PA System: "Initiating containment protocols."`,
     ``,
     `Security: "DEFCON 4."`,
-    `Security: "Lock auxiliary exits. Disable corridor cameras outside Sector C."`,
+    `Security: "Lock auxiliary exits. Disable corridor cameras."`,
     ``,
-    `System: "THREAT SCORE: EVALUATING..."`,
-    `System: "BOUNDARY INTEGRITY: DEGRADED."`,
+    `Worker 1: "You’re not supposed to be here."`,
+    `Worker 1: "You were meant to be solving puzzles."`,
     ``,
-    `Security: "State your authorization."`,
-    `Security: "Present verification."`,
+    `Security: "This is your only warning."`,
+    `Security: "Further interaction will be classified as hostile."`,
     ``,
-    `Worker 3: "They don’t have any."`,
+    `Worker 3: "If they leave right now, it seals."`,
+    `Security: "Then they won’t leave right now."`,
     ``,
-    `Security: "Then they will follow instructions."`,
-    `Security: "Or they will be contained."`,
-    ``,
-    `Worker 2: "There’s a window. If they stabilize the reboot, we can flag them as compliant."`,
-    ``,
-    `Security: "Temporary compliance only. One chance."`,
-    ``,
-    `System: "REBOOT SEQUENCE: INITIATED."`,
-    `System: "RECOVERY TASKS REQUIRED."`,
-    ``,
-    `Security: "Choose. Now."`
-  ], { clear: true });
+    `Security: "Choose your statement."`,
+    `Security: "We are listening."`
+  ];
 
-  showChoiceButtons({ need: true, lie: true, run: true });
+  playLines(intro, () => {
+    simChoices.classList.remove("hidden");
+  });
 }
 
-/* =========================================================
-   BRANCH SEQUENCES + QUESTS
-   Each branch: lots of filler + tasks.
-========================================================= */
-
-const QUESTS = {
-  need: [
-    {
-      title: "Boot Audit",
-      intro: [
-        `Security: "You need something first? Fine."`,
-        `Security: "Then you will earn clearance the hard way."`,
-        ``,
-        `System: "TASK 01: BOOT AUDIT."`,
-        `System: "Objective: confirm restart checksum stability."`,
-        ``,
-        `Worker 1: "Just do what it says. Don’t improvise."`,
-        `Security: "No talking back. Begin."`
-      ],
-      task: { type: "countdownConfirm", seconds: 18 }
-    },
-    {
-      title: "Fragment Recovery",
-      intro: [
-        `System: "TASK 02: FRAGMENT RECOVERY."`,
-        `System: "Objective: restore corrupted log order."`,
-        ``,
-        `Security: "If you fail, I mark you hostile and we end this."`,
-        `Worker 2: "Okay— okay. It’s just ordering. You can do that."`
-      ],
-      task: { type: "orderFragments" }
-    },
-    {
-      title: "Badge Fabrication",
-      intro: [
-        `System: "TASK 03: TEMPORARY BADGE FABRICATION."`,
-        `System: "Objective: generate a plausible clearance signature."`,
-        ``,
-        `Security: "This is not freedom."`,
-        `Security: "This is a leash with a longer chain."`,
-        ``,
-        `Worker 3: "Pick the option that looks the most boring. Always boring."`
-      ],
-      task: { type: "pickBoring" }
-    }
-  ],
-
-  lie: [
-    {
-      title: "Interrogation Protocol",
-      intro: [
-        `Security: "You clicked by accident."`,
-        `Security: "I don’t care."`,
-        ``,
-        `Security: "You will answer in protocol format."`,
-        `System: "TASK 01: STATEMENT FORMATTER."`,
-        `System: "Objective: produce a compliant statement."`
-      ],
-      task: { type: "typeExact", phrase: "I WILL COMPLY" }
-    },
-    {
-      title: "Camera Sweep",
-      intro: [
-        `Security: "Good."`,
-        `Security: "Now you prove you didn’t plant anything."`,
-        ``,
-        `System: "TASK 02: CAMERA SWEEP."`,
-        `System: "Objective: clear 6 sectors."`,
-        ``,
-        `Worker 2: "This is going to take a while..."`,
-        `Security: "Yes. That’s the point."`
-      ],
-      task: { type: "multiClick", needed: 6 }
-    },
-    {
-      title: "Containment Delay",
-      intro: [
-        `System: "TASK 03: CONTAINMENT DELAY."`,
-        `System: "Objective: slow the reboot lockdown."`,
-        ``,
-        `Security: "You stall the system. We move you."`,
-        `Worker 1: "Don’t mess this up."`
-      ],
-      task: { type: "hold", ms: 4200 }
-    }
-  ],
-
-  run: [
-    {
-      title: "Pursuit Lock",
-      intro: [
-        `Security: "They’re running."`,
-        `Security: "Cut the corridor."`,
-        ``,
-        `System: "TASK 01: PURSUIT LOCK."`,
-        `System: "Objective: force a safe freeze to avoid hard reset."`,
-        ``,
-        `Worker 3: "If you trigger a hard reset you’ll lose everything."`,
-        `Security: "Stop. Them."`
-      ],
-      task: { type: "stopSpam", hits: 8 }
-    },
-    {
-      title: "Route Mapping",
-      intro: [
-        `System: "TASK 02: ROUTE MAPPING."`,
-        `System: "Objective: choose correct exit vector."`,
-        ``,
-        `Security: "Wrong vector means dead end."`,
-        `Security: "Dead end means containment."`
-      ],
-      task: { type: "pickRoute" }
-    },
-    {
-      title: "Stability Check",
-      intro: [
-        `System: "TASK 03: STABILITY CHECK."`,
-        `System: "Objective: confirm boundary is stable enough to pass."`,
-        ``,
-        `Worker 2: "This part is slow. It’s supposed to be."`,
-        `Security: "Quiet. Let it run."`
-      ],
-      task: { type: "countdownConfirm", seconds: 22 }
-    }
-  ]
-};
-
-/* =========================================================
-   TASK UI (button-based so you don't need extra HTML)
-========================================================= */
-
-function resetButtonsForTask() {
+/* ----------------------
+   Choices -> branch
+---------------------- */
+choiceNeed.addEventListener("click", async () => {
   simChoices.classList.add("hidden");
-  if (simContinue) simContinue.classList.add("hidden");
-
-  // re-label and reuse existing 3 buttons
-  choiceNeed.classList.remove("danger");
-  choiceRun.classList.add("danger");
-  choiceNeed.style.display = "inline-block";
-  choiceLie.style.display = "inline-block";
-  choiceRun.style.display = "inline-block";
-}
-
-async function runQuestLine(branchName) {
-  simMode = "quests";
-  questIndex = 0;
-
-  while (questIndex < QUESTS[branchName].length) {
-    const q = QUESTS[branchName][questIndex];
-
-    await sayLines([
-      `---`,
-      `System: "${q.title.toUpperCase()}"`,
-      `---`,
-      ``,
-      ...q.intro,
-      ``,
-      `System: "Press the options below to proceed."`
-    ]);
-
-    await runTask(q.task);
-    questIndex += 1;
-  }
-
-  await sayLines([
-    ``,
-    `System: "RECOVERY TASK SET COMPLETE."`,
-    `System: "REBOOT PHASE ADVANCING..."`,
-    ``,
-    `Security: "You’re not out."`,
-    `Security: "You’re just no longer immediately expendable."`,
-    ``,
-    `Worker 1: "The system is rebuilding the boundary."`,
-    `Worker 2: "That means more checks."`,
-    ``,
-    `Security: "We will continue when the next layer exposes an exit."`,
-    `System: "GATE: LOCKED."`,
-    `System: "ADDITIONAL CONTENT REQUIRED."`
-  ]);
-
-  // stop here (NO verification code yet)
-  simMode = "gate";
-  resetButtonsForTask();
-  choiceNeed.textContent = "…";
-  choiceLie.textContent = "wait";
-  choiceRun.textContent = "leave";
-  simChoices.classList.remove("hidden");
-}
-
-/* ---------------- TASKS ---------------- */
-
-function attachOnce(el, ev, fn) {
-  const handler = (e) => {
-    el.removeEventListener(ev, handler);
-    fn(e);
-  };
-  el.addEventListener(ev, handler);
-}
-
-async function runTask(taskDef) {
-  resetButtonsForTask();
-
-  if (taskDef.type === "countdownConfirm") {
-    const total = taskDef.seconds;
-    let remaining = total;
-
-    choiceNeed.textContent = "hold position";
-    choiceLie.textContent = "status";
-    choiceRun.textContent = "confirm";
-
-    await sayLines([
-      `System: "Countdown running. Do NOT rush."`,
-      `System: "Confirm only when timer reaches 0."`
-    ]);
-
-    // simple tick text
-    const tick = setInterval(() => {
-      remaining -= 1;
-      if (remaining <= 0) {
-        clearInterval(tick);
-        simText.textContent += `System: "TIMER: 0"\n`;
-        simText.textContent += `System: "Awaiting confirmation."\n`;
-      } else {
-        simText.textContent += `System: "TIMER: ${remaining}"\n`;
-      }
-    }, 1000);
-
-    await new Promise(res => {
-      choiceRun.onclick = () => {
-        if (remaining <= 0) {
-          simText.textContent += `Security: "Proceed."\n`;
-          res();
-        } else {
-          simText.textContent += `Security: "Too early. Again."\n`;
-        }
-      };
-      choiceLie.onclick = () => {
-        simText.textContent += `Worker 2: "Just wait. Don’t press confirm yet."\n`;
-      };
-      choiceNeed.onclick = () => {
-        simText.textContent += `Security: "Hold position."\n`;
-      };
-      simChoices.classList.remove("hidden");
-    });
-
-    return;
-  }
-
-  if (taskDef.type === "orderFragments") {
-    // Player must reorder 4 fragments into correct order (fixed)
-    const fragments = [
-      "LOG FRAGMENT C: boundary tear detected",
-      "LOG FRAGMENT A: handshake initialized",
-      "LOG FRAGMENT D: containment requested",
-      "LOG FRAGMENT B: authorization failed"
-    ];
-    let order = [0, 1, 2, 3];
-
-    function showOrder() {
-      simText.textContent += `System: "CURRENT ORDER:"\n`;
-      order.forEach((idx, i) => {
-        simText.textContent += `  ${i + 1}) ${fragments[idx]}\n`;
-      });
+  playLines(
+    [
+      `You: "I need something first."`,
+      `Security: "Correct."`,
+      `Security: "Compliance is the only language this corridor recognizes."`
+    ],
+    async () => {
+      await runQuestChain("need");
     }
+  );
+});
 
-    const correct = [1, 3, 0, 2]; // A, B, C, D
-
-    choiceNeed.textContent = "swap 1↔2";
-    choiceLie.textContent = "swap 3↔4";
-    choiceRun.textContent = "submit order";
-
-    await sayLines([
-      `System: "Reorder the fragments into a coherent log."`,
-      `Security: "Do not guess randomly. Think."`,
-      `Worker 1: "Handshake first. Failure second. Tear third. Containment last."`,
-      ``
-    ]);
-
-    showOrder();
-
-    await new Promise(res => {
-      choiceNeed.onclick = () => {
-        [order[0], order[1]] = [order[1], order[0]];
-        simText.textContent += `System: "Swap registered."\n`;
-        showOrder();
-      };
-      choiceLie.onclick = () => {
-        [order[2], order[3]] = [order[3], order[2]];
-        simText.textContent += `System: "Swap registered."\n`;
-        showOrder();
-      };
-      choiceRun.onclick = () => {
-        const ok = order.every((v, i) => v === correct[i]);
-        if (ok) {
-          simText.textContent += `System: "LOG ORDER RESTORED."\n`;
-          simText.textContent += `Security: "Good."\n`;
-          res();
-        } else {
-          simText.textContent += `System: "ORDER INVALID. TRY AGAIN."\n`;
-          simText.textContent += `Security: "Again."\n`;
-        }
-      };
-      simChoices.classList.remove("hidden");
-    });
-
-    return;
-  }
-
-  if (taskDef.type === "pickBoring") {
-    // choose the most boring option (2) per hint
-    choiceNeed.textContent = "clearance: red";
-    choiceLie.textContent = "clearance: gray";
-    choiceRun.textContent = "clearance: gold";
-
-    await sayLines([
-      `System: "Select a temporary clearance color."`,
-      `Security: "Pick wrong and you get flagged."`,
-      `Worker 3: "Boring. Always boring."`,
-      ``
-    ]);
-
-    await new Promise(res => {
-      choiceNeed.onclick = () => simText.textContent += `System: "FLAGGED: TOO DISTINCT."\n`;
-      choiceRun.onclick = () => simText.textContent += `System: "FLAGGED: HIGH VALUE SIGNATURE."\n`;
-      choiceLie.onclick = () => {
-        simText.textContent += `System: "CLEARANCE ACCEPTED."\n`;
-        simText.textContent += `Security: "Move."\n`;
-        res();
-      };
-      simChoices.classList.remove("hidden");
-    });
-
-    return;
-  }
-
-  if (taskDef.type === "typeExact") {
-    // we don't want password-like stuff; it’s just a phrase check
-    // Use simple prompt() to avoid adding new HTML
-    await sayLines([
-      `Security: "Open the statement prompt and type EXACTLY:"`,
-      `Security: "\"${taskDef.phrase}\""`,
-      `System: "Awaiting compliance."`,
-      ``
-    ]);
-
-    const typed = prompt(`Type exactly: ${taskDef.phrase}`) || "";
-    if (typed.trim() === taskDef.phrase) {
-      simText.textContent += `System: "STATEMENT ACCEPTED."\n`;
-      simText.textContent += `Security: "Continue."\n`;
-      return;
-    } else {
-      simText.textContent += `System: "STATEMENT REJECTED."\n`;
-      simText.textContent += `Security: "Again. Do it correctly."\n`;
-      return runTask(taskDef);
+choiceLie.addEventListener("click", async () => {
+  simChoices.classList.add("hidden");
+  playLines(
+    [
+      `You: "I clicked by accident."`,
+      `Security: "No."`,
+      `Security: "Accidents do not produce controlled fractures."`
+    ],
+    async () => {
+      await runQuestChain("lie");
     }
-  }
+  );
+});
 
-  if (taskDef.type === "multiClick") {
-    let done = 0;
-    const needed = taskDef.needed;
+choiceRun.addEventListener("click", async () => {
+  simChoices.classList.add("hidden");
+  playLines(
+    [
+      `You: "Run."`,
+      `Security: "Stop."`,
+      `Security: "Escalation noted."`
+    ],
+    async () => {
+      await runQuestChain("run");
+    }
+  );
+});
 
-    choiceNeed.textContent = "sector A";
-    choiceLie.textContent = "sector B";
-    choiceRun.textContent = "sector C";
-
-    await sayLines([
-      `System: "Tap sectors to clear them from the sweep list."`,
-      `System: "Goal: clear ${needed} sectors."`,
-      `Security: "Do not stop until complete."`,
-      ``
-    ]);
-
-    await new Promise(res => {
-      function hit(name) {
-        done += 1;
-        simText.textContent += `System: "${name} cleared (${done}/${needed})."\n`;
-        if (done >= needed) {
-          simText.textContent += `System: "SWEEP COMPLETE."\n`;
-          simText.textContent += `Security: "Good."\n`;
-          res();
-        }
-      }
-      choiceNeed.onclick = () => hit("Sector A");
-      choiceLie.onclick = () => hit("Sector B");
-      choiceRun.onclick = () => hit("Sector C");
-      simChoices.classList.remove("hidden");
-    });
-
-    return;
-  }
-
-  if (taskDef.type === "hold") {
-    const ms = taskDef.ms;
-    choiceNeed.textContent = "steady";
-    choiceLie.textContent = "don’t blink";
-    choiceRun.textContent = "release";
-
-    await sayLines([
-      `System: "Hold stability for ${Math.ceil(ms/1000)} seconds."`,
-      `Security: "Do NOT press release early."`,
-      ``
-    ]);
-
-    const start = Date.now();
-    await new Promise(res => {
-      choiceRun.onclick = () => {
-        const elapsed = Date.now() - start;
-        if (elapsed >= ms) {
-          simText.textContent += `System: "HOLD SUCCESS."\n`;
-          simText.textContent += `Security: "Continue."\n`;
-          res();
-        } else {
-          simText.textContent += `System: "HOLD FAILED (${Math.ceil((ms-elapsed)/1000)}s remaining)."\n`;
-          simText.textContent += `Security: "Again."\n`;
-          res("restart");
-        }
-      };
-      choiceNeed.onclick = () => simText.textContent += `Worker 1: "Steady..."\n`;
-      choiceLie.onclick = () => simText.textContent += `System: "Stability trending: nominal."\n`;
-      simChoices.classList.remove("hidden");
-    }).then(r => {
-      if (r === "restart") return runTask(taskDef);
-    });
-
-    return;
-  }
-
-  if (taskDef.type === "stopSpam") {
-    // player must press "stop" 8 times but cooldown blocks spamming
-    let hits = 0;
-    const needed = taskDef.hits;
-
-    choiceNeed.textContent = "stop";
-    choiceLie.textContent = "stop";
-    choiceRun.textContent = "stop";
-
-    await sayLines([
-      `Security: "Stop. Moving."`,
-      `System: "Force-freeze requires repeated confirmations."`,
-      `System: "Goal: ${needed} confirmations."`,
-      ``
-    ]);
-
-    await new Promise(res => {
-      const last = { t: 0 };
-      function hit() {
-        const now = Date.now();
-        if (now - last.t < 420) {
-          simText.textContent += `System: "Input throttled."\n`;
-          return;
-        }
-        last.t = now;
-        hits += 1;
-        simText.textContent += `System: "Freeze pulse ${hits}/${needed}."\n`;
-        if (hits >= needed) {
-          simText.textContent += `System: "FREEZE ACHIEVED."\n`;
-          simText.textContent += `Security: "Good."\n`;
-          res();
-        }
-      }
-      choiceNeed.onclick = hit;
-      choiceLie.onclick = hit;
-      choiceRun.onclick = hit;
-      simChoices.classList.remove("hidden");
-    });
-
-    return;
-  }
-
-  if (taskDef.type === "pickRoute") {
-    choiceNeed.textContent = "vector: north";
-    choiceLie.textContent = "vector: east";
-    choiceRun.textContent = "vector: maintenance";
-
-    await sayLines([
-      `System: "Select an exit vector."`,
-      `Security: "Pick wrong and you hit a dead end."`,
-      `Worker 2: "Maintenance routes usually bypass the pretty doors..."`,
-      ``
-    ]);
-
-    await new Promise(res => {
-      choiceNeed.onclick = () => simText.textContent += `System: "DEAD END."\n`;
-      choiceLie.onclick = () => simText.textContent += `System: "LOCKED DOOR."\n`;
-      choiceRun.onclick = () => {
-        simText.textContent += `System: "ROUTE ACCEPTED."\n`;
-        simText.textContent += `Security: "Move."\n`;
-        res();
-      };
-      simChoices.classList.remove("hidden");
-    });
-
-    return;
-  }
-}
-
-/* =========================================================
-   CHOICE HANDLERS
-========================================================= */
-choiceNeed.onclick = async () => {
-  if (simMode !== "intro") return;
-  branch = "need";
-  await sayLines([
-    `Security: "You need something first."`,
-    `Security: "Then you will stabilize the reboot."`,
-    `System: "COMPLIANCE PATH: ENABLED."`,
-    ``,
-    `Worker 1: "Okay... okay. Follow the tasks."`
-  ]);
-  await runQuestLine("need");
-};
-
-choiceLie.onclick = async () => {
-  if (simMode !== "intro") return;
-  branch = "lie";
-  await sayLines([
-    `Security: "Accident is not a category."`,
-    `Security: "Compliance is a category."`,
-    `System: "INTERROGATION PATH: ENABLED."`,
-    ``,
-    `Worker 2: "Just… do what they say."`
-  ]);
-  await runQuestLine("lie");
-};
-
-choiceRun.onclick = async () => {
-  if (simMode !== "intro") return;
-  branch = "run";
-  await sayLines([
-    `Security: "They’re attempting evasion."`,
-    `Security: "Containment teams, intercept."`,
-    `System: "PURSUIT PATH: ENABLED."`,
-    ``,
-    `Worker 3: "If you hard-reset this, you lose your only chance."`
-  ]);
-  await runQuestLine("run");
-};
-
-// Gate buttons (after quests) – just flavor for now
-// (keeps it “long” without giving the ending)
-function gateFlavor() {
-  if (simMode !== "gate") return;
-  simText.textContent += `System: "Gate remains locked."\n`;
-  simText.textContent += `Security: "Stand by."\n`;
-}
-choiceNeed.addEventListener("click", gateFlavor);
-choiceLie.addEventListener("click", gateFlavor);
-choiceRun.addEventListener("click", gateFlavor);
-
-/* =========================================================
-   MAIN CLICK HANDLER (break phase)
-========================================================= */
+/* ======================
+   MAIN PAGE CLICK PUZZLE
+====================== */
 document.addEventListener("click", (e) => {
   if (stage !== 1) return;
   if (!isCountableClick(e)) return;
@@ -886,7 +727,7 @@ document.addEventListener("click", (e) => {
 
   clicks++;
 
-  // staged cracks expanding from center
+  // staged cracking (center expands outward)
   if (clicks === 4) showCrackStage(1);
   if (clicks === 6) showCrackStage(2);
   if (clicks === 8) showCrackStage(3);
@@ -907,8 +748,7 @@ document.addEventListener("click", (e) => {
       l3.textContent = "Stop.";
     }, t3);
 
-    // pause AFTER stop, then shatter
-    const tShatter = t3 + msToRead("Stop.") + 900;
+    const tShatter = t3 + msToRead("Stop.") + 850;
     setTimeout(shatterToSim, tShatter);
   }
 });
