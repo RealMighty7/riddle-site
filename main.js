@@ -1,6 +1,7 @@
 // ---------------------------
 // STATE 1: "Wrong place" page
-// Option 3: clicking empty space 7 times
+// Option 3: clicking empty space (behavior-based, not 7)
+// Escalates into PERSONAL reaction
 // ---------------------------
 
 const wrap = document.getElementById("wrap");
@@ -15,7 +16,6 @@ const discordName = document.getElementById("discordName");
 const result = document.getElementById("result");
 
 let bgClicks = 0;
-let triggered = false;
 let lastClickAt = 0;
 
 let stage = 1;            // 1 = landing, 2 = warning shown, 3 = personal mode
@@ -28,65 +28,63 @@ function clearPersonalTimers() {
 }
 
 function isClickOnEmptySpace(e) {
-  // Treat clicks on images/text/inputs/buttons as NOT empty space
   const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
   if (["img", "p", "h1", "h2", "input", "button", "label", "pre"].includes(tag)) return false;
-  // also treat clicks inside cards as allowed, as long as not on interactive elements
   return true;
 }
 
 wrap.addEventListener("click", (e) => {
-  if (triggered) return;
   if (!isClickOnEmptySpace(e)) return;
 
   const now = Date.now();
   if (now - lastClickAt < 180) return; // mild debounce
   lastClickAt = now;
 
-  bgClicks += 1;
+  // ---------------------------
+  // Stage 1 -> Stage 2
+  // ---------------------------
+  if (stage === 1) {
+    bgClicks += 1;
 
-if (bgClicks === 3) {
-  // subtle flicker to make them question it
-  document.body.style.transform = "translateX(1px)";
-  setTimeout(() => (document.body.style.transform = ""), 50);
-}
+    if (bgClicks === 3) {
+      // subtle flicker to make them question it
+      document.body.style.transform = "translateX(1px)";
+      setTimeout(() => (document.body.style.transform = ""), 50);
+    }
 
-if (bgClicks === 3) {
-  // subtle flicker to make them question it
-  document.body.style.transform = "translateX(1px)";
-  setTimeout(() => (document.body.style.transform = ""), 50);
-}
+    if (bgClicks >= 5) {
+      stage = 2;
 
-if (!triggered && bgClicks >= 5) {
-  triggered = true;
-  stage = 2;
+      systemBox.classList.remove("hidden");
+      l1.textContent = "That isn’t how this page is supposed to be used.";
+      clearPersonalTimers();
+      personalTimeouts.push(setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, 1800));
+      personalTimeouts.push(setTimeout(() => { l3.textContent = "Stop."; }, 3200));
 
-  systemBox.classList.remove("hidden");
-  l1.textContent = "That isn’t how this page is supposed to be used.";
-  personalTimeouts.push(setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, 1800));
-  personalTimeouts.push(setTimeout(() => { l3.textContent = "Stop."; }, 3200));
+      // Reveal completion area later (keep this for now)
+      personalTimeouts.push(setTimeout(() => {
+        finish.classList.remove("hidden");
+        finish.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 5200));
 
-  // Reveal completion area later (keep this for now)
-  personalTimeouts.push(setTimeout(() => {
-    finish.classList.remove("hidden");
-    finish.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, 5200));
+      return;
+    }
 
-  return;
-}
+    return;
+  }
 
-// ---------------------------
-// STATE 3: Personal reaction
-// After "Stop.", one more empty click triggers "someone is watching" mode
-// ---------------------------
-if (stage === 2) {
-  postStopClicks += 1;
+  // ---------------------------
+  // Stage 2 -> Stage 3 (personal reaction)
+  // After "Stop.", ONE more empty click triggers "someone is watching"
+  // ---------------------------
+  if (stage === 2) {
+    // Wait until "Stop." has appeared
+    const stopIsVisible = (l3.textContent || "").trim().length > 0;
+    if (!stopIsVisible) return;
 
-  // Wait until the "Stop." line has appeared before reacting personally
-  const stopIsVisible = (l3.textContent || "").trim().length > 0;
-  if (!stopIsVisible) return;
+    postStopClicks += 1;
+    if (postStopClicks < 1) return;
 
-  if (postStopClicks >= 1) {
     stage = 3;
     clearPersonalTimers();
 
@@ -102,12 +100,16 @@ if (stage === 2) {
 
     // Add a single "come here" button after the last line
     personalTimeouts.push(setTimeout(() => {
+      // Avoid adding multiple buttons if they spam click
+      if (systemBox.querySelector("button[data-come-here='1']")) return;
+
       const btn = document.createElement("button");
       btn.textContent = "fine. come here.";
+      btn.dataset.comeHere = "1";
       btn.style.marginTop = "12px";
 
       btn.addEventListener("click", () => {
-        // Next chapter placeholder
+        // Next chapter placeholder (we’ll expand this next)
         l1.textContent = "…okay. don’t touch anything.";
         l2.textContent = "if someone asks, you were never here.";
         l3.textContent = "";
@@ -116,9 +118,12 @@ if (stage === 2) {
 
       systemBox.appendChild(btn);
     }, 4300));
-  }
-}
 
+    return;
+  }
+
+  // Stage 3: ignore extra empty clicks for now
+});
 
 // ---------------------------
 // Completion submit -> calls /api/complete (hosted on Vercel)
@@ -154,4 +159,3 @@ ${data.token}`;
     submitBtn.disabled = false;
   }
 });
-
