@@ -1,5 +1,17 @@
+/* main.js
+   Engine:
+   landing clicks -> cracks -> shatter -> sim room
+   sim intro -> choices -> branch quests -> filler tasks
+   compliance ratio rule (max 40% compliant)
+*/
+
+const D = window.DIALOGUE;
+const TASKS = window.TASKS;
+
+/* ---------- cache safety (if you bumped ?v=) ---------- */
+
 /* ======================
-   RANDOM IMAGES
+   RANDOM IMAGES (12 pool)
 ====================== */
 const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
 document.querySelectorAll(".grid img").forEach(img => {
@@ -22,26 +34,19 @@ const choiceNeed = document.getElementById("choiceNeed");
 const choiceLie = document.getElementById("choiceLie");
 const choiceRun = document.getElementById("choiceRun");
 
+const taskUI = document.getElementById("taskUI");
+const taskTitle = document.getElementById("taskTitle");
+const taskDesc = document.getElementById("taskDesc");
+const taskBody = document.getElementById("taskBody");
+const taskPrimary = document.getElementById("taskPrimary");
+const taskSecondary = document.getElementById("taskSecondary");
+
 const resetOverlay = document.getElementById("resetOverlay");
 const resetTitle = document.getElementById("resetTitle");
 const resetBody = document.getElementById("resetBody");
 
-/* FORCE hidden on boot (prevents the “restarting…” stuck overlay) */
+/* always hidden on boot */
 resetOverlay.classList.add("hidden");
-
-/* ======================
-   STATE
-====================== */
-let stage = 1; // 1 = landing click puzzle, 2 = warning, 99 = sim
-
-let clicks = 0;
-let lastClick = 0;
-const CLICK_COOLDOWN = 650;
-
-/* ======================
-   DIALOGUE
-====================== */
-const D = window.DIALOGUE;
 
 /* ======================
    TIMING (225 WPM)
@@ -52,11 +57,36 @@ const MS_PER_WORD = 60000 / WPM;
 function wordsCount(s) {
   return String(s || "").trim().split(/\s+/).filter(Boolean).length;
 }
-
 function msToRead(line) {
   const w = wordsCount(line);
   if (!w) return 850;
   return Math.max(1450, w * MS_PER_WORD + 850);
+}
+
+/* ======================
+   STATE
+====================== */
+let stage = 1;         // 1 landing, 2 warning, 99 sim
+let clicks = 0;
+let lastClick = 0;
+const CLICK_COOLDOWN = 650;
+
+/* Compliance ratio system:
+   compliant = need + lie
+   noncompliant = run
+   rule: compliant/total <= 0.40 after enough choices
+*/
+const MAX_COMPLIANT_RATIO = 0.40;
+const MIN_CHOICES_BEFORE_CHECK = 10; // set based on game length
+let choiceTotal = 0;
+let choiceCompliant = 0;
+
+/* resistance drives difficulty */
+let resistanceScore = 0; // run increases, need reduces a bit
+
+function difficultyBoost() {
+  // boost = 0..4
+  return Math.max(0, Math.min(4, resistanceScore));
 }
 
 /* ======================
@@ -66,44 +96,45 @@ let timers = [];
 function clearTimers() { timers.forEach(t => clearTimeout(t)); timers = []; }
 
 /* ======================
-   CLICK FILTER
-====================== */
-function isCountableClick(e) {
-  const t = e.target;
-  if (!t) return true;
-  if (t.closest("button, input, textarea, select, label, a, pre, img")) return false;
-  return true;
-}
-
-/* ======================
-   SIM HELPERS
+   UI helpers
 ====================== */
 function appendSimLine(line) {
   simText.textContent += (line ? line : "") + "\n";
-  simText.scrollTop = simText.scrollHeight;
+  simText.scrollTop = simText.scrollHeight; // auto-scroll
 }
 
-function playLines(lines, onDone) {
+function playLines(lines) {
   clearTimers();
-  let t = 350;
-  for (const line of lines) {
-    timers.push(setTimeout(() => appendSimLine(line), t));
-    t += msToRead(line || " ");
-  }
-  timers.push(setTimeout(() => onDone && onDone(), t + 250));
+  return new Promise(resolve => {
+    let t = 350;
+    for (const line of lines) {
+      timers.push(setTimeout(() => appendSimLine(line), t));
+      t += msToRead(line || " ");
+    }
+    timers.push(setTimeout(resolve, t + 250));
+  });
 }
 
-function showChoices() { simChoices.classList.remove("hidden"); }
-function hideChoices() { simChoices.classList.add("hidden"); }
+function showChoices() {
+  simChoices.classList.remove("hidden");
+  taskUI.classList.add("hidden");
+}
+function hideChoices() {
+  simChoices.classList.add("hidden");
+}
 
-/* ======================
-   RESET / RELOAD
-====================== */
+function showTaskUI(title, desc) {
+  taskUI.classList.remove("hidden");
+  taskTitle.textContent = title;
+  taskDesc.textContent = desc;
+  taskBody.innerHTML = "";
+  taskSecondary.classList.add("hidden");
+  taskPrimary.disabled = false;
+}
+
 function hardReload() {
-  // more reliable than location.reload() if something is funky
   window.location.href = window.location.href.split("#")[0];
 }
-
 function doReset(reasonTitle, reasonBody) {
   resetTitle.textContent = reasonTitle || "RESET";
   resetBody.textContent = reasonBody || "";
@@ -111,16 +142,7 @@ function doReset(reasonTitle, reasonBody) {
   setTimeout(hardReload, 1800);
 }
 
-/* ======================
-   COMPLIANCE RATIO RULE
-   - max 40% compliant choices allowed
-====================== */
-const MAX_COMPLIANT_RATIO = 0.40;
-const MIN_CHOICES_BEFORE_CHECK = 5; // prevents early resets
-
-let choiceTotal = 0;
-let choiceCompliant = 0;
-
+/* record compliance choice */
 function recordChoice(isCompliant) {
   choiceTotal++;
   if (isCompliant) choiceCompliant++;
@@ -139,7 +161,121 @@ function recordChoice(isCompliant) {
 }
 
 /* ======================
-   CRACKS (NO BLACK FILL)
+   TASK RUNNER
+====================== */
+const taskContext = {
+  taskPrimary,
+  taskSecondary,
+  taskBody,
+  showTaskUI,
+  doReset,
+  difficultyBoost
+};
+
+async function runSteps(steps) {
+  for (const step of steps) {
+    if (step.say) {
+      await playLines(step.say);
+      continue;
+    }
+
+    // direct task
+    if (step.task) {
+      const id = step.task;
+      const fn = TASKS[id];
+      if (!fn) continue;
+      await fn(taskContext, step.args || {});
+      continue;
+    }
+
+    // filler bundle: randomly choose from a pool N times
+    if (step.filler) {
+      const count = Number(step.filler.count || 1);
+      const poolName = String(step.filler.pool || "filler_standard");
+      const pool = D.fillerPools?.[poolName] || [];
+
+      for (let i = 0; i < count; i++) {
+        if (!pool.length) break;
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+
+        if (pick.say) await playLines(pick.say);
+
+        if (pick.task?.id) {
+          const fn = TASKS[pick.task.id];
+          if (fn) await fn(taskContext, pick.task.args || {});
+        }
+      }
+      continue;
+    }
+  }
+}
+
+/* ======================
+   SIM ENTRY
+====================== */
+async function openSimRoom() {
+  stage = 99;
+  simRoom.classList.remove("hidden");
+  hideChoices();
+  taskUI.classList.add("hidden");
+  simText.textContent = "";
+
+  await playLines(D.intro);
+  showChoices();
+}
+
+/* ======================
+   CHOICES -> BRANCHES
+====================== */
+choiceNeed.addEventListener("click", async () => {
+  // compliant
+  if (!recordChoice(true)) return;
+  resistanceScore = Math.max(0, resistanceScore - 1);
+
+  hideChoices();
+  await playLines(D.branches.need.preface);
+
+  // run branch steps
+  await runSteps(D.branches.need.steps);
+
+  // after branch chunk, present choices again
+  showChoices();
+});
+
+choiceLie.addEventListener("click", async () => {
+  // compliant-ish
+  if (!recordChoice(true)) return;
+  resistanceScore = Math.max(0, resistanceScore - 0); // neutral
+
+  hideChoices();
+  await playLines(D.branches.lie.preface);
+  await runSteps(D.branches.lie.steps);
+  showChoices();
+});
+
+choiceRun.addEventListener("click", async () => {
+  // non-compliant
+  if (!recordChoice(false)) return;
+  resistanceScore = Math.min(6, resistanceScore + 1);
+
+  hideChoices();
+  await playLines(D.branches.run.preface);
+  await runSteps(D.branches.run.steps);
+  showChoices();
+});
+
+/* ======================
+   LANDING CLICK PUZZLE
+====================== */
+function isCountableClick(e) {
+  const t = e.target;
+  if (!t) return true;
+  if (t.closest("button, input, textarea, select, label, a, pre, img")) return false;
+  return true;
+}
+
+/* ======================
+   CRACKS (no black fill shards)
 ====================== */
 let crackBuilt = false;
 
@@ -220,7 +356,6 @@ function buildCrackSVG() {
     return `<g class="crack-stage" data-stage="${cfg.id}" style="display:none">${parts.join("")}</g>`;
   }).join("");
 
-  // OUTLINE-ONLY shards (fill forced none in SVG + CSS)
   const shards = [];
   for (let i = 0; i < 18; i++) {
     const a = rnd() * Math.PI * 2;
@@ -238,6 +373,7 @@ function buildCrackSVG() {
     const delay = (0.03 * i + rnd() * 0.10).toFixed(2);
     const dur = (0.95 + rnd() * 0.55).toFixed(2);
 
+    // fill="none" hard-coded
     shards.push(`<polygon class="shard" fill="none" points="${p1} ${p2} ${p3}" style="animation-delay:${delay}s;animation-duration:${dur}s;" />`);
   }
 
@@ -259,7 +395,6 @@ function showCrackStage(n) {
   ensureCracks();
   cracks.classList.remove("hidden");
   cracks.classList.add("show");
-
   cracks.querySelectorAll(".crack-stage").forEach(g => {
     const s = Number(g.getAttribute("data-stage"));
     if (s <= n) g.style.display = "block";
@@ -277,49 +412,7 @@ function shatterToSim() {
 }
 
 /* ======================
-   SIM ENTRY
-====================== */
-function openSimRoom() {
-  stage = 99;
-  simRoom.classList.remove("hidden");
-  hideChoices();
-  simText.textContent = "";
-
-  playLines(D.intro, () => showChoices());
-}
-
-/* ======================
-   CHOICES
-====================== */
-choiceNeed.addEventListener("click", () => {
-  if (!recordChoice(true)) return; // compliant
-  hideChoices();
-  appendSimLine(``);
-  appendSimLine(`Security: "Acknowledged."`);
-  appendSimLine(`Security: "Proceed."`);
-  showChoices();
-});
-
-choiceLie.addEventListener("click", () => {
-  if (!recordChoice(true)) return; // compliant-ish
-  hideChoices();
-  appendSimLine(``);
-  appendSimLine(`Security: "Denied."`);
-  appendSimLine(`Security: "Continue anyway."`);
-  showChoices();
-});
-
-choiceRun.addEventListener("click", () => {
-  if (!recordChoice(false)) return; // non-compliant
-  hideChoices();
-  appendSimLine(``);
-  appendSimLine(`Security: "Escalation logged."`);
-  appendSimLine(`Security: "You will work harder for that."`);
-  showChoices();
-});
-
-/* ======================
-   LANDING CLICK PUZZLE
+   CLICK -> WARNING -> SHATTER
 ====================== */
 document.addEventListener("click", (e) => {
   if (stage !== 1) return;
