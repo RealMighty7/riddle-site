@@ -20,59 +20,69 @@
       </p>
     </header>
 
-    <section class="grid card">
-      <img data-slot="0">
-      <img data-slot="1">
-      <img data-slot="2">
-      <img data-slot="3">
-      <img data-slot="4">
-      <img data-slot="5">
+    <section class="grid card" aria-label="media">
+      <img data-slot="0" alt="">
+      <img data-slot="1" alt="">
+      <img data-slot="2" alt="">
+      <img data-slot="3" alt="">
+      <img data-slot="4" alt="">
+      <img data-slot="5" alt="">
     </section>
 
     <!-- crack overlay -->
-    <div id="cracks" class="cracks hidden"></div>
+    <div id="cracks" class="cracks hidden" aria-hidden="true"></div>
 
     <!-- system warning -->
-    <section id="system" class="system card hidden">
+    <section id="system" class="system card hidden" aria-live="polite">
       <div id="l1" class="sysline"></div>
       <div id="l2" class="sysline"></div>
       <div id="l3" class="sysline small"></div>
     </section>
 
-    <!-- completion -->
+    <!-- completion (NOT used yet; we will keep it hidden until much later) -->
     <section id="finish" class="finish card hidden">
       <h2>Completion</h2>
       <p class="muted">Identification only. Never enter passwords.</p>
 
-      <label>
+      <label class="label">
         Discord username
-        <input id="discordName">
+        <input id="discordName" maxlength="64" placeholder="name#0000 or display name">
       </label>
 
       <button id="submitBtn">Submit</button>
-      <pre id="result" class="hidden"></pre>
+      <pre id="result" class="result hidden"></pre>
     </section>
   </main>
 
   <!-- SIMULATION ROOM -->
-  <section id="simRoom" class="sim hidden">
+  <section id="simRoom" class="sim hidden" aria-live="polite">
     <div class="sim-bg"></div>
     <div class="sim-panel">
       <div class="sim-title">OUTSIDE // SIMULATION</div>
+
       <pre id="simText" class="sim-text"></pre>
 
       <div id="simChoices" class="sim-choices hidden">
-        <button id="choiceNeed">i need something first</button>
-        <button id="choiceLie">i clicked by accident</button>
-        <button id="choiceRun" class="danger">run</button>
+        <button id="choiceNeed" class="sim-btn">i need something first</button>
+        <button id="choiceLie" class="sim-btn">i clicked by accident</button>
+        <button id="choiceRun" class="sim-btn danger">run</button>
       </div>
 
-      <div id="simContinue" class="sim-choices hidden">
-        <button id="btnProceed">proceed</button>
+      <div id="taskUI" class="task-ui hidden">
+        <div id="taskTitle" class="task-title"></div>
+        <div id="taskDesc" class="task-desc"></div>
+
+        <div id="taskBody" class="task-body"></div>
+
+        <div class="task-actions">
+          <button id="taskPrimary" class="sim-btn">continue</button>
+          <button id="taskSecondary" class="sim-btn hidden">secondary</button>
+        </div>
       </div>
     </div>
   </section>
 
-  <script src="/main.js"></script>
+  <!-- cache-bust this when you update -->
+  <script src="/main.js?v=12"></script>
 </body>
 </html>
