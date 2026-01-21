@@ -1,14 +1,7 @@
-:root {
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-}
+:root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 
-body {
-  margin: 0;
-  background: #f6f7f9;
-  color: #111;
-}
+body { margin: 0; background: #f6f7f9; color: #111; }
 
-/* layout */
 #wrap {
   max-width: 900px;
   margin: 24px auto;
@@ -16,10 +9,7 @@ body {
   transition: opacity .28s ease, transform .28s ease;
 }
 
-body.sim-transition #wrap {
-  opacity: 0;
-  transform: scale(.995);
-}
+body.sim-transition #wrap { opacity: 0; transform: scale(.995); }
 
 .card {
   background: #fff;
@@ -28,12 +18,7 @@ body.sim-transition #wrap {
   padding: 16px;
 }
 
-h1 {
-  margin: 0 0 8px;
-  font-size: 20px;
-  font-weight: 650;
-}
-
+h1 { margin: 0 0 8px; font-size: 20px; font-weight: 650; }
 p { margin: 0; line-height: 1.4; }
 
 .grid {
@@ -55,7 +40,7 @@ p { margin: 0; line-height: 1.4; }
 .sysline { font-size: 16px; margin: 6px 0; }
 .sysline.small { font-size: 13px; opacity: .7; }
 
-.hidden { display: none; }
+.hidden { display: none !important; }
 
 .finish { margin-top: 16px; }
 
@@ -92,9 +77,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 /* =========================
-   CRACKS + SHATTER
-   - no solid black shards
-   - thinner + glint
+   CRACKS + SHATTER (NO BLACK FILL)
    ========================= */
 
 .cracks {
@@ -109,35 +92,32 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .cracks.show { opacity: 1; }
 .cracks svg { width: 100%; height: 100%; }
 
-/* dark inner edge (thin) */
 .crack-under {
-  stroke: rgba(0,0,0,0.22);
-  stroke-width: 2.1;
+  stroke: rgba(0,0,0,0.20);
+  stroke-width: 2.0;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 2px rgba(0,0,0,0.28));
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.26));
 }
 
-/* bright edge */
 .crack-line {
-  stroke: rgba(255,255,255,0.66);
-  stroke-width: 1.1;
+  stroke: rgba(255,255,255,0.68);
+  stroke-width: 1.0;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 4px rgba(255,255,255,0.10));
+  filter: drop-shadow(0 0 5px rgba(255,255,255,0.12));
 }
 
-/* glint highlight (LED-like) */
 .crack-glint {
-  stroke: rgba(140,210,255,0.55);
-  stroke-width: 0.7;
+  stroke: rgba(140,210,255,0.60);
+  stroke-width: 0.65;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter:
-    drop-shadow(0 0 10px rgba(120,180,255,0.22))
-    drop-shadow(0 0 2px rgba(120,180,255,0.28));
   mix-blend-mode: screen;
-  opacity: 0.9;
+  filter:
+    drop-shadow(0 0 12px rgba(120,180,255,0.22))
+    drop-shadow(0 0 2px rgba(120,180,255,0.30));
+  opacity: 0.92;
 }
 
 @keyframes draw {
@@ -151,18 +131,18 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   animation: draw .95s ease forwards;
 }
 
-/* shards: transparent fill so you SEE the page behind */
+/* HARD OVERRIDE: shards never fill (prevents black triangles) */
 .shard {
-  opacity: 0;
-  fill: rgba(0,0,0,0.0);
-  stroke: rgba(255,255,255,0.14);
+  fill: none !important;
+  stroke: rgba(255,255,255,0.16);
   stroke-width: 1;
-  filter: drop-shadow(0 0 8px rgba(120,180,255,0.10));
+  opacity: 0;
+  filter: drop-shadow(0 0 10px rgba(120,180,255,0.10));
 }
 
 @keyframes shardFall {
   0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(120vh) rotate(20deg); opacity: 0; }
+  100% { transform: translateY(120vh) rotate(22deg); opacity: 0; }
 }
 
 .cracks.shatter .shard {
@@ -170,7 +150,6 @@ button:disabled { opacity: .6; cursor: not-allowed; }
   animation: shardFall 1.05s cubic-bezier(.2,.8,.2,1) forwards;
 }
 
-/* shake + flash */
 @keyframes shake {
   0%,100% { transform:none; }
   20% { transform: translate(-2px,1px); }
@@ -196,7 +175,7 @@ body.shake { animation: shake .55s; }
 .cracks.flash::before { animation: flash .35s ease; }
 
 /* =========================
-   SIM ROOM + TASK UI
+   SIM ROOM
    ========================= */
 
 .sim {
@@ -236,8 +215,6 @@ body.shake { animation: shake .55s; }
   border-radius: 14px;
   padding: 16px;
   line-height: 1.45;
-
-  /* key: auto-scroll needs this */
   max-height: 62vh;
   overflow: auto;
   white-space: pre-wrap;
@@ -261,64 +238,6 @@ body.shake { animation: shake .55s; }
 .sim-btn.danger {
   border-color: rgba(255, 80, 80, 0.45);
   background: rgba(255, 80, 80, 0.12);
-}
-
-.task-ui {
-  margin-top: 12px;
-  padding: 14px 14px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(10, 14, 28, 0.72);
-}
-
-.task-title {
-  font-size: 12px;
-  letter-spacing: .16em;
-  opacity: .8;
-  margin-bottom: 8px;
-}
-
-.task-desc {
-  opacity: .9;
-  margin-bottom: 10px;
-}
-
-.task-body {
-  background: rgba(0,0,0,0.20);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 10px;
-  min-height: 64px;
-}
-
-.task-actions {
-  margin-top: 10px;
-  display: flex;
-  gap: 10px;
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  margin: 6px 6px 0 0;
-  user-select: none;
-}
-
-.anchor {
-  position: fixed;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.6);
-  background: rgba(255,255,255,0.10);
-  box-shadow: 0 0 18px rgba(120,180,255,0.30);
-  z-index: 10000;
-  cursor: pointer;
 }
 
 /* =========================
