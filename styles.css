@@ -1,4 +1,6 @@
-:root { font-family: system-ui, sans-serif; }
+:root {
+  font-family: system-ui, sans-serif;
+}
 
 body {
   margin: 0;
@@ -6,16 +8,17 @@ body {
   color: #111;
 }
 
+/* layout */
 #wrap {
   max-width: 900px;
   margin: 24px auto;
   padding: 0 16px 48px;
-  transition: opacity .28s ease, transform .28s ease;
+  transition: opacity .3s ease, transform .3s ease;
 }
 
 body.sim-transition #wrap {
   opacity: 0;
-  transform: scale(0.995);
+  transform: scale(.995);
 }
 
 .card {
@@ -26,56 +29,48 @@ body.sim-transition #wrap {
 }
 
 .grid {
-  margin-top: 16px;
   display: grid;
   grid-template-columns: repeat(3,1fr);
   gap: 8px;
+  margin-top: 16px;
 }
 
 .grid img {
-  height: 160px;
   width: 100%;
+  height: 160px;
   object-fit: cover;
   border-radius: 10px;
 }
 
-.hidden { display:none; }
+.system { margin-top: 16px; }
+.sysline { margin: 6px 0; }
+.sysline.small { font-size: 13px; opacity: .7; }
 
-.system { margin-top:16px; }
-.sysline { margin:6px 0; }
-.sysline.small { opacity:.7; font-size:13px; }
-
-.finish { margin-top:16px; }
-input,button {
-  padding:10px;
-  border-radius:10px;
-  border:1px solid #111;
-}
-button { background:#111; color:#fff; cursor:pointer; }
-button.danger { background:#7a1111; }
+.finish { margin-top: 16px; }
+.hidden { display: none; }
 
 /* ================= CRACKS ================= */
 
 .cracks {
   position: fixed;
   inset: 0;
-  z-index: 9998;
   pointer-events: none;
+  z-index: 9998;
   opacity: 0;
 }
 
 .cracks.show { opacity: 1; }
 
-.cracks svg { width:100%; height:100%; }
+.cracks svg { width: 100%; height: 100%; }
 
 .crack-line {
-  stroke: rgba(255,255,255,.8);
+  stroke: rgba(255,255,255,.85);
   stroke-width: 1.8;
 }
 
 .crack-under {
   stroke: rgba(0,0,0,.35);
-  stroke-width: 3.4;
+  stroke-width: 3.2;
 }
 
 @keyframes draw {
@@ -85,68 +80,93 @@ button.danger { background:#7a1111; }
 
 .crack-path {
   stroke-dasharray: 999;
-  animation: draw .8s ease forwards;
+  stroke-dashoffset: 999;
+  animation: draw .9s ease forwards;
 }
 
-/* SHATTER */
+/* shatter */
+.shard { opacity: 0; }
+
 @keyframes shardFall {
-  to { transform: translateY(120vh) rotate(18deg); opacity:0; }
+  to { transform: translateY(120vh) rotate(20deg); opacity: 0; }
 }
 
-.shard {
+.cracks.shatter .shard {
+  opacity: 1;
   animation: shardFall 1s cubic-bezier(.2,.8,.2,1) forwards;
 }
 
-/* FLASH + SHAKE */
+/* flash + shake */
 @keyframes shake {
-  0%,100%{transform:none}
-  20%{transform:translate(-2px,1px)}
-  40%{transform:translate(3px,-2px)}
-  60%{transform:translate(-2px,2px)}
+  20% { transform: translate(-2px,1px); }
+  40% { transform: translate(3px,-2px); }
+  60% { transform: translate(-2px,2px); }
 }
 
-body.shake { animation: shake .5s; }
+body.shake { animation: shake .55s; }
 
 .cracks::before {
   content:"";
   position:fixed;
   inset:0;
-  background:white;
+  background:#fff;
   opacity:0;
+}
+
+@keyframes flash {
+  30% { opacity:.6; }
 }
 
 .cracks.flash::before {
   animation: flash .35s ease;
 }
 
-@keyframes flash {
-  30%{opacity:.6}
-}
-
 /* ================= SIM ROOM ================= */
 
 .sim {
   position: fixed;
-  inset:0;
-  background:#05070d;
-  z-index:9999;
-  color:#e5e7eb;
+  inset: 0;
+  background: #05070d;
+  color: #e5e7eb;
+  z-index: 9999;
+}
+
+.sim-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(1000px 600px at 20% 20%, rgba(100,140,255,0.18), transparent 60%),
+    radial-gradient(900px 700px at 80% 60%, rgba(255,120,160,0.10), transparent 60%);
 }
 
 .sim-panel {
-  max-width:900px;
-  margin:40px auto;
-  padding:20px;
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
 }
 
 .sim-text {
-  background:#0b1020;
-  padding:16px;
-  min-height:220px;
+  background: #0b1020;
+  padding: 16px;
+  min-height: 220px;
+  white-space: pre-wrap;
 }
 
 .sim-choices {
-  margin-top:12px;
-  display:flex;
-  gap:10px;
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+}
+
+button {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+}
+
+button.danger {
+  background: #7a1111;
 }
