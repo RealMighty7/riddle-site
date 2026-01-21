@@ -36,18 +36,25 @@ wrap.addEventListener("click", (e) => {
 
   bgClicks += 1;
 
-  if (bgClicks === 4) {
-    // single-frame-ish micro flicker
-    document.body.style.transform = "translateX(1px)";
-    setTimeout(() => (document.body.style.transform = ""), 50);
-  }
+if (bgClicks === 3) {
+  // subtle flicker to make them question it
+  document.body.style.transform = "translateX(1px)";
+  setTimeout(() => (document.body.style.transform = ""), 50);
+}
 
-  if (bgClicks >= 7) {
-    triggered = true;
-    systemBox.classList.remove("hidden");
-    l1.textContent = "That isn’t how this page is supposed to be used.";
-    setTimeout(() => (l2.textContent = "You weren’t meant to interact with this."), 2000);
-    setTimeout(() => (l3.textContent = "Stop."), 3600);
+if (bgClicks >= 5) {
+  triggered = true;
+  systemBox.classList.remove("hidden");
+
+  l1.textContent = "That isn’t how this page is supposed to be used.";
+  setTimeout(() => {
+    l2.textContent = "You weren’t meant to interact with this.";
+  }, 1800);
+  setTimeout(() => {
+    l3.textContent = "Stop.";
+  }, 3200);
+}
+
 
     // Reveal completion area after a short pause (later this becomes your next “phase”)
     setTimeout(() => {
