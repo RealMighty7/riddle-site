@@ -1,10 +1,13 @@
-// tasks_pack1.js
+// packs/pack1.js
 // Registers 20 tasks into window.TASKS via window.registerTasks()
+// Also registers TASK_POOLS.pack1 for the random router.
 
 (() => {
   const reg = window.registerTasks;
+  const regPool = window.registerTaskPool;
+
   if (!reg) {
-    console.error("registerTasks missing — load tasks.js before tasks_pack1.js");
+    console.error("registerTasks missing — load tasks.js before packs/pack1.js");
     return;
   }
 
@@ -50,7 +53,8 @@
     return i;
   };
 
-  reg({
+  // Pack task map (same IDs you already use)
+  const TASKS = {
     // 1) quick confirm (story beat micro task)
     confirm_signal: async (ctx) => {
       begin(ctx, "CONFIRM SIGNAL", "Type the exact phrase to proceed.");
@@ -65,11 +69,13 @@
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
         const got = (inp.value || "").trim().toLowerCase();
         if (got !== phrase) {
           msg.textContent = "Incorrect.";
-          ctx.glitch();
+          ctx.glitch?.();
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -78,14 +84,13 @@
         ctx.taskPrimary.onclick = () => resolve();
       };
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
     // 2) timed observe (do nothing for X ms)
     idle_window: async (ctx, args = {}) => {
       const base = Number(args.baseMs || 2200);
-      const ms = clamp(base + ctx.difficultyBoost() * 250, 1800, 5200);
+      const ms = clamp(base + (ctx.difficultyBoost?.() ?? 0) * 250, 1800, 5200);
 
       begin(ctx, "IDLE WINDOW", "Do nothing until the timer completes.");
       const bar = el("div", "pill");
@@ -106,33 +111,37 @@
       const onMove = () => { moved = true; };
       window.addEventListener("mousemove", onMove, { passive: true });
 
+      let resolve;
+      const done = () => {
+        window.removeEventListener("mousemove", onMove);
+        ctx.taskPrimary.textContent = "continue";
+        ctx.taskPrimary.disabled = false;
+        ctx.taskPrimary.onclick = () => resolve();
+      };
+
       const start = performance.now();
       const tick = () => {
         const t = performance.now() - start;
         fill.style.width = `${Math.min(100, (t / ms) * 100)}%`;
+
         if (moved) {
-          window.removeEventListener("mousemove", onMove);
           ctx.taskBody.appendChild(note("You moved. Window invalidated."));
-          ctx.glitch();
-          ctx.penalize(1, "noise");
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          ctx.glitch?.();
+          ctx.penalize?.(1, "noise");
+          done();
           return;
         }
+
         if (t >= ms) {
-          window.removeEventListener("mousemove", onMove);
           ctx.taskBody.appendChild(note("Window held."));
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          done();
           return;
         }
+
         requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
@@ -156,13 +165,15 @@
       row.style.flexWrap = "wrap";
       row.style.gap = "10px";
 
+      let resolve;
+
       opts.forEach(o => {
         const b = el("button", "sim-btn", o);
         b.onclick = () => {
           if (o !== correct) {
             msg.textContent = "Too loud.";
-            ctx.glitch();
-            ctx.penalize(1, "audit risk");
+            ctx.glitch?.();
+            ctx.penalize?.(1, "audit risk");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -177,11 +188,10 @@
       ctx.taskBody.appendChild(row);
       ctx.taskBody.appendChild(msg);
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 4) short memory burst (10 seconds hint is handled by main pacing; here we do it explicitly)
+    // 4) short memory burst
     memory_3: async (ctx) => {
       begin(ctx, "MEMORY", "Memorize the line. You will retype it.");
       const tokens = ["echo", "static", "vault", "pane", "trace", "buffer"];
@@ -190,7 +200,7 @@
       shown.style.marginTop = "12px";
       ctx.taskBody.appendChild(shown);
 
-      await wait(2500 + Math.min(2000, ctx.difficultyBoost() * 250));
+      await wait(2500 + Math.min(2000, (ctx.difficultyBoost?.() ?? 0) * 250));
       shown.textContent = "—";
 
       const inp = makeInput("retype the exact line…");
@@ -202,11 +212,13 @@
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
         const got = (inp.value || "").trim();
         if (got !== pick) {
           msg.textContent = "Incorrect.";
-          ctx.glitch();
+          ctx.glitch?.();
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -215,11 +227,10 @@
         ctx.taskPrimary.onclick = () => resolve();
       };
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 5) smallest number (anti-puzzle)
+    // 5) smallest number
     smallest: async (ctx) => {
       begin(ctx, "SELECT", "Click the smallest number.");
       const n = shuffle([rndInt(2, 14), rndInt(15, 40), rndInt(41, 98), rndInt(99, 140)]);
@@ -234,12 +245,14 @@
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
+      let resolve;
+
       n.forEach(x => {
         const b = el("button", "sim-btn", String(x));
         b.onclick = () => {
           if (x !== smallest) {
             msg.textContent = "No.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -254,14 +267,13 @@
       ctx.taskBody.appendChild(row);
       ctx.taskBody.appendChild(msg);
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 6) type backspaces (creates “manual work” vibe)
+    // 6) backspace clean
     backspace_clean: async (ctx) => {
       begin(ctx, "CLEANUP", "Erase the noisy string (use Backspace) until empty.");
-      const len = clamp(12 + ctx.difficultyBoost() * 3, 12, 36);
+      const len = clamp(12 + (ctx.difficultyBoost?.() ?? 0) * 3, 12, 36);
       const str = Array.from({ length: len }, () => String.fromCharCode(rndInt(33, 126))).join("");
 
       const inp = makeInput("");
@@ -274,11 +286,12 @@
       ctx.taskBody.appendChild(msg);
 
       let lastLen = inp.value.length;
+
+      let resolve;
       inp.addEventListener("input", () => {
-        // Must only go down by backspace-like behavior
         if (inp.value.length > lastLen) {
           msg.textContent = "No adding.";
-          ctx.glitch();
+          ctx.glitch?.();
           inp.value = inp.value.slice(0, lastLen);
           return;
         }
@@ -294,11 +307,10 @@
 
       inp.focus();
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 7) “spot the safe line” (simple reading)
+    // 7) safe line
     safe_line: async (ctx) => {
       begin(ctx, "SAFE LINE", "Select the line that sounds like it helps you.");
       const lines = shuffle([
@@ -312,6 +324,8 @@
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
+      let resolve;
+
       lines.forEach(t => {
         const b = el("button", "sim-btn", t);
         b.style.display = "block";
@@ -321,7 +335,7 @@
         b.onclick = () => {
           if (t !== correct) {
             msg.textContent = "Wrong angle.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -332,13 +346,13 @@
         };
         ctx.taskBody.appendChild(b);
       });
+
       ctx.taskBody.appendChild(msg);
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 8) quick “parity” check (light puzzle)
+    // 8) parity
     parity: async (ctx) => {
       begin(ctx, "PARITY", "Type ODD or EVEN for the number shown.");
       const n = rndInt(11, 199);
@@ -354,11 +368,13 @@
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
         const got = (inp.value || "").trim().toUpperCase();
         if (got !== correct) {
           msg.textContent = "No.";
-          ctx.glitch();
+          ctx.glitch?.();
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -367,14 +383,13 @@
         ctx.taskPrimary.onclick = () => resolve();
       };
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 9) “tap counter” (creates physicality)
+    // 9) tap counter
     tap_n: async (ctx, args = {}) => {
       const base = Number(args.base || 9);
-      const need = clamp(base + ctx.difficultyBoost() * 2, 8, 22);
+      const need = clamp(base + (ctx.difficultyBoost?.() ?? 0) * 2, 8, 22);
 
       begin(ctx, "TAP", "Tap exactly the required number of times. Not more.");
       ctx.taskBody.appendChild(note(`required taps: ${need}`));
@@ -384,13 +399,15 @@
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
+      let resolve;
+
       btn.onclick = () => {
         count++;
         btn.textContent = `tap (${count})`;
         if (count > need) {
           msg.textContent = "Too many.";
-          ctx.glitch();
-          ctx.penalize(1, "sloppy");
+          ctx.glitch?.();
+          ctx.penalize?.(1, "sloppy");
         }
         if (count === need) {
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -404,11 +421,10 @@
       ctx.taskBody.appendChild(btn);
       ctx.taskBody.appendChild(msg);
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 10) “quiet math” (small)
+    // 10) add two
     add_two: async (ctx) => {
       begin(ctx, "SUM", "Add the two numbers. Type the result.");
       const a = rndInt(7, 49);
@@ -425,10 +441,12 @@
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
         if ((inp.value || "").trim() !== correct) {
           msg.textContent = "Wrong.";
-          ctx.glitch();
+          ctx.glitch?.();
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -437,11 +455,10 @@
         ctx.taskPrimary.onclick = () => resolve();
       };
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 11) “choose the dull file”
+    // 11) file pick
     file_pick: async (ctx) => {
       begin(ctx, "FILE PICK", "Select the file that looks least valuable.");
       const opts = shuffle(["ads/active.json", "sys/core.map", "logs/noise.tmp", "user/history.db"]);
@@ -449,6 +466,8 @@
 
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
+
+      let resolve;
 
       opts.forEach(o => {
         const b = el("button", "sim-btn", o);
@@ -459,7 +478,7 @@
         b.onclick = () => {
           if (o !== correct) {
             msg.textContent = "Too important.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -472,11 +491,11 @@
       });
 
       ctx.taskBody.appendChild(msg);
-      let resolve;
+
       return new Promise(r => (resolve = r));
     },
 
-    // 12) “reverse typing”
+    // 12) reverse word
     reverse_word: async (ctx) => {
       begin(ctx, "REVERSE", "Reverse the word and type it.");
       const words = ["pane", "static", "echo", "buffer", "trace", "vault"];
@@ -493,10 +512,12 @@
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
         if ((inp.value || "").trim().toLowerCase() !== correct) {
           msg.textContent = "No.";
-          ctx.glitch();
+          ctx.glitch?.();
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -505,11 +526,10 @@
         ctx.taskPrimary.onclick = () => resolve();
       };
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 13) “pick the only lowercase string”
+    // 13) lowercase only
     lowercase_only: async (ctx) => {
       begin(ctx, "FILTER", "Click the only option that is fully lowercase.");
       const opts = shuffle(["Trace-OK", "STATIC", "pane_reflection", "Echo"]);
@@ -524,12 +544,14 @@
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
+      let resolve;
+
       opts.forEach(o => {
         const b = el("button", "sim-btn", o);
         b.onclick = () => {
           if (o !== correct) {
             msg.textContent = "Rejected.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -544,11 +566,10 @@
       ctx.taskBody.appendChild(row);
       ctx.taskBody.appendChild(msg);
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 14) “click in order” (1-4)
+    // 14) click order 1-4
     click_order_4: async (ctx) => {
       begin(ctx, "ORDER", "Click 1 → 2 → 3 → 4. Any mistake resets.");
       const seq = ["1", "2", "3", "4"];
@@ -564,13 +585,15 @@
       row.style.flexWrap = "wrap";
       row.style.gap = "10px";
 
+      let resolve;
+
       opts.forEach(o => {
         const b = el("button", "sim-btn", o);
         b.onclick = () => {
           if (o !== seq[idx]) {
             idx = 0;
             msg.textContent = "Wrong. Reset.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           idx++;
@@ -589,11 +612,10 @@
       ctx.taskBody.appendChild(row);
       ctx.taskBody.appendChild(msg);
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 15) “select two safe words”
+    // 15) select two safe words
     select_two: async (ctx) => {
       begin(ctx, "SELECT TWO", "Click BOTH safe words. Exactly two.");
       const opts = shuffle(["export", "audit", "boring", "mirror", "quiet", "inject"]);
@@ -608,6 +630,8 @@
       row.style.display = "flex";
       row.style.flexWrap = "wrap";
       row.style.gap = "10px";
+
+      let resolve;
 
       opts.forEach(o => {
         const b = el("button", "sim-btn", o);
@@ -624,7 +648,7 @@
             const ok = [...picked].every(x => safe.has(x));
             if (!ok) {
               msg.textContent = "Wrong pair.";
-              ctx.glitch();
+              ctx.glitch?.();
               return;
             }
             msg.style.color = "rgba(232,237,247,0.85)";
@@ -635,7 +659,7 @@
           }
           if (picked.size > 2) {
             msg.textContent = "Too many.";
-            ctx.glitch();
+            ctx.glitch?.();
           }
         };
         row.appendChild(b);
@@ -644,11 +668,10 @@
       ctx.taskBody.appendChild(row);
       ctx.taskBody.appendChild(msg);
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 16) “type the middle character”
+    // 16) middle character
     middle_char: async (ctx) => {
       begin(ctx, "MIDDLE", "Type the middle character of the string.");
       const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -667,10 +690,12 @@
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
         if ((inp.value || "").trim() !== correct) {
           msg.textContent = "Incorrect.";
-          ctx.glitch();
+          ctx.glitch?.();
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -679,11 +704,10 @@
         ctx.taskPrimary.onclick = () => resolve();
       };
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 17) “simple checksum-lite”
+    // 17) sum digits
     sum_digits: async (ctx) => {
       begin(ctx, "DIGIT SUM", "Sum the digits. Type the result.");
       const len = rndInt(5, 8);
@@ -705,10 +729,12 @@
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
         if ((inp.value || "").trim() !== String(sum)) {
           msg.textContent = "Wrong.";
-          ctx.glitch();
+          ctx.glitch?.();
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -717,14 +743,13 @@
         ctx.taskPrimary.onclick = () => resolve();
       };
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 18) “wait then click once”
+    // 18) delayed click
     delayed_click: async (ctx) => {
       begin(ctx, "DELAY", "Wait until the button unlocks, then click once.");
-      const ms = clamp(1200 + ctx.difficultyBoost() * 350, 1200, 4200);
+      const ms = clamp(1200 + (ctx.difficultyBoost?.() ?? 0) * 350, 1200, 4200);
 
       const b = el("button", "sim-btn", `locked (${Math.ceil(ms/1000)}s)`);
       b.disabled = true;
@@ -736,17 +761,17 @@
       b.disabled = false;
       b.textContent = "click";
 
+      let resolve;
       b.onclick = () => {
         ctx.taskPrimary.textContent = "continue";
         ctx.taskPrimary.disabled = false;
         ctx.taskPrimary.onclick = () => resolve();
       };
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
 
-    // 19) “find the one with two slashes”
+    // 19) find slashes
     find_slashes: async (ctx) => {
       begin(ctx, "FIND", "Click the string with exactly two slashes (/).");
       const opts = shuffle([
@@ -760,6 +785,8 @@
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
+      let resolve;
+
       opts.forEach(o => {
         const b = el("button", "sim-btn", o);
         b.style.display = "block";
@@ -769,7 +796,7 @@
         b.onclick = () => {
           if (o !== correct) {
             msg.textContent = "No.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -782,11 +809,11 @@
       });
 
       ctx.taskBody.appendChild(msg);
-      let resolve;
+
       return new Promise(r => (resolve = r));
     },
 
-    // 20) “two-step verify” (feels like procedure)
+    // 20) two-step
     two_step: async (ctx) => {
       begin(ctx, "PROCEDURE", "Step 1: type OK. Step 2: type CONFIRM.");
       const inp = makeInput("type OK");
@@ -800,12 +827,14 @@
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
         const got = (inp.value || "").trim().toUpperCase();
         if (step === 1) {
           if (got !== "OK") {
             msg.textContent = "Step 1 failed.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           step = 2;
@@ -819,7 +848,7 @@
         if (step === 2) {
           if (got !== "CONFIRM") {
             msg.textContent = "Step 2 failed.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -829,8 +858,15 @@
         }
       };
 
-      let resolve;
       return new Promise(r => (resolve = r));
     },
-  });
+  };
+
+  // Register functions
+  reg(TASKS);
+
+  // Register pool (so TASKS.random can pull from pack1)
+  if (regPool) {
+    regPool("pack1", Object.keys(TASKS).map(id => ({ id, w: 1 })));
+  }
 })();
