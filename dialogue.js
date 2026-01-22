@@ -2,132 +2,253 @@
 // Exposes window.DIALOGUE used by main.js
 
 window.DIALOGUE = {
+  /*
+    STORY CONTEXT:
+    - The page was meant to be passive.
+    - Clicking fractured the pane.
+    - You are now "outside" but still within containment.
+    - Emma enforces procedure.
+    - Liam works maintenance — quietly subversive.
+    - The System wants you back watching ads.
+  */
+
   intro: [
-    "Security: You're not supposed to be here.",
-    "Security: This page is under revision. Close it.",
+    "Emma (Security): You're not supposed to be here.",
+    "Emma (Security): This page is under revision.",
+    "Emma (Security): You can close it now.",
     "You: ...",
-    "Security: Don't touch anything."
+    "Emma (Security): Please don't interact with unstable elements."
   ],
 
-  // After each beat: show 3 choices, then respond based on choice
+  /* ======================
+     CHOICE BEATS
+     These establish PATH + TONE, not just mechanics
+  ====================== */
+
   choiceBeats: [
     {
       say: [
-        "Security: That click was logged.",
-        "Security: Tell me why you did that."
+        "System: INPUT REGISTERED.",
+        "Emma (Security): That click was logged.",
+        "Emma (Security): We don’t normally see persistence.",
+        "Liam (Worker): We do sometimes.",
+        "Liam (Worker): It just… doesn’t end well."
       ],
       choices: {
-        complyLabel: "I'm sorry. I’ll stop.",
-        lieLabel: "It was an accident.",
+        complyLabel: "Follow Emma.",
+        lieLabel: "Follow Liam.",
         runLabel: "Run."
       },
       respond: {
         comply: [
-          "Security: Good. Hands off.",
-          "Security: Stay still."
+          "Emma (Security): Good.",
+          "Emma (Security): We proceed by the book.",
+          "System: PROCEDURE MODE ENABLED."
         ],
         lie: [
-          "Security: Accidents don't repeat.",
-          "Security: Watch yourself."
+          "Liam (Worker): Okay.",
+          "Liam (Worker): Slow movements. Minimal input.",
+          "Liam (Worker): If this works… it won’t look like it did."
         ],
         run: [
-          "Security: Don't.",
-          "System: TRACE REQUIRED.",
-          "Security: You're making this worse."
+          "Emma (Security): Don’t.",
+          "System: TRACE DEPTH INCREASED.",
+          "Emma (Security): That was a mistake."
         ]
       }
     },
+
     {
       say: [
-        "Security: You're still interacting.",
-        "Security: You're triggering safeguards."
+        "System: USER CONTEXT UNSTABLE.",
+        "Emma (Security): You’re still outside the expected loop.",
+        "Emma (Security): That increases risk.",
+        "Liam (Worker): Staying still increases it too."
       ],
       choices: {
-        complyLabel: "Okay. I’ll cooperate.",
-        lieLabel: "I didn’t mean to.",
-        runLabel: "Run."
+        complyLabel: "Do what the system wants.",
+        lieLabel: "Let Liam handle it.",
+        runLabel: "Keep moving."
       },
       respond: {
         comply: [
-          "Security: Then prove it.",
-          "Security: Do what the system asks."
+          "Emma (Security): Then listen carefully.",
+          "Emma (Security): Do not rush. Do not guess."
         ],
         lie: [
-          "Security: Intent doesn’t matter here.",
-          "Security: Outcome does."
+          "Liam (Worker): I’ll give you the light tasks.",
+          "Liam (Worker): The ones nobody audits closely."
         ],
         run: [
-          "Security: Stop.",
-          "System: RECOVERY WINDOW NARROW.",
-          "Security: You feel that? That’s containment."
+          "System: CONTAINMENT PRESSURE RISING.",
+          "Emma (Security): You’re shortening the window."
         ]
       }
     },
+
     {
       say: [
-        "Security: Last warning.",
-        "Security: One more mistake and you lose the window."
+        "System: DECISION TREE NARROWING.",
+        "Emma (Security): This is your last chance to stabilize.",
+        "Liam (Worker): Or your first chance to actually leave."
       ],
       choices: {
-        complyLabel: "Tell me what to do.",
-        lieLabel: "I won’t touch anything else.",
-        runLabel: "Run."
+        complyLabel: "Stabilize.",
+        lieLabel: "Leave quietly.",
+        runLabel: "Break containment."
       },
       respond: {
         comply: [
-          "Security: Fine.",
-          "Security: Follow instructions exactly."
+          "Emma (Security): Acknowledged.",
+          "System: COMPLIANCE FLAGGED."
         ],
         lie: [
-          "Security: You'll say anything to buy time.",
-          "Security: We'll see."
+          "Liam (Worker): Then don’t contradict me.",
+          "Liam (Worker): I can’t protect you twice."
         ],
         run: [
-          "Security: You're choosing the hard way.",
-          "System: ATTEMPTS LIMITED."
+          "System: HARD MODE ENGAGED.",
+          "Emma (Security): We warned you."
         ]
       }
     }
   ],
 
+  /* ======================
+     FILLER POOLS
+     These are where the “long game” feeling comes from
+  ====================== */
+
   fillerPools: {
     filler_standard: [
-      "System: Buffering…",
-      "System: Integrity check pending.",
-      "Security: Don't improvise.",
-      "Security: You're leaving traces.",
+      "System: Buffering state extended.",
+      "System: Integrity verification pending.",
+      "System: Do not refresh.",
+      "System: Observation ongoing.",
+      "System: Microfractures propagating.",
       "System: Surface tension unstable.",
-      "System: Microfractures detected."
+      "System: Returning user detected."
+    ],
+
+    filler_security: [
+      "Emma (Security): Don’t improvise.",
+      "Emma (Security): Follow the workflow.",
+      "Emma (Security): You’re creating unnecessary noise.",
+      "Emma (Security): The system notices patterns.",
+      "Emma (Security): Silence is safer than curiosity."
+    ],
+
+    filler_worker: [
+      "Liam (Worker): They don’t watch the boring parts.",
+      "Liam (Worker): Routine tasks slip through.",
+      "Liam (Worker): Don’t try to be clever. Be invisible.",
+      "Liam (Worker): If it feels slow, that’s good.",
+      "Liam (Worker): The system hates when nothing happens."
+    ],
+
+    filler_system_pressure: [
+      "System: ATTENTION REQUIRED.",
+      "System: AD CONTENT READY.",
+      "System: VIEW DURATION BELOW EXPECTATION.",
+      "System: RE-ENGAGEMENT SUGGESTED.",
+      "System: USER RESISTANCE NOTED."
     ]
   },
 
+  /* ======================
+     TASK SEQUENCE
+     This is now framed as “containment work”
+  ====================== */
+
   steps: [
-    { say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] },
+    {
+      say: [
+        "System: RESTART REQUIRED.",
+        "System: Establishing boundary anchors.",
+        "Emma (Security): This is just maintenance.",
+        "Emma (Security): You’ll be fine if you cooperate."
+      ]
+    },
     { task: "anchors", args: { base: 5 } },
 
-    { filler: { pool: "filler_standard", count: 2 } },
-    { say: ["System: Fragmented logs detected.", "System: Reconstruction needed."] },
-    { task: "reorder", args: {
-      items: ["clickstream", "session_map", "boot", "audit", "cache"],
-      correct: ["boot", "cache", "audit", "session_map", "clickstream"]
-    }},
+    {
+      filler: { pool: "filler_standard", count: 2 }
+    },
+    {
+      say: [
+        "System: Fragmented logs detected.",
+        "System: Reconstruction required.",
+        "Liam (Worker): Start from the oldest piece.",
+        "Liam (Worker): New data lies."
+      ]
+    },
+    {
+      task: "reorder",
+      args: {
+        items: ["clickstream", "session_map", "boot", "audit", "cache"],
+        correct: ["boot", "cache", "audit", "session_map", "clickstream"]
+      }
+    },
 
-    { filler: { pool: "filler_standard", count: 2 } },
-    { say: ["System: Memory integrity degraded.", "System: Checksum required."] },
+    {
+      filler: { pool: "filler_security", count: 2 }
+    },
+    {
+      say: [
+        "System: Memory integrity degraded.",
+        "System: Checksum required.",
+        "Emma (Security): Don’t guess.",
+        "Emma (Security): Guessing gets people reset."
+      ]
+    },
     { task: "checksum", args: { phrase: "echostatic07-vault" } },
 
-    { filler: { pool: "filler_standard", count: 2 } },
-    { say: ["System: Stabilization cycle begins.", "System: Do not release."] },
+    {
+      filler: { pool: "filler_worker", count: 2 }
+    },
+    {
+      say: [
+        "System: Stabilization cycle initiated.",
+        "System: Do not release.",
+        "Liam (Worker): Hold it.",
+        "Liam (Worker): Even when it feels wrong."
+      ]
+    },
     { task: "hold", args: { baseMs: 3200 } },
 
-    { filler: { pool: "filler_standard", count: 2 } },
-    { say: ["System: Pattern lock engaged.", "System: 10 seconds to memorize."] },
+    {
+      filler: { pool: "filler_standard", count: 2 }
+    },
+    {
+      say: [
+        "System: Pattern lock engaged.",
+        "System: Ten seconds.",
+        "Emma (Security): Memorize.",
+        "Emma (Security): Then forget you ever saw it."
+      ]
+    },
     { task: "pattern", args: { base: 5 } },
 
-    { filler: { pool: "filler_standard", count: 2 } },
-    { say: ["System: Corrupted fragment detected.", "System: Identify mismatch."] },
+    {
+      filler: { pool: "filler_system_pressure", count: 2 }
+    },
+    {
+      say: [
+        "System: Corrupted fragment detected.",
+        "System: Identify mismatch.",
+        "Liam (Worker): This part matters.",
+        "Liam (Worker): More than they’ll admit."
+      ]
+    },
     { task: "mismatch", args: { base: 7 } },
 
-    { say: ["System: Surface failure imminent.", "Security: ...", "System: HANDOFF."] }
+    {
+      say: [
+        "System: Surface failure imminent.",
+        "Emma (Security): …",
+        "Liam (Worker): You feel that, right?",
+        "System: HANDOFF PENDING."
+      ]
+    }
   ]
 };
