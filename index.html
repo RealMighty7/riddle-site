@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>index</title>
 
-  <link rel="stylesheet" href="/styles.css?v=100" />
-  <!-- Turnstile (load once) -->
+  <link rel="stylesheet" href="/styles.css?v=110" />
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
 </head>
 <body>
@@ -37,11 +36,8 @@
     </section>
   </main>
 
-  <!-- overlays -->
   <div id="cracks" class="cracks hidden" aria-hidden="true"></div>
-
-  <!-- glitch overlay -->
-  <div id="glitchFX" aria-hidden="true"></div>
+  <div id="glassFX" class="glassfx hidden" aria-hidden="true"></div>
 
   <section id="simRoom" class="sim hidden" aria-hidden="true">
     <div class="sim-bg"></div>
@@ -51,9 +47,9 @@
       <div id="simText" class="sim-text"></div>
 
       <div id="simChoices" class="sim-choices hidden">
-        <button id="choiceNeed" class="sim-btn">need</button>
-        <button id="choiceLie" class="sim-btn">lie</button>
-        <button id="choiceRun" class="sim-btn danger">run</button>
+        <button id="choiceNeed" class="sim-btn">I’m sorry. I’ll do what you say.</button>
+        <button id="choiceLie" class="sim-btn">It was an accident.</button>
+        <button id="choiceRun" class="sim-btn danger">Run.</button>
       </div>
 
       <div id="taskUI" class="hidden">
@@ -76,21 +72,17 @@
     </div>
   </div>
 
-  <!-- FINAL MODAL -->
   <div id="finalOverlay" class="reset hidden" aria-hidden="true">
     <div class="reset-card">
       <div class="reset-title">FINAL STEP</div>
       <div class="reset-body" style="margin-bottom:12px">
         You are almost done. Hack into this computer to erase your files and that will set you free!
-        <div style="margin-top:10px;opacity:.8;font-size:12px">
-          Disclosure: No passwords. Just what you go by on Discord.
-        </div>
       </div>
 
-      <label style="display:block; margin:8px 0 4px; opacity:.8">Discord Username</label>
+      <label style="display:block; margin:8px 0 4px; opacity:.8">Username</label>
       <input id="finalDiscord" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#fff" />
 
-      <label style="display:block; margin:10px 0 4px; opacity:.8">Answer (any)</label>
+      <label style="display:block; margin:10px 0 4px; opacity:.8">Answer</label>
       <input id="finalAnswer" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#fff" />
 
       <div id="turnstileBox" style="margin-top:12px"></div>
@@ -103,7 +95,6 @@
     </div>
   </div>
 
-  <!-- HACK ROOM -->
   <section id="hackRoom" class="sim hidden" aria-hidden="true">
     <div class="sim-bg"></div>
     <div class="sim-panel">
@@ -133,9 +124,8 @@
     </div>
   </section>
 
-  <!-- scripts -->
-  <script src="/dialogue.js?v=100"></script>
-  <script src="/tasks.js?v=100"></script>
-  <script src="/main.js?v=100"></script>
+  <script src="/dialogue.js?v=110"></script>
+  <script src="/tasks.js?v=110"></script>
+  <script src="/main.js?v=110"></script>
 </body>
 </html>
