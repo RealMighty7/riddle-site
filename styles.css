@@ -211,10 +211,12 @@ p{ margin: 0; line-height: 1.4; }
   border-radius: 14px;
   padding: 16px;
   line-height: 1.45;
-  max-height: 62vh;
-  overflow: auto;
+  max-height: 38vh;
+  overflow-y: auto;
+
   white-space: pre-wrap;
 }
+
 .sim-choices{
   margin-top: 12px;
   display: flex;
@@ -466,9 +468,12 @@ p{ margin: 0; line-height: 1.4; }
 
 /* Make the sim panel fit the viewport and scroll internally */
 .sim-panel{
-  max-height: calc(100vh - 24px);
-  overflow: auto;
-  padding-bottom: 28px;
+  position: relative;
+  max-width: 900px;
+  margin: 32px auto;
+  padding: 20px;
+  max-height: none;
+  overflow: visible;
 }
 
 /* Keep task UI from pushing off-screen */
@@ -476,7 +481,8 @@ p{ margin: 0; line-height: 1.4; }
   margin-top: 12px;
   max-height: 60vh;
   overflow: auto;
-  padding-right: 6px; /* prevents scrollbar overlay */
+  padding-right: 6px; 
+  padding-bottom: 12px;
 }
 
 /* On short screens (laptops / small windows), tighten margins */
@@ -484,5 +490,17 @@ p{ margin: 0; line-height: 1.4; }
   .sim-panel{ margin: 14px auto; }
   .sim-text{ max-height: 48vh; }
   #taskUI{ max-height: 52vh; }
+}
+
+.task-actions{
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    rgba(10,14,28,0.95),
+    rgba(10,14,28,0.85),
+    rgba(10,14,28,0.0)
+  );
+  padding-top: 10px;
 }
 
