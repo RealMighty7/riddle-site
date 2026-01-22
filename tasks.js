@@ -617,5 +617,14 @@
       }
       await wait(450);
     }
+      // Core pool
+  window.registerTaskPool("core", [
+    { id: "anchors", w: 1 },
+    { id: "reorder", w: 1 },
+    { id: "checksum", w: 1 },
+    { id: "hold", w: 1 },
+    { id: "pattern", w: 1 },
+    { id: "mismatch", w: 1 },
+  ]);
   };
 })();
