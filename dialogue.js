@@ -1,9 +1,4 @@
 // dialogue.js
-// All narrative + quest steps. main.js "plays" this.
-// Steps can be:
-// { say: [ ...lines ] }
-// { task: "anchors"|"reorder"|"checksum"|"hold"|"pattern"|"mismatch", args: {...} }
-// { filler: { count: N, pool: "filler_standard"|"filler_hard" } }
 
 window.DIALOGUE = {
   intro: [
@@ -35,111 +30,59 @@ window.DIALOGUE = {
     `Security: "We are listening."`
   ],
 
-  // Pools used by { filler: {count, pool:"..."} }
   fillerPools: {
     filler_standard: [
-      {
-        say: [
-          `System: "RECOVERY MODE: MANUAL."`,
-          `Worker 2: "The reboot is old. It needs hands."`,
-          `Security: "No commentary. Assign tasks."`,
-        ],
-        task: { id: "anchors", args: { base: 5 } }
-      },
-      {
-        say: [
-          `Security: "Reconstruct the log. No mistakes."`,
-          `System: "FRAGMENTS: OUT OF ORDER."`,
-        ],
-        task: { id: "reorder", args: {
-          items: ["impact", "fracture", "alarm", "lockdown", "observer"],
-          correct: ["observer", "impact", "fracture", "alarm", "lockdown"]
-        }}
-      },
-      {
-        say: [
-          `Security: "Checksum verification."`,
-          `System: "INPUT REQUIRED."`,
-        ],
-        task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } }
-      },
-      {
-        say: [
-          `Security: "Stabilize the boundary. Hold."`,
-          `Worker 1: "If it slips, we start over."`,
-        ],
-        task: { id: "hold", args: { baseMs: 3000 } }
-      },
-      {
-        say: [
-          `Security: "Pattern gate. Confirm you can follow."`,
-          `System: "SHORT-TERM MEMORY TEST."`,
-        ],
-        task: { id: "pattern", args: { base: 5 } }
-      },
-      {
-        say: [
-          `Security: "Mismatch scan. Find the corruption."`,
-          `System: "ONE FRAGMENT IS WRONG."`,
-        ],
-        task: { id: "mismatch", args: { base: 7 } }
-      },
+      { say: [`System: "RECOVERY MODE: MANUAL."`,`Worker 2: "The reboot is old. It needs hands."`,`Security: "No commentary. Assign tasks."`],
+        task: { id: "anchors", args: { base: 5 } } },
+      { say: [`Security: "Reconstruct the log. No mistakes."`,`System: "FRAGMENTS: OUT OF ORDER."`],
+        task: { id: "reorder", args: { items: ["impact","fracture","alarm","lockdown","observer"], correct: ["observer","impact","fracture","alarm","lockdown"] } } },
+      { say: [`Security: "Checksum verification."`,`System: "INPUT REQUIRED."`],
+        task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } } },
+      { say: [`Security: "Stabilize the boundary. Hold."`,`Worker 1: "If it slips, we start over."`],
+        task: { id: "hold", args: { baseMs: 3000 } } },
+      { say: [`Security: "Pattern gate. Confirm you can follow."`,`System: "SHORT-TERM MEMORY TEST."`],
+        task: { id: "pattern", args: { base: 5 } } },
+      { say: [`Security: "Mismatch scan. Find the corruption."`,`System: "ONE FRAGMENT IS WRONG."`],
+        task: { id: "mismatch", args: { base: 7 } } },
+
+      // new standard tasks
+      { say: [`System: "TRACE REQUIRED."`,`Security: "Tag the moving nodes."`],
+        task: { id: "trace", args: { base: 5 } } },
+      { say: [`Security: "Scrub the flags. No residue."`,`System: "STATE MATCH REQUIRED."`],
+        task: { id: "scrub", args: { base: 5 } } },
+      { say: [`System: "CIPHER ECHO."`,`Security: "Repeat what you saw."`],
+        task: { id: "cipher", args: { base: 7 } } },
+      { say: [`Security: "Focus lock."`,`Worker 2: "Don’t drift."`],
+        task: { id: "focus", args: { baseMs: 1700 } } },
     ],
 
-    // harder filler used when player is more resistant
     filler_hard: [
-      {
-        say: [
-          `Security: "You’re destabilizing the corridor."`,
-          `Security: "So you will work longer."`,
-          `System: "RECOVERY WINDOW: NARROW."`,
-        ],
-        task: { id: "anchors", args: { base: 7 } }
-      },
-      {
-        say: [
-          `Security: "Reorder again. Faster."`,
-          `Worker 3: "If they loop it, we wipe them."`,
-        ],
-        task: { id: "reorder", args: {
-          items: ["panic", "push", "crack", "alarm", "seal"],
-          correct: ["push", "crack", "alarm", "seal", "panic"]
-        }}
-      },
-      {
-        say: [
-          `Security: "Checksum. Last chance."`,
-          `System: "REQUIRED."`,
-        ],
-        task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } }
-      },
-      {
-        say: [
-          `Security: "Stabilize. Longer hold."`,
-          `System: "BOUNDARY: UNSTABLE."`,
-        ],
-        task: { id: "hold", args: { baseMs: 3600 } }
-      },
-      {
-        say: [
-          `Security: "Pattern lock. You don’t get many tries."`,
-          `System: "ATTEMPTS LIMITED."`,
-        ],
-        task: { id: "pattern", args: { base: 6 } }
-      },
-      {
-        say: [
-          `Security: "Mismatch scan. If you guess wrong, we reset."`,
-          `Worker 2: "That’s… harsh."`,
-          `Security: "So are breaches."`,
-        ],
-        task: { id: "mismatch", args: { base: 9 } }
-      },
+      { say: [`Security: "You’re destabilizing the corridor."`,`Security: "So you will work longer."`,`System: "RECOVERY WINDOW: NARROW."`],
+        task: { id: "anchors", args: { base: 7 } } },
+      { say: [`Security: "Reorder again. Faster."`,`Worker 3: "If they loop it, we wipe them."`],
+        task: { id: "reorder", args: { items: ["panic","push","crack","alarm","seal"], correct: ["push","crack","alarm","seal","panic"] } } },
+      { say: [`Security: "Checksum. Last chance."`,`System: "REQUIRED."`],
+        task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } } },
+      { say: [`Security: "Stabilize. Longer hold."`,`System: "BOUNDARY: UNSTABLE."`],
+        task: { id: "hold", args: { baseMs: 3600 } } },
+      { say: [`Security: "Pattern lock. You don’t get many tries."`,`System: "ATTEMPTS LIMITED."`],
+        task: { id: "pattern", args: { base: 6 } } },
+      { say: [`Security: "Mismatch scan. If you guess wrong, we reset."`,`Worker 2: "That’s… harsh."`,`Security: "So are breaches."`],
+        task: { id: "mismatch", args: { base: 9 } } },
+
+      // new hard versions
+      { say: [`System: "TRACE REQUIRED."`,`Security: "They’re moving faster now."`],
+        task: { id: "trace", args: { base: 7 } } },
+      { say: [`Security: "Scrub the flags. All of them."`,`System: "STATE MATCH REQUIRED."`],
+        task: { id: "scrub", args: { base: 7 } } },
+      { say: [`System: "CIPHER ECHO."`,`Security: "You won’t see it for long."`],
+        task: { id: "cipher", args: { base: 10 } } },
+      { say: [`Security: "Focus lock."`,`Security: "Stay centered."`],
+        task: { id: "focus", args: { baseMs: 2400 } } },
     ]
   },
 
   branches: {
-    // Compliant
     need: {
       preface: [
         `You: "I need something first."`,
@@ -149,27 +92,13 @@ window.DIALOGUE = {
         `System: "RECOVERY MODE: MANUAL."`
       ],
       steps: [
-        { say: [
-          `Security: "You will comply with restart chores until containment stabilizes."`,
-          `Worker 2: "If they follow, we can reseal it cleanly."`,
-          `Security: "Begin."`,
-        ]},
-        { filler: { count: 3, pool: "filler_standard" } },
-        { say: [
-          `System: "PHASE CHECK: INCOMPLETE."`,
-          `Security: "Not done."`,
-          `Security: "Again."`
-        ]},
-        { filler: { count: 2, pool: "filler_standard" } },
-        { say: [
-          `System: "PHASE 1: STABLE."`,
-          `Security: "Good."`,
-          `Security: "Do not confuse survival for permission."`
-        ]}
+        { say: [`Security: "You will comply with restart chores until containment stabilizes."`,`Worker 2: "If they follow, we can reseal it cleanly."`,`Security: "Begin."`] },
+        { filler: { count: 5, pool: "filler_standard" } },
+        { say: [`System: "PHASE CHECK: INCOMPLETE."`,`Security: "Not done."`,`Security: "Again."`] },
+        { filler: { count: 4, pool: "filler_standard" } },
       ]
     },
 
-    // Compliant-ish (still “following the dialogue”)
     lie: {
       preface: [
         `You: "I clicked by accident."`,
@@ -179,22 +108,12 @@ window.DIALOGUE = {
         `Security: "Manual restart chores. Now."`
       ],
       steps: [
-        { filler: { count: 3, pool: "filler_standard" } },
-        { say: [
-          `Worker 1: "They’re still here."`,
-          `Security: "Of course they are."`,
-          `Security: "Next phase."`
-        ]},
-        { filler: { count: 2, pool: "filler_standard" } },
-        { say: [
-          `System: "PHASE 1: STABLE."`,
-          `Security: "Better."`,
-          `Security: "Try honesty next time."`
-        ]}
+        { filler: { count: 5, pool: "filler_standard" } },
+        { say: [`Worker 1: "They’re still here."`,`Security: "Of course they are."`,`Security: "Next phase."`] },
+        { filler: { count: 4, pool: "filler_standard" } },
       ]
     },
 
-    // Non-compliant
     run: {
       preface: [
         `You: "Run."`,
@@ -204,18 +123,9 @@ window.DIALOGUE = {
         `Security: "If you resist, we make the chores heavier."`
       ],
       steps: [
-        { filler: { count: 3, pool: "filler_hard" } },
-        { say: [
-          `Security: "Containment isn’t clean."`,
-          `Worker 3: "They keep pushing."`,
-          `Security: "Then keep them busy."`
-        ]},
-        { filler: { count: 2, pool: "filler_hard" } },
-        { say: [
-          `System: "PHASE 1: STABLE."`,
-          `Security: "You’re unstable."`,
-          `Security: "But you’re useful."`
-        ]}
+        { filler: { count: 5, pool: "filler_hard" } },
+        { say: [`Security: "Containment isn’t clean."`,`Worker 3: "They keep pushing."`,`Security: "Then keep them busy."`] },
+        { filler: { count: 4, pool: "filler_hard" } },
       ]
     }
   }
