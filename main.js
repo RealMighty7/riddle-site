@@ -199,12 +199,13 @@
 
       turnstileBox.innerHTML = "";
       tsWidgetId = window.turnstile.render(turnstileBox, {
-        // you can keep this hardcoded, or tell me and I’ll swap to a runtime-injected value
         sitekey: "0x4AAAAAACN_lQF6Hw5BHs2u",
         theme: "dark",
         callback: (token) => { tsToken = token; },
         "expired-callback": () => { tsToken = null; },
         "error-callback": () => { tsToken = null; },
+        refresh-expired: "auto",
+        retry: "auto",
       });
     }
 
