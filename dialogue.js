@@ -170,6 +170,7 @@ window.DIALOGUE = {
 
   // TASKS
   steps: [
+    // --- 1) Core authored intro tasks ---
     { say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] },
     { task: "anchors", args: { base: 5 } },
 
@@ -195,23 +196,28 @@ window.DIALOGUE = {
     { filler: { pool: "AUTO", count: 2 } },
     { say: ["System: Corrupted fragment detected.", "System: Identify mismatch."] },
     { task: "mismatch", args: { base: 7 } },
-    
+
+    // --- 2) Now switch to pool-based random tasks ---
+    // Task #7
     { filler: { pool: "AUTO", count: 1 } },
     { say: ["Liam (Worker): Keep it boring.", "System: PROCEDURE AVAILABLE."] },
-    { task: "confirm_signal" },
-    
-    { filler: { pool: "AUTO", count: 1 } },
-    { task: "choose_boring" },
-    
-    { filler: { pool: "AUTO", count: 1 } },
-    { task: "memory_3" },
-    
-    { filler: { pool: "AUTO", count: 1 } },
-    { task: "backspace_clean" },
-    
-    { filler: { pool: "AUTO", count: 1 } },
-    { task: "two_step" },
+    { task: "random", args: { pools: ["pack1"] } },
 
+    // Task #8
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "random", args: { pools: ["pack1", "pack2"] } },
+
+    // Task #9
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "random", args: { pools: ["pack1", "pack2", "pack3"] } },
+
+    // Task #10 (this is the one that triggers your almostDone phase in main.js)
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "random", args: { pools: ["pack2", "pack3", "pack4", "pack5"] } },
+
+    // After task #10, main.js runs almostDone + opens final modal (per your code)
+    { say: ["System: Surface failure imminent.", "Emma (Security): ...", "System: HANDOFF."] }
+  ]
 
     // Add more tasks later — main.js will trigger “almost done” after task #10
     { say: ["System: Surface failure imminent.", "Emma (Security): ...", "System: HANDOFF."] }
