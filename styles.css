@@ -1,3 +1,6 @@
+/* =========================
+   ROOT / BASE
+========================= */
 :root {
   --bg: #070a12;
   --card: rgba(10, 14, 25, 0.72);
@@ -11,11 +14,20 @@
 html, body {
   height: 100%;
   margin: 0;
-  background: radial-gradient(1200px 800px at 35% 20%, #0c1430 0%, #05070d 55%, #02030a 100%);
+  background: radial-gradient(
+    1200px 800px at 35% 20%,
+    #0c1430 0%,
+    #05070d 55%,
+    #02030a 100%
+  );
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system,
+               Segoe UI, Roboto, Arial, sans-serif;
 }
 
+/* =========================
+   LAYOUT
+========================= */
 main#wrap {
   width: min(980px, calc(100% - 40px));
   margin: 32px auto;
@@ -31,6 +43,11 @@ main#wrap {
   box-shadow: 0 12px 50px rgba(0,0,0,0.35);
 }
 
+.hidden { display: none !important; }
+
+/* =========================
+   GRID / IMAGES
+========================= */
 .grid.card { padding: 14px; }
 
 .grid {
@@ -48,9 +65,10 @@ main#wrap {
   background: rgba(0,0,0,0.18);
 }
 
-#simRoom {
-  margin-top: 14px;
-}
+/* =========================
+   SIM ROOM
+========================= */
+#simRoom { margin-top: 14px; }
 
 #simText {
   width: 100%;
@@ -62,7 +80,9 @@ main#wrap {
   padding: 14px;
   white-space: pre-wrap;
   line-height: 1.35;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-family: ui-monospace, SFMono-Regular,
+               Menlo, Monaco, Consolas,
+               "Liberation Mono", monospace;
   color: rgba(232,237,247,0.90);
 }
 
@@ -73,6 +93,9 @@ main#wrap {
   flex-wrap: wrap;
 }
 
+/* =========================
+   BUTTONS
+========================= */
 .sim-btn {
   background: rgba(10, 16, 30, 0.65);
   border: 1px solid rgba(255,255,255,0.16);
@@ -80,32 +103,32 @@ main#wrap {
   padding: 10px 14px;
   color: rgba(232,237,247,0.9);
   cursor: pointer;
-  transition: transform 0.06s ease, border-color 0.12s ease, background 0.12s ease;
+  transition:
+    transform 0.06s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 
-.sim-btn:hover { border-color: rgba(170,210,255,0.38); }
-.sim-btn:active { transform: translateY(1px); }
-.sim-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.hidden { display: none !important; }
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.22);
+.sim-btn:hover {
+  border-color: rgba(170,210,255,0.38);
 }
 
-#taskUI {
-  margin-top: 14px;
+.sim-btn:active {
+  transform: translateY(1px);
 }
+
+.sim-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* =========================
+   TASK UI
+========================= */
+#taskUI { margin-top: 14px; }
 
 #taskBody {
   margin-top: 12px;
-  /* IMPORTANT: prevents cut-off */
   max-height: min(52vh, 520px);
   overflow: auto;
   padding-right: 6px;
@@ -118,7 +141,19 @@ main#wrap {
   flex-wrap: wrap;
 }
 
-/* anchors */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.22);
+}
+
+/* =========================
+   ANCHORS
+========================= */
 .anchor {
   position: fixed;
   width: 16px;
@@ -131,7 +166,9 @@ main#wrap {
   cursor: pointer;
 }
 
-/* crack overlay: FULL SCREEN, no pointer events */
+/* =========================
+   CRACK OVERLAY
+========================= */
 #cracks {
   position: fixed;
   inset: 0;
@@ -145,7 +182,6 @@ main#wrap {
 
 #cracks.show { opacity: 1; }
 
-/* SVG cracks look */
 #cracks svg {
   width: 100%;
   height: 100%;
@@ -161,25 +197,59 @@ main#wrap {
   filter: drop-shadow(0 0 1px rgba(255,255,255,0.35));
 }
 
-.crack-path.core {
-  stroke: rgba(160, 180, 205, 0.88);
-  stroke-width: 2.6;
-}
-
 @keyframes draw {
-  from { stroke-dashoffset: var(--dash); opacity: 0.0; }
-  to   { stroke-dashoffset: 0; opacity: 1.0; }
+  from { stroke-dashoffset: var(--dash); opacity: 0; }
+  to   { stroke-dashoffset: 0; opacity: 1; }
 }
 
 .draw {
   animation: draw 520ms ease forwards;
 }
 
-/* small flash on glitch */
 #cracks.flash { opacity: 1; }
-#cracks.flash svg { filter: drop-shadow(0 0 5px rgba(120,180,255,0.35)); }
+#cracks.flash svg {
+  filter: drop-shadow(0 0 5px rgba(120,180,255,0.35));
+}
 
-/* overlays (reset/final) */
+/* =========================
+   GLASS SHATTER
+========================= */
+#glassFX {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+}
+
+.glass-piece {
+  position: absolute;
+  border: 1px solid rgba(180,220,255,0.20);
+  background: rgba(140,190,255,0.05);
+  backdrop-filter: blur(1px);
+  border-radius: 2px;
+  transform: translateY(0) rotate(var(--rot, 0deg));
+}
+
+.glass-fall .glass-piece {
+  animation: fall 1.05s cubic-bezier(.2,.8,.2,1) forwards;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(120vh) rotate(calc(var(--rot, 0deg) + 18deg));
+    opacity: 0;
+  }
+}
+
+body.sim-transition #wrap {
+  opacity: 0.45;
+  filter: blur(0.6px);
+  transition: opacity 250ms ease, filter 250ms ease;
+}
+
+/* =========================
+   OVERLAYS / MODALS
+========================= */
 .overlay {
   position: fixed;
   inset: 0;
@@ -197,7 +267,8 @@ main#wrap {
   padding: 16px;
 }
 
-.modal input, .modal textarea {
+.modal input,
+.modal textarea {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
@@ -214,11 +285,14 @@ main#wrap {
   flex-wrap: wrap;
 }
 
-/* hack room minimal */
+/* =========================
+   HACK ROOM
+========================= */
 #hackRoom .hack-filebtn {
   margin-right: 8px;
   margin-top: 10px;
 }
+
 .hack-line {
   display: grid;
   grid-template-columns: 42px 1fr;
@@ -230,7 +304,21 @@ main#wrap {
   margin: 8px 0;
   cursor: pointer;
 }
-.hack-line.target { border-color: rgba(120,180,255,0.32); }
-.hack-line.selected { outline: 2px solid rgba(120,180,255,0.45); }
-.hack-ln { opacity: 0.7; font-family: ui-monospace, monospace; }
-.hack-txt { font-family: ui-monospace, monospace; opacity: 0.92; }
+
+.hack-line.target {
+  border-color: rgba(120,180,255,0.32);
+}
+
+.hack-line.selected {
+  outline: 2px solid rgba(120,180,255,0.45);
+}
+
+.hack-ln {
+  opacity: 0.7;
+  font-family: ui-monospace, monospace;
+}
+
+.hack-txt {
+  font-family: ui-monospace, monospace;
+  opacity: 0.92;
+}
