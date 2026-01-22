@@ -5,6 +5,7 @@
       document.addEventListener("DOMContentLoaded", boot, { once: true });
       return;
     }
+
     function clamp(n, a, b) {
       return Math.max(a, Math.min(b, n));
     }
@@ -19,22 +20,49 @@
 
     /* ====================== RANDOM IMAGES ====================== */
     const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
-    document.querySelectorAll(".grid img").forEach(img => {
+    document.querySelectorAll(".grid img").forEach((img) => {
       img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
     });
 
     /* ====================== ELEMENTS ====================== */
     const ids = [
-      "system","cracks","glassFX",
-      "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
-      "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
-      "resetOverlay","resetTitle","resetBody",
-      "finalOverlay","finalDiscord","finalAnswer","finalCancel","finalVerify","finalErr","turnstileBox",
-      "hackRoom","hackUser","hackTargets","hackFilename","hackLines","hackDelete","hackReset","hackStatus"
+      "system",
+      "cracks",
+      "glassFX",
+      "simRoom",
+      "simText",
+      "simChoices",
+      "choiceNeed",
+      "choiceLie",
+      "choiceRun",
+      "taskUI",
+      "taskTitle",
+      "taskDesc",
+      "taskBody",
+      "taskPrimary",
+      "taskSecondary",
+      "resetOverlay",
+      "resetTitle",
+      "resetBody",
+      "finalOverlay",
+      "finalDiscord",
+      "finalAnswer",
+      "finalCancel",
+      "finalVerify",
+      "finalErr",
+      "turnstileBox",
+      "hackRoom",
+      "hackUser",
+      "hackTargets",
+      "hackFilename",
+      "hackLines",
+      "hackDelete",
+      "hackReset",
+      "hackStatus",
     ];
 
-    const els = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
-    const missing = ids.filter(id => !els[id]);
+    const els = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+    const missing = ids.filter((id) => !els[id]);
     if (missing.length) {
       console.error("Missing required element IDs:", missing);
       return;
@@ -90,7 +118,11 @@
       static1: new Audio("/assets/static1.wav"),
       static2: new Audio("/assets/static2.wav"),
     };
-    Object.values(SFX).forEach(a => { try { a.preload = "auto"; } catch {} });
+    Object.values(SFX).forEach((a) => {
+      try {
+        a.preload = "auto";
+      } catch {}
+    });
     SFX.ambience.loop = true;
     SFX.ambience.volume = 0.22;
 
@@ -98,18 +130,31 @@
     function unlockAudio() {
       if (audioUnlocked) return;
       audioUnlocked = true;
-      try { SFX.ambience.currentTime = 0; SFX.ambience.play().catch(()=>{}); } catch {}
+      try {
+        SFX.ambience.currentTime = 0;
+        SFX.ambience.play().catch(() => {});
+      } catch {}
     }
     function playSfx(name, vol = 0.6) {
       const a = SFX[name];
       if (!a) return;
-      try { a.pause(); a.currentTime = 0; a.volume = vol; a.play().catch(()=>{}); } catch {}
+      try {
+        a.pause();
+        a.currentTime = 0;
+        a.volume = vol;
+        a.play().catch(() => {});
+      } catch {}
     }
 
     /* ====================== TIMING ====================== */
     const WPM = 300;
     const MS_PER_WORD = 60000 / WPM;
-    function wordsCount(s) { return String(s || "").trim().split(/\s+/).filter(Boolean).length; }
+    function wordsCount(s) {
+      return String(s || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean).length;
+    }
     function msToRead(line) {
       const w = wordsCount(line);
       if (!w) return 650;
@@ -128,11 +173,16 @@
     let choiceCompliant = 0;
 
     let resistanceScore = 0;
-    function difficultyBoost() { return Math.max(0, Math.min(6, resistanceScore)); }
+    function difficultyBoost() {
+      return Math.max(0, Math.min(6, resistanceScore));
+    }
 
     /* ====================== TIMERS ====================== */
     let timers = [];
-    function clearTimers() { timers.forEach(t => clearTimeout(t)); timers = []; }
+    function clearTimers() {
+      timers.forEach((t) => clearTimeout(t));
+      timers = [];
+    }
 
     /* ====================== UI helpers ====================== */
     function appendSimLine(line) {
@@ -142,7 +192,7 @@
 
     function playLines(lines) {
       clearTimers();
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         let t = 260;
         for (const line of lines) {
           timers.push(setTimeout(() => appendSimLine(line), t));
@@ -159,7 +209,9 @@
       simChoices.classList.remove("hidden");
       taskUI.classList.add("hidden");
     }
-    function hideChoices() { simChoices.classList.add("hidden"); }
+    function hideChoices() {
+      simChoices.classList.add("hidden");
+    }
 
     function showTaskUI(title, desc) {
       taskUI.classList.remove("hidden");
@@ -170,7 +222,9 @@
       taskPrimary.disabled = false;
     }
 
-    function hardReload() { window.location.href = window.location.href.split("#")[0]; }
+    function hardReload() {
+      window.location.href = window.location.href.split("#")[0];
+    }
 
     function doReset(reasonTitle, reasonBody) {
       resetTitle.textContent = reasonTitle || "RESET";
@@ -225,14 +279,23 @@ Reinitializing simulation…`
 
     function ensureTurnstile() {
       if (tsWidgetId !== null) return;
-      if (!window.turnstile) { setTimeout(ensureTurnstile, 100); return; }
+      if (!window.turnstile) {
+        setTimeout(ensureTurnstile, 100);
+        return;
+      }
       turnstileBox.innerHTML = "";
       tsWidgetId = window.turnstile.render(turnstileBox, {
         sitekey: "0x4AAAAAACN_lQF6Hw5BHs2u",
         theme: "dark",
-        callback: (token) => { tsToken = token; },
-        "expired-callback": () => { tsToken = null; },
-        "error-callback": () => { tsToken = null; },
+        callback: (token) => {
+          tsToken = token;
+        },
+        "expired-callback": () => {
+          tsToken = null;
+        },
+        "error-callback": () => {
+          tsToken = null;
+        },
       });
     }
     function getTurnstileToken() {
@@ -271,9 +334,15 @@ Reinitializing simulation…`
       finalDiscordName = (finalDiscord.value || "").trim();
       finalAnswerText = (finalAnswer.value || "").trim();
 
-      if (!finalDiscordName) { finalErr.textContent = "Username required."; return; }
+      if (!finalDiscordName) {
+        finalErr.textContent = "Username required.";
+        return;
+      }
       const token = getTurnstileToken();
-      if (!token) { finalErr.textContent = "Please complete the verification checkbox."; return; }
+      if (!token) {
+        finalErr.textContent = "Please complete the verification checkbox.";
+        return;
+      }
 
       closeFinalModal();
       startHackTask();
@@ -291,9 +360,9 @@ Reinitializing simulation…`
           "NOTE: do not remove core lines",
           "AUDIT: mirror enabled",
           "AUDIT: upload pending",
-          "BOOT: init sequence complete"
+          "BOOT: init sequence complete",
         ],
-        targets: [3, 6, 7]
+        targets: [3, 6, 7],
       },
       {
         name: "user/profile.cfg",
@@ -304,9 +373,9 @@ Reinitializing simulation…`
           "telemetry = on",
           "retention = forever",
           "escape.flag = false",
-          "notes = 'subject attempted exit'"
+          "notes = 'subject attempted exit'",
         ],
-        targets: [4, 5, 6]
+        targets: [4, 5, 6],
       },
       {
         name: "sys/cache.tmp",
@@ -317,10 +386,10 @@ Reinitializing simulation…`
           "cache: record=clickstream",
           "cache: record=session_map",
           "cache: record=turnstile_token",
-          "cache: purge=disabled"
+          "cache: purge=disabled",
         ],
-        targets: [4, 5, 6]
-      }
+        targets: [4, 5, 6],
+      },
     ];
 
     let activeFileIndex = 0;
@@ -354,17 +423,24 @@ Reinitializing simulation…`
         row.appendChild(right);
 
         row.onclick = () => {
-          if (selected.has(i)) { selected.delete(i); row.classList.remove("selected"); }
-          else { selected.add(i); row.classList.add("selected"); }
+          if (selected.has(i)) {
+            selected.delete(i);
+            row.classList.remove("selected");
+          } else {
+            selected.add(i);
+            row.classList.add("selected");
+          }
         };
 
         hackLines.appendChild(row);
       });
     }
 
-    function resetHack() { renderFile(activeFileIndex); }
+    function resetHack() {
+      renderFile(activeFileIndex);
+    }
 
-    document.querySelectorAll(".hack-filebtn").forEach(btn => {
+    document.querySelectorAll(".hack-filebtn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const idx = Number(btn.getAttribute("data-file") || "0");
         renderFile(idx);
@@ -375,11 +451,14 @@ Reinitializing simulation…`
 
     hackDelete.onclick = async () => {
       const f = FILES[activeFileIndex];
-      const selectedLines = Array.from(selected).map(i => i + 1).sort((a,b)=>a-b);
-      const targets = f.targets.slice().sort((a,b)=>a-b);
+      const selectedLines = Array.from(selected)
+        .map((i) => i + 1)
+        .sort((a, b) => a - b);
+      const targets = f.targets.slice().sort((a, b) => a - b);
 
-      const ok = selectedLines.length === targets.length &&
-                 selectedLines.every((v, i) => v === targets[i]);
+      const ok =
+        selectedLines.length === targets.length &&
+        selectedLines.every((v, i) => v === targets[i]);
 
       if (!ok) {
         hackStatus.textContent = "Wrong lines. Workstation locked. Reset required.";
@@ -388,7 +467,7 @@ Reinitializing simulation…`
         return;
       }
 
-      const delIdx = Array.from(selected).sort((a,b)=>b-a);
+      const delIdx = Array.from(selected).sort((a, b) => b - a);
       for (const i of delIdx) f.lines.splice(i, 1);
 
       hackStatus.textContent = "Lines deleted. Finalizing wipe…";
@@ -399,7 +478,11 @@ Reinitializing simulation…`
         const res = await fetch("/api/complete", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ discord: finalDiscordName, answer: finalAnswerText, turnstile: token })
+          body: JSON.stringify({
+            discord: finalDiscordName,
+            answer: finalAnswerText,
+            turnstile: token,
+          }),
         });
 
         const data = await res.json().catch(() => ({}));
@@ -425,204 +508,206 @@ Reinitializing simulation…`
       renderFile(0);
     }
 
-/* ====================== TASK RUNNER ====================== */
-const taskContext = { taskPrimary, taskSecondary, taskBody, showTaskUI, doReset, difficultyBoost, penalize, glitch: glitchPulse };
+    /* ====================== TASK RUNNER ====================== */
+    const taskContext = {
+      taskPrimary,
+      taskSecondary,
+      taskBody,
+      showTaskUI,
+      doReset,
+      difficultyBoost,
+      penalize,
+      glitch: glitchPulse,
+    };
 
-// Track how many tasks have been completed in this run
-let tasksCompleted = 0;
+    let tasksCompleted = 0;
+    let guidePath = "unknown"; // "emma" | "liam" | "run" | "unknown"
 
-// Track which guide you followed at the start (set during choice beats)
-let guidePath = "unknown"; // "emma" | "liam" | "run" | "unknown"
-
-function chooseFillerPool() {
-  // resistanceScore: 0..12
-  // 0-2: system/Emma heavy, 3-6: mixed, 7+: Liam pressure/whispers + system pressure
-  if (guidePath === "run") {
-    if (resistanceScore >= 6) return "filler_run_hard";
-    return "filler_run";
-  }
-  if (guidePath === "emma") {
-    if (resistanceScore >= 6) return "filler_security_pressure";
-    return "filler_security";
-  }
-  if (guidePath === "liam") {
-    if (resistanceScore >= 6) return "filler_worker_pressure";
-    return "filler_worker";
-  }
-
-  // unknown fallback
-  if (resistanceScore >= 7) return "filler_system_pressure";
-  if (resistanceScore >= 3) return "filler_standard";
-  return "filler_security";
-}
-
-// Fire the “almost done” phase once
-let almostDoneTriggered = false;
-async function maybeAlmostDonePhase() {
-  if (almostDoneTriggered) return;
-  if (tasksCompleted < 10) return;
-
-  almostDoneTriggered = true;
-
-  // Tone shift: quieter, scarier, feels like the system is “helping”
-  const pool = DIALOGUE.almostDone?.say || [
-    "System: You are close.",
-    "System: Please do not celebrate early.",
-    "Emma (Security): This part is where people mess up.",
-    "Liam (Worker): Keep it boring. Keep it small."
-  ];
-  await playLines(pool);
-
-  // Optional: a couple dynamic filler lines right before the final modal
-  const endPoolName = chooseFillerPool();
-  const endPool = DIALOGUE.fillerPools?.[endPoolName] || [];
-  if (endPool.length) {
-    const pick1 = endPool[Math.floor(Math.random() * endPool.length)];
-    const pick2 = endPool[Math.floor(Math.random() * endPool.length)];
-    await playLines([String(pick1), String(pick2)]);
-  }
-
-  // Move into your existing Finalize modal → hack task
-  openFinalModal(finalDiscordName);
-}
-
-async function runSteps(steps) {
-  for (const step of steps) {
-    if (step.say) {
-      await playLines(step.say);
-      continue;
-    }
-
-    if (step.task) {
-      const fn = TASKS[step.task];
-      if (fn) {
-        await fn(taskContext, step.args || {});
-        tasksCompleted++;
-        await maybeAlmostDonePhase();
+    function chooseFillerPool() {
+      if (guidePath === "run") {
+        if (resistanceScore >= 6) return "filler_run_hard";
+        return "filler_run";
       }
-      continue;
-    }
-
-    if (step.filler) {
-      const count = Number(step.filler.count || 1);
-
-      // If filler.pool === "AUTO", choose based on state
-      let poolName = String(step.filler.pool || "filler_standard");
-      if (poolName === "AUTO") poolName = chooseFillerPool();
-
-      const pool = DIALOGUE.fillerPools?.[poolName] || [];
-      for (let i = 0; i < count; i++) {
-        if (!pool.length) break;
-        const pick = pool[Math.floor(Math.random() * pool.length)];
-        if (typeof pick === "string") await playLines([pick]);
-        else if (pick?.say) await playLines(pick.say);
+      if (guidePath === "emma") {
+        if (resistanceScore >= 6) return "filler_security_pressure";
+        return "filler_security";
       }
-      continue;
+      if (guidePath === "liam") {
+        if (resistanceScore >= 6) return "filler_worker_pressure";
+        return "filler_worker";
+      }
+
+      if (resistanceScore >= 7) return "filler_system_pressure";
+      if (resistanceScore >= 3) return "filler_standard";
+      return "filler_security";
     }
-  }
-}
+
+    let almostDoneTriggered = false;
+    async function maybeAlmostDonePhase() {
+      if (almostDoneTriggered) return;
+      if (tasksCompleted < 10) return;
+
+      almostDoneTriggered = true;
+
+      const pool = DIALOGUE.almostDone?.say || [
+        "System: You are close.",
+        "System: Please do not celebrate early.",
+        "Emma (Security): This part is where people mess up.",
+        "Liam (Worker): Keep it boring. Keep it small.",
+      ];
+      await playLines(pool);
+
+      const endPoolName = chooseFillerPool();
+      const endPool = DIALOGUE.fillerPools?.[endPoolName] || [];
+      if (endPool.length) {
+        const pick1 = endPool[Math.floor(Math.random() * endPool.length)];
+        const pick2 = endPool[Math.floor(Math.random() * endPool.length)];
+        await playLines([String(pick1), String(pick2)]);
+      }
+
+      openFinalModal(finalDiscordName);
+    }
+
+    async function runSteps(steps) {
+      for (const step of steps) {
+        if (step.say) {
+          await playLines(step.say);
+          continue;
+        }
+
+        if (step.task) {
+          const fn = TASKS[step.task];
+          if (fn) {
+            await fn(taskContext, step.args || {});
+            tasksCompleted++;
+            await maybeAlmostDonePhase();
+          }
+          continue;
+        }
+
+        if (step.filler) {
+          const count = Number(step.filler.count || 1);
+
+          let poolName = String(step.filler.pool || "filler_standard");
+          if (poolName === "AUTO") poolName = chooseFillerPool();
+
+          const pool = DIALOGUE.fillerPools?.[poolName] || [];
+          for (let i = 0; i < count; i++) {
+            if (!pool.length) break;
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            if (typeof pick === "string") await playLines([pick]);
+            else if (pick?.say) await playLines(pick.say);
+          }
+          continue;
+        }
+      }
+    }
 
     /* ====================== SIM FLOW ====================== */
-async function openSimRoom() {
-  stage = 99;
+    async function openSimRoom() {
+      stage = 99;
 
-  document.body.classList.add("in-sim"); 
+      document.body.classList.add("in-sim");
 
-  simRoom.classList.remove("hidden");
-  taskUI.classList.add("hidden");
-  simChoices.classList.add("hidden");
-  simText.textContent = "";
+      simRoom.classList.remove("hidden");
+      taskUI.classList.add("hidden");
+      simChoices.classList.add("hidden");
+      simText.textContent = "";
 
-  await playLines(DIALOGUE.intro);
-  await runChoiceBeats();
-  await runSteps(DIALOGUE.steps);
-}
+      await playLines(DIALOGUE.intro);
+      await runChoiceBeats();
+      await runSteps(DIALOGUE.steps);
+    }
 
     function waitForChoice() {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         const cleanup = () => {
           choiceNeed.onclick = null;
           choiceLie.onclick = null;
           choiceRun.onclick = null;
         };
-        choiceNeed.onclick = () => { cleanup(); resolve("comply"); };
-        choiceLie.onclick  = () => { cleanup(); resolve("lie"); };
-        choiceRun.onclick  = () => { cleanup(); resolve("run"); };
+        choiceNeed.onclick = () => {
+          cleanup();
+          resolve("comply");
+        };
+        choiceLie.onclick = () => {
+          cleanup();
+          resolve("lie");
+        };
+        choiceRun.onclick = () => {
+          cleanup();
+          resolve("run");
+        };
       });
     }
 
-async function runChoiceBeats() {
-  for (let i = 0; i < (DIALOGUE.choiceBeats || []).length; i++) {
-    const beat = DIALOGUE.choiceBeats[i];
+    async function runChoiceBeats() {
+      for (let i = 0; i < (DIALOGUE.choiceBeats || []).length; i++) {
+        const beat = DIALOGUE.choiceBeats[i];
 
-    await playLines(beat.say || []);
-    showChoices(beat.choices);
+        await playLines(beat.say || []);
+        showChoices(beat.choices);
 
-    const choice = await waitForChoice();
+        const choice = await waitForChoice();
 
-    // set starting guide only once (first beat)
-    if (i === 0) {
-      if (choice === "comply") guidePath = "emma";
-      else if (choice === "lie") guidePath = "liam";
-      else guidePath = "run";
+        if (i === 0) {
+          if (choice === "comply") guidePath = "emma";
+          else if (choice === "lie") guidePath = "liam";
+          else guidePath = "run";
+        }
+
+        if (choice === "comply") {
+          if (!recordChoice(true)) return;
+          resistanceScore = Math.max(0, resistanceScore - 1);
+        } else if (choice === "lie") {
+          if (!recordChoice(true)) return;
+          resistanceScore = Math.min(12, resistanceScore + 0);
+        } else {
+          if (!recordChoice(false)) return;
+          resistanceScore = Math.min(12, resistanceScore + 2);
+        }
+
+        hideChoices();
+        await playLines(
+          beat.respond && beat.respond[choice] ? beat.respond[choice] : []
+        );
+      }
     }
-
-    // scoring
-    if (choice === "comply") {
-      if (!recordChoice(true)) return;
-      resistanceScore = Math.max(0, resistanceScore - 1);
-    } else if (choice === "lie") {
-      if (!recordChoice(true)) return;
-      resistanceScore = Math.min(12, resistanceScore + 0);
-    } else {
-      if (!recordChoice(false)) return;
-      resistanceScore = Math.min(12, resistanceScore + 2);
-    }
-
-    hideChoices();
-    await playLines((beat.respond && beat.respond[choice]) ? beat.respond[choice] : []);
-  }
-}
-
 
     function isCountableClick(e) {
       const t = e.target;
       if (!t) return true;
-    
-      // still ignore actual interactive UI
+      // ignore actual interactive UI
       if (t.closest("button, input, textarea, select, label, a")) return false;
-    
-      // allow clicks on images + cards + background to count
+      // allow images + cards + background to count
       return true;
     }
-    
 
     /* ======================
        CRACKS (4 staged) + GLASS FALL -> SIM
     ====================== */
-    
-    // prevent “drag highlight” / selection artifacts while spam clicking
+
     document.addEventListener("selectstart", (e) => e.preventDefault());
-    
+
     let crackBuilt = false;
     let crackStage = 0;
-    let glassBuilt = false;
-    
+
     function rand(seed) {
       let t = seed >>> 0;
       return () => {
-        t += 0x6D2B79F5;
+        t += 0x6d2b79f5;
         let x = Math.imul(t ^ (t >>> 15), 1 | t);
         x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
         return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
       };
     }
-    
+
     function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
-      let x = cx, y = cy;
+      let x = cx,
+        y = cy;
       let ang = rng() * Math.PI * 2;
       const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
-    
+
       for (let i = 0; i < steps; i++) {
         ang += (rng() - 0.5) * jitter;
         x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
@@ -633,322 +718,319 @@ async function runChoiceBeats() {
       }
       return pts.join(" ");
     }
-    
+
     function addSeg(svg, d, rank) {
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
       g.setAttribute("class", "seg");
       g.setAttribute("data-rank", String(rank));
-    
+
       const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
       pUnder.setAttribute("d", d);
       pUnder.setAttribute("class", "crack-path crack-under");
-    
+
       const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
       pLine.setAttribute("d", d);
       pLine.setAttribute("class", "crack-path crack-line");
-    
+
       const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
       pGlint.setAttribute("d", d);
       pGlint.setAttribute("class", "crack-path crack-glint");
       pGlint.style.opacity = "0.0";
-    
+
       g.appendChild(pUnder);
       g.appendChild(pLine);
       g.appendChild(pGlint);
       svg.appendChild(g);
-    
-      // dash animation setup
-      [pUnder, pLine, pGlint].forEach(p => {
+
+      [pUnder, pLine, pGlint].forEach((p) => {
         try {
           const len = p.getTotalLength();
           p.style.strokeDasharray = String(len);
           p.style.strokeDashoffset = String(len);
-          p.style.setProperty("--dash", String(len));
           p.classList.add("draw");
         } catch {}
       });
-    
+
       if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
     }
-    
-function ensureCracks() {
-  if (crackBuilt) return;
 
-  const seed = (Date.now() ^ (Math.random() * 1e9)) & 0xffffffff;
-  const rng = rand(seed);
+    function ensureCracks() {
+      if (crackBuilt) return;
 
-  cracks.innerHTML = "";
+      const seed = (Date.now() ^ (Math.random() * 1e9)) & 0xffffffff;
+      const rng = rand(seed);
 
-  // ---- PANE LAYER (glass shards) ----
-  const paneCount = 18;              // tweak 14–26
-  const paneRanks = [1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,4,4,4];
+      cracks.innerHTML = "";
 
-  const mkPane = (rank) => {
-    const p = document.createElement("div");
-    p.className = "pane";
-    p.setAttribute("data-rank", String(rank));
+      // ---- PANE LAYER (glass shards) ----
+      const paneCount = 18;
+      const paneRanks = [1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4];
 
-    // random polygon shard (clip-path)
-    // generate points in % space; bias near center for earlier ranks
-    const bias = (rank === 1) ? 0.18 : (rank === 2) ? 0.28 : (rank === 3) ? 0.38 : 0.50;
+      const mkPane = (rank) => {
+        const p = document.createElement("div");
+        p.className = "pane";
+        p.setAttribute("data-rank", String(rank));
 
-    const pts = [];
-    const centerPull = () => (0.5 + (rng() - 0.5) * bias);
+        const bias =
+          rank === 1 ? 0.18 : rank === 2 ? 0.28 : rank === 3 ? 0.38 : 0.5;
 
-    // make a “jagged quad/hex”
-    const n = 4 + Math.floor(rng() * 3); // 4..6
-    for (let i = 0; i < n; i++) {
-      const x = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
-      const y = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
-      pts.push([x, y]);
+        const pts = [];
+        const centerPull = () => 0.5 + (rng() - 0.5) * bias;
+
+        const n = 4 + Math.floor(rng() * 3); // 4..6
+        for (let i = 0; i < n; i++) {
+          const x = clamp(
+            centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06),
+            0,
+            1
+          );
+          const y = clamp(
+            centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06),
+            0,
+            1
+          );
+          pts.push([x, y]);
+        }
+
+        const cx = pts.reduce((a, v) => a + v[0], 0) / pts.length;
+        const cy = pts.reduce((a, v) => a + v[1], 0) / pts.length;
+        pts.sort(
+          (a, b) =>
+            Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx)
+        );
+
+        const poly = pts
+          .map(([x, y]) => `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`)
+          .join(", ");
+        p.style.clipPath = `polygon(${poly})`;
+
+        const dx = (rng() * 10 - 5).toFixed(1) + "px";
+        const dy = (rng() * 10 - 5).toFixed(1) + "px";
+        p.style.setProperty("--dx", dx);
+        p.style.setProperty("--dy", dy);
+
+        if (rng() < 0.35) p.classList.add("glint");
+        return p;
+      };
+
+      for (let i = 0; i < paneCount; i++) {
+        const rank = paneRanks[i] || 4;
+        cracks.appendChild(mkPane(rank));
+      }
+
+      // ---- SVG LINES ----
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 1000 1000");
+      svg.setAttribute("preserveAspectRatio", "none");
+      cracks.appendChild(svg);
+
+      const cx = 500,
+        cy = 500;
+
+      const ring = (radiusMin, radiusMax) => {
+        const a = rng() * Math.PI * 2;
+        const r = radiusMin + rng() * (radiusMax - radiusMin);
+        return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+      };
+
+      for (let i = 0; i < 7; i++) {
+        const [sx, sy] = ring(0, 26);
+        const d = makePathFromCenter(
+          rng,
+          sx,
+          sy,
+          6 + Math.floor(rng() * 3),
+          18,
+          0.85
+        );
+        addSeg(svg, d, 1);
+      }
+
+      for (let i = 0; i < 12; i++) {
+        const [sx, sy] = ring(18, 120);
+        const d = makePathFromCenter(
+          rng,
+          sx,
+          sy,
+          9 + Math.floor(rng() * 4),
+          28,
+          0.75
+        );
+        addSeg(svg, d, 2);
+      }
+
+      for (let i = 0; i < 18; i++) {
+        const [sx, sy] = ring(120, 360);
+        const d = makePathFromCenter(
+          rng,
+          sx,
+          sy,
+          10 + Math.floor(rng() * 5),
+          22,
+          1.05
+        );
+        addSeg(svg, d, 3);
+      }
+
+      for (let i = 0; i < 14; i++) {
+        const [sx, sy] = ring(60, 220);
+        const d = makePathFromCenter(
+          rng,
+          sx,
+          sy,
+          18 + Math.floor(rng() * 8),
+          46,
+          0.55
+        );
+        addSeg(svg, d, 4);
+      }
+
+      crackBuilt = true;
     }
 
-    // sort points around centroid to form a valid polygon
-    const cx = pts.reduce((a, v) => a + v[0], 0) / pts.length;
-    const cy = pts.reduce((a, v) => a + v[1], 0) / pts.length;
-    pts.sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
-
-    const poly = pts.map(([x, y]) => `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`).join(", ");
-    p.style.clipPath = `polygon(${poly})`;
-
-    // tiny per-pane “refraction direction”
-    const dx = (rng() * 10 - 5).toFixed(1) + "px";
-    const dy = (rng() * 10 - 5).toFixed(1) + "px";
-    p.style.setProperty("--dx", dx);
-    p.style.setProperty("--dy", dy);
-
-    // occasional glint
-    if (rng() < 0.35) p.classList.add("glint");
-
-    return p;
-  };
-
-  for (let i = 0; i < paneCount; i++) {
-    const rank = paneRanks[i] || 4;
-    cracks.appendChild(mkPane(rank));
-  }
-
-  // ---- SVG LINES (your existing cracks) ----
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 1000 1000");
-  svg.setAttribute("preserveAspectRatio", "none");
-  cracks.appendChild(svg);
-
-  const cx = 500, cy = 500;
-
-  const ring = (radiusMin, radiusMax) => {
-    const a = rng() * Math.PI * 2;
-    const r = radiusMin + rng() * (radiusMax - radiusMin);
-    return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
-  };
-
-  // STAGE 1
-  for (let i = 0; i < 7; i++) {
-    const [sx, sy] = ring(0, 26);
-    const d = makePathFromCenter(rng, sx, sy, 6 + Math.floor(rng() * 3), 18, 0.85);
-    addSeg(svg, d, 1);
-  }
-
-  // STAGE 2
-  for (let i = 0; i < 12; i++) {
-    const [sx, sy] = ring(18, 120);
-    const d = makePathFromCenter(rng, sx, sy, 9 + Math.floor(rng() * 4), 28, 0.75);
-    addSeg(svg, d, 2);
-  }
-
-  // STAGE 3
-  for (let i = 0; i < 18; i++) {
-    const [sx, sy] = ring(120, 360);
-    const d = makePathFromCenter(rng, sx, sy, 10 + Math.floor(rng() * 5), 22, 1.05);
-    addSeg(svg, d, 3);
-  }
-
-  // STAGE 4
-  for (let i = 0; i < 14; i++) {
-    const [sx, sy] = ring(60, 220);
-    const d = makePathFromCenter(rng, sx, sy, 18 + Math.floor(rng() * 8), 46, 0.55);
-    addSeg(svg, d, 4);
-  }
-
-  crackBuilt = true;
-}
-
-    
     function setCrackStage(n) {
       ensureCracks();
-    
+
       const next = Math.max(crackStage, n);
       if (next === crackStage) return;
-    
+
       crackStage = next;
       cracks.dataset.stage = String(crackStage);
-    
-      // flash intensity proportional to stage (used by CSS)
+
       const paneMap = { 1: 0.14, 2: 0.24, 3: 0.34, 4: 0.44 };
       cracks.style.setProperty("--paneOpacity", String(paneMap[crackStage] ?? 0.0));
-    
+
       cracks.classList.remove("hidden");
       cracks.classList.add("show");
-    
+
       if (crackStage === 1) playSfx("thud", 0.55);
-      else playSfx("static1", 0.30);
-    }
-    
-function buildGlassPieces() {
-  glassFX.innerHTML = "";
-  glassFX.classList.remove("hidden");
-
-  // Grab the crack panes we already generated
-  const panes = Array.from(cracks.querySelectorAll(".pane"));
-  if (!panes.length) return [];
-
-  // Clone the current "fake web" once per shard (for refraction/duplication)
-  // We clone #wrap so the shard looks like it contains the content that was "behind the glass".
-  const wrap = document.getElementById("wrap");
-
-  const pieces = panes.map((pane, i) => {
-    const p = document.createElement("div");
-    p.className = "glass-piece";
-
-    // carry over the exact shard shape
-    const clip = pane.style.clipPath || pane.style.webkitClipPath;
-    if (clip) {
-      p.style.clipPath = clip;
-      p.style.webkitClipPath = clip;
+      else playSfx("static1", 0.3);
     }
 
-    // shard-specific randomness
-    const rot = (Math.random() * 18 - 9).toFixed(2) + "deg";
-    const sx  = (Math.random() * 260 - 130).toFixed(1) + "px";
-    const sy  = (Math.random() * 120 - 60).toFixed(1) + "px";
+    function buildGlassPieces() {
+      glassFX.innerHTML = "";
+      glassFX.classList.remove("hidden");
 
-    // refraction offset (this is the “duplication” look)
-    const rx = (Math.random() * 18 - 9).toFixed(1) + "px";
-    const ry = (Math.random() * 18 - 9).toFixed(1) + "px";
+      const panes = Array.from(cracks.querySelectorAll(".pane"));
+      if (!panes.length) return [];
 
-    p.style.setProperty("--rot", rot);
-    p.style.setProperty("--sx", sx);
-    p.style.setProperty("--sy", sy);
-    p.style.setProperty("--rx", rx);
-    p.style.setProperty("--ry", ry);
+      const wrap = document.getElementById("wrap");
 
-    // optional: give slightly different “depth” / blur per shard
-    const blur = (0.7 + Math.random() * 1.2).toFixed(2) + "px";
-    p.style.setProperty("--rblur", blur);
+      const pieces = panes.map((pane) => {
+        const p = document.createElement("div");
+        p.className = "glass-piece";
 
-    // inner = cloned page that we offset to fake refraction
-    const inner = document.createElement("div");
-    inner.className = "glass-inner";
-    
-    // random per-shard chroma direction (so they don't all split the same)
-    const rgbx = (Math.random() * 3.2 + 1.2).toFixed(2) + "px";
-    const rgby = (Math.random() * 2.6 - 1.3).toFixed(2) + "px";
-    p.style.setProperty("--rgbx", rgbx);
-    p.style.setProperty("--rgby", rgby);
-    
-    if (wrap) {
-      // Create 3 channel clones
-      const makeLayer = (cls) => {
-        const layer = document.createElement("div");
-        layer.className = `glass-rgb ${cls}`;
-    
-        const clone = wrap.cloneNode(true);
-        clone.id = "";                 // avoid duplicate IDs
-        clone.classList.add("wrap-clone");
-        clone.style.pointerEvents = "none";
-        layer.appendChild(clone);
-    
-        return layer;
-      };
-    
-      inner.appendChild(makeLayer("r"));
-      inner.appendChild(makeLayer("g"));
-      inner.appendChild(makeLayer("b"));
+        const clip = pane.style.clipPath || pane.style.webkitClipPath;
+        if (clip) {
+          p.style.clipPath = clip;
+          p.style.webkitClipPath = clip;
+        }
+
+        const rot = (Math.random() * 18 - 9).toFixed(2) + "deg";
+        const sx = (Math.random() * 260 - 130).toFixed(1) + "px";
+        const sy = (Math.random() * 120 - 60).toFixed(1) + "px";
+        const rx = (Math.random() * 18 - 9).toFixed(1) + "px";
+        const ry = (Math.random() * 18 - 9).toFixed(1) + "px";
+
+        p.style.setProperty("--rot", rot);
+        p.style.setProperty("--sx", sx);
+        p.style.setProperty("--sy", sy);
+        p.style.setProperty("--rx", rx);
+        p.style.setProperty("--ry", ry);
+
+        const blur = (0.7 + Math.random() * 1.2).toFixed(2) + "px";
+        p.style.setProperty("--rblur", blur);
+
+        const inner = document.createElement("div");
+        inner.className = "glass-inner";
+
+        const rgbx = (Math.random() * 3.2 + 1.2).toFixed(2) + "px";
+        const rgby = (Math.random() * 2.6 - 1.3).toFixed(2) + "px";
+        p.style.setProperty("--rgbx", rgbx);
+        p.style.setProperty("--rgby", rgby);
+
+        if (wrap) {
+          const makeLayer = (cls) => {
+            const layer = document.createElement("div");
+            layer.className = `glass-rgb ${cls}`;
+
+            const clone = wrap.cloneNode(true);
+            clone.id = "";
+            clone.classList.add("wrap-clone");
+            clone.style.pointerEvents = "none";
+            layer.appendChild(clone);
+
+            return layer;
+          };
+
+          inner.appendChild(makeLayer("r"));
+          inner.appendChild(makeLayer("g"));
+          inner.appendChild(makeLayer("b"));
+        }
+
+        p.appendChild(inner);
+        glassFX.appendChild(p);
+        return p;
+      });
+
+      for (let i = pieces.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+      }
+
+      return pieces;
     }
-    
-    p.appendChild(inner);
-    glassFX.appendChild(p);
 
-    return p;
-  });
+    // ======================
+    // SHATTER -> SIM (single source of truth)
+    // ======================
+    function shatterToSim() {
+      if (stage === 99) return;
+      stage = 99;
 
-  // randomize fall order
-  for (let i = pieces.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
-  }
+      ensureCracks();
 
-  return pieces;
-}
-    
-// ======================
-// SHATTER -> SIM (single source of truth)
-// Put this in main.js where your current shatterToSim() is.
-// Assumes: ensureCracks(), buildGlassPieces(), openSimRoom() already exist
-// and els/cracks/glassFX/simRoom/taskUI/simChoices are in scope (as in your file).
-// ======================
-function shatterToSim() {
-  stage = 99;
+      const pieces = buildGlassPieces();
+      if (!pieces || !pieces.length) {
+        cracks.classList.add("hidden");
+        openSimRoom();
+        return;
+      }
 
-  // Make sure panes + svg exist (so buildGlassPieces() can reuse pane clip-paths)
-  ensureCracks();
+      document.body.classList.add("sim-transition");
+      const wrap = document.getElementById("wrap");
+      if (wrap) wrap.classList.add("wrap-hidden");
 
-  // Build shards from crack panes
-  const pieces = buildGlassPieces();
+      cracks.classList.add("hidden");
+      cracks.classList.remove("show");
+      cracks.classList.remove("flash");
 
-  // If for some reason no shards were created, just fall back into sim
-  if (!pieces || !pieces.length) {
-    cracks.classList.add("hidden");
-    openSimRoom();
-    return;
-  }
+      simRoom.classList.remove("hidden");
+      taskUI.classList.add("hidden");
+      simChoices.classList.add("hidden");
 
-  // Hide landing content during the fall so shards are the only thing showing it
-  document.body.classList.add("sim-transition");
-  const wrap = document.getElementById("wrap");
-  if (wrap) wrap.classList.add("wrap-hidden");
+      glassFX.classList.remove("hidden");
+      glassFX.classList.add("glass-fall");
 
-  // Hide crack overlay (we're using the shard polygons now)
-  cracks.classList.add("hidden");
-  cracks.classList.remove("show");
-  cracks.classList.remove("flash");
+      const STAGGER_MS = 28;
+      const BASE_MS = 1100;
 
-  // (Optional but recommended) pre-show sim container behind shards
-  // so when shards clear it feels like you "fell through" into sim
-  simRoom.classList.remove("hidden");
-  taskUI.classList.add("hidden");
-  simChoices.classList.add("hidden");
+      pieces.forEach((p, i) => {
+        p.style.animationDelay = i * STAGGER_MS + "ms";
+      });
 
-  // Start falling
-  glassFX.classList.remove("hidden");
-  glassFX.classList.add("glass-fall");
+      const totalMs = BASE_MS + pieces.length * STAGGER_MS + 80;
 
-  // Stagger shards so it's a wave, not all-at-once
-  const STAGGER_MS = 28;   // faster stagger looks more like "screen collapse"
-  const BASE_MS = 900;     // should roughly match your CSS shardFall duration
+      setTimeout(() => {
+        glassFX.innerHTML = "";
+        glassFX.classList.remove("glass-fall");
+        glassFX.classList.add("hidden");
 
-  pieces.forEach((p, i) => {
-    p.style.animationDelay = (i * STAGGER_MS) + "ms";
-  });
+        document.body.classList.remove("sim-transition");
+        openSimRoom();
+      }, totalMs);
+    }
 
-  // When done, clear shards and enter sim
-  const totalMs = BASE_MS + pieces.length * STAGGER_MS + 80;
-
-  setTimeout(() => {
-    // Clear shard overlay
-    glassFX.innerHTML = "";
-    glassFX.classList.remove("glass-fall");
-    glassFX.classList.add("hidden");
-
-    // Cleanup transition flags
-    document.body.classList.remove("sim-transition");
-
-    // Now run the sim sequence (this will set body.in-sim etc.)
-    openSimRoom();
-  }, totalMs);
-}
-
-    
     /* ======================
        LANDING -> SIM
     ====================== */
@@ -968,7 +1050,6 @@ function shatterToSim() {
       if (clicks === 8) setCrackStage(3);
       if (clicks === 10) setCrackStage(4);
 
-      // enter sim at 10 clicks
       if (clicks >= 10) {
         stage = 2;
 
@@ -976,10 +1057,12 @@ function shatterToSim() {
         const t1 = msToRead(systemBox.textContent);
 
         setTimeout(() => {
-          systemBox.textContent = "All you had to do was sit there like everyone else and watch the ads.";
+          systemBox.textContent =
+            "All you had to do was sit there like everyone else and watch the ads.";
         }, t1);
 
-        const t2 = t1 + msToRead("All you had to do was sit there like everyone else and watch the ads.");
+        const t2 =
+          t1 + msToRead("All you had to do was sit there like everyone else and watch the ads.");
         setTimeout(() => {
           systemBox.textContent = "Stop.";
         }, t2);
@@ -996,7 +1079,6 @@ function shatterToSim() {
         }, t3);
       }
     });
-
   }
 
   boot();
