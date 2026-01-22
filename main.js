@@ -1,3 +1,4 @@
+// main.js
 (() => {
   function boot() {
     if (document.readyState === "loading") {
@@ -13,19 +14,15 @@
       return;
     }
 
-    /* ======================
-       RANDOM IMAGES
-    ====================== */
+    /* ====================== RANDOM IMAGES ====================== */
     const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
     document.querySelectorAll(".grid img").forEach(img => {
       img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
     });
 
-    /* ======================
-       ELEMENTS
-    ====================== */
+    /* ====================== ELEMENTS ====================== */
     const ids = [
-      "system","l1","l2","l3","cracks","glassFX",
+      "system","cracks",
       "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
       "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
       "resetOverlay","resetTitle","resetBody",
@@ -41,16 +38,14 @@
     }
 
     const systemBox = els.system;
-    const l1 = els.l1, l2 = els.l2, l3 = els.l3;
     const cracks = els.cracks;
-    const glassFX = els.glassFX;
 
     const simRoom = els.simRoom;
     const simText = els.simText;
     const simChoices = els.simChoices;
-    const choiceNeed = els.choiceNeed; // apology
-    const choiceLie = els.choiceLie;   // accident
-    const choiceRun = els.choiceRun;   // run
+    const choiceNeed = els.choiceNeed;
+    const choiceLie = els.choiceLie;
+    const choiceRun = els.choiceRun;
 
     const taskUI = els.taskUI;
     const taskTitle = els.taskTitle;
@@ -81,10 +76,9 @@
     const hackStatus = els.hackStatus;
 
     resetOverlay.classList.add("hidden");
+    systemBox.textContent = "This page is currently under revision.";
 
-    /* ======================
-       AUDIO
-    ====================== */
+    /* ====================== AUDIO ====================== */
     const SFX = {
       ambience: new Audio("/assets/ambience.wav"),
       thud: new Audio("/assets/thud.wav"),
@@ -94,52 +88,32 @@
       static2: new Audio("/assets/static2.wav"),
     };
     Object.values(SFX).forEach(a => { try { a.preload = "auto"; } catch {} });
-
     SFX.ambience.loop = true;
     SFX.ambience.volume = 0.22;
 
     let audioUnlocked = false;
-
     function unlockAudio() {
       if (audioUnlocked) return;
       audioUnlocked = true;
-
-      // try to start ambience
-      try {
-        SFX.ambience.currentTime = 0;
-        SFX.ambience.play().catch(()=>{});
-      } catch {}
+      try { SFX.ambience.currentTime = 0; SFX.ambience.play().catch(()=>{}); } catch {}
     }
-
     function playSfx(name, vol = 0.6) {
       const a = SFX[name];
       if (!a) return;
-      try {
-        a.pause();
-        a.currentTime = 0;
-        a.volume = vol;
-        a.play().catch(()=>{});
-      } catch {}
+      try { a.pause(); a.currentTime = 0; a.volume = vol; a.play().catch(()=>{}); } catch {}
     }
 
-    /* ======================
-       TIMING (WPM bumped)
-    ====================== */
+    /* ====================== TIMING ====================== */
     const WPM = 300;
     const MS_PER_WORD = 60000 / WPM;
-
-    function wordsCount(s) {
-      return String(s || "").trim().split(/\s+/).filter(Boolean).length;
-    }
+    function wordsCount(s) { return String(s || "").trim().split(/\s+/).filter(Boolean).length; }
     function msToRead(line) {
       const w = wordsCount(line);
       if (!w) return 650;
       return Math.max(1100, w * MS_PER_WORD + 650);
     }
 
-    /* ======================
-       STATE
-    ====================== */
+    /* ====================== STATE ====================== */
     let stage = 1;
     let clicks = 0;
     let lastClick = 0;
@@ -151,19 +125,13 @@
     let choiceCompliant = 0;
 
     let resistanceScore = 0;
-    function difficultyBoost() {
-      return Math.max(0, Math.min(6, resistanceScore));
-    }
+    function difficultyBoost() { return Math.max(0, Math.min(6, resistanceScore)); }
 
-    /* ======================
-       TIMERS
-    ====================== */
+    /* ====================== TIMERS ====================== */
     let timers = [];
     function clearTimers() { timers.forEach(t => clearTimeout(t)); timers = []; }
 
-    /* ======================
-       UI helpers
-    ====================== */
+    /* ====================== UI helpers ====================== */
     function appendSimLine(line) {
       simText.textContent += (line ? line : "") + "\n";
       simText.scrollTop = simText.scrollHeight;
@@ -181,13 +149,14 @@
       });
     }
 
-    function showChoices() {
+    function showChoices(labels) {
+      if (labels?.complyLabel) choiceNeed.textContent = labels.complyLabel;
+      if (labels?.lieLabel) choiceLie.textContent = labels.lieLabel;
+      if (labels?.runLabel) choiceRun.textContent = labels.runLabel;
       simChoices.classList.remove("hidden");
       taskUI.classList.add("hidden");
     }
-    function hideChoices() {
-      simChoices.classList.add("hidden");
-    }
+    function hideChoices() { simChoices.classList.add("hidden"); }
 
     function showTaskUI(title, desc) {
       taskUI.classList.remove("hidden");
@@ -198,9 +167,7 @@
       taskPrimary.disabled = false;
     }
 
-    function hardReload() {
-      window.location.href = window.location.href.split("#")[0];
-    }
+    function hardReload() { window.location.href = window.location.href.split("#")[0]; }
 
     function doReset(reasonTitle, reasonBody) {
       resetTitle.textContent = reasonTitle || "RESET";
@@ -212,13 +179,18 @@
     function recordChoice(isCompliant) {
       choiceTotal++;
       if (isCompliant) choiceCompliant++;
-
       if (choiceTotal >= MIN_CHOICES_BEFORE_CHECK) {
         const ratio = choiceCompliant / choiceTotal;
         if (ratio > MAX_COMPLIANT_RATIO) {
           doReset(
             "TOO COMPLIANT",
-            `Compliance threshold exceeded.\n\ncompliant: ${choiceCompliant}\ntotal: ${choiceTotal}\nratio: ${(ratio * 100).toFixed(0)}%\n\nReinitializing simulation…`
+            `Compliance threshold exceeded.
+
+compliant: ${choiceCompliant}
+total: ${choiceTotal}
+ratio: ${(ratio * 100).toFixed(0)}%
+
+Reinitializing simulation…`
           );
           return false;
         }
@@ -228,39 +200,29 @@
 
     function penalize(amount = 1, note = "") {
       resistanceScore = Math.min(12, resistanceScore + Math.max(0, amount));
-      if (note) {
-        // light feedback line in task area if visible
-        if (!taskUI.classList.contains("hidden")) {
-          const div = document.createElement("div");
-          div.style.marginTop = "10px";
-          div.style.opacity = "0.85";
-          div.style.color = "rgba(255,190,190,.95)";
-          div.textContent = note + ` (resistance: ${resistanceScore})`;
-          taskBody.appendChild(div);
-        }
+      if (note && !taskUI.classList.contains("hidden")) {
+        const div = document.createElement("div");
+        div.style.marginTop = "10px";
+        div.style.opacity = "0.85";
+        div.style.color = "rgba(255,190,190,.95)";
+        div.textContent = `${note} (resistance: ${resistanceScore})`;
+        taskBody.appendChild(div);
       }
     }
 
     function glitchPulse() {
-      // micro “glitch” pulse: brief static sfx + tiny flash via cracks layer if present
       playSfx(Math.random() < 0.5 ? "glitch1" : "glitch2", 0.55);
       cracks.classList.add("flash");
       setTimeout(() => cracks.classList.remove("flash"), 220);
     }
 
-    /* ======================
-       TURNSTILE
-    ====================== */
+    /* ====================== TURNSTILE ====================== */
     let tsWidgetId = null;
     let tsToken = null;
 
     function ensureTurnstile() {
       if (tsWidgetId !== null) return;
-      if (!window.turnstile) {
-        setTimeout(ensureTurnstile, 100);
-        return;
-      }
-
+      if (!window.turnstile) { setTimeout(ensureTurnstile, 100); return; }
       turnstileBox.innerHTML = "";
       tsWidgetId = window.turnstile.render(turnstileBox, {
         sitekey: "0x4AAAAAACN_lQF6Hw5BHs2u",
@@ -270,21 +232,17 @@
         "error-callback": () => { tsToken = null; },
       });
     }
-
     function getTurnstileToken() {
       if (!window.turnstile || tsWidgetId === null) return tsToken;
       const t = window.turnstile.getResponse(tsWidgetId);
       return t || tsToken;
     }
-
     function resetTurnstile() {
       if (window.turnstile && tsWidgetId !== null) window.turnstile.reset(tsWidgetId);
       tsToken = null;
     }
 
-    /* ======================
-       FINAL STEP FLOW
-    ====================== */
+    /* ====================== FINAL MODAL ====================== */
     let finalDiscordName = "";
     let finalAnswerText = "";
 
@@ -292,10 +250,8 @@
       finalErr.textContent = "";
       finalOverlay.classList.remove("hidden");
       finalOverlay.setAttribute("aria-hidden", "false");
-
       finalDiscord.value = prefillDiscord || finalDiscordName || "";
       finalAnswer.value = finalAnswerText || "";
-
       ensureTurnstile();
       resetTurnstile();
     }
@@ -309,12 +265,10 @@
 
     finalVerify.onclick = async () => {
       finalErr.textContent = "";
-
       finalDiscordName = (finalDiscord.value || "").trim();
       finalAnswerText = (finalAnswer.value || "").trim();
 
       if (!finalDiscordName) { finalErr.textContent = "Username required."; return; }
-
       const token = getTurnstileToken();
       if (!token) { finalErr.textContent = "Please complete the verification checkbox."; return; }
 
@@ -322,9 +276,7 @@
       startHackTask();
     };
 
-    /* ======================
-       HACK TASK
-    ====================== */
+    /* ====================== HACK TASK ====================== */
     const FILES = [
       {
         name: "logs/boot.log",
@@ -374,8 +326,8 @@
     function renderFile(idx) {
       activeFileIndex = idx;
       selected = new Set();
-
       const f = FILES[idx];
+
       hackFilename.textContent = f.name;
       hackStatus.textContent = "Select ONLY the highlighted target lines, then delete.";
       hackTargets.textContent = ` (target lines: ${f.targets.join(", ")})`;
@@ -383,7 +335,6 @@
       hackLines.innerHTML = "";
       f.lines.forEach((txt, i) => {
         const ln = i + 1;
-
         const row = document.createElement("div");
         row.className = "hack-line";
         if (f.targets.includes(ln)) row.classList.add("target");
@@ -421,7 +372,6 @@
 
     hackDelete.onclick = async () => {
       const f = FILES[activeFileIndex];
-
       const selectedLines = Array.from(selected).map(i => i + 1).sort((a,b)=>a-b);
       const targets = f.targets.slice().sort((a,b)=>a-b);
 
@@ -446,11 +396,7 @@
         const res = await fetch("/api/complete", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            discord: finalDiscordName,
-            answer: finalAnswerText,
-            turnstile: token
-          })
+          body: JSON.stringify({ discord: finalDiscordName, answer: finalAnswerText, turnstile: token })
         });
 
         const data = await res.json().catch(() => ({}));
@@ -476,21 +422,8 @@
       renderFile(0);
     }
 
-    window.__OPEN_FINAL_STEP__ = () => openFinalModal(finalDiscordName);
-
-    /* ======================
-       TASK RUNNER
-    ====================== */
-    const taskContext = {
-      taskPrimary,
-      taskSecondary,
-      taskBody,
-      showTaskUI,
-      doReset,
-      difficultyBoost,
-      penalize,
-      glitch: glitchPulse
-    };
+    /* ====================== TASK RUNNER ====================== */
+    const taskContext = { taskPrimary, taskSecondary, taskBody, showTaskUI, doReset, difficultyBoost, penalize, glitch: glitchPulse };
 
     async function runSteps(steps) {
       for (const step of steps) {
@@ -507,79 +440,62 @@
           for (let i = 0; i < count; i++) {
             if (!pool.length) break;
             const pick = pool[Math.floor(Math.random() * pool.length)];
-            if (pick.say) await playLines(pick.say);
-            if (pick.task?.id) {
-              const fn = TASKS[pick.task.id];
-              if (fn) await fn(taskContext, pick.task.args || {});
-            }
+            if (typeof pick === "string") await playLines([pick]);
+            else if (pick?.say) await playLines(pick.say);
           }
-          continue;
         }
       }
     }
 
-    /* ======================
-       SIM ENTRY
-    ====================== */
+    /* ====================== SIM FLOW ====================== */
     async function openSimRoom() {
       stage = 99;
       simRoom.classList.remove("hidden");
-      hideChoices();
       taskUI.classList.add("hidden");
+      simChoices.classList.add("hidden");
       simText.textContent = "";
 
-      // label the choice buttons to match the dialogue
-      choiceNeed.textContent = "I’m sorry. I’ll do what you say.";
-      choiceLie.textContent  = "It was an accident.";
-      choiceRun.textContent  = "Run.";
-
       await playLines(DIALOGUE.intro);
-      showChoices();
+      await runChoiceBeats();       // choices + responses
+      await runSteps(DIALOGUE.steps); // tasks
+      openFinalModal(finalDiscordName); // then final modal
     }
 
-    /* ======================
-       CHOICES
-       - apology = compliant (-1)
-       - accident = mildly compliant (0)
-       - run = non-compliant (+2)
-    ====================== */
-    choiceNeed.addEventListener("click", async () => {
-      unlockAudio();
-      if (!recordChoice(true)) return;
+    function waitForChoice() {
+      return new Promise(resolve => {
+        const cleanup = () => {
+          choiceNeed.onclick = null;
+          choiceLie.onclick = null;
+          choiceRun.onclick = null;
+        };
+        choiceNeed.onclick = () => { cleanup(); resolve("comply"); };
+        choiceLie.onclick  = () => { cleanup(); resolve("lie"); };
+        choiceRun.onclick  = () => { cleanup(); resolve("run"); };
+      });
+    }
 
-      resistanceScore = Math.max(0, resistanceScore - 1);
+    async function runChoiceBeats() {
+      for (const beat of DIALOGUE.choiceBeats || []) {
+        await playLines(beat.say || []);
+        showChoices(beat.choices);
 
-      hideChoices();
-      await playLines(DIALOGUE.branches.need.preface);
-      await runSteps(DIALOGUE.branches.need.steps);
-      showChoices();
-    });
+        const choice = await waitForChoice();
+        // scoring
+        if (choice === "comply") {
+          if (!recordChoice(true)) return;
+          resistanceScore = Math.max(0, resistanceScore - 1);
+        } else if (choice === "lie") {
+          if (!recordChoice(true)) return;
+          resistanceScore = Math.min(12, resistanceScore + 0);
+        } else {
+          if (!recordChoice(false)) return;
+          resistanceScore = Math.min(12, resistanceScore + 2);
+        }
 
-    choiceLie.addEventListener("click", async () => {
-      unlockAudio();
-      if (!recordChoice(true)) return;
-
-      // lying should be lighter than running: +0 here (or +1 if you want)
-      resistanceScore = Math.min(12, resistanceScore + 0);
-
-      hideChoices();
-      await playLines(DIALOGUE.branches.lie.preface);
-      await runSteps(DIALOGUE.branches.lie.steps);
-      showChoices();
-    });
-
-    choiceRun.addEventListener("click", async () => {
-      unlockAudio();
-      if (!recordChoice(false)) return;
-
-      // running increases difficulty twice as much as lying
-      resistanceScore = Math.min(12, resistanceScore + 2);
-
-      hideChoices();
-      await playLines(DIALOGUE.branches.run.preface);
-      await runSteps(DIALOGUE.branches.run.steps);
-      showChoices();
-    });
+        hideChoices();
+        await playLines((beat.respond && beat.respond[choice]) ? beat.respond[choice] : []);
+      }
+    }
 
     function isCountableClick(e) {
       const t = e.target;
@@ -588,14 +504,9 @@
       return true;
     }
 
-    /* ======================
-       CRACKS (single web, revealed by stages)
-    ====================== */
+    /* ====================== CRACKS ====================== */
     let crackBuilt = false;
-    let crackStage = 0;
-
     function rand(seed) {
-      // deterministic-ish PRNG from current time seed
       let t = seed >>> 0;
       return () => {
         t += 0x6D2B79F5;
@@ -604,178 +515,57 @@
         return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
       };
     }
-
     function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
       let x = cx, y = cy;
       let ang = rng() * Math.PI * 2;
-
       const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
-
       for (let i = 0; i < steps; i++) {
-        // gently drift angle, with jitter
         ang += (rng() - 0.5) * jitter;
         x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
         y += Math.sin(ang) * stepLen * (0.75 + rng() * 0.7);
-
-        // keep it in bounds but allow it to reach edges
         x = Math.max(-60, Math.min(1060, x));
         y = Math.max(-60, Math.min(1060, y));
-
         pts.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
       }
       return pts.join(" ");
     }
-
-    function addSeg(svg, d, rank) {
-      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      g.setAttribute("class", "seg");
-      g.setAttribute("data-rank", String(rank));
-
-      const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pUnder.setAttribute("d", d);
-      pUnder.setAttribute("class", "crack-path crack-under");
-
-      const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pLine.setAttribute("d", d);
-      pLine.setAttribute("class", "crack-path crack-line");
-
-      const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pGlint.setAttribute("d", d);
-      pGlint.setAttribute("class", "crack-path crack-glint");
-      pGlint.style.opacity = "0.0"; // only for some segments (enabled below)
-
-      g.appendChild(pUnder);
-      g.appendChild(pLine);
-      g.appendChild(pGlint);
-      svg.appendChild(g);
-
-      // dash animation prep
-      [pUnder, pLine, pGlint].forEach(p => {
-        try {
-          const len = p.getTotalLength();
-          p.style.strokeDasharray = String(len);
-          p.style.strokeDashoffset = String(len);
-        } catch {}
-      });
-
-      // randomly enable glint on some segments
-      if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
+    function addSeg(svg, d) {
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute("d", d);
+      p.setAttribute("class", "crack-path");
+      svg.appendChild(p);
+      try {
+        const len = p.getTotalLength();
+        p.style.strokeDasharray = String(len);
+        p.style.strokeDashoffset = String(len);
+        p.style.setProperty("--dash", String(len));
+        p.classList.add("draw");
+      } catch {}
     }
-
     function ensureCracks() {
       if (crackBuilt) return;
-
-      const seed = Date.now() & 0xffffffff;
-      const rng = rand(seed);
-
       cracks.innerHTML = "";
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("viewBox", "0 0 1000 1000");
       svg.setAttribute("preserveAspectRatio", "none");
-      svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
       cracks.appendChild(svg);
-
+      const rng = rand(Date.now() & 0xffffffff);
       const cx = 500, cy = 500;
-
-      // Rank 1: main spokes (big, reach edges)
-      for (let i = 0; i < 10; i++) {
-        const d = makePathFromCenter(rng, cx, cy, 12 + Math.floor(rng() * 6), 48, 0.55);
-        addSeg(svg, d, 1);
-      }
-
-      // Rank 2: branching cracks (medium)
-      for (let i = 0; i < 14; i++) {
-        const startX = cx + (rng() - 0.5) * 240;
-        const startY = cy + (rng() - 0.5) * 160;
-        const d = makePathFromCenter(rng, startX, startY, 10 + Math.floor(rng() * 6), 34, 0.9);
-        addSeg(svg, d, 2);
-      }
-
-      // Rank 3: hairline fractures (small)
-      for (let i = 0; i < 18; i++) {
-        const startX = cx + (rng() - 0.5) * 520;
-        const startY = cy + (rng() - 0.5) * 360;
-        const d = makePathFromCenter(rng, startX, startY, 8 + Math.floor(rng() * 6), 22, 1.15);
-        addSeg(svg, d, 3);
-      }
-
+      for (let i = 0; i < 10; i++) addSeg(svg, makePathFromCenter(rng, cx, cy, 12 + Math.floor(rng()*6), 48, 0.55));
+      for (let i = 0; i < 14; i++) addSeg(svg, makePathFromCenter(rng, cx + (rng()-0.5)*240, cy + (rng()-0.5)*160, 10 + Math.floor(rng()*6), 34, 0.9));
+      for (let i = 0; i < 18; i++) addSeg(svg, makePathFromCenter(rng, cx + (rng()-0.5)*520, cy + (rng()-0.5)*360, 8 + Math.floor(rng()*6), 22, 1.15));
       crackBuilt = true;
     }
-
-    function setCrackStage(n) {
+    function showCracks() {
       ensureCracks();
-      crackStage = Math.max(crackStage, n);
-      cracks.dataset.stage = String(crackStage);
       cracks.classList.remove("hidden");
       cracks.classList.add("show");
       playSfx("static1", 0.32);
     }
 
-    function spawnFallingPieces() {
-      glassFX.innerHTML = "";
-      glassFX.classList.remove("hidden");
-      glassFX.classList.add("glass-fall");
-
-      // Create a grid of “pane pieces”
-      const cols = 7;
-      const rows = 4;
-      const w = window.innerWidth / cols;
-      const h = window.innerHeight / rows;
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const piece = document.createElement("div");
-          piece.className = "glass-piece";
-          piece.style.left = `${c * w}px`;
-          piece.style.top = `${r * h}px`;
-          piece.style.width = `${w + 1}px`;
-          piece.style.height = `${h + 1}px`;
-
-          // random rotation per piece
-          const rot = (Math.random() * 40 - 20).toFixed(1) + "deg";
-          piece.style.setProperty("--rot", rot);
-
-          // slightly different delays so it feels cinematic
-          const delay = (0.05 * (r + c) + Math.random() * 0.08).toFixed(2);
-          piece.style.animationDelay = `${delay}s`;
-
-          // make some pieces “missing” earlier (looks like holes)
-          if (Math.random() < 0.10) piece.style.opacity = "0.0";
-
-          glassFX.appendChild(piece);
-        }
-      }
-    }
-
-    function shatterToSim() {
-      // don’t rebuild cracks; just run the fall
-      playSfx("thud", 0.55);
-      cracks.classList.add("flash");
-
-      spawnFallingPieces();
-
-      // fade the underlying page while pieces fall
-      document.body.classList.add("sim-transition");
-
-      // keep cracks visible during the fall, then hide
-      setTimeout(() => {
-        cracks.classList.add("hidden");
-      }, 350);
-
-      // after the pieces fall, enter sim
-      setTimeout(() => {
-        glassFX.classList.add("hidden");
-        openSimRoom();
-      }, 1250);
-    }
-
-    /* ======================
-       LANDING CLICK -> WARNING -> SHATTER
-    ====================== */
+    /* ====================== LANDING -> SIM ====================== */
     document.addEventListener("click", (e) => {
-      // unlock audio on first user gesture
       unlockAudio();
-
       if (stage !== 1) return;
       if (!isCountableClick(e)) return;
 
@@ -784,26 +574,13 @@
       lastClick = now;
 
       clicks++;
-
-      if (clicks === 4) setCrackStage(1);
-      if (clicks === 6) setCrackStage(2);
-      if (clicks === 8) setCrackStage(3);
-
-
-      if (clicks >= 9) {
+      if (clicks === 4) showCracks();
+      if (clicks === 9) {
         stage = 2;
-        systemBox.classList.remove("hidden");
-
-        l1.textContent = "That isn’t how this page is supposed to be used.";
-        const t2 = msToRead(l1.textContent);
-
-        setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, t2);
-
-        const t3 = t2 + msToRead("You weren’t meant to interact with this.");
-        setTimeout(() => { l3.textContent = "Stop."; }, t3);
-
-        const tShatter = t3 + msToRead("Stop.") + 650;
-        setTimeout(shatterToSim, tShatter);
+        systemBox.textContent = "That isn’t how this page is supposed to be used.";
+        setTimeout(() => systemBox.textContent = "You weren’t meant to interact with this.", msToRead("That isn’t how this page is supposed to be used."));
+        setTimeout(() => systemBox.textContent = "Stop.", msToRead("That isn’t how this page is supposed to be used.") + msToRead("You weren’t meant to interact with this."));
+        setTimeout(openSimRoom, msToRead("That isn’t how this page is supposed to be used.") + msToRead("You weren’t meant to interact with this.") + msToRead("Stop.") + 650);
       }
     });
   }
