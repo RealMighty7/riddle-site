@@ -26,6 +26,7 @@ html,body{
     radial-gradient(900px 560px at 38% 18%, #0a1230 0%, var(--bg1) 55%, var(--bg0) 100%);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   letter-spacing:.01em;
+   <div id="glassFX" aria-hidden="true"></div>
 }
 
 /* subtle grime / noise overlay */
