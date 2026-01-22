@@ -1,18 +1,49 @@
 // tasks.js
-// window.TASKS async tasks
-// ctx provides: showTaskUI, taskBody, taskPrimary, doReset, difficultyBoost, penalize(amount, note), glitch()
+// window.TASKS async tasks + pack registration
+// ctx provides: showTaskUI, taskBody, taskPrimary, taskSecondary, doReset, difficultyBoost, penalize(amount, note), glitch()
 
-window.TASKS = (() => {
+(() => {
+  // Keep TASKS object stable for packs
+  const TASKS = (window.TASKS = window.TASKS || {});
+
+  // Pack system hook (packs call registerTasks({ ... }))
+  window.registerTasks = function registerTasks(map) {
+    if (!map || typeof map !== "object") return;
+    for (const [k, v] of Object.entries(map)) {
+      if (typeof v === "function") TASKS[k] = v;
+    }
+  };
+
   function el(tag, props = {}, children = []) {
     const n = document.createElement(tag);
     Object.assign(n, props);
     for (const c of children) n.appendChild(c);
     return n;
   }
+
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
-  async function anchors(ctx, args = {}) {
+  // Small helper to avoid leaking event listeners between tasks
+  function scopedListeners() {
+    const offs = [];
+    return {
+      on(target, type, fn, opts) {
+        target.addEventListener(type, fn, opts);
+        offs.push(() => target.removeEventListener(type, fn, opts));
+      },
+      clear() {
+        for (const off of offs.splice(0)) {
+          try { off(); } catch {}
+        }
+      }
+    };
+  }
+
+  // =========================================================
+  // TASK: anchors
+  // =========================================================
+  TASKS.anchors = async function anchors(ctx, args = {}) {
     const base = args.base ?? 5;
     const count = base + (ctx.difficultyBoost?.() ?? 0);
 
@@ -22,9 +53,24 @@ window.TASKS = (() => {
       attempts++;
 
       ctx.showTaskUI("RESTART // ANCHOR SYNC", `Stabilize boundary. Locate and click ${count} anchors.`);
+      ctx.taskBody.innerHTML = "";
+
+      // Ensure primary button is in a known state
+      ctx.taskPrimary.textContent = "continue";
+      ctx.taskPrimary.disabled = true;
+
       let remaining = count;
+      const remainText = el("b", { textContent: String(remaining) });
+
+      const pill = el("div", { className: "pill" }, [
+        document.createTextNode("Anchors remaining: "),
+        remainText
+      ]);
+      ctx.taskBody.appendChild(pill);
 
       const anchors = [];
+      const L = scopedListeners();
+
       const spawn = () => {
         const a = document.createElement("div");
         a.className = "anchor";
@@ -33,7 +79,9 @@ window.TASKS = (() => {
 
         a.addEventListener("click", () => {
           remaining--;
+          remainText.textContent = String(remaining);
           a.remove();
+
           if (remaining <= 0) {
             for (const x of anchors) x.remove();
             ctx.taskPrimary.disabled = false;
@@ -46,43 +94,36 @@ window.TASKS = (() => {
 
       for (let i = 0; i < count; i++) spawn();
 
-      ctx.taskBody.innerHTML = "";
-      const pill = el("div", { className: "pill" }, [
-        document.createTextNode("Anchors remaining: "),
-        el("b", { id: "remain", textContent: String(remaining) })
-      ]);
-      ctx.taskBody.appendChild(pill);
-
-      const remainEl = pill.querySelector("#remain");
-      const tick = setInterval(() => {
-        if (!remainEl || !remainEl.isConnected) { clearInterval(tick); return; }
-        remainEl.textContent = String(remaining);
-        if (remaining <= 0) clearInterval(tick);
-      }, 120);
-
       // timeout consequence
       const timeLimit = 14000 + (ctx.difficultyBoost?.() ?? 0) * 1200;
       let timedOut = false;
+
       const to = setTimeout(() => {
         timedOut = true;
         ctx.taskPrimary.disabled = true;
         for (const x of anchors) x.remove();
-        ctx.taskBody.innerHTML += `<div style="margin-top:10px;opacity:.85;color:rgba(255,190,190,.95)">Timeout. Boundary drift detected.</div>`;
+        ctx.taskBody.appendChild(
+          el("div", {
+            style: "margin-top:10px;opacity:.85;color:rgba(255,190,190,.95)",
+            textContent: "Timeout. Boundary drift detected."
+          })
+        );
       }, timeLimit);
 
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = true;
-
       const ok = await new Promise(resolve => {
+        // success path
         ctx.taskPrimary.onclick = () => resolve(true);
-        // if timed out, let them proceed after penalty by clicking primary
+
+        // if timed out: allow continue, but as failure
         const watcher = setInterval(() => {
-          if (timedOut) {
-            clearInterval(watcher);
-            ctx.taskPrimary.disabled = false;
-            ctx.taskPrimary.onclick = () => resolve(false);
-          }
+          if (!timedOut) return;
+          clearInterval(watcher);
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => resolve(false);
         }, 120);
+
+        // ensure watcher stops if task finishes early
+        L.on(window, "beforeunload", () => { try { clearInterval(watcher); } catch {} });
       });
 
       clearTimeout(to);
@@ -98,10 +139,14 @@ window.TASKS = (() => {
       }
 
       await wait(450);
+      L.clear();
     }
-  }
+  };
 
-  async function reorder(ctx, args = {}) {
+  // =========================================================
+  // TASK: reorder
+  // =========================================================
+  TASKS.reorder = async function reorder(ctx, args = {}) {
     const items = Array.isArray(args.items) ? args.items.slice() : [];
     const correct = Array.isArray(args.correct) ? args.correct.slice() : [];
     let attempts = 0;
@@ -111,6 +156,7 @@ window.TASKS = (() => {
 
       ctx.showTaskUI("RESTART // LOG RECONSTRUCTION", "Reorder fragments to rebuild the event timeline.");
       const state = items.slice();
+      ctx.taskBody.innerHTML = "";
 
       let first = null;
 
@@ -145,18 +191,16 @@ window.TASKS = (() => {
         });
 
         ctx.taskBody.appendChild(wrap);
-        const ok = state.join("|") === correct.join("|");
-        ctx.taskPrimary.disabled = !ok;
+        const okNow = state.join("|") === correct.join("|");
+        ctx.taskPrimary.disabled = !okNow;
       };
-
-      render();
 
       ctx.taskPrimary.textContent = "confirm order";
       ctx.taskPrimary.disabled = true;
+      render();
 
       await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
 
-      // validate again (anti-edge-case)
       const ok = state.join("|") === correct.join("|");
       if (ok) return;
 
@@ -168,9 +212,12 @@ window.TASKS = (() => {
       }
       await wait(450);
     }
-  }
+  };
 
-  async function checksum(ctx, args = {}) {
+  // =========================================================
+  // TASK: checksum
+  // =========================================================
+  TASKS.checksum = async function checksum(ctx, args = {}) {
     const phrase = String(args.phrase || "").trim();
     let attempts = 0;
 
@@ -193,12 +240,13 @@ window.TASKS = (() => {
 
       const validate = () => {
         const v = (inp.value || "").trim();
-        const ok = v.toLowerCase() === phrase.toLowerCase();
-        ctx.taskPrimary.disabled = !ok;
-        msg.textContent = ok ? "checksum accepted." : "";
+        const okNow = v.toLowerCase() === phrase.toLowerCase();
+        ctx.taskPrimary.disabled = !okNow;
+        msg.textContent = okNow ? "checksum accepted." : "";
       };
 
       inp.addEventListener("input", validate);
+      inp.focus();
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = true;
@@ -217,9 +265,12 @@ window.TASKS = (() => {
       }
       await wait(450);
     }
-  }
+  };
 
-  async function hold(ctx, args = {}) {
+  // =========================================================
+  // TASK: hold
+  // =========================================================
+  TASKS.hold = async function hold(ctx, args = {}) {
     const baseMs = Number(args.baseMs ?? 3000);
     const ms = baseMs + (ctx.difficultyBoost?.() ?? 0) * 550;
 
@@ -240,12 +291,17 @@ window.TASKS = (() => {
     const bar = ctx.taskBody.querySelector("#bar");
     const hint = ctx.taskBody.querySelector("#hint");
 
+    ctx.taskPrimary.textContent = "continue";
+    ctx.taskPrimary.disabled = true;
+
+    const L = scopedListeners();
     let start = null;
     let raf = null;
     let holdingNow = false;
+    let completed = false;
 
     const step = (ts) => {
-      if (!holdingNow) return;
+      if (!holdingNow || completed) return;
       if (start === null) start = ts;
       const elapsed = ts - start;
       const pct = clamp(elapsed / ms, 0, 1);
@@ -254,16 +310,18 @@ window.TASKS = (() => {
       bar.style.background = "rgba(120,180,255,0.45)";
 
       if (pct >= 1) {
+        completed = true;
         holdingNow = false;
         hint.textContent = "stabilized.";
         ctx.taskPrimary.disabled = false;
-        cancelAnimationFrame(raf);
+        if (raf) cancelAnimationFrame(raf);
         return;
       }
       raf = requestAnimationFrame(step);
     };
 
     const reset = () => {
+      if (completed) return;
       start = null;
       bar.style.width = "0%";
       hint.textContent = "holding interrupted.";
@@ -272,19 +330,43 @@ window.TASKS = (() => {
       ctx.glitch?.();
     };
 
-    holdBtn.addEventListener("mousedown", () => { holdingNow = true; hint.textContent = ""; raf = requestAnimationFrame(step); });
-    window.addEventListener("mouseup", () => { if (holdingNow) { holdingNow = false; reset(); } });
+    L.on(holdBtn, "mousedown", () => {
+      if (completed) return;
+      holdingNow = true;
+      hint.textContent = "";
+      raf = requestAnimationFrame(step);
+    });
 
-    holdBtn.addEventListener("touchstart", (e) => { e.preventDefault(); holdingNow = true; hint.textContent = ""; raf = requestAnimationFrame(step); }, { passive: false });
-    window.addEventListener("touchend", () => { if (holdingNow) { holdingNow = false; reset(); } });
+    L.on(window, "mouseup", () => {
+      if (holdingNow) {
+        holdingNow = false;
+        reset();
+      }
+    });
 
-    ctx.taskPrimary.textContent = "continue";
-    ctx.taskPrimary.disabled = true;
+    L.on(holdBtn, "touchstart", (e) => {
+      e.preventDefault();
+      if (completed) return;
+      holdingNow = true;
+      hint.textContent = "";
+      raf = requestAnimationFrame(step);
+    }, { passive: false });
+
+    L.on(window, "touchend", () => {
+      if (holdingNow) {
+        holdingNow = false;
+        reset();
+      }
+    });
 
     await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
-  }
+    L.clear();
+  };
 
-  async function pattern(ctx, args = {}) {
+  // =========================================================
+  // TASK: pattern
+  // =========================================================
+  TASKS.pattern = async function pattern(ctx, args = {}) {
     const base = Number(args.base ?? 5);
     const count = base + (ctx.difficultyBoost?.() ?? 0);
 
@@ -319,13 +401,18 @@ window.TASKS = (() => {
       const SHOW_MS = 10000;
       let left = 10;
       timerEl.textContent = `Time remaining: ${left}s`;
-      const t = setInterval(() => {
+
+      const interval = setInterval(() => {
         left--;
-        if (left <= 0) { clearInterval(t); timerEl.textContent = ""; }
-        else timerEl.textContent = `Time remaining: ${left}s`;
+        if (left <= 0) {
+          clearInterval(interval);
+          timerEl.textContent = "";
+        } else {
+          timerEl.textContent = `Time remaining: ${left}s`;
+        }
       }, 1000);
 
-      setTimeout(() => {
+      const hideTimeout = setTimeout(() => {
         seqEl.textContent = "— — — — —";
         seqEl.style.opacity = "0.6";
       }, SHOW_MS);
@@ -345,11 +432,15 @@ window.TASKS = (() => {
           if (input.length >= sequence.length) return;
           input.push(s);
           inEl.textContent = input.join(" ");
+
           if (input.length === sequence.length) {
-            const ok = input.join("|") === sequence.join("|");
-            msg.textContent = ok ? "pattern accepted." : "pattern rejected.";
-            ctx.taskPrimary.disabled = !ok;
-            if (!ok) { ctx.penalize?.(1, "PATTERN FAIL: penalty applied."); ctx.glitch?.(); }
+            const okNow = input.join("|") === sequence.join("|");
+            msg.textContent = okNow ? "pattern accepted." : "pattern rejected.";
+            ctx.taskPrimary.disabled = !okNow;
+            if (!okNow) {
+              ctx.penalize?.(1, "PATTERN FAIL: penalty applied.");
+              ctx.glitch?.();
+            }
           }
         };
         btns.appendChild(b);
@@ -358,13 +449,21 @@ window.TASKS = (() => {
       const resetBtn = document.createElement("button");
       resetBtn.className = "sim-btn";
       resetBtn.textContent = "reset";
-      resetBtn.onclick = () => { input = []; inEl.textContent = ""; msg.textContent = ""; ctx.taskPrimary.disabled = true; };
+      resetBtn.onclick = () => {
+        input = [];
+        inEl.textContent = "";
+        msg.textContent = "";
+        ctx.taskPrimary.disabled = true;
+      };
       btns.appendChild(resetBtn);
 
       ctx.taskPrimary.textContent = "continue";
       ctx.taskPrimary.disabled = true;
 
       await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
+
+      clearInterval(interval);
+      clearTimeout(hideTimeout);
 
       const ok = input.join("|") === sequence.join("|");
       if (ok) return;
@@ -377,9 +476,12 @@ window.TASKS = (() => {
       }
       await wait(450);
     }
-  }
+  };
 
-  async function mismatch(ctx, args = {}) {
+  // =========================================================
+  // TASK: mismatch
+  // =========================================================
+  TASKS.mismatch = async function mismatch(ctx, args = {}) {
     const base = Number(args.base ?? 7);
     const count = base + (ctx.difficultyBoost?.() ?? 0) + 2;
 
@@ -412,6 +514,7 @@ window.TASKS = (() => {
 
         b.onclick = () => {
           if (solved) return;
+
           if (i === badIndex) {
             solved = true;
             b.textContent = "✓";
@@ -421,6 +524,7 @@ window.TASKS = (() => {
             b.textContent = "✖";
             ctx.penalize?.(1, "WRONG PICK: penalty applied.");
             ctx.glitch?.();
+
             if (wrongClicks >= 2 && attempts >= 2) {
               ctx.doReset?.("RESET", "Repeated mismatch errors.\n\nSimulation restart required.");
             }
@@ -447,7 +551,5 @@ window.TASKS = (() => {
       }
       await wait(450);
     }
-  }
-
-  return { anchors, reorder, checksum, hold, pattern, mismatch };
+  };
 })();
