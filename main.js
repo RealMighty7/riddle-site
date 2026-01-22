@@ -719,40 +719,43 @@ Reinitializing simulation…`
       return pts.join(" ");
     }
 
-    function addSeg(svg, d, rank) {
-      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      g.setAttribute("class", "seg");
-      g.setAttribute("data-rank", String(rank));
+function addSeg(svg, d, rank) {
+  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  g.setAttribute("class", "seg");                // stays hidden until stage unlock
+  g.setAttribute("data-rank", String(rank));
 
-      const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pUnder.setAttribute("d", d);
-      pUnder.setAttribute("class", "crack-path crack-under");
+  const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  pUnder.setAttribute("d", d);
+  pUnder.setAttribute("class", "crack-path crack-under pending");
 
-      const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pLine.setAttribute("d", d);
-      pLine.setAttribute("class", "crack-path crack-line");
+  const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  pLine.setAttribute("d", d);
+  pLine.setAttribute("class", "crack-path crack-line pending");
 
-      const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pGlint.setAttribute("d", d);
-      pGlint.setAttribute("class", "crack-path crack-glint");
-      pGlint.style.opacity = "0.0";
+  const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  pGlint.setAttribute("d", d);
+  pGlint.setAttribute("class", "crack-path crack-glint pending");
+  pGlint.style.opacity = "0.0";
 
-      g.appendChild(pUnder);
-      g.appendChild(pLine);
-      g.appendChild(pGlint);
-      svg.appendChild(g);
+  g.appendChild(pUnder);
+  g.appendChild(pLine);
+  g.appendChild(pGlint);
+  svg.appendChild(g);
 
-      [pUnder, pLine, pGlint].forEach((p) => {
-        try {
-          const len = p.getTotalLength();
-          p.style.strokeDasharray = String(len);
-          p.style.strokeDashoffset = String(len);
-          p.classList.add("draw");
-        } catch {}
-      });
+  // dash animation setup (but do NOT animate yet)
+  [pUnder, pLine, pGlint].forEach(p => {
+    try {
+      const len = p.getTotalLength();
+      p.style.strokeDasharray = String(len);
+      p.style.strokeDashoffset = String(len);
+      p.style.setProperty("--dash", String(len));
+    } catch {}
+  });
 
-      if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
-    }
+  // random glint chance (still hidden until stage unlock)
+  if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
+}
+
 
     function ensureCracks() {
       if (crackBuilt) return;
