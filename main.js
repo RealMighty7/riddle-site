@@ -834,14 +834,33 @@ function buildGlassPieces() {
     // inner = cloned page that we offset to fake refraction
     const inner = document.createElement("div");
     inner.className = "glass-inner";
-
+    
+    // random per-shard chroma direction (so they don't all split the same)
+    const rgbx = (Math.random() * 3.2 + 1.2).toFixed(2) + "px";
+    const rgby = (Math.random() * 2.6 - 1.3).toFixed(2) + "px";
+    p.style.setProperty("--rgbx", rgbx);
+    p.style.setProperty("--rgby", rgby);
+    
     if (wrap) {
-      const wrapClone = wrap.cloneNode(true);
-      wrapClone.id = ""; // avoid duplicate IDs
-      wrapClone.style.pointerEvents = "none";
-      inner.appendChild(wrapClone);
+      // Create 3 channel clones
+      const makeLayer = (cls) => {
+        const layer = document.createElement("div");
+        layer.className = `glass-rgb ${cls}`;
+    
+        const clone = wrap.cloneNode(true);
+        clone.id = "";                 // avoid duplicate IDs
+        clone.classList.add("wrap-clone");
+        clone.style.pointerEvents = "none";
+        layer.appendChild(clone);
+    
+        return layer;
+      };
+    
+      inner.appendChild(makeLayer("r"));
+      inner.appendChild(makeLayer("g"));
+      inner.appendChild(makeLayer("b"));
     }
-
+    
     p.appendChild(inner);
     glassFX.appendChild(p);
 
