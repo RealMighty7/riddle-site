@@ -5,111 +5,102 @@
       return;
     }
 
-    const DIALOGUE = window.DIALOGUE;
-    const TASKS = window.TASKS;
+    var DIALOGUE = window.DIALOGUE;
+    var TASKS = window.TASKS;
 
     if (!DIALOGUE || !TASKS) {
       console.error("Missing dialogue.js or tasks.js. Check script order.");
       return;
     }
 
-    const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
-    document.querySelectorAll(".grid img").forEach(img => {
+    /* ======================
+       RANDOM IMAGES
+    ====================== */
+    var IMAGE_POOL = [];
+    for (var i = 0; i < 12; i++) IMAGE_POOL.push("/assets/img" + (i + 1) + ".jpg");
+    document.querySelectorAll(".grid img").forEach(function (img) {
       img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
     });
 
-    const ids = [
-      "system","l1","l2","l3","cracks","glitchFX",
+    /* ======================
+       ELEMENTS
+    ====================== */
+    var ids = [
+      "system","l1","l2","l3",
+      "cracks","glitchFX",
       "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
       "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
       "resetOverlay","resetTitle","resetBody",
       "finalOverlay","finalDiscord","finalAnswer","finalCancel","finalVerify","finalErr","turnstileBox",
       "hackRoom","hackUser","hackTargets","hackFilename","hackLines","hackDelete","hackReset","hackStatus"
     ];
-    const glitchFX = els.glitchFX;
 
-    const els = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
-    const missing = ids.filter(id => !els[id]);
+    var els = {};
+    for (var j = 0; j < ids.length; j++) els[ids[j]] = document.getElementById(ids[j]);
+    var missing = ids.filter(function (id) { return !els[id]; });
     if (missing.length) {
       console.error("Missing required element IDs:", missing);
       return;
     }
 
-    const systemBox = els.system;
-    const l1 = els.l1, l2 = els.l2, l3 = els.l3;
-    const cracks = els.cracks;
+    var systemBox = els.system;
+    var l1 = els.l1, l2 = els.l2, l3 = els.l3;
+    var cracks = els.cracks;
 
-    const simRoom = els.simRoom;
-    const simText = els.simText;
-    const simChoices = els.simChoices;
-    const choiceNeed = els.choiceNeed;
-    const choiceLie = els.choiceLie;
-    const choiceRun = els.choiceRun;
+    var simRoom = els.simRoom;
+    var simText = els.simText;
+    var simChoices = els.simChoices;
+    var choiceNeed = els.choiceNeed;
+    var choiceLie = els.choiceLie;
+    var choiceRun = els.choiceRun;
 
-    const taskUI = els.taskUI;
-    const taskTitle = els.taskTitle;
-    const taskDesc = els.taskDesc;
-    const taskBody = els.taskBody;
-    const taskPrimary = els.taskPrimary;
-    const taskSecondary = els.taskSecondary;
+    var taskUI = els.taskUI;
+    var taskTitle = els.taskTitle;
+    var taskDesc = els.taskDesc;
+    var taskBody = els.taskBody;
+    var taskPrimary = els.taskPrimary;
+    var taskSecondary = els.taskSecondary;
 
-    const resetOverlay = els.resetOverlay;
-    const resetTitle = els.resetTitle;
-    const resetBody = els.resetBody;
+    var resetOverlay = els.resetOverlay;
+    var resetTitle = els.resetTitle;
+    var resetBody = els.resetBody;
 
-    const finalOverlay = els.finalOverlay;
-    const finalDiscord = els.finalDiscord;
-    const finalAnswer = els.finalAnswer;
-    const finalCancel = els.finalCancel;
-    const finalVerify = els.finalVerify;
-    const finalErr = els.finalErr;
-    const turnstileBox = els.turnstileBox;
+    var finalOverlay = els.finalOverlay;
+    var finalDiscord = els.finalDiscord;
+    var finalAnswer = els.finalAnswer;
+    var finalCancel = els.finalCancel;
+    var finalVerify = els.finalVerify;
+    var finalErr = els.finalErr;
+    var turnstileBox = els.turnstileBox;
 
-    const hackRoom = els.hackRoom;
-    const hackUser = els.hackUser;
-    const hackTargets = els.hackTargets;
-    const hackFilename = els.hackFilename;
-    const hackLines = els.hackLines;
-    const hackDelete = els.hackDelete;
-    const hackReset = els.hackReset;
-    const hackStatus = els.hackStatus;
+    var hackRoom = els.hackRoom;
+    var hackUser = els.hackUser;
+    var hackTargets = els.hackTargets;
+    var hackFilename = els.hackFilename;
+    var hackLines = els.hackLines;
+    var hackDelete = els.hackDelete;
+    var hackReset = els.hackReset;
+    var hackStatus = els.hackStatus;
 
     resetOverlay.classList.add("hidden");
 
-    const WPM = 225;
-    const MS_PER_WORD = 60000 / WPM;
+    /* ======================
+       HELPERS
+    ====================== */
+    var WPM = 225;
+    var MS_PER_WORD = 60000 / WPM;
+
     function wordsCount(s) {
       return String(s || "").trim().split(/\s+/).filter(Boolean).length;
     }
     function msToRead(line) {
-      const w = wordsCount(line);
+      var w = wordsCount(line);
       if (!w) return 850;
       return Math.max(1450, w * MS_PER_WORD + 850);
     }
 
-    // ---------------- STATE ----------------
-    let stage = 1;
-    let clicks = 0;
-    let lastClick = 0;
-    const CLICK_COOLDOWN = 650;
-
-    // choice-based compliance, but evaluated after 10 tasks
-    const MAX_COMPLIANT_RATIO = 0.40;
-    const TASKS_BEFORE_CHECK = 10;
-
-    let choiceTotal = 0;
-    let choiceCompliant = 0;
-
-    let tasksCompleted = 0;
-    let gateTriggered = false;
-
-    let resistanceScore = 0;
-    function difficultyBoost() {
-      return Math.max(0, Math.min(4, resistanceScore));
-    }
-
-    let timers = [];
-    function clearTimers() { timers.forEach(t => clearTimeout(t)); timers = []; }
+    var timers = [];
+    function clearTimers() { timers.forEach(function (t) { clearTimeout(t); }); timers = []; }
 
     function appendSimLine(line) {
       simText.textContent += (line ? line : "") + "\n";
@@ -118,11 +109,13 @@
 
     function playLines(lines) {
       clearTimers();
-      return new Promise(resolve => {
-        let t = 350;
-        for (const line of lines) {
-          timers.push(setTimeout(() => appendSimLine(line), t));
-          t += msToRead(line || " ");
+      return new Promise(function (resolve) {
+        var t = 350;
+        for (var i = 0; i < lines.length; i++) {
+          (function (line, at) {
+            timers.push(setTimeout(function () { appendSimLine(line); }, at));
+          })(lines[i], t);
+          t += msToRead(lines[i] || " ");
         }
         timers.push(setTimeout(resolve, t + 250));
       });
@@ -143,6 +136,8 @@
       taskBody.innerHTML = "";
       taskSecondary.classList.add("hidden");
       taskPrimary.disabled = false;
+
+      // Keep tasks visible
       taskUI.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
@@ -157,91 +152,183 @@
       setTimeout(hardReload, 1800);
     }
 
+    /* ======================
+       AUDIO (WAV files)
+====================== */
+    var AUDIO = (function(){
+      var unlocked = false;
+
+      var ambience = null;
+      var static1 = null;
+      var static2 = null;
+      var glitch1 = null;
+      var glitch2 = null;
+      var thud = null;
+
+      function load(src, loop, vol){
+        var a = new Audio(src);
+        a.preload = "auto";
+        a.loop = !!loop;
+        a.volume = vol;
+        return a;
+      }
+
+      function unlock(){
+        if (unlocked) return;
+        unlocked = true;
+
+        ambience = load("/assets/ambience.wav", true, 0.35);
+        static1  = load("/assets/static1.wav", false, 0.55);
+        static2  = load("/assets/static2.wav", false, 0.55);
+        glitch1  = load("/assets/glitch1.wav", false, 0.7);
+        glitch2  = load("/assets/glitch2.wav", false, 0.7);
+        thud     = load("/assets/thud.wav", false, 0.8);
+
+        ambience.play().catch(function(){});
+      }
+
+      function play(a, rate){
+        if (!a) return;
+        var snd = a.cloneNode(true);
+        snd.playbackRate = rate || 1;
+        snd.currentTime = 0;
+        snd.play().catch(function(){});
+      }
+
+      function onCorruption(c){
+        if (!ambience) return;
+        ambience.volume = 0.2 + (c / 100) * 0.5;
+
+        if (Math.random() < (c / 100) * 0.06){
+          if (Math.random() < 0.5) play(static1, 0.8 + Math.random()*0.4);
+          else play(glitch1, 0.8 + Math.random()*0.5);
+        }
+      }
+
+      return {
+        unlock: unlock,
+        onCorruption: onCorruption,
+        glitch: function(){ play(glitch2, 0.9 + Math.random()*0.3); },
+        stat: function(){ play(static2, 0.9 + Math.random()*0.3); },
+        thud: function(){ play(thud, 1); }
+      };
+    })();
+
+    document.addEventListener("pointerdown", function(){
+      AUDIO.unlock();
+    }, { once: true });
+
+    /* ======================
+       GLITCH / CORRUPTION
+====================== */
+    var corruption = 0;
+
+    function setCorruption(v){
+      corruption = Math.max(0, Math.min(100, v));
+      document.body.classList.toggle("glitch-on", corruption > 0);
+      document.body.classList.toggle("glitch-1", corruption >= 10);
+      document.body.classList.toggle("glitch-2", corruption >= 30);
+      document.body.classList.toggle("glitch-3", corruption >= 55);
+      document.body.classList.toggle("glitch-4", corruption >= 75);
+      AUDIO.onCorruption(corruption);
+    }
+    function addCorruption(delta){ setCorruption(corruption + delta); }
+    function glitchBurst(strength){
+      var before = corruption;
+      setCorruption(Math.max(before, strength));
+      setTimeout(function(){ setCorruption(before); }, 220);
+    }
+
+    /* ======================
+       STATE
+    ====================== */
+    var stage = 1;
+    var clicks = 0;
+    var lastClick = 0;
+    var CLICK_COOLDOWN = 650;
+
+    var MAX_COMPLIANT_RATIO = 0.40;  // must be < 40% to progress
+    var MIN_CHOICES_BEFORE_CHECK = 10;
+    var choiceTotal = 0;
+    var choiceCompliant = 0;
+
+    var resistanceScore = 0;
+    function difficultyBoost() {
+      return Math.max(0, Math.min(4, resistanceScore));
+    }
+
+    // Task completion gate
+    var tasksDone = 0;
+    var MIN_TASKS_BEFORE_FINAL = 10;
+    var finalUnlocked = false;
+
     function recordChoice(isCompliant) {
       choiceTotal++;
       if (isCompliant) choiceCompliant++;
+
+      if (choiceTotal >= MIN_CHOICES_BEFORE_CHECK) {
+        var ratio = choiceCompliant / choiceTotal;
+        if (ratio > MAX_COMPLIANT_RATIO) {
+          doReset(
+            "TOO COMPLIANT",
+            "Compliance threshold exceeded.\n\ncompliant: " + choiceCompliant +
+            "\ntotal: " + choiceTotal +
+            "\nratio: " + Math.round(ratio * 100) + "%\n\nReinitializing simulation…"
+          );
+          return false;
+        }
+      }
+      return true;
     }
 
-    function maybeTriggerGate() {
-      if (gateTriggered) return;
-      if (tasksCompleted < TASKS_BEFORE_CHECK) return;
+    function maybeUnlockFinal(){
+      if (finalUnlocked) return;
+      if (tasksDone < MIN_TASKS_BEFORE_FINAL) return;
 
-      const ratio = choiceTotal ? (choiceCompliant / choiceTotal) : 1;
-
-      // if too compliant -> reset
-      if (ratio > MAX_COMPLIANT_RATIO) {
-        doReset(
-          "TOO COMPLIANT",
-          `Compliance threshold exceeded.\n\ncompliant: ${choiceCompliant}\ntotal: ${choiceTotal}\nratio: ${(ratio * 100).toFixed(0)}%\n\nReinitializing simulation…`
-        );
-        return;
-      }
-
-      // otherwise unlock final flow
-      gateTriggered = true;
+      // If we reached here, compliance is <= 40% (otherwise reset already happened)
+      finalUnlocked = true;
       hideChoices();
       playLines([
-        `System: "COMPLIANCE CHECK COMPLETE."`,
-        `System: "RESULT: ${(ratio * 100).toFixed(0)}% COMPLIANT."`,
-        `Security: "…Fine."`,
-        `Security: "If you want out, you do it yourself."`,
-        `System: "FINAL TASK UNLOCKED: WORKSTATION ACCESS."`
-      ]).then(() => {
+        `System: "COMPLIANCE REPORT GENERATED."`,
+        `System: "COMPLIANCE BELOW THRESHOLD."`,
+        `Security: "…So you tried."`,
+        `Security: "Fine."`,
+        `Security: "You want out?"`,
+        `Security: "Hack the mainframe. Erase yourself."`
+      ]).then(function(){
         openFinalModal("");
       });
     }
+
     /* ======================
-       GLITCH / CORRUPTION
+       TURNSTILE
     ====================== */
-  let corruption = 0; // 0..100
-
-  function setCorruption(v){
-    corruption = Math.max(0, Math.min(100, v));
-
-    document.body.classList.toggle("glitch-on", corruption > 0);
-
-  // levels 1..4
-    document.body.classList.toggle("glitch-1", corruption >= 10);
-    document.body.classList.toggle("glitch-2", corruption >= 30);
-    document.body.classList.toggle("glitch-3", corruption >= 55);
-    document.body.classList.toggle("glitch-4", corruption >= 75);
-  }
-
-  function addCorruption(delta){
-    setCorruption(corruption + delta);
-  }
-
-// Short burst glitch (pixels “drop” then recover)
-  function glitchBurst(strength = 20){
-    const before = corruption;
-    setCorruption(Math.max(before, strength));
-    setTimeout(() => setCorruption(before), 220);
-  }
-
-
-    // ---------------- TURNSTILE ----------------
-    let tsWidgetId = null;
-    let tsToken = null;
+    var tsWidgetId = null;
+    var tsToken = null;
 
     function ensureTurnstile() {
       if (tsWidgetId !== null) return;
-      if (!window.turnstile) { setTimeout(ensureTurnstile, 100); return; }
+
+      if (!window.turnstile) {
+        setTimeout(ensureTurnstile, 100);
+        return;
+      }
 
       turnstileBox.innerHTML = "";
       tsWidgetId = window.turnstile.render(turnstileBox, {
         sitekey: "0x4AAAAAACN_lQF6Hw5BHs2u",
         theme: "dark",
-        callback: (token) => { tsToken = token; },
-        "expired-callback": () => { tsToken = null; },
-        "error-callback": () => { tsToken = null; },
-        refreshexpired: "auto",
-        retry: "auto",
+        callback: function (token) { tsToken = token; },
+        "expired-callback": function () { tsToken = null; },
+        "error-callback": function () { tsToken = null; },
+        "refresh-expired": "auto",
+        retry: "auto"
       });
     }
 
     function getTurnstileToken() {
       if (!window.turnstile || tsWidgetId === null) return tsToken;
-      const t = window.turnstile.getResponse(tsWidgetId);
+      var t = window.turnstile.getResponse(tsWidgetId);
       return t || tsToken;
     }
 
@@ -250,11 +337,13 @@
       tsToken = null;
     }
 
-    // ---------------- FINAL MODAL ----------------
-    let finalDiscordName = "";
-    let finalAnswerText = "";
+    /* ======================
+       FINAL MODAL FLOW
+    ====================== */
+    var finalDiscordName = "";
+    var finalAnswerText = "";
 
-    function openFinalModal(prefillDiscord = "") {
+    function openFinalModal(prefillDiscord) {
       finalErr.textContent = "";
       finalOverlay.classList.remove("hidden");
       finalOverlay.setAttribute("aria-hidden", "false");
@@ -271,27 +360,20 @@
       finalOverlay.setAttribute("aria-hidden", "true");
     }
 
-    finalCancel.onclick = () => {
-      // don’t allow escape if gate already triggered
-      if (gateTriggered) {
-        finalErr.textContent = "Finish the workstation step.";
-        return;
-      }
-      closeFinalModal();
-    };
+    finalCancel.onclick = function(){ closeFinalModal(); };
 
-    finalVerify.onclick = async () => {
+    finalVerify.onclick = function(){
       finalErr.textContent = "";
 
       finalDiscordName = (finalDiscord.value || "").trim();
       finalAnswerText = (finalAnswer.value || "").trim();
 
       if (!finalDiscordName) {
-        finalErr.textContent = "Username required.";
+        finalErr.textContent = "Discord username required.";
         return;
       }
 
-      const token = getTurnstileToken();
+      var token = getTurnstileToken();
       if (!token) {
         finalErr.textContent = "Please complete the verification checkbox.";
         return;
@@ -301,8 +383,10 @@
       startHackTask();
     };
 
-    // ---------------- HACK TASK ----------------
-    const FILES = [
+    /* ======================
+       HACK TASK
+    ====================== */
+    var FILES = [
       {
         name: "logs/boot.log",
         lines: [
@@ -345,96 +429,111 @@
       }
     ];
 
-    let activeFileIndex = 0;
-    let selected = new Set();
+    var activeFileIndex = 0;
+    var selected = {}; // map index -> true
 
     function renderFile(idx) {
       activeFileIndex = idx;
-      selected = new Set();
+      selected = {};
 
-      const f = FILES[idx];
+      addCorruption(4);
+      if (corruption >= 55) glitchBurst(65);
+
+      var f = FILES[idx];
       hackFilename.textContent = f.name;
+      hackTargets.textContent = " (target lines: " + f.targets.join(", ") + ")";
       hackStatus.textContent = "Select ONLY the highlighted target lines, then delete.";
-      hackTargets.textContent = ` (target lines: ${f.targets.join(", ")})`;
 
       hackLines.innerHTML = "";
-      f.lines.forEach((txt, i) => {
-        const ln = i + 1;
+      f.lines.forEach(function (txt, i) {
+        var ln = i + 1;
 
-        const row = document.createElement("div");
+        var row = document.createElement("div");
         row.className = "hack-line";
-        if (f.targets.includes(ln)) row.classList.add("target");
+        if (f.targets.indexOf(ln) !== -1) row.classList.add("target");
 
-        const left = document.createElement("div");
+        var left = document.createElement("div");
         left.className = "hack-ln";
         left.textContent = String(ln);
 
-        const right = document.createElement("div");
+        var right = document.createElement("div");
         right.className = "hack-txt";
         right.textContent = txt;
-        if (corruption >= 60 && Math.random() < 0.12) {
-          right.style.transform = `translate(${(Math.random()*2-1).toFixed(2)}px, ${(Math.random()*2-1).toFixed(2)}px)`;
-          right.style.textShadow = `1px 0 rgba(255,0,120,.45), -1px 0 rgba(0,255,255,.35)`;
-        }
-
 
         row.appendChild(left);
         row.appendChild(right);
 
-  row.onclick = () => {
-    if (selected.has(i)) {
-      selected.delete(i);
-      row.classList.remove("selected");
-      addCorruption(1);
-    } else {
-      selected.add(i);
-      row.classList.add("selected");
-      addCorruption(2);
+        row.onclick = function () {
+          if (selected[i]) {
+            delete selected[i];
+            row.classList.remove("selected");
+            addCorruption(1);
+          } else {
+            selected[i] = true;
+            row.classList.add("selected");
+            addCorruption(2);
+          }
+
+          if (corruption >= 55 && Math.random() < 0.22) {
+            AUDIO.stat();
+            glitchBurst(75);
+          }
+        };
+
+        hackLines.appendChild(row);
+      });
     }
-    if (corruption >= 55 && Math.random() < 0.22) glitchBurst(65);
-  };
 
+    function resetHack() {
+      renderFile(activeFileIndex);
+    }
 
-    function resetHack() { renderFile(activeFileIndex); }
-
-  document.querySelectorAll(".hack-filebtn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      addCorruption(4);
-      glitchBurst(28);
-      const idx = Number(btn.getAttribute("data-file") || "0");
-      renderFile(idx);
+    document.querySelectorAll(".hack-filebtn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        AUDIO.glitch();
+        var idx = Number(btn.getAttribute("data-file") || "0");
+        renderFile(idx);
+      });
     });
-  });
 
+    hackReset.onclick = function(){ resetHack(); };
 
-    hackReset.onclick = resetHack;
+    hackDelete.onclick = async function () {
+      var f = FILES[activeFileIndex];
 
-    hackDelete.onclick = async () => {
-      const f = FILES[activeFileIndex];
+      // selected lines
+      var selectedLines = Object.keys(selected).map(function(k){ return Number(k) + 1; }).sort(function(a,b){ return a-b; });
+      var targets = f.targets.slice().sort(function(a,b){ return a-b; });
 
-      const selectedLines = Array.from(selected).map(i => i + 1).sort((a,b)=>a-b);
-      const targets = f.targets.slice().sort((a,b)=>a-b);
-
-      const ok = selectedLines.length === targets.length &&
-                 selectedLines.every((v, i) => v === targets[i]);
+      var ok = (selectedLines.length === targets.length);
+      if (ok) {
+        for (var i = 0; i < targets.length; i++) {
+          if (selectedLines[i] !== targets[i]) { ok = false; break; }
+        }
+      }
 
       if (!ok) {
         hackStatus.textContent = "Wrong lines. Workstation locked. Reset required.";
-        setTimeout(resetHack, 700);
         addCorruption(12);
-        glitchBurst(80);
+        AUDIO.stat();
+        AUDIO.glitch();
+        glitchBurst(90);
+        setTimeout(resetHack, 700);
         return;
       }
 
-      const delIdx = Array.from(selected).sort((a,b)=>b-a);
-      for (const i of delIdx) f.lines.splice(i, 1);
+      // delete in reverse order
+      var delIdx = Object.keys(selected).map(function(k){ return Number(k); }).sort(function(a,b){ return b-a; });
+      for (var d = 0; d < delIdx.length; d++) f.lines.splice(delIdx[d], 1);
 
       hackStatus.textContent = "Lines deleted. Finalizing wipe…";
       addCorruption(18);
-      glitchBurst(90);
+      AUDIO.glitch();
+      glitchBurst(95);
+
       try {
-        const token = getTurnstileToken();
-        const res = await fetch("/api/complete", {
+        var token = getTurnstileToken();
+        var res = await fetch("/api/complete", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
@@ -444,78 +543,76 @@
           })
         });
 
-        const data = await res.json().catch(() => ({}));
+        var data = await res.json().catch(function(){ return {}; });
         if (!res.ok) {
-          hackStatus.textContent = `Server rejected completion (${res.status}). Reset and try again.`;
+          hackStatus.textContent = "Server rejected completion. Reset and try again.";
           return;
         }
 
-        const code = data.code || "";
+        var code = data.code || "";
         sessionStorage.setItem("escape_code", code);
         sessionStorage.setItem("escape_user", finalDiscordName);
-        
-        setCorruption(95);
-        glitchBurst(100);
-        
+
+        setCorruption(98);
+        AUDIO.thud();
+        AUDIO.glitch();
         window.location.href = "/escaped.html";
-      } catch {
+      } catch (e) {
         hackStatus.textContent = "Network error. Reset and try again.";
       }
     };
 
-  function startHackTask() {
-    setCorruption(12);
-    hackUser.textContent = `USER: ${finalDiscordName}`;
-    hackRoom.classList.remove("hidden");
-    renderFile(0);
-  }
+    function startHackTask() {
+      setCorruption(12);
+      hackUser.textContent = "USER: " + finalDiscordName;
+      hackRoom.classList.remove("hidden");
+      renderFile(0);
+    }
 
+    window.__OPEN_FINAL_STEP__ = function(){ openFinalModal(finalDiscordName); };
 
-    window.__OPEN_FINAL_STEP__ = () => openFinalModal(finalDiscordName);
-
-    // ---------------- TASK RUNNER ----------------
-    const taskContext = {
-      taskPrimary,
-      taskSecondary,
-      taskBody,
-      showTaskUI,
-      doReset,
-      difficultyBoost
+    /* ======================
+       TASK RUNNER
+    ====================== */
+    var taskContext = {
+      taskPrimary: taskPrimary,
+      taskSecondary: taskSecondary,
+      taskBody: taskBody,
+      showTaskUI: showTaskUI,
+      doReset: doReset,
+      difficultyBoost: difficultyBoost
     };
 
     async function runSteps(steps) {
-      for (const step of steps) {
+      for (var i = 0; i < steps.length; i++) {
+        var step = steps[i];
+
         if (step.say) { await playLines(step.say); continue; }
 
         if (step.task) {
-          const fn = TASKS[step.task];
+          var fn = TASKS[step.task];
           if (fn) {
             await fn(taskContext, step.args || {});
-            tasksCompleted++;
-            maybeTriggerGate();
-            if (gateTriggered) return;
+            tasksDone++;
+            maybeUnlockFinal();
           }
           continue;
         }
 
         if (step.filler) {
-          const count = Number(step.filler.count || 1);
-          const poolName = String(step.filler.pool || "filler_standard");
-          const pool = DIALOGUE.fillerPools?.[poolName] || [];
-
-          for (let i = 0; i < count; i++) {
+          var count = Number(step.filler.count || 1);
+          var poolName = String(step.filler.pool || "filler_standard");
+          var pool = (DIALOGUE.fillerPools && DIALOGUE.fillerPools[poolName]) ? DIALOGUE.fillerPools[poolName] : [];
+          for (var k = 0; k < count; k++) {
             if (!pool.length) break;
-            const pick = pool[Math.floor(Math.random() * pool.length)];
-
+            var pick = pool[Math.floor(Math.random() * pool.length)];
             if (pick.say) await playLines(pick.say);
-
-            if (pick.task?.id) {
-              const fn = TASKS[pick.task.id];
-              if (fn) {
-                await fn(taskContext, pick.task.args || {});
-                tasksCompleted++;
-                maybeTriggerGate();
-                if (gateTriggered) return;
+            if (pick.task && pick.task.id) {
+              var fn2 = TASKS[pick.task.id];
+              if (fn2) {
+                await fn2(taskContext, pick.task.args || {});
+                tasksDone++;
+                maybeUnlockFinal();
               }
             }
           }
@@ -523,7 +620,9 @@
       }
     }
 
-    // ---------------- SIM ENTRY ----------------
+    /* ======================
+       SIM ENTRY
+    ====================== */
     async function openSimRoom() {
       stage = 99;
       simRoom.classList.remove("hidden");
@@ -535,205 +634,101 @@
       showChoices();
     }
 
-    // ---------------- CHOICES ----------------
-    choiceNeed.addEventListener("click", async () => {
-      recordChoice(true);
+    /* ======================
+       CHOICES
+    ====================== */
+    choiceNeed.addEventListener("click", async function () {
+      if (!recordChoice(true)) return;
       resistanceScore = Math.max(0, resistanceScore - 1);
 
       hideChoices();
       await playLines(DIALOGUE.branches.need.preface);
       await runSteps(DIALOGUE.branches.need.steps);
-      if (!gateTriggered) showChoices();
+      if (!finalUnlocked) showChoices();
     });
 
-    choiceLie.addEventListener("click", async () => {
-      recordChoice(true);
+    choiceLie.addEventListener("click", async function () {
+      if (!recordChoice(true)) return;
 
       hideChoices();
       await playLines(DIALOGUE.branches.lie.preface);
       await runSteps(DIALOGUE.branches.lie.steps);
-      if (!gateTriggered) showChoices();
+      if (!finalUnlocked) showChoices();
     });
 
-    choiceRun.addEventListener("click", async () => {
-      recordChoice(false);
+    choiceRun.addEventListener("click", async function () {
+      if (!recordChoice(false)) return;
       resistanceScore = Math.min(6, resistanceScore + 1);
 
       hideChoices();
       await playLines(DIALOGUE.branches.run.preface);
       await runSteps(DIALOGUE.branches.run.steps);
-      if (!gateTriggered) showChoices();
+      if (!finalUnlocked) showChoices();
     });
 
     function isCountableClick(e) {
-      const t = e.target;
+      var t = e.target;
       if (!t) return true;
       if (t.closest("button, input, textarea, select, label, a, pre, img")) return false;
       return true;
     }
 
-    // ---------------- GLASS BUILD (center-out) ----------------
-    let crackBuilt = false;
-    let crackLevel = 0;
-
-    function buildCrackSVG(level) {
-      const cx = 500, cy = 500;
-
-      // number of radial cracks increases with level
-      const spokes = 6 + level * 4;     // 6..22
-      const branchesPer = 1 + Math.floor(level * 0.8); // 1..4
-
-      const paths = [];
-
-      const rand = (a,b) => a + Math.random()*(b-a);
-      const polar = (r, ang) => [cx + r*Math.cos(ang), cy + r*Math.sin(ang)];
-
-      for (let s = 0; s < spokes; s++) {
-        const ang = (Math.PI * 2) * (s / spokes) + rand(-0.12, 0.12);
-
-        // main line outwards
-        let d = "";
-        const r0 = rand(6, 24);
-        const r1 = rand(320 + level*70, 520 + level*85);
-        const [x0,y0] = polar(r0, ang);
-        d += `M ${x0.toFixed(1)} ${y0.toFixed(1)} `;
-
-        const segs = 6 + level * 2;
-        for (let i = 1; i <= segs; i++) {
-          const t = i / segs;
-          const rr = r0 + (r1 - r0) * t;
-          const aa = ang + rand(-0.06, 0.06) * (1 + t*0.6);
-          const [x,y] = polar(rr, aa);
-          d += `L ${x.toFixed(1)} ${y.toFixed(1)} `;
-        }
-
-        paths.push(d);
-
-        // branch cracks off the main line
-        for (let b = 0; b < branchesPer; b++) {
-          const brStart = rand(120, r1-80);
-          const brLen = rand(80, 200) + level*24;
-          const brAng = ang + (Math.random()<0.5 ? -1 : 1) * rand(0.35, 0.9);
-
-          let bd = "";
-          const [bx0,by0] = polar(brStart, ang);
-          bd += `M ${bx0.toFixed(1)} ${by0.toFixed(1)} `;
-
-          const brSeg = 4 + Math.floor(level * 0.8);
-          for (let i = 1; i <= brSeg; i++) {
-            const t = i / brSeg;
-            const rr = brStart + brLen * t;
-            const aa = brAng + rand(-0.08, 0.08);
-            const [x,y] = polar(rr, aa);
-            bd += `L ${x.toFixed(1)} ${y.toFixed(1)} `;
-          }
-
-          paths.push(bd);
-        }
-      }
-
-      // shard triangles for falling glass
-      const shardPolys = [];
-      const shardCount = 18 + level * 4; // more shards later
-      for (let i = 0; i < shardCount; i++) {
-        const ang = rand(0, Math.PI*2);
-        const r = rand(120, 520);
-        const [x1,y1] = polar(r, ang);
-        const [x2,y2] = polar(r + rand(60, 160), ang + rand(-0.18, 0.18));
-        const [x3,y3] = polar(r + rand(30, 140), ang + rand(-0.18, 0.18));
-
-        // per-shard fall randoms
-        const dx = rand(-220, 220).toFixed(0);
-        const rot = rand(-40, 40).toFixed(0);
-        const delay = rand(0, 220).toFixed(0);
-
-        shardPolys.push(
-          `<polygon class="shard" style="--dx:${dx}px;--r:${rot}deg;--d:${delay}ms"
-            points="${x1.toFixed(1)},${y1.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)} ${x3.toFixed(1)},${y3.toFixed(1)}" />`
-        );
-      }
-
-      const mkPath = (d, cls) => {
-        const len = 1600; // fake dash length for draw
-        return `<path class="crack-path ${cls}" d="${d}"
-          stroke-dasharray="${len}" stroke-dashoffset="${len}"></path>`;
-      };
-
-      const crackMarkup = paths.map(d => (
-        mkPath(d, "crack-under") +
-        mkPath(d, "crack-line") +
-        (level >= 2 ? mkPath(d, "crack-glint") : "")
-      )).join("\n");
-
-      cracks.innerHTML = `
-        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          ${crackMarkup}
-          ${shardPolys.join("\n")}
-        </svg>
-      `;
-    }
-
-    function ensureCracks(level) {
-      buildCrackSVG(level);
+    /* ======================
+       CRACKS (simple placeholder)
+    ====================== */
+    var crackBuilt = false;
+    function ensureCracks() {
+      if (crackBuilt) return;
+      cracks.innerHTML = "<svg viewBox='0 0 1000 1000' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'></svg>";
       crackBuilt = true;
     }
-
-    function showCrackStage(newLevel) {
-      crackLevel = Math.max(crackLevel, newLevel);
-      ensureCracks(crackLevel);
+    function showCrackStage() {
+      ensureCracks();
       cracks.classList.remove("hidden");
       cracks.classList.add("show");
     }
-
     function shatterToSim() {
-      // reveal sim underneath FIRST
-      simRoom.classList.remove("hidden");
-      simRoom.style.opacity = "0";
-      simRoom.style.transition = "opacity 420ms ease";
-      requestAnimationFrame(() => (simRoom.style.opacity = "1"));
-
-      // cinematic fall of shards
-      cracks.classList.add("fall");
+      AUDIO.thud();
+      AUDIO.glitch();
+      cracks.classList.add("flash", "shatter");
       document.body.classList.add("sim-transition");
-
-      setTimeout(() => {
+      setTimeout(function () {
         cracks.classList.add("hidden");
         openSimRoom();
-      }, 950);
+      }, 650);
     }
 
-    // ---------------- LANDING CLICK ----------------
-    document.addEventListener("click", (e) => {
+    /* ======================
+       LANDING CLICK
+    ====================== */
+    document.addEventListener("click", function (e) {
       if (stage !== 1) return;
       if (!isCountableClick(e)) return;
 
-      const now = Date.now();
+      var now = Date.now();
       if (now - lastClick < CLICK_COOLDOWN) return;
       lastClick = now;
 
       clicks++;
 
-      // crack progression: 3 stages
-      if (clicks === 3) showCrackStage(1);
-      if (clicks === 5) showCrackStage(2);
-      if (clicks === 7) showCrackStage(3);
+      if (clicks === 4) showCrackStage();
 
       if (clicks >= 9) {
         stage = 2;
         systemBox.classList.remove("hidden");
 
         l1.textContent = "That isn’t how this page is supposed to be used.";
-        const t2 = msToRead(l1.textContent);
-        setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, t2);
+        var t2 = msToRead(l1.textContent);
+        setTimeout(function () { l2.textContent = "You weren’t meant to interact with this."; }, t2);
 
-        const t3 = t2 + msToRead("You weren’t meant to interact with this.");
-        setTimeout(() => { l3.textContent = "Stop."; }, t3);
+        var t3 = t2 + msToRead("You weren’t meant to interact with this.");
+        setTimeout(function () { l3.textContent = "Stop."; }, t3);
 
-        const tShatter = t3 + msToRead("Stop.") + 650;
+        var tShatter = t3 + msToRead("Stop.") + 650;
         setTimeout(shatterToSim, tShatter);
       }
     });
-  })
+  }
 
   boot();
 })();
