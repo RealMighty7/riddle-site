@@ -204,7 +204,7 @@
 
       turnstileBox.innerHTML = "";
       tsWidgetId = window.turnstile.render(turnstileBox, {
-        sitekey: "PUT_YOUR_SITEKEY_HERE",
+        sitekey: "0x4AAAAAACN_lQF6Hw5BHs2u",
         theme: "dark",
         callback: (token) => { tsToken = token; },
         "expired-callback": () => { tsToken = null; },
