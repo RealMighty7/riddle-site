@@ -789,38 +789,66 @@ function ensureCracks() {
       else playSfx("static1", 0.30);
     }
     
-function buildGlassPiecesFromCracks() {
+function buildGlassPieces() {
   glassFX.innerHTML = "";
   glassFX.classList.remove("hidden");
 
-  // Pull the shard panes you already generated
+  // Grab the crack panes we already generated
   const panes = Array.from(cracks.querySelectorAll(".pane"));
   if (!panes.length) return [];
 
-  const pieces = panes.map((pane, idx) => {
-    const p = pane.cloneNode(true);
+  // Clone the current "fake web" once per shard (for refraction/duplication)
+  // We clone #wrap so the shard looks like it contains the content that was "behind the glass".
+  const wrap = document.getElementById("wrap");
 
-    // Convert pane -> falling piece
-    p.classList.remove("pane");
-    p.classList.add("glass-piece");
+  const pieces = panes.map((pane, i) => {
+    const p = document.createElement("div");
+    p.className = "glass-piece";
 
-    // Keep per-shard vars (clip-path + --dx/--dy already on style)
-    // Add fall spread
-    const sx = (Math.random() * 260 - 130).toFixed(1) + "px";
-    const sy = (Math.random() * 120 - 60).toFixed(1) + "px";
+    // carry over the exact shard shape
+    const clip = pane.style.clipPath || pane.style.webkitClipPath;
+    if (clip) {
+      p.style.clipPath = clip;
+      p.style.webkitClipPath = clip;
+    }
+
+    // shard-specific randomness
     const rot = (Math.random() * 18 - 9).toFixed(2) + "deg";
+    const sx  = (Math.random() * 260 - 130).toFixed(1) + "px";
+    const sy  = (Math.random() * 120 - 60).toFixed(1) + "px";
+
+    // refraction offset (this is the “duplication” look)
+    const rx = (Math.random() * 18 - 9).toFixed(1) + "px";
+    const ry = (Math.random() * 18 - 9).toFixed(1) + "px";
+
+    p.style.setProperty("--rot", rot);
     p.style.setProperty("--sx", sx);
     p.style.setProperty("--sy", sy);
-    p.style.setProperty("--rot", rot);
+    p.style.setProperty("--rx", rx);
+    p.style.setProperty("--ry", ry);
 
-    // Stagger + tiny depth variance
-    p.style.setProperty("--z", String(10 + (idx % 6)));
+    // optional: give slightly different “depth” / blur per shard
+    const blur = (0.7 + Math.random() * 1.2).toFixed(2) + "px";
+    p.style.setProperty("--rblur", blur);
 
+    // inner = cloned page that we offset to fake refraction
+    const inner = document.createElement("div");
+    inner.className = "glass-inner";
+
+    if (wrap) {
+      const wrapClone = wrap.cloneNode(true);
+      wrapClone.id = ""; // avoid duplicate IDs
+      wrapClone.style.pointerEvents = "none";
+      inner.appendChild(wrapClone);
+    }
+
+    p.appendChild(inner);
     glassFX.appendChild(p);
+
     return p;
   });
 
-  // Randomize fall order
+  // randomize fall order
   for (let i = pieces.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
@@ -828,6 +856,7 @@ function buildGlassPiecesFromCracks() {
 
   return pieces;
 }
+
 
 function shatterToSim() {
   stage = 99;
@@ -874,30 +903,37 @@ function shatterToSim() {
 
     
 function shatterToSim() {
-  // freeze input
   stage = 99;
 
+  // Build shards from crack panes
   const pieces = buildGlassPieces();
-  document.body.classList.add("sim-transition");
 
-  // hide crack lines (pieces are “the screen” now)
+  // Hide the original page so only shards show it
+  document.body.classList.add("sim-transition");
+  const wrap = document.getElementById("wrap");
+  if (wrap) wrap.classList.add("wrap-hidden");
+
+  // Hide crack lines (we are now using the shard polygons)
   cracks.classList.add("hidden");
 
-  // start falling
+  // Start falling
   glassFX.classList.add("glass-fall");
   pieces.forEach((p, i) => {
-    p.style.animationDelay = (i * 55) + "ms";
+    p.style.animationDelay = (i * 45) + "ms";
   });
 
-  // when done, clear overlay and enter sim
-  const totalMs = 1100 + pieces.length * 55;
+  // When done, clear shards and enter sim
+  const totalMs = 1100 + pieces.length * 45;
   setTimeout(() => {
     glassFX.innerHTML = "";
     glassFX.classList.remove("glass-fall");
     document.body.classList.remove("sim-transition");
-    openSimRoom(); //
+
+    // keep wrap hidden once we're in the sim room (optional — remove if you want it visible behind)
+    openSimRoom();
   }, totalMs);
 }
+
     
     /* ======================
        LANDING -> SIM
