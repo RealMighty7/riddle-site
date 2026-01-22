@@ -1,5 +1,5 @@
 // tasks.js
-// window.TASKS async tasks + pack registration
+// window.TASKS async tasks + pack registration + pool router
 // ctx provides: showTaskUI, taskBody, taskPrimary, taskSecondary, doReset, difficultyBoost, penalize(amount, note), glitch()
 
 (() => {
@@ -8,7 +8,7 @@
   // Pools for random selection
   const TASK_POOLS = (window.TASK_POOLS = window.TASK_POOLS || {});
 
-  // pack files call: registerTaskPool("core", [{ id:"anchors", w:1 }, ...])
+  // pack files call: registerTaskPool("pack1", [{ id:"task_id", w:1 }, ...])
   window.registerTaskPool = function registerTaskPool(poolName, entries) {
     if (!poolName) return;
     if (!Array.isArray(entries)) return;
@@ -23,7 +23,7 @@
     }
   };
 
-  // ---------------- Pool utilities ----------------
+  /* ====================== POOL UTILITIES ====================== */
   function pickWeighted(entries) {
     let total = 0;
     for (const e of entries) total += Math.max(0, Number(e.w ?? 1));
@@ -47,6 +47,9 @@
     return out;
   }
 
+  // Anti-repeat (simple pacing)
+  let _lastTaskId = null;
+
   // Runs one random task from a pool (or list of pools)
   TASKS.random = async function random(ctx, args = {}) {
     const pools = args.pools || args.pool || "core";
@@ -64,8 +67,15 @@
       return;
     }
 
-    const pick = pickWeighted(entries);
+    let pick = pickWeighted(entries);
+    if (entries.length > 1 && pick?.id === _lastTaskId) {
+      // try once more to avoid immediate repeat
+      pick = pickWeighted(entries) || pick;
+    }
+
     const id = pick?.id;
+    _lastTaskId = id;
+
     const fn = TASKS[id];
 
     if (typeof fn !== "function") {
@@ -77,9 +87,11 @@
       return;
     }
 
+    // optional: pass through args.inner to the picked task
     await fn(ctx, args.inner || {});
   };
 
+  /* ====================== SHARED HELPERS ====================== */
   function el(tag, props = {}, children = []) {
     const n = document.createElement(tag);
     Object.assign(n, props);
@@ -90,7 +102,6 @@
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
-  // Small helper to avoid leaking event listeners between tasks
   function scopedListeners() {
     const offs = [];
     return {
@@ -106,9 +117,8 @@
     };
   }
 
-  // =========================================================
+  /* ====================== CORE TASKS ====================== */
   // TASK: anchors
-  // =========================================================
   TASKS.anchors = async function anchors(ctx, args = {}) {
     const base = args.base ?? 5;
     const count = base + (ctx.difficultyBoost?.() ?? 0);
@@ -204,9 +214,7 @@
     }
   };
 
-  // =========================================================
   // TASK: reorder
-  // =========================================================
   TASKS.reorder = async function reorder(ctx, args = {}) {
     const items = Array.isArray(args.items) ? args.items.slice() : [];
     const correct = Array.isArray(args.correct) ? args.correct.slice() : [];
@@ -275,9 +283,7 @@
     }
   };
 
-  // =========================================================
   // TASK: checksum
-  // =========================================================
   TASKS.checksum = async function checksum(ctx, args = {}) {
     const phrase = String(args.phrase || "").trim();
     let attempts = 0;
@@ -328,9 +334,7 @@
     }
   };
 
-  // =========================================================
   // TASK: hold
-  // =========================================================
   TASKS.hold = async function hold(ctx, args = {}) {
     const baseMs = Number(args.baseMs ?? 3000);
     const ms = baseMs + (ctx.difficultyBoost?.() ?? 0) * 550;
@@ -424,9 +428,7 @@
     L.clear();
   };
 
-  // =========================================================
   // TASK: pattern
-  // =========================================================
   TASKS.pattern = async function pattern(ctx, args = {}) {
     const base = Number(args.base ?? 5);
     const count = base + (ctx.difficultyBoost?.() ?? 0);
@@ -539,9 +541,7 @@
     }
   };
 
-  // =========================================================
   // TASK: mismatch
-  // =========================================================
   TASKS.mismatch = async function mismatch(ctx, args = {}) {
     const base = Number(args.base ?? 7);
     const count = base + (ctx.difficultyBoost?.() ?? 0) + 2;
@@ -588,6 +588,7 @@
 
             if (wrongClicks >= 2 && attempts >= 2) {
               ctx.doReset?.("RESET", "Repeated mismatch errors.\n\nSimulation restart required.");
+              return;
             }
           }
         };
@@ -614,7 +615,7 @@
     }
   };
 
-  // ✅ Core pool belongs OUT HERE (not inside mismatch)
+  /* ====================== CORE POOL ====================== */
   window.registerTaskPool("core", [
     { id: "anchors", w: 1 },
     { id: "reorder", w: 1 },
