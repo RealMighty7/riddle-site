@@ -135,6 +135,17 @@ header.card p{
 #cracks[data-stage="3"] .pane[data-rank="1"],
 #cracks[data-stage="3"] .pane[data-rank="2"],
 #cracks[data-stage="3"] .pane[data-rank="3"] { opacity: var(--paneOpacity, 0.34); }
+/* ===== Reveal crack SVG segments by stage ===== */
+#cracks[data-stage="1"] .seg[data-rank="1"] { opacity: 1; }
+
+#cracks[data-stage="2"] .seg[data-rank="1"],
+#cracks[data-stage="2"] .seg[data-rank="2"] { opacity: 1; }
+
+#cracks[data-stage="3"] .seg[data-rank="1"],
+#cracks[data-stage="3"] .seg[data-rank="2"],
+#cracks[data-stage="3"] .seg[data-rank="3"] { opacity: 1; }
+
+#cracks[data-stage="4"] .seg { opacity: 1; }
 
 #cracks[data-stage="4"] .pane { opacity: var(--paneOpacity, 0.44); }
 /* the refracted copy */
