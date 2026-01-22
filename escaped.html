@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>escaped</title>
-  <link rel="stylesheet" href="/styles.css?v=99" />
+  <link rel="stylesheet" href="/styles.css?v=100" />
 </head>
 <body>
   <main id="wrap">
@@ -59,9 +59,7 @@
     const hint = document.getElementById("hint");
     const copyBtn = document.getElementById("copy");
 
-    // If someone visits directly with no session, bounce them back home
     if (!code) {
-      // show for a moment then redirect
       codeBox.textContent = "NO-CODE";
       hint.textContent = "No code found in this session. Returning to start…";
       setTimeout(() => location.href = "/", 1200);
