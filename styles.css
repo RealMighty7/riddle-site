@@ -60,30 +60,13 @@ p{ margin: 0; line-height: 1.4; }
   opacity: 0;
   transform: translateZ(0);
 }
-
-/* show overlay */
 #cracks.cracks.show{ opacity: 1; }
 
-/* “reflect webpage” feel: use backdrop-filter so cracks pick up what’s behind */
 #cracks.cracks::before{
   content:"";
   position:absolute;
   inset:0;
   background: rgba(255,255,255,0.02);
-  -webkit-backdrop-filter: blur(0.8px) contrast(1.08) saturate(1.1);
-  backdrop-filter: blur(0.8px) contrast(1.08) saturate(1.1);
-}
-
-/* subtle vignette + center highlight */
-#cracks.cracks::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.06), rgba(0,0,0,0.0) 55%),
-    radial-gradient(circle at 50% 50%, rgba(0,0,0,0.0), rgba(0,0,0,0.28) 85%);
-  opacity: .9;
-  pointer-events:none;
 }
 
 #cracks.cracks svg{
@@ -99,80 +82,23 @@ p{ margin: 0; line-height: 1.4; }
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
   stroke-linejoin: round;
-  mix-blend-mode: overlay; /* makes it feel like it’s interacting with page */
 }
-
 #cracks .crack-under{
-  stroke: rgba(0,0,0,.22);
-  stroke-width: 3.0;
-  filter: blur(.45px);
-  opacity: .8;
+  stroke: rgba(0,0,0,.20);
+  stroke-width: 3.2;
+  filter: blur(.4px);
+  opacity: .75;
 }
 #cracks .crack-line{
-  stroke: rgba(255,255,255,.82);
-  stroke-width: 1.6;
-  opacity: .92;
+  stroke: rgba(255,255,255,.85);
+  stroke-width: 1.7;
+  opacity: .9;
 }
 #cracks .crack-glint{
-  stroke: rgba(170,220,255,.82);
+  stroke: rgba(170,220,255,.85);
   stroke-width: 1.0;
-  filter: drop-shadow(0 0 10px rgba(160,220,255,.35));
+  filter: drop-shadow(0 0 12px rgba(160,220,255,.45));
   opacity: .85;
-}
-
-#cracks.show .crack-path{
-  animation: crackDraw 1.0s ease-out forwards;
-}
-@keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
-
-/* shards that FALL (not fly) */
-#cracks .shard{
-  fill: rgba(255,255,255,0.04) !important;
-  stroke: rgba(235,245,255,.35);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-  opacity: 0;
-  transform-origin: center;
-  filter:
-    drop-shadow(0 0 10px rgba(180,220,255,.22));
-}
-
-#cracks.fall .shard{
-  opacity: 1;
-  animation: shardFall 1.55s cubic-bezier(.2,.8,.2,1) forwards;
-  animation-delay: var(--d, 0ms);
-}
-
-@keyframes shardFall{
-  0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
-  25%  { opacity: 1; }
-  100% { transform: translate(var(--dx, 0px), 110vh) rotate(var(--r, 22deg)); opacity: 0; }
-}
-
-/* =========================
-   ANCHORS (task)
-========================= */
-.anchor-layer{
-  position: fixed;
-  inset: 0;
-  z-index: 10005; /* above sim room panel */
-  pointer-events: none; /* only anchors clickable */
-}
-
-.anchor{
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.35);
-  background: radial-gradient(circle at 30% 30%, rgba(180,220,255,0.65), rgba(0,0,0,0.25));
-  box-shadow: 0 0 18px rgba(160,220,255,0.35);
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.anchor:hover{
-  transform: scale(1.05);
 }
 
 /* =========================
@@ -196,7 +122,7 @@ p{ margin: 0; line-height: 1.4; }
 .sim-panel{
   position: relative;
   max-width: 900px;
-  margin: 40px auto;
+  margin: 32px auto;
   padding: 20px;
 }
 .sim-title{
@@ -205,6 +131,8 @@ p{ margin: 0; line-height: 1.4; }
   opacity: 0.7;
   margin-bottom: 12px;
 }
+
+/* IMPORTANT: clamp log height so tasks never get pushed off-screen */
 .sim-text{
   background: rgba(10, 14, 28, 0.88);
   border: 1px solid rgba(255,255,255,0.10);
@@ -213,7 +141,6 @@ p{ margin: 0; line-height: 1.4; }
   line-height: 1.45;
   max-height: 38vh;
   overflow-y: auto;
-
   white-space: pre-wrap;
 }
 
@@ -236,7 +163,26 @@ p{ margin: 0; line-height: 1.4; }
   border-color: rgba(255, 80, 80, 0.45);
   background: rgba(255, 80, 80, 0.12);
 }
-.task-actions{ margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
+
+#taskUI{
+  margin-top: 14px;
+  padding-bottom: 12px;
+}
+.task-actions{
+  margin-top: 12px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(
+    to top,
+    rgba(10,14,28,0.95),
+    rgba(10,14,28,0.70),
+    rgba(10,14,28,0.0)
+  );
+  padding-top: 10px;
+}
 
 /* reset overlay */
 .reset{
@@ -271,170 +217,7 @@ p{ margin: 0; line-height: 1.4; }
   font-size: 12px;
 }
 
-/* =========================
-   FINAL VERIFY MODAL
-========================= */
-.final{
-  position: fixed;
-  inset: 0;
-  z-index: 10002;
-  background: rgba(0,0,0,0.62);
-  display: grid;
-  place-items: center;
-}
-.final-card{
-  width: min(720px, 94vw);
-  border-radius: 18px;
-  padding: 18px;
-  background: rgba(10, 14, 28, 0.96);
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-}
-.final-title{
-  font-size: 12px;
-  letter-spacing: .22em;
-  opacity: .9;
-  margin-bottom: 10px;
-}
-.final-msg{
-  opacity: .92;
-  line-height: 1.45;
-  margin-bottom: 12px;
-}
-.final-label{
-  display:block;
-  margin: 10px 0 6px;
-  opacity: .75;
-  font-size: 12px;
-  letter-spacing: .08em;
-}
-.final-input, .final-textarea{
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.22);
-  color: #e5e7eb;
-}
-.final-textarea{ min-height: 90px; resize: vertical; }
-.turnstile-box{
-  margin-top: 12px;
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(255,255,255,0.04);
-  display:flex;
-  justify-content:center;
-}
-.final-actions{
-  display:flex;
-  gap: 10px;
-  justify-content:flex-end;
-  margin-top: 12px;
-}
-.final-err{
-  margin-top: 10px;
-  color: rgba(255,150,150,.95);
-  font-size: 12px;
-  opacity: .95;
-}
-
-/* =========================
-   HACK SCREEN
-========================= */
-.hack{
-  position: fixed;
-  inset: 0;
-  z-index: 10003;
-  background: #05070d;
-  color: #e5e7eb;
-}
-.hack-panel{
-  max-width: 1080px;
-  margin: 28px auto;
-  padding: 18px;
-}
-.hack-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:baseline;
-  margin-bottom: 10px;
-}
-.hack-title{
-  font-size: 12px;
-  letter-spacing: .22em;
-  opacity: .85;
-}
-.hack-user{
-  font-size: 12px;
-  opacity: .7;
-}
-.hack-instructions{
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  border-radius: 14px;
-  padding: 12px;
-  line-height: 1.4;
-  margin-bottom: 12px;
-}
-.hack-grid{
-  display:grid;
-  grid-template-columns: 220px 1fr;
-  gap: 12px;
-}
-.hack-files{
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(10,14,28,0.8);
-  border-radius: 14px;
-  padding: 12px;
-}
-.hack-files-title{
-  font-size: 11px;
-  letter-spacing: .18em;
-  opacity: .7;
-  margin-bottom: 10px;
-}
-.hack-filebtn{
-  width:100%;
-  text-align:left;
-  margin: 6px 0;
-  padding: 10px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  color: #e5e7eb;
-  cursor:pointer;
-}
-.hack-filebtn:hover{ background: rgba(255,255,255,0.08); }
-
-.hack-editor{
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(10,14,28,0.88);
-  border-radius: 14px;
-  padding: 12px;
-}
-.hack-editor-title{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.hack-editor-actions{
-  display:flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.hack-lines{
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.20);
-  max-height: 62vh;
-  overflow:auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-}
+/* hack lines */
 .hack-line{
   display:flex;
   gap: 10px;
@@ -457,68 +240,19 @@ p{ margin: 0; line-height: 1.4; }
   color: rgba(255,210,140,.95);
   opacity: .95;
 }
-.hack-status{
-  margin-top: 10px;
-  opacity: .8;
-  font-size: 12px;
-}
-/* =========================
-   TASK UI - prevent cut off
-========================= */
-
-/* Make the sim panel fit the viewport and scroll internally */
-.sim-panel{
-  position: relative;
-  max-width: 900px;
-  margin: 32px auto;
-  padding: 20px;
-  max-height: none;
-  overflow: visible;
-}
-
-/* Keep task UI from pushing off-screen */
-#taskUI{
-  margin-top: 12px;
-  max-height: 60vh;
-  overflow: auto;
-  padding-right: 6px; 
-  padding-bottom: 12px;
-}
-
-/* On short screens (laptops / small windows), tighten margins */
-@media (max-height: 760px){
-  .sim-panel{ margin: 14px auto; }
-  .sim-text{ max-height: 48vh; }
-  #taskUI{ max-height: 52vh; }
-}
-
-.task-actions{
-  position: sticky;
-  bottom: 0;
-  background: linear-gradient(
-    to top,
-    rgba(10,14,28,0.95),
-    rgba(10,14,28,0.85),
-    rgba(10,14,28,0.0)
-  );
-  padding-top: 10px;
-}
 
 /* =========================
-   GLITCH / CORRUPTION FX
+   GLITCH OVERLAY
 ========================= */
-
-/* Whole-screen glitch overlay */
 #glitchFX{
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 10050; /* above everything */
+  z-index: 10050;
   opacity: 0;
   mix-blend-mode: screen;
 }
 
-/* scanlines + subtle rolling noise */
 #glitchFX::before{
   content:"";
   position:absolute;
@@ -531,34 +265,44 @@ p{ margin: 0; line-height: 1.4; }
       rgba(0,0,0,0) 3px,
       rgba(0,0,0,0) 6px
     );
-  opacity: .0;
+  opacity: 0;
 }
 
-/* blocky pixel corruption layer */
 #glitchFX::after{
   content:"";
   position:absolute;
   inset:0;
   background:
-    linear-gradient(90deg, rgba(255,0,120,0.0), rgba(0,255,255,0.0)),
     radial-gradient(circle at 20% 30%, rgba(255,0,180,0.0), transparent 40%),
     radial-gradient(circle at 80% 70%, rgba(0,255,200,0.0), transparent 45%);
-  opacity: .0;
+  opacity: 0;
 }
 
-/* Enable + animate */
-body.glitch-on #glitchFX{
-  opacity: 1;
+body.glitch-on #glitchFX{ opacity: 1; }
+
+body.glitch-2 #glitchFX::before{ opacity: .18; animation: roll 2.8s linear infinite; }
+body.glitch-3 #glitchFX::before{ opacity: .26; animation: roll 1.8s linear infinite; }
+body.glitch-4 #glitchFX::before{ opacity: .34; animation: roll 1.1s linear infinite; }
+
+@keyframes roll{
+  0%{ transform: translateY(0); }
+  100%{ transform: translateY(24px); }
 }
 
-/* Chromatic aberration + jitter */
-body.glitch-on .sim-panel,
-body.glitch-on .sim-text,
-body.glitch-on #hackRoom{
-  filter: saturate(1.1) contrast(1.1);
+body.glitch-2 #glitchFX::after{ opacity: .16; }
+body.glitch-3 #glitchFX::after{ opacity: .24; }
+body.glitch-4 #glitchFX::after{ opacity: .34; animation: blocks 0.22s steps(2,end) infinite; }
+
+@keyframes blocks{
+  0%{ clip-path: polygon(0 0, 100% 0, 100% 12%, 0 12%); }
+  20%{ clip-path: polygon(0 30%, 100% 30%, 100% 46%, 0 46%); }
+  40%{ clip-path: polygon(0 55%, 100% 55%, 100% 62%, 0 62%); }
+  60%{ clip-path: polygon(0 70%, 100% 70%, 100% 90%, 0 90%); }
+  80%{ clip-path: polygon(0 8%, 100% 8%, 100% 22%, 0 22%); }
+  100%{ clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
 }
 
-body.glitch-1 .sim-panel{ transform: translate(0,0); }
+/* jitter */
 body.glitch-2 .sim-panel{ animation: jitterA 1.2s infinite steps(2,end); }
 body.glitch-3 .sim-panel{ animation: jitterB .55s infinite steps(2,end); }
 body.glitch-4 .sim-panel{ animation: jitterC .25s infinite steps(2,end); }
@@ -585,71 +329,4 @@ body.glitch-4 .sim-panel{ animation: jitterC .25s infinite steps(2,end); }
   60%{ transform: translate(1.3px,1.4px); }
   80%{ transform: translate(-1.1px,-1.2px); }
   100%{ transform: translate(0,0); }
-}
-
-/* Intensify scanlines + blocks per level */
-body.glitch-2 #glitchFX::before{ opacity: .18; animation: roll 2.8s linear infinite; }
-body.glitch-3 #glitchFX::before{ opacity: .26; animation: roll 1.8s linear infinite; }
-body.glitch-4 #glitchFX::before{ opacity: .34; animation: roll 1.1s linear infinite; }
-
-@keyframes roll{
-  0%{ transform: translateY(0); }
-  100%{ transform: translateY(24px); }
-}
-
-body.glitch-2 #glitchFX::after{ opacity: .16; }
-body.glitch-3 #glitchFX::after{ opacity: .24; }
-body.glitch-4 #glitchFX::after{ opacity: .34; }
-
-/* Pixel-block flicker (simulate "pixels not working then back") */
-body.glitch-3 #glitchFX::after,
-body.glitch-4 #glitchFX::after{
-  animation: blocks 0.22s steps(2,end) infinite;
-}
-
-@keyframes blocks{
-  0%{
-    clip-path: polygon(0 0, 100% 0, 100% 12%, 0 12%);
-  }
-  20%{
-    clip-path: polygon(0 30%, 100% 30%, 100% 46%, 0 46%);
-  }
-  40%{
-    clip-path: polygon(0 55%, 100% 55%, 100% 62%, 0 62%);
-  }
-  60%{
-    clip-path: polygon(0 70%, 100% 70%, 100% 90%, 0 90%);
-  }
-  80%{
-    clip-path: polygon(0 8%, 100% 8%, 100% 22%, 0 22%);
-  }
-  100%{
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-  }
-}
-
-/* Flicker whole UI occasionally */
-body.glitch-4 .sim-text,
-body.glitch-4 #hackLines{
-  animation: flicker 2.2s infinite;
-}
-@keyframes flicker{
-  0%, 92%, 100%{ opacity: 1; }
-  93%{ opacity: .15; }
-  94%{ opacity: 1; }
-  95%{ opacity: .35; }
-  96%{ opacity: 1; }
-}
-
-/* Make hack targets "bleed" as corruption rises */
-body.glitch-3 .hack-line.target .hack-ln,
-body.glitch-4 .hack-line.target .hack-ln{
-  text-shadow:
-    1px 0 rgba(255,0,120,.55),
-    -1px 0 rgba(0,255,255,.45);
-}
-
-/* Optional: slightly pixelate (kept subtle) */
-body.glitch-4 #hackRoom{
-  filter: contrast(1.15) saturate(1.15);
 }
