@@ -44,7 +44,7 @@ window.DIALOGUE = {
           `Security: "Verify checksum. If it’s wrong, we restart."`,
           `System: "INPUT REQUIRED."`
         ],
-        task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } }
+        task: { id: "checksum", args: { phrase: "echostatic07vault" } }
       },
       {
         say: [
@@ -92,7 +92,7 @@ window.DIALOGUE = {
           `Security: "Checksum. Don’t guess."`,
           `System: "REQUIRED."`
         ],
-        task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } }
+        task: { id: "checksum", args: { phrase: "echostatic07vault" } }
       },
       {
         say: [
