@@ -137,7 +137,6 @@ header.card p{
 #cracks[data-stage="3"] .pane[data-rank="3"] { opacity: var(--paneOpacity, 0.34); }
 
 #cracks[data-stage="4"] .pane { opacity: var(--paneOpacity, 0.44); }
-#cracks svg { opacity: 1; } /* segments control visibility now */
 /* the refracted copy */
 #cracks .pane::before{
   content:"";
