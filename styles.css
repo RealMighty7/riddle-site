@@ -109,6 +109,14 @@ header.card p{
 /* =========================================================
    CRACK SHARDS (pane refraction that looks like duplication)
    ========================================================= */
+/* segments hidden until enabled by stage */
+#cracks .seg { opacity: 0; transition: opacity 160ms ease; }
+#cracks .seg.on { opacity: 1; }
+
+/* draw animation stays the same */
+#cracks .draw{ animation: crackDraw 700ms ease-out forwards; }
+@keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
+
 #cracks .pane{
   position:absolute;
   inset:0;
