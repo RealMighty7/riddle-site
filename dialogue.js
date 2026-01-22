@@ -30,9 +30,10 @@ window.DIALOGUE = {
       say: [
         "System: INPUT REGISTERED.",
         "Emma (Security): That click was logged.",
-        "Emma (Security): We don’t normally see persistence.",
-        "Liam (Worker): We do sometimes.",
-        "Liam (Worker): It just… doesn’t end well."
+        "Emma (Security): We don’t normally see persistence. We need to take you back.",
+        "Liam (Worker): Well, we do see resistance sometimes.",
+        "Liam (Worker): It just… doesn’t end well.",
+        "Emma (Security): *whispers* you should follow me, I'll get you out safely."
       ],
       choices: {
         complyLabel: "Follow Emma.",
@@ -47,8 +48,8 @@ window.DIALOGUE = {
         ],
         lie: [
           "Liam (Worker): Okay.",
-          "Liam (Worker): Slow movements. Minimal input.",
-          "Liam (Worker): If this works… it won’t look like it did."
+          "Liam (Worker): Im glad you trust me, that Emma...",
+          "Liam (Worker): Lets just say if this works… it won’t look like it did."
         ],
         run: [
           "Emma (Security): Don’t.",
@@ -72,16 +73,18 @@ window.DIALOGUE = {
       },
       respond: {
         comply: [
-          "Emma (Security): Then listen carefully.",
+          "Emma (Security): Listen carefully.",
           "Emma (Security): Do not rush. Do not guess."
         ],
         lie: [
-          "Liam (Worker): I’ll give you the light tasks.",
-          "Liam (Worker): The ones nobody audits closely."
+          "Liam (Worker): I’ll give you the easy tasks.",
+          "Liam (Worker): The ones nobody audits closely.",
+          "Liam (Worker): This way the system doesn't get upset."
         ],
         run: [
           "System: CONTAINMENT PRESSURE RISING.",
-          "Emma (Security): You’re shortening the window."
+          "Emma (Security): You’re shortening the window.",
+          "Liam (Worker): The more you resist the worse things get!"
         ]
       }
     },
