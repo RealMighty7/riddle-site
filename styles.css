@@ -60,14 +60,30 @@ p{ margin: 0; line-height: 1.4; }
   opacity: 0;
   transform: translateZ(0);
 }
+
+/* show overlay */
 #cracks.cracks.show{ opacity: 1; }
 
-/* keep this subtle; no heavy blur */
+/* “reflect webpage” feel: use backdrop-filter so cracks pick up what’s behind */
 #cracks.cracks::before{
   content:"";
   position:absolute;
   inset:0;
   background: rgba(255,255,255,0.02);
+  -webkit-backdrop-filter: blur(0.8px) contrast(1.08) saturate(1.1);
+  backdrop-filter: blur(0.8px) contrast(1.08) saturate(1.1);
+}
+
+/* subtle vignette + center highlight */
+#cracks.cracks::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.06), rgba(0,0,0,0.0) 55%),
+    radial-gradient(circle at 50% 50%, rgba(0,0,0,0.0), rgba(0,0,0,0.28) 85%);
+  opacity: .9;
+  pointer-events:none;
 }
 
 #cracks.cracks svg{
@@ -83,56 +99,80 @@ p{ margin: 0; line-height: 1.4; }
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
   stroke-linejoin: round;
+  mix-blend-mode: overlay; /* makes it feel like it’s interacting with page */
 }
+
 #cracks .crack-under{
-  stroke: rgba(0,0,0,.20);
-  stroke-width: 3.2;
-  filter: blur(.4px);
-  opacity: .75;
+  stroke: rgba(0,0,0,.22);
+  stroke-width: 3.0;
+  filter: blur(.45px);
+  opacity: .8;
 }
 #cracks .crack-line{
-  stroke: rgba(255,255,255,.85);
-  stroke-width: 1.7;
-  opacity: .9;
+  stroke: rgba(255,255,255,.82);
+  stroke-width: 1.6;
+  opacity: .92;
 }
 #cracks .crack-glint{
-  stroke: rgba(170,220,255,.85);
+  stroke: rgba(170,220,255,.82);
   stroke-width: 1.0;
-  filter: drop-shadow(0 0 12px rgba(160,220,255,.45));
+  filter: drop-shadow(0 0 10px rgba(160,220,255,.35));
   opacity: .85;
 }
-#cracks.show .crack-path{ animation: crackDraw 1.05s ease-out forwards; }
+
+#cracks.show .crack-path{
+  animation: crackDraw 1.0s ease-out forwards;
+}
 @keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
 
-/* shards */
+/* shards that FALL (not fly) */
 #cracks .shard{
-  stroke: rgba(235,245,255,.55);
-  stroke-width: 1.1;
+  fill: rgba(255,255,255,0.04) !important;
+  stroke: rgba(235,245,255,.35);
+  stroke-width: 1;
   vector-effect: non-scaling-stroke;
   opacity: 0;
-  filter: drop-shadow(0 0 12px rgba(180,220,255,.35));
-  animation: shardFly 1.15s ease-out forwards;
-}
-#cracks.shatter .shard{ opacity: 1; }
-@keyframes shardFly{
-  0%   { transform: translate(0,0) scale(1);   opacity: 0; }
-  15%  { opacity: .9; }
-  100% { transform: translate(0,0) scale(1.08); opacity: 0; }
+  transform-origin: center;
+  filter:
+    drop-shadow(0 0 10px rgba(180,220,255,.22));
 }
 
-/* flash */
-#cracks.flash::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.85), rgba(255,255,255,0) 55%);
-  opacity: 0;
-  animation: crackFlash .35s ease-out forwards;
+#cracks.fall .shard{
+  opacity: 1;
+  animation: shardFall 1.55s cubic-bezier(.2,.8,.2,1) forwards;
+  animation-delay: var(--d, 0ms);
 }
-@keyframes crackFlash{
-  0%{opacity:0}
-  35%{opacity:.55}
-  100%{opacity:0}
+
+@keyframes shardFall{
+  0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
+  25%  { opacity: 1; }
+  100% { transform: translate(var(--dx, 0px), 110vh) rotate(var(--r, 22deg)); opacity: 0; }
+}
+
+/* =========================
+   ANCHORS (task)
+========================= */
+.anchor-layer{
+  position: fixed;
+  inset: 0;
+  z-index: 10005; /* above sim room panel */
+  pointer-events: none; /* only anchors clickable */
+}
+
+.anchor{
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: radial-gradient(circle at 30% 30%, rgba(180,220,255,0.65), rgba(0,0,0,0.25));
+  box-shadow: 0 0 18px rgba(160,220,255,0.35);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.anchor:hover{
+  transform: scale(1.05);
 }
 
 /* =========================
