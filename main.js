@@ -733,7 +733,7 @@
         setTimeout(shatterToSim, tShatter);
       }
     });
-  }
+  })
 
   boot();
 })();
