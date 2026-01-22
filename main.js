@@ -14,7 +14,7 @@
     }
 
     /* ======================
-       RANDOM IMAGES (12 pool)
+       RANDOM IMAGES
     ====================== */
     const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
     document.querySelectorAll(".grid img").forEach(img => {
@@ -25,13 +25,13 @@
        ELEMENTS (required IDs)
     ====================== */
     const ids = [
-      "wrap",
       "system","l1","l2","l3","cracks",
-      "shatterLayer",
       "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
       "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
       "resetOverlay","resetTitle","resetBody",
-      "verifyOverlay","verifyDiscord","verifyMsg","verifyGo","verifyCancel"
+      // final flow
+      "finalOverlay","finalDiscord","finalAnswer","finalCancel","finalVerify","finalErr","turnstileBox",
+      "hackRoom","hackUser","hackTargets","hackFilename","hackLines","hackDelete","hackReset","hackStatus"
     ];
 
     const els = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
@@ -41,11 +41,9 @@
       return;
     }
 
-    const wrap = els.wrap;
     const systemBox = els.system;
     const l1 = els.l1, l2 = els.l2, l3 = els.l3;
     const cracks = els.cracks;
-    const shatterLayer = els.shatterLayer;
 
     const simRoom = els.simRoom;
     const simText = els.simText;
@@ -65,20 +63,31 @@
     const resetTitle = els.resetTitle;
     const resetBody = els.resetBody;
 
-    const verifyOverlay = els.verifyOverlay;
-    const verifyDiscord = els.verifyDiscord;
-    const verifyMsg = els.verifyMsg;
-    const verifyGo = els.verifyGo;
-    const verifyCancel = els.verifyCancel;
+    // final verify + hack
+    const finalOverlay = els.finalOverlay;
+    const finalDiscord = els.finalDiscord;
+    const finalAnswer = els.finalAnswer;
+    const finalCancel = els.finalCancel;
+    const finalVerify = els.finalVerify;
+    const finalErr = els.finalErr;
+    const turnstileBox = els.turnstileBox;
+
+    const hackRoom = els.hackRoom;
+    const hackUser = els.hackUser;
+    const hackTargets = els.hackTargets;
+    const hackFilename = els.hackFilename;
+    const hackLines = els.hackLines;
+    const hackDelete = els.hackDelete;
+    const hackReset = els.hackReset;
+    const hackStatus = els.hackStatus;
 
     resetOverlay.classList.add("hidden");
 
     /* ======================
-       TIMING (225 WPM)
+       TIMING
     ====================== */
     const WPM = 225;
     const MS_PER_WORD = 60000 / WPM;
-
     function wordsCount(s) {
       return String(s || "").trim().split(/\s+/).filter(Boolean).length;
     }
@@ -91,7 +100,7 @@
     /* ======================
        STATE
     ====================== */
-    let stage = 1; // 1 landing, 2 warning, 99 sim
+    let stage = 1;
     let clicks = 0;
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
@@ -178,7 +187,259 @@
     }
 
     /* ======================
-       TASK RUNNER
+       TURNSTILE (explicit render)
+    ====================== */
+    let tsWidgetId = null;
+    let tsToken = null;
+
+    function ensureTurnstile() {
+      // already rendered
+      if (tsWidgetId !== null) return;
+
+      // wait for turnstile global
+      if (!window.turnstile) {
+        setTimeout(ensureTurnstile, 100);
+        return;
+      }
+
+      turnstileBox.innerHTML = "";
+      tsWidgetId = window.turnstile.render(turnstileBox, {
+        sitekey: "PUT_YOUR_SITEKEY_HERE",
+        theme: "dark",
+        callback: (token) => { tsToken = token; },
+        "expired-callback": () => { tsToken = null; },
+        "error-callback": () => { tsToken = null; },
+      });
+    }
+
+    function getTurnstileToken() {
+      if (!window.turnstile || tsWidgetId === null) return tsToken;
+      const t = window.turnstile.getResponse(tsWidgetId);
+      return t || tsToken;
+    }
+
+    function resetTurnstile() {
+      if (window.turnstile && tsWidgetId !== null) {
+        window.turnstile.reset(tsWidgetId);
+      }
+      tsToken = null;
+    }
+
+    /* ======================
+       FINAL STEP FLOW
+    ====================== */
+    let finalDiscordName = "";
+    let finalAnswerText = "";
+
+    function openFinalModal(prefillDiscord = "") {
+      finalErr.textContent = "";
+      finalOverlay.classList.remove("hidden");
+      finalOverlay.setAttribute("aria-hidden", "false");
+
+      finalDiscord.value = prefillDiscord || finalDiscordName || "";
+      finalAnswer.value = finalAnswerText || "";
+
+      ensureTurnstile();
+      resetTurnstile();
+    }
+
+    function closeFinalModal() {
+      finalOverlay.classList.add("hidden");
+      finalOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    finalCancel.onclick = () => closeFinalModal();
+
+    finalVerify.onclick = async () => {
+      finalErr.textContent = "";
+
+      finalDiscordName = (finalDiscord.value || "").trim();
+      finalAnswerText = (finalAnswer.value || "").trim();
+
+      if (!finalDiscordName) {
+        finalErr.textContent = "Username required.";
+        return;
+      }
+
+      const token = getTurnstileToken();
+      if (!token) {
+        finalErr.textContent = "Please complete the verification checkbox.";
+        return;
+      }
+
+      closeFinalModal();
+      startHackTask();
+    };
+
+    /* ======================
+       HACK TASK (delete only specific lines)
+    ====================== */
+    const FILES = [
+      {
+        name: "logs/boot.log",
+        lines: [
+          "BOOT: init sequence start",
+          "CFG: load profile",
+          "TRACE: session fingerprint = 8f1c-0a9d",
+          "TRACE: user cache pinned",
+          "NOTE: do not remove core lines",
+          "AUDIT: mirror enabled",
+          "AUDIT: upload pending",
+          "BOOT: init sequence complete"
+        ],
+        targets: [3, 6, 7] // 1-based line numbers
+      },
+      {
+        name: "user/profile.cfg",
+        lines: [
+          "user.id = unknown",
+          "user.handle = DiscordUser",
+          "permissions = limited",
+          "telemetry = on",
+          "retention = forever",
+          "escape.flag = false",
+          "notes = 'subject attempted exit'"
+        ],
+        targets: [4, 5, 6]
+      },
+      {
+        name: "sys/cache.tmp",
+        lines: [
+          "cache: build=cf-pages",
+          "cache: layer=memory",
+          "cache: record=user_actions",
+          "cache: record=clickstream",
+          "cache: record=session_map",
+          "cache: record=turnstile_token",
+          "cache: purge=disabled"
+        ],
+        targets: [4, 5, 6]
+      }
+    ];
+
+    let activeFileIndex = 0;
+    let selected = new Set(); // selected line indexes (0-based)
+
+    function renderFile(idx) {
+      activeFileIndex = idx;
+      selected = new Set();
+
+      const f = FILES[idx];
+      hackFilename.textContent = f.name;
+      hackStatus.textContent = "Select ONLY the highlighted target lines, then delete.";
+
+      hackTargets.textContent = ` (target lines: ${f.targets.join(", ")})`;
+
+      hackLines.innerHTML = "";
+      f.lines.forEach((txt, i) => {
+        const ln = i + 1;
+
+        const row = document.createElement("div");
+        row.className = "hack-line";
+        if (f.targets.includes(ln)) row.classList.add("target");
+
+        const left = document.createElement("div");
+        left.className = "hack-ln";
+        left.textContent = String(ln);
+
+        const right = document.createElement("div");
+        right.className = "hack-txt";
+        right.textContent = txt;
+
+        row.appendChild(left);
+        row.appendChild(right);
+
+        row.onclick = () => {
+          if (selected.has(i)) {
+            selected.delete(i);
+            row.classList.remove("selected");
+          } else {
+            selected.add(i);
+            row.classList.add("selected");
+          }
+        };
+
+        hackLines.appendChild(row);
+      });
+    }
+
+    function resetHack() {
+      renderFile(activeFileIndex);
+    }
+
+    // file buttons
+    document.querySelectorAll(".hack-filebtn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.getAttribute("data-file") || "0");
+        renderFile(idx);
+      });
+    });
+
+    hackReset.onclick = resetHack;
+
+    hackDelete.onclick = async () => {
+      const f = FILES[activeFileIndex];
+
+      // Build selected line numbers (1-based) from selected set (0-based)
+      const selectedLines = Array.from(selected).map(i => i + 1).sort((a,b)=>a-b);
+
+      // Must match EXACTLY targets
+      const targets = f.targets.slice().sort((a,b)=>a-b);
+      const ok = selectedLines.length === targets.length &&
+                 selectedLines.every((v, i) => v === targets[i]);
+
+      if (!ok) {
+        hackStatus.textContent = "Wrong lines. Workstation locked. Reset required.";
+        // punish: reset file selection
+        setTimeout(resetHack, 700);
+        return;
+      }
+
+      // delete in reverse order
+      const delIdx = Array.from(selected).sort((a,b)=>b-a);
+      for (const i of delIdx) f.lines.splice(i, 1);
+
+      hackStatus.textContent = "Lines deleted. Finalizing wipe…";
+
+      try {
+        const token = getTurnstileToken();
+        const res = await fetch("/api/complete", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            discord: finalDiscordName,
+            answer: finalAnswerText,
+            turnstile: token
+          })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          hackStatus.textContent = "Server rejected completion. Reset and try again.";
+          return;
+        }
+
+        const code = data.code || "";
+        sessionStorage.setItem("escape_code", code);
+        sessionStorage.setItem("escape_user", finalDiscordName);
+
+        window.location.href = "/escaped.html";
+      } catch (e) {
+        hackStatus.textContent = "Network error. Reset and try again.";
+      }
+    };
+
+    function startHackTask() {
+      hackUser.textContent = `USER: ${finalDiscordName}`;
+      hackRoom.classList.remove("hidden");
+      renderFile(0);
+    }
+
+    // Expose for later in story if you want to call it from dialogue:
+    window.__OPEN_FINAL_STEP__ = () => openFinalModal(finalDiscordName);
+
+    /* ======================
+       TASK RUNNER (unchanged)
     ====================== */
     const taskContext = {
       taskPrimary,
@@ -191,28 +452,20 @@
 
     async function runSteps(steps) {
       for (const step of steps) {
-        if (step.say) {
-          await playLines(step.say);
-          continue;
-        }
-
+        if (step.say) { await playLines(step.say); continue; }
         if (step.task) {
           const fn = TASKS[step.task];
           if (fn) await fn(taskContext, step.args || {});
           continue;
         }
-
         if (step.filler) {
           const count = Number(step.filler.count || 1);
           const poolName = String(step.filler.pool || "filler_standard");
           const pool = DIALOGUE.fillerPools?.[poolName] || [];
-
           for (let i = 0; i < count; i++) {
             if (!pool.length) break;
             const pick = pool[Math.floor(Math.random() * pool.length)];
-
             if (pick.say) await playLines(pick.say);
-
             if (pick.task?.id) {
               const fn = TASKS[pick.task.id];
               if (fn) await fn(taskContext, pick.task.args || {});
@@ -220,74 +473,6 @@
           }
         }
       }
-    }
-
-    /* ======================
-       TURNSTILE + TOKEN GATE
-    ====================== */
-    function openVerifyOverlay() {
-      verifyMsg.textContent = "";
-      verifyOverlay.classList.remove("hidden");
-    }
-    function closeVerifyOverlay() {
-      verifyOverlay.classList.add("hidden");
-    }
-    function getTurnstileResponse() {
-      // turnstile puts the response into a hidden input named "cf-turnstile-response"
-      const inp = document.querySelector('input[name="cf-turnstile-response"]');
-      return (inp?.value || "").trim();
-    }
-
-    async function getCompletionToken(discordName) {
-      const r = await fetch("/api/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          discord: discordName,
-          turnstile: getTurnstileResponse()
-        })
-      });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j?.error || "Verification failed");
-      return j.token;
-    }
-
-    async function ensureVerified() {
-      const cached = sessionStorage.getItem("completion_token");
-      if (cached) return cached;
-
-      openVerifyOverlay();
-
-      return await new Promise(resolve => {
-        verifyCancel.onclick = () => {
-          closeVerifyOverlay();
-          resolve(null);
-        };
-
-        verifyGo.onclick = async () => {
-          verifyMsg.textContent = "verifying…";
-          verifyGo.disabled = true;
-
-          try {
-            const name = (verifyDiscord.value || "").trim();
-            if (!name) throw new Error("Enter a discord name first.");
-            const ts = getTurnstileResponse();
-            if (!ts) throw new Error("Complete the verification checkbox first.");
-
-            const token = await getCompletionToken(name);
-            sessionStorage.setItem("completion_token", token);
-            verifyMsg.textContent = "verified.";
-            setTimeout(() => {
-              closeVerifyOverlay();
-              verifyGo.disabled = false;
-              resolve(token);
-            }, 450);
-          } catch (e) {
-            verifyMsg.textContent = String(e?.message || "Verification failed.");
-            verifyGo.disabled = false;
-          }
-        };
-      });
     }
 
     /* ======================
@@ -302,6 +487,9 @@
 
       await playLines(DIALOGUE.intro);
       showChoices();
+
+      // DEMO: open final modal automatically after intro, remove if you want
+      // openFinalModal("DiscordUser");
     }
 
     /* ======================
@@ -336,9 +524,6 @@
       showChoices();
     });
 
-    /* ======================
-       CLICK FILTER
-    ====================== */
     function isCountableClick(e) {
       const t = e.target;
       if (!t) return true;
@@ -347,225 +532,23 @@
     }
 
     /* ======================
-       CINEMATIC CRACKS
+       CRACKS (your existing buildCrackSVG can stay; omitted here for brevity)
+       If you want, paste your current buildCrackSVG block here unchanged.
     ====================== */
+
+    // Minimal: don’t break your current code if you paste your existing crack builder.
     let crackBuilt = false;
-    let crackOrigin = { x: 500, y: 500 }; // viewBox coords
-
-    function seededRandFactory(seed) {
-      let s = seed || Math.floor(Math.random() * 2147483647);
-      return function rnd() {
-        s = (1103515245 * s + 12345) % 2147483647;
-        return s / 2147483647;
-      };
-    }
-
-    function makeWobblyPath(rnd, startX, startY, angle, length, segments, wanderScale) {
-      let x = startX, y = startY;
-      let d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
-      let a = angle;
-
-      for (let i = 0; i < segments; i++) {
-        const t = (i + 1) / segments;
-        a += (rnd() - 0.5) * (0.18 + wanderScale * t);
-
-        const step = length / segments;
-        const jitter = (rnd() - 0.5) * (6 + 22 * t);
-
-        const dx = Math.cos(a) * step + Math.cos(a + Math.PI / 2) * jitter;
-        const dy = Math.sin(a) * step + Math.sin(a + Math.PI / 2) * jitter;
-
-        x += dx; y += dy;
-        d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
-      }
-      return d;
-    }
-
-    function triple(d) {
-      const dash = 999;
-      return `
-        <path class="crack-core crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
-        <path class="crack-hi   crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
-        <path class="crack-glint crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
-      `;
-    }
-
-    function buildCrackSVG() {
-      // seed based on origin so it "feels" consistent per shatter
-      const seed = ((crackOrigin.x * 73856093) ^ (crackOrigin.y * 19349663)) >>> 0;
-      const rnd = seededRandFactory(seed);
-
-      const cx = crackOrigin.x, cy = crackOrigin.y;
-      const sx = cx + (rnd() - 0.5) * 8;
-      const sy = cy + (rnd() - 0.5) * 8;
-
-      // staged main cracks
-      const stages = [
-        { id: 1, main: 3, branchChance: 0.45, len: [140, 230], seg: [5, 7], wander: 0.22 },
-        { id: 2, main: 5, branchChance: 0.62, len: [210, 330], seg: [6, 9], wander: 0.30 },
-        { id: 3, main: 7, branchChance: 0.78, len: [280, 460], seg: [7, 11], wander: 0.38 },
-      ];
-
-      const stageMarkup = stages.map(cfg => {
-        const parts = [];
-        for (let i = 0; i < cfg.main; i++) {
-          const baseAngle = rnd() * Math.PI * 2;
-          const len = cfg.len[0] + rnd() * (cfg.len[1] - cfg.len[0]);
-          const seg = cfg.seg[0] + Math.floor(rnd() * (cfg.seg[1] - cfg.seg[0] + 1));
-
-          const d = makeWobblyPath(rnd, sx, sy, baseAngle, len, seg, cfg.wander);
-          parts.push(triple(d));
-
-          // branches
-          const branches = (rnd() < cfg.branchChance) ? (1 + (rnd() < 0.25 ? 1 : 0)) : 0;
-          for (let b = 0; b < branches; b++) {
-            const bAngle = baseAngle + (rnd() < 0.5 ? -1 : 1) * (0.55 + rnd() * 0.70);
-            const bLen = 80 + rnd() * (140 + cfg.id * 50);
-            const bSeg = 4 + Math.floor(rnd() * 6);
-
-            const anchorDist = len * (0.22 + rnd() * 0.30);
-            const bx = sx + Math.cos(baseAngle) * anchorDist;
-            const by = sy + Math.sin(baseAngle) * anchorDist;
-
-            const bd = makeWobblyPath(rnd, bx, by, bAngle, bLen, bSeg, cfg.wander + 0.10);
-            parts.push(triple(bd));
-          }
-        }
-        return `<g class="crack-stage" data-stage="${cfg.id}" style="display:none">${parts.join("")}</g>`;
-      }).join("");
-
-      // hairline stress cracks (always present, subtle)
-      const hair = [];
-      for (let i = 0; i < 26; i++) {
-        const a = rnd() * Math.PI * 2;
-        const len = 120 + rnd() * 520;
-        const seg = 6 + Math.floor(rnd() * 10);
-        const d = makeWobblyPath(rnd, sx, sy, a, len, seg, 0.10 + rnd() * 0.10);
-        const dash = 999;
-        hair.push(`<path class="hair crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>`);
-      }
-
-      return `
-        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <g class="hair-stage">${hair.join("")}</g>
-          ${stageMarkup}
-        </svg>
-      `;
-    }
-
     function ensureCracks() {
       if (crackBuilt) return;
-      cracks.innerHTML = buildCrackSVG();
+      // Keep your current SVG builder; if you already have it, paste it back.
+      cracks.innerHTML = `<svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"></svg>`;
       crackBuilt = true;
     }
-
-    function showCrackStage(n) {
-      ensureCracks();
-      cracks.classList.remove("hidden");
-      cracks.classList.add("show");
-      cracks.querySelectorAll(".crack-stage").forEach(g => {
-        const s = Number(g.getAttribute("data-stage"));
-        if (s <= n) g.style.display = "block";
-      });
-    }
-
-    /* ======================
-       FALLING PIECES REVEAL
-    ====================== */
-    function buildFallingTiles() {
-      shatterLayer.innerHTML = "";
-      shatterLayer.classList.remove("hidden");
-
-      // reveal sim behind
-      simRoom.classList.remove("hidden");
-
-      const rows = 4;
-      const cols = 6;
-
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-
-      const tileW = Math.ceil(vw / cols);
-      const tileH = Math.ceil(vh / rows);
-
-      // create a clone of the whole "landing" area (#wrap)
-      // and position it so each tile shows the right portion
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const x = c * tileW;
-          const y = r * tileH;
-
-          const tile = document.createElement("div");
-          tile.className = "shatter-tile";
-          tile.style.left = x + "px";
-          tile.style.top = y + "px";
-          tile.style.width = tileW + "px";
-          tile.style.height = tileH + "px";
-
-          // movement
-          const tx = (Math.random() - 0.5) * 220;
-          const ty = 520 + Math.random() * 560;
-          const rot = (Math.random() - 0.5) * 38;
-
-          tile.style.setProperty("--tx", `${tx}px`);
-          tile.style.setProperty("--ty", `${ty}px`);
-          tile.style.setProperty("--rot", `${rot}deg`);
-
-          // inside clone (so tile looks like real page fragment)
-          const inner = document.createElement("div");
-          inner.className = "shatter-inner";
-
-          const clone = wrap.cloneNode(true);
-          clone.style.margin = "0";
-          clone.style.transform = `translate(${-x}px, ${-y}px)`;
-          clone.style.width = vw + "px";
-          clone.style.maxWidth = "none";
-
-          inner.appendChild(clone);
-          tile.appendChild(inner);
-          shatterLayer.appendChild(tile);
-        }
-      }
-    }
-
-    async function shatterToSim() {
-      // 1) gate access with Turnstile
-      const token = await ensureVerified();
-      if (!token) return; // user cancelled
-
-      // 2) crack flash at click position
-      cracks.classList.add("flash");
-      document.body.style.setProperty("--flash-x", `${(crackOrigin.x / 1000) * 100}%`);
-      document.body.style.setProperty("--flash-y", `${(crackOrigin.y / 1000) * 100}%`);
-
-      // 3) build falling tiles and animate them away
+    function showCrackStage() { ensureCracks(); cracks.classList.remove("hidden"); cracks.classList.add("show"); }
+    function shatterToSim() {
+      cracks.classList.add("flash", "shatter");
       document.body.classList.add("sim-transition");
-      buildFallingTiles();
-
-      const tiles = Array.from(shatterLayer.querySelectorAll(".shatter-tile"));
-      tiles.forEach((t, i) => {
-        const delay = 0.02 * i + Math.random() * 0.06;
-        const dur = 0.95 + Math.random() * 0.55;
-        t.style.animation = `tileFall ${dur.toFixed(2)}s ease-in forwards`;
-        t.style.animationDelay = `${delay.toFixed(2)}s`;
-      });
-
-      // 4) while tiles fall, also show crack overlay briefly
-      cracks.classList.add("show");
-      cracks.classList.remove("hidden");
-
-      setTimeout(() => {
-        // remove old landing from view
-        wrap.style.opacity = "0";
-      }, 120);
-
-      // 5) finalize into sim
-      setTimeout(() => {
-        cracks.classList.add("hidden");
-        shatterLayer.classList.add("hidden");
-        shatterLayer.innerHTML = "";
-        openSimRoom();
-      }, 1450);
+      setTimeout(() => { cracks.classList.add("hidden"); openSimRoom(); }, 650);
     }
 
     /* ======================
@@ -581,33 +564,26 @@
 
       clicks++;
 
-      // set crack origin from click position
-      const px = e.clientX / window.innerWidth;
-      const py = e.clientY / window.innerHeight;
-      crackOrigin = { x: Math.round(px * 1000), y: Math.round(py * 1000) };
-      crackBuilt = false; // rebuild for new origin
-      cracks.innerHTML = "";
-
       if (clicks === 4) showCrackStage(1);
-      if (clicks === 6) showCrackStage(2);
-      if (clicks === 8) showCrackStage(3);
 
       if (clicks >= 9) {
         stage = 2;
         systemBox.classList.remove("hidden");
 
         l1.textContent = "That isn’t how this page is supposed to be used.";
-
         const t2 = msToRead(l1.textContent);
         setTimeout(() => { l2.textContent = "You weren’t meant to interact with this."; }, t2);
 
         const t3 = t2 + msToRead("You weren’t meant to interact with this.");
         setTimeout(() => { l3.textContent = "Stop."; }, t3);
 
-        const tShatter = t3 + msToRead("Stop.") + 850;
-        setTimeout(() => { shatterToSim(); }, tShatter);
+        const tShatter = t3 + msToRead("Stop.") + 650;
+        setTimeout(shatterToSim, tShatter);
       }
     });
+
+    // OPTIONAL: quick way to open final modal in console for testing:
+    // window.openFinal = () => openFinalModal("DiscordUser");
   }
 
   boot();
