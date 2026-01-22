@@ -195,6 +195,23 @@ window.DIALOGUE = {
     { filler: { pool: "AUTO", count: 2 } },
     { say: ["System: Corrupted fragment detected.", "System: Identify mismatch."] },
     { task: "mismatch", args: { base: 7 } },
+    
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["Liam (Worker): Keep it boring.", "System: PROCEDURE AVAILABLE."] },
+    { task: "confirm_signal" },
+    
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "choose_boring" },
+    
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "memory_3" },
+    
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "backspace_clean" },
+    
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "two_step" },
+
 
     // Add more tasks later — main.js will trigger “almost done” after task #10
     { say: ["System: Surface failure imminent.", "Emma (Security): ...", "System: HANDOFF."] }
