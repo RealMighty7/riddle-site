@@ -8,14 +8,14 @@
   // Pools for random selection
   const TASK_POOLS = (window.TASK_POOLS = window.TASK_POOLS || {});
 
-  // pack files call: registerTaskPool("pack1", [{ id:"task_id", w:1 }, ...])
+  // packs call: registerTaskPool("core" / "packX" / etc, [{ id:"anchors", w:1 }, ...])
   window.registerTaskPool = function registerTaskPool(poolName, entries) {
     if (!poolName) return;
     if (!Array.isArray(entries)) return;
     TASK_POOLS[poolName] = (TASK_POOLS[poolName] || []).concat(entries);
   };
 
-  // Pack system hook (packs call registerTasks({ ... }))
+  // packs call: registerTasks({ taskId: async (ctx,args)=>{}, ... })
   window.registerTasks = function registerTasks(map) {
     if (!map || typeof map !== "object") return;
     for (const [k, v] of Object.entries(map)) {
@@ -26,12 +26,12 @@
   /* ====================== POOL UTILITIES ====================== */
   function pickWeighted(entries) {
     let total = 0;
-    for (const e of entries) total += Math.max(0, Number(e.w ?? 1));
+    for (const e of entries) total += Math.max(0, Number(e?.w ?? 1));
     if (total <= 0) return null;
 
     let r = Math.random() * total;
     for (const e of entries) {
-      r -= Math.max(0, Number(e.w ?? 1));
+      r -= Math.max(0, Number(e?.w ?? 1));
       if (r <= 0) return e;
     }
     return entries[entries.length - 1] || null;
@@ -47,11 +47,42 @@
     return out;
   }
 
-  // Anti-repeat (simple pacing)
+  // Anti-repeat (light pacing)
   let _lastTaskId = null;
+
+  // Make packs harder to crash (esp during manual console tests)
+  function normalizeCtx(ctx) {
+    const noop = () => {};
+    const fakeClassList = { add: noop, remove: noop, contains: () => false };
+
+    const safe = ctx && typeof ctx === "object" ? ctx : {};
+    if (!safe.showTaskUI) safe.showTaskUI = noop;
+    if (!safe.doReset) safe.doReset = noop;
+    if (!safe.difficultyBoost) safe.difficultyBoost = () => 0;
+    if (!safe.penalize) safe.penalize = noop;
+    if (!safe.glitch) safe.glitch = noop;
+
+    if (!safe.taskBody) safe.taskBody = document.body;
+
+    // taskPrimary needs: textContent, disabled, onclick
+    if (!safe.taskPrimary) safe.taskPrimary = {};
+    if (typeof safe.taskPrimary !== "object") safe.taskPrimary = {};
+    if (!("textContent" in safe.taskPrimary)) safe.taskPrimary.textContent = "";
+    if (!("disabled" in safe.taskPrimary)) safe.taskPrimary.disabled = false;
+    if (!("onclick" in safe.taskPrimary)) safe.taskPrimary.onclick = null;
+
+    // taskSecondary needs: classList at minimum
+    if (!safe.taskSecondary) safe.taskSecondary = {};
+    if (typeof safe.taskSecondary !== "object") safe.taskSecondary = {};
+    if (!safe.taskSecondary.classList) safe.taskSecondary.classList = fakeClassList;
+
+    return safe;
+  }
 
   // Runs one random task from a pool (or list of pools)
   TASKS.random = async function random(ctx, args = {}) {
+    ctx = normalizeCtx(ctx);
+
     const pools = args.pools || args.pool || "core";
     const entries = poolEntries(pools).filter(e => e && typeof e.id === "string");
 
@@ -69,7 +100,6 @@
 
     let pick = pickWeighted(entries);
     if (entries.length > 1 && pick?.id === _lastTaskId) {
-      // try once more to avoid immediate repeat
       pick = pickWeighted(entries) || pick;
     }
 
@@ -77,7 +107,6 @@
     _lastTaskId = id;
 
     const fn = TASKS[id];
-
     if (typeof fn !== "function") {
       ctx.showTaskUI("TASK ROUTER", `Missing task: ${id}`);
       ctx.taskBody.innerHTML = `<div style="opacity:.85">A pool references a task that isn't registered yet.</div>`;
@@ -87,7 +116,6 @@
       return;
     }
 
-    // optional: pass through args.inner to the picked task
     await fn(ctx, args.inner || {});
   };
 
@@ -118,6 +146,7 @@
   }
 
   /* ====================== CORE TASKS ====================== */
+
   // TASK: anchors
   TASKS.anchors = async function anchors(ctx, args = {}) {
     const base = args.base ?? 5;
