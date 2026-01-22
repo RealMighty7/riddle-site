@@ -660,57 +660,108 @@ async function runChoiceBeats() {
       if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
     }
     
-    function ensureCracks() {
-      if (crackBuilt) return;
-    
-      const seed = (Date.now() ^ (Math.random() * 1e9)) & 0xffffffff;
-      const rng = rand(seed);
-    
-      cracks.innerHTML = "";
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("viewBox", "0 0 1000 1000");
-      svg.setAttribute("preserveAspectRatio", "none");
-      cracks.appendChild(svg);
-    
-      const cx = 500, cy = 500;
-    
-      // random point on a ring (keeps early stages near center)
-      const ring = (radiusMin, radiusMax) => {
-        const a = rng() * Math.PI * 2;
-        const r = radiusMin + rng() * (radiusMax - radiusMin);
-        return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
-      };
-    
-      // STAGE 1: small center impact
-      for (let i = 0; i < 7; i++) {
-        const [sx, sy] = ring(0, 26);
-        const d = makePathFromCenter(rng, sx, sy, 6 + Math.floor(rng() * 3), 18, 0.85);
-        addSeg(svg, d, 1);
-      }
-    
-      // STAGE 2: extends outward
-      for (let i = 0; i < 12; i++) {
-        const [sx, sy] = ring(18, 120);
-        const d = makePathFromCenter(rng, sx, sy, 9 + Math.floor(rng() * 4), 28, 0.75);
-        addSeg(svg, d, 2);
-      }
-    
-      // STAGE 3: webbing hairlines
-      for (let i = 0; i < 18; i++) {
-        const [sx, sy] = ring(120, 360);
-        const d = makePathFromCenter(rng, sx, sy, 10 + Math.floor(rng() * 5), 22, 1.05);
-        addSeg(svg, d, 3);
-      }
-    
-      // STAGE 4: long traversals
-      for (let i = 0; i < 14; i++) {
-        const [sx, sy] = ring(60, 220);
-        const d = makePathFromCenter(rng, sx, sy, 18 + Math.floor(rng() * 8), 46, 0.55);
-        addSeg(svg, d, 4);
-      }
-    
-      crackBuilt = true;
+function ensureCracks() {
+  if (crackBuilt) return;
+
+  const seed = (Date.now() ^ (Math.random() * 1e9)) & 0xffffffff;
+  const rng = rand(seed);
+
+  cracks.innerHTML = "";
+
+  // ---- PANE LAYER (glass shards) ----
+  const paneCount = 18;              // tweak 14–26
+  const paneRanks = [1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,4,4,4];
+
+  const mkPane = (rank) => {
+    const p = document.createElement("div");
+    p.className = "pane";
+    p.setAttribute("data-rank", String(rank));
+
+    // random polygon shard (clip-path)
+    // generate points in % space; bias near center for earlier ranks
+    const bias = (rank === 1) ? 0.18 : (rank === 2) ? 0.28 : (rank === 3) ? 0.38 : 0.50;
+
+    const pts = [];
+    const centerPull = () => (0.5 + (rng() - 0.5) * bias);
+
+    // make a “jagged quad/hex”
+    const n = 4 + Math.floor(rng() * 3); // 4..6
+    for (let i = 0; i < n; i++) {
+      const x = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
+      const y = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
+      pts.push([x, y]);
     }
+
+    // sort points around centroid to form a valid polygon
+    const cx = pts.reduce((a, v) => a + v[0], 0) / pts.length;
+    const cy = pts.reduce((a, v) => a + v[1], 0) / pts.length;
+    pts.sort((a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx));
+
+    const poly = pts.map(([x, y]) => `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`).join(", ");
+    p.style.clipPath = `polygon(${poly})`;
+
+    // tiny per-pane “refraction direction”
+    const dx = (rng() * 10 - 5).toFixed(1) + "px";
+    const dy = (rng() * 10 - 5).toFixed(1) + "px";
+    p.style.setProperty("--dx", dx);
+    p.style.setProperty("--dy", dy);
+
+    // occasional glint
+    if (rng() < 0.35) p.classList.add("glint");
+
+    return p;
+  };
+
+  for (let i = 0; i < paneCount; i++) {
+    const rank = paneRanks[i] || 4;
+    cracks.appendChild(mkPane(rank));
+  }
+
+  // ---- SVG LINES (your existing cracks) ----
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 1000 1000");
+  svg.setAttribute("preserveAspectRatio", "none");
+  cracks.appendChild(svg);
+
+  const cx = 500, cy = 500;
+
+  const ring = (radiusMin, radiusMax) => {
+    const a = rng() * Math.PI * 2;
+    const r = radiusMin + rng() * (radiusMax - radiusMin);
+    return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+  };
+
+  // STAGE 1
+  for (let i = 0; i < 7; i++) {
+    const [sx, sy] = ring(0, 26);
+    const d = makePathFromCenter(rng, sx, sy, 6 + Math.floor(rng() * 3), 18, 0.85);
+    addSeg(svg, d, 1);
+  }
+
+  // STAGE 2
+  for (let i = 0; i < 12; i++) {
+    const [sx, sy] = ring(18, 120);
+    const d = makePathFromCenter(rng, sx, sy, 9 + Math.floor(rng() * 4), 28, 0.75);
+    addSeg(svg, d, 2);
+  }
+
+  // STAGE 3
+  for (let i = 0; i < 18; i++) {
+    const [sx, sy] = ring(120, 360);
+    const d = makePathFromCenter(rng, sx, sy, 10 + Math.floor(rng() * 5), 22, 1.05);
+    addSeg(svg, d, 3);
+  }
+
+  // STAGE 4
+  for (let i = 0; i < 14; i++) {
+    const [sx, sy] = ring(60, 220);
+    const d = makePathFromCenter(rng, sx, sy, 18 + Math.floor(rng() * 8), 46, 0.55);
+    addSeg(svg, d, 4);
+  }
+
+  crackBuilt = true;
+}
+
     
     function setCrackStage(n) {
       ensureCracks();
