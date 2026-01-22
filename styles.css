@@ -101,44 +101,25 @@ header.card p{
   position: fixed;
   inset: 0;
   pointer-events:none;
-  z-index: 50;
 }
 
+#cracks{ z-index: 50; }
 #glassFX{ z-index: 60; }
 
 /* =========================================================
-   CRACK SHARDS (pane refraction that looks like duplication)
+   CRACK SHARDS (pane refraction + staged reveal 1/2/3/4)
    ========================================================= */
-/* segments hidden until enabled by stage */
-#cracks .seg { opacity: 0; transition: opacity 160ms ease; }
-#cracks .seg.on { opacity: 1; }
 
-/* draw animation stays the same */
-#cracks .draw{ animation: crackDraw 700ms ease-out forwards; }
-@keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
-
+/* Pane shards (refraction) */
 #cracks .pane{
   position:absolute;
   inset:0;
   opacity: 0;
   will-change: opacity, transform, filter;
-
-  /* Move the pane, so the backdrop sample changes (duplication feel) */
   transform: translate(var(--dx, 0px), var(--dy, 0px));
 }
 
-/* IMPORTANT FIX:
-   You were never revealing the SVG segments (".seg"), so crack lines could be invisible.
-   We show segments by stage rank. */
-#cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
-#cracks[data-stage="2"] .seg[data-rank="1"],
-#cracks[data-stage="2"] .seg[data-rank="2"]{ opacity: 1; }
-#cracks[data-stage="3"] .seg[data-rank="1"],
-#cracks[data-stage="3"] .seg[data-rank="2"],
-#cracks[data-stage="3"] .seg[data-rank="3"]{ opacity: 1; }
-#cracks[data-stage="4"] .seg{ opacity: 1; }
-
-/* Stage reveal by shard rank */
+/* Stage reveal by shard rank (1..4) */
 #cracks[data-stage="1"] .pane[data-rank="1"] { opacity: var(--paneOpacity, 0.14); }
 
 #cracks[data-stage="2"] .pane[data-rank="1"],
@@ -155,8 +136,6 @@ header.card p{
   content:"";
   position:absolute;
   inset:-22px;
-
-  /* counter-move so the shard doesn’t look like it slid */
   transform: translate(calc(0px - var(--dx, 0px)), calc(0px - var(--dy, 0px)));
 
   backdrop-filter:
@@ -183,7 +162,7 @@ header.card p{
   border-radius: 14px;
 }
 
-/* edge highlight only (keep subtle) */
+/* edge highlight only */
 #cracks .pane::after{
   content:"";
   position:absolute;
@@ -206,19 +185,35 @@ header.card p{
 #cracks .pane.glint::after{ opacity: 0.35; }
 #cracks.flash .pane::after{ opacity: 0.55; }
 
-/* ============ CRACK SVG LINES ============ */
+/* =========================
+   CRACK SVG LINES (staged)
+   ========================= */
+
+/* Segments default hidden until their rank is enabled */
+#cracks .seg{
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+/* Stage reveal by seg rank (1..4) */
+#cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
+
+#cracks[data-stage="2"] .seg[data-rank="1"],
+#cracks[data-stage="2"] .seg[data-rank="2"]{ opacity: 1; }
+
+#cracks[data-stage="3"] .seg[data-rank="1"],
+#cracks[data-stage="3"] .seg[data-rank="2"],
+#cracks[data-stage="3"] .seg[data-rank="3"]{ opacity: 1; }
+
+#cracks[data-stage="4"] .seg{ opacity: 1; }
+
 #cracks svg{
   position:absolute;
   inset:0;
   width:100%;
   height:100%;
-
-  /* Keep visible when .show is applied, but don't hide completely otherwise
-     (the seg opacity gates visibility now) */
-  opacity: 1;
+  opacity: 1; /* seg opacity gates visibility */
 }
-
-#cracks.show svg{ opacity: 1; }
 
 #cracks .crack-path{
   fill:none;
@@ -266,12 +261,7 @@ header.card p{
   visibility: hidden;
 }
 
-#glassFX{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-}
-
+/* Each shard */
 #glassFX .glass-piece{
   position: fixed;
   inset: 0;
@@ -281,21 +271,17 @@ header.card p{
   opacity: 0.98;
 }
 
-/* The inner “refraction” payload */
+/* Inner refraction payload */
 #glassFX .glass-inner{
   position: fixed;
   inset: 0;
-
-  /* refraction offset */
   transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
-
   filter: blur(var(--rblur, 1px)) saturate(1.10) contrast(1.06);
   opacity: 0.98;
-
   isolation: isolate;
 }
 
-/* If a plain wrap clone exists, keep it hidden when using RGB */
+/* Keep base clone hidden if present */
 #glassFX .glass-inner > #wrap,
 #glassFX .glass-inner > .wrap-clone{
   opacity: 0;
@@ -410,9 +396,15 @@ header.card p{
   background: transparent;
 }
 
-/* IMPORTANT FIX:
-   You never defined .sim-head in this trimmed file,
-   so your header text could "disappear" visually depending on defaults. */
+#simRoom.card{
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 0;
+}
+
+/* if you ever switch to using a class for that header */
 #simRoom .sim-head{
   opacity:.75;
   font-size:12px;
@@ -420,14 +412,6 @@ header.card p{
   letter-spacing: .12em;
   text-transform: uppercase;
   color: rgba(235,238,245,0.72);
-}
-
-#simRoom.card{
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  backdrop-filter: none;
-  padding: 0;
 }
 
 #simRoom .cardShell{
@@ -440,6 +424,7 @@ header.card p{
   padding: 18px;
 }
 
+/* Hide landing while in sim */
 body.in-sim #wrap{ display:none; }
 
 #simText{
