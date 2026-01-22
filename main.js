@@ -19,13 +19,14 @@
     });
 
     const ids = [
-      "system","l1","l2","l3","cracks",
+      "system","l1","l2","l3","cracks","glitchFX",
       "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
       "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
       "resetOverlay","resetTitle","resetBody",
       "finalOverlay","finalDiscord","finalAnswer","finalCancel","finalVerify","finalErr","turnstileBox",
       "hackRoom","hackUser","hackTargets","hackFilename","hackLines","hackDelete","hackReset","hackStatus"
     ];
+    const glitchFX = els.glitchFX;
 
     const els = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
     const missing = ids.filter(id => !els[id]);
@@ -189,6 +190,34 @@
         openFinalModal("");
       });
     }
+    /* ======================
+       GLITCH / CORRUPTION
+    ====================== */
+  let corruption = 0; // 0..100
+
+  function setCorruption(v){
+    corruption = Math.max(0, Math.min(100, v));
+
+    document.body.classList.toggle("glitch-on", corruption > 0);
+
+  // levels 1..4
+    document.body.classList.toggle("glitch-1", corruption >= 10);
+    document.body.classList.toggle("glitch-2", corruption >= 30);
+    document.body.classList.toggle("glitch-3", corruption >= 55);
+    document.body.classList.toggle("glitch-4", corruption >= 75);
+  }
+
+  function addCorruption(delta){
+    setCorruption(corruption + delta);
+  }
+
+// Short burst glitch (pixels “drop” then recover)
+  function glitchBurst(strength = 20){
+    const before = corruption;
+    setCorruption(Math.max(before, strength));
+    setTimeout(() => setCorruption(before), 220);
+  }
+
 
     // ---------------- TURNSTILE ----------------
     let tsWidgetId = null;
@@ -343,32 +372,40 @@
         const right = document.createElement("div");
         right.className = "hack-txt";
         right.textContent = txt;
+        if (corruption >= 60 && Math.random() < 0.12) {
+          right.style.transform = `translate(${(Math.random()*2-1).toFixed(2)}px, ${(Math.random()*2-1).toFixed(2)}px)`;
+          right.style.textShadow = `1px 0 rgba(255,0,120,.45), -1px 0 rgba(0,255,255,.35)`;
+        }
+
 
         row.appendChild(left);
         row.appendChild(right);
 
-        row.onclick = () => {
-          if (selected.has(i)) {
-            selected.delete(i);
-            row.classList.remove("selected");
-          } else {
-            selected.add(i);
-            row.classList.add("selected");
-          }
-        };
-
-        hackLines.appendChild(row);
-      });
+  row.onclick = () => {
+    if (selected.has(i)) {
+      selected.delete(i);
+      row.classList.remove("selected");
+      addCorruption(1);
+    } else {
+      selected.add(i);
+      row.classList.add("selected");
+      addCorruption(2);
     }
+    if (corruption >= 55 && Math.random() < 0.22) glitchBurst(65);
+  };
+
 
     function resetHack() { renderFile(activeFileIndex); }
 
-    document.querySelectorAll(".hack-filebtn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const idx = Number(btn.getAttribute("data-file") || "0");
-        renderFile(idx);
-      });
+  document.querySelectorAll(".hack-filebtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      addCorruption(4);
+      glitchBurst(28);
+      const idx = Number(btn.getAttribute("data-file") || "0");
+      renderFile(idx);
     });
+  });
+
 
     hackReset.onclick = resetHack;
 
@@ -384,6 +421,8 @@
       if (!ok) {
         hackStatus.textContent = "Wrong lines. Workstation locked. Reset required.";
         setTimeout(resetHack, 700);
+        addCorruption(12);
+        glitchBurst(80);
         return;
       }
 
@@ -391,7 +430,8 @@
       for (const i of delIdx) f.lines.splice(i, 1);
 
       hackStatus.textContent = "Lines deleted. Finalizing wipe…";
-
+      addCorruption(18);
+      glitchBurst(90);
       try {
         const token = getTurnstileToken();
         const res = await fetch("/api/complete", {
@@ -413,18 +453,23 @@
         const code = data.code || "";
         sessionStorage.setItem("escape_code", code);
         sessionStorage.setItem("escape_user", finalDiscordName);
-
+        
+        setCorruption(95);
+        glitchBurst(100);
+        
         window.location.href = "/escaped.html";
       } catch {
         hackStatus.textContent = "Network error. Reset and try again.";
       }
     };
 
-    function startHackTask() {
-      hackUser.textContent = `USER: ${finalDiscordName}`;
-      hackRoom.classList.remove("hidden");
-      renderFile(0);
-    }
+  function startHackTask() {
+    setCorruption(12);
+    hackUser.textContent = `USER: ${finalDiscordName}`;
+    hackRoom.classList.remove("hidden");
+    renderFile(0);
+  }
+
 
     window.__OPEN_FINAL_STEP__ = () => openFinalModal(finalDiscordName);
 
