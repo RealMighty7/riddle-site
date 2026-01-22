@@ -22,7 +22,7 @@
 
     /* ====================== ELEMENTS ====================== */
     const ids = [
-      "system","cracks",
+      "system","cracks","glassFX",
       "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
       "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
       "resetOverlay","resetTitle","resetBody",
@@ -39,7 +39,7 @@
 
     const systemBox = els.system;
     const cracks = els.cracks;
-
+    const glassFX = els.glassFX;
     const simRoom = els.simRoom;
     const simText = els.simText;
     const simChoices = els.simChoices;
@@ -635,6 +635,57 @@ Reinitializing simulation…`
 
       cracks.classList.remove("hidden");
       cracks.classList.add("show");
+      function spawnFallingPieces() {
+        glassFX.innerHTML = "";
+        glassFX.classList.remove("hidden");
+        glassFX.classList.add("glass-fall");
+      
+        const cols = 7;
+        const rows = 4;
+        const w = window.innerWidth / cols;
+        const h = window.innerHeight / rows;
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const piece = document.createElement("div");
+            piece.className = "glass-piece";
+            piece.style.left = `${c * w}px`;
+            piece.style.top = `${r * h}px`;
+            piece.style.width = `${w + 1}px`;
+            piece.style.height = `${h + 1}px`;
+
+            const rot = (Math.random() * 40 - 20).toFixed(1) + "deg";
+            piece.style.setProperty("--rot", rot);
+
+      // stagger so they fall “one by one”
+            const delay = (0.06 * (r + c) + Math.random() * 0.06).toFixed(2);
+            piece.style.animationDelay = `${delay}s`;
+
+      // a few gaps looks more real
+            if (Math.random() < 0.10) piece.style.opacity = "0.0";
+
+            glassFX.appendChild(piece);
+          }
+        }
+      }
+
+      function shatterToSim() {
+  // stage 4 already set; do the fall now
+        playSfx("thud", 0.55);
+        cracks.classList.add("flash");
+
+        spawnFallingPieces();
+        document.body.classList.add("sim-transition");
+
+  // hide cracks quickly (glass pieces are now “the screen”)
+      setTimeout(() => cracks.classList.add("hidden"), 280);
+
+  // after fall, enter sim
+        setTimeout(() => {
+          glassFX.classList.add("hidden");
+          openSimRoom();
+        }, 1250);
+      }
 
       // only play audio when stage increases
       if (crackStage === 1) playSfx("thud", 0.55);
