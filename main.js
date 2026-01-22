@@ -1,6 +1,5 @@
 (() => {
   function boot() {
-    // Wait until DOM exists (prevents false “missing element” on some hosts)
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", boot, { once: true });
       return;
@@ -15,7 +14,7 @@
     }
 
     /* ======================
-       RANDOM IMAGES
+       RANDOM IMAGES (12 pool)
     ====================== */
     const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
     document.querySelectorAll(".grid img").forEach(img => {
@@ -23,26 +22,30 @@
     });
 
     /* ======================
-       REQUIRED ELEMENTS
+       ELEMENTS (required IDs)
     ====================== */
     const ids = [
+      "wrap",
       "system","l1","l2","l3","cracks",
+      "shatterLayer",
       "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
       "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
-      "resetOverlay","resetTitle","resetBody"
+      "resetOverlay","resetTitle","resetBody",
+      "verifyOverlay","verifyDiscord","verifyMsg","verifyGo","verifyCancel"
     ];
 
     const els = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
     const missing = ids.filter(id => !els[id]);
-
     if (missing.length) {
       console.error("Missing required element IDs:", missing);
       return;
     }
 
+    const wrap = els.wrap;
     const systemBox = els.system;
     const l1 = els.l1, l2 = els.l2, l3 = els.l3;
     const cracks = els.cracks;
+    const shatterLayer = els.shatterLayer;
 
     const simRoom = els.simRoom;
     const simText = els.simText;
@@ -62,10 +65,16 @@
     const resetTitle = els.resetTitle;
     const resetBody = els.resetBody;
 
+    const verifyOverlay = els.verifyOverlay;
+    const verifyDiscord = els.verifyDiscord;
+    const verifyMsg = els.verifyMsg;
+    const verifyGo = els.verifyGo;
+    const verifyCancel = els.verifyCancel;
+
     resetOverlay.classList.add("hidden");
 
     /* ======================
-       TIMING
+       TIMING (225 WPM)
     ====================== */
     const WPM = 225;
     const MS_PER_WORD = 60000 / WPM;
@@ -201,7 +210,9 @@
           for (let i = 0; i < count; i++) {
             if (!pool.length) break;
             const pick = pool[Math.floor(Math.random() * pool.length)];
+
             if (pick.say) await playLines(pick.say);
+
             if (pick.task?.id) {
               const fn = TASKS[pick.task.id];
               if (fn) await fn(taskContext, pick.task.args || {});
@@ -209,6 +220,74 @@
           }
         }
       }
+    }
+
+    /* ======================
+       TURNSTILE + TOKEN GATE
+    ====================== */
+    function openVerifyOverlay() {
+      verifyMsg.textContent = "";
+      verifyOverlay.classList.remove("hidden");
+    }
+    function closeVerifyOverlay() {
+      verifyOverlay.classList.add("hidden");
+    }
+    function getTurnstileResponse() {
+      // turnstile puts the response into a hidden input named "cf-turnstile-response"
+      const inp = document.querySelector('input[name="cf-turnstile-response"]');
+      return (inp?.value || "").trim();
+    }
+
+    async function getCompletionToken(discordName) {
+      const r = await fetch("/api/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          discord: discordName,
+          turnstile: getTurnstileResponse()
+        })
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.error || "Verification failed");
+      return j.token;
+    }
+
+    async function ensureVerified() {
+      const cached = sessionStorage.getItem("completion_token");
+      if (cached) return cached;
+
+      openVerifyOverlay();
+
+      return await new Promise(resolve => {
+        verifyCancel.onclick = () => {
+          closeVerifyOverlay();
+          resolve(null);
+        };
+
+        verifyGo.onclick = async () => {
+          verifyMsg.textContent = "verifying…";
+          verifyGo.disabled = true;
+
+          try {
+            const name = (verifyDiscord.value || "").trim();
+            if (!name) throw new Error("Enter a discord name first.");
+            const ts = getTurnstileResponse();
+            if (!ts) throw new Error("Complete the verification checkbox first.");
+
+            const token = await getCompletionToken(name);
+            sessionStorage.setItem("completion_token", token);
+            verifyMsg.textContent = "verified.";
+            setTimeout(() => {
+              closeVerifyOverlay();
+              verifyGo.disabled = false;
+              resolve(token);
+            }, 450);
+          } catch (e) {
+            verifyMsg.textContent = String(e?.message || "Verification failed.");
+            verifyGo.disabled = false;
+          }
+        };
+      });
     }
 
     /* ======================
@@ -268,15 +347,16 @@
     }
 
     /* ======================
-       CRACKS (SVG)
+       CINEMATIC CRACKS
     ====================== */
     let crackBuilt = false;
+    let crackOrigin = { x: 500, y: 500 }; // viewBox coords
 
-    function seededRandFactory() {
-      let seed = Math.floor(Math.random() * 2147483647);
+    function seededRandFactory(seed) {
+      let s = seed || Math.floor(Math.random() * 2147483647);
       return function rnd() {
-        seed = (1103515245 * seed + 12345) % 2147483647;
-        return seed / 2147483647;
+        s = (1103515245 * s + 12345) % 2147483647;
+        return s / 2147483647;
       };
     }
 
@@ -286,11 +366,11 @@
       let a = angle;
 
       for (let i = 0; i < segments; i++) {
-        const tt = (i + 1) / segments;
-        a += (rnd() - 0.5) * (0.16 + wanderScale * tt);
+        const t = (i + 1) / segments;
+        a += (rnd() - 0.5) * (0.18 + wanderScale * t);
 
         const step = length / segments;
-        const jitter = (rnd() - 0.5) * (8 + 28 * tt);
+        const jitter = (rnd() - 0.5) * (6 + 22 * t);
 
         const dx = Math.cos(a) * step + Math.cos(a + Math.PI / 2) * jitter;
         const dy = Math.sin(a) * step + Math.sin(a + Math.PI / 2) * jitter;
@@ -301,27 +381,30 @@
       return d;
     }
 
+    function triple(d) {
+      const dash = 999;
+      return `
+        <path class="crack-core crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
+        <path class="crack-hi   crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
+        <path class="crack-glint crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
+      `;
+    }
+
     function buildCrackSVG() {
-      const rnd = seededRandFactory();
-      const cx = 500, cy = 500;
+      // seed based on origin so it "feels" consistent per shatter
+      const seed = ((crackOrigin.x * 73856093) ^ (crackOrigin.y * 19349663)) >>> 0;
+      const rnd = seededRandFactory(seed);
 
-      const sx = cx + (rnd() - 0.5) * 12;
-      const sy = cy + (rnd() - 0.5) * 12;
+      const cx = crackOrigin.x, cy = crackOrigin.y;
+      const sx = cx + (rnd() - 0.5) * 8;
+      const sy = cy + (rnd() - 0.5) * 8;
 
+      // staged main cracks
       const stages = [
-        { id: 1, main: 3, branchChance: 0.35, len: [110, 190], seg: [4, 6], wander: 0.20 },
-        { id: 2, main: 5, branchChance: 0.55, len: [170, 280], seg: [5, 8], wander: 0.28 },
-        { id: 3, main: 7, branchChance: 0.75, len: [240, 420], seg: [6, 10], wander: 0.36 },
+        { id: 1, main: 3, branchChance: 0.45, len: [140, 230], seg: [5, 7], wander: 0.22 },
+        { id: 2, main: 5, branchChance: 0.62, len: [210, 330], seg: [6, 9], wander: 0.30 },
+        { id: 3, main: 7, branchChance: 0.78, len: [280, 460], seg: [7, 11], wander: 0.38 },
       ];
-
-      const triple = (d) => {
-        const dash = 999;
-        return `
-          <path class="crack-under crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-          <path class="crack-line  crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-          <path class="crack-glint crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
-        `;
-      };
 
       const stageMarkup = stages.map(cfg => {
         const parts = [];
@@ -333,51 +416,39 @@
           const d = makeWobblyPath(rnd, sx, sy, baseAngle, len, seg, cfg.wander);
           parts.push(triple(d));
 
-          if (rnd() < cfg.branchChance) {
-            const bAngle = baseAngle + (rnd() < 0.5 ? -1 : 1) * (0.55 + rnd() * 0.60);
-            const bLen = 60 + rnd() * (120 + cfg.id * 40);
-            const bSeg = 3 + Math.floor(rnd() * 5);
+          // branches
+          const branches = (rnd() < cfg.branchChance) ? (1 + (rnd() < 0.25 ? 1 : 0)) : 0;
+          for (let b = 0; b < branches; b++) {
+            const bAngle = baseAngle + (rnd() < 0.5 ? -1 : 1) * (0.55 + rnd() * 0.70);
+            const bLen = 80 + rnd() * (140 + cfg.id * 50);
+            const bSeg = 4 + Math.floor(rnd() * 6);
 
-            const anchorDist = len * (0.28 + rnd() * 0.22);
+            const anchorDist = len * (0.22 + rnd() * 0.30);
             const bx = sx + Math.cos(baseAngle) * anchorDist;
             const by = sy + Math.sin(baseAngle) * anchorDist;
 
-            const bd = makeWobblyPath(rnd, bx, by, bAngle, bLen, bSeg, cfg.wander + 0.12);
+            const bd = makeWobblyPath(rnd, bx, by, bAngle, bLen, bSeg, cfg.wander + 0.10);
             parts.push(triple(bd));
           }
         }
         return `<g class="crack-stage" data-stage="${cfg.id}" style="display:none">${parts.join("")}</g>`;
       }).join("");
 
-      // shards as polyline (never fill)
-      const shards = [];
-      for (let i = 0; i < 18; i++) {
+      // hairline stress cracks (always present, subtle)
+      const hair = [];
+      for (let i = 0; i < 26; i++) {
         const a = rnd() * Math.PI * 2;
-        const r = 90 + rnd() * 340;
-        const px = cx + Math.cos(a) * r;
-        const py = cy + Math.sin(a) * r;
-
-        const size = 60 + rnd() * 130;
-        const a2 = a + (rnd() - 0.5) * 1.0;
-
-        const p1 = `${px.toFixed(1)},${py.toFixed(1)}`;
-        const p2 = `${(px + Math.cos(a2) * size).toFixed(1)},${(py + Math.sin(a2) * size).toFixed(1)}`;
-        const p3 = `${(px + Math.cos(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)},${(py + Math.sin(a2 + 1.7) * (size * (0.55 + rnd() * 0.70))).toFixed(1)}`;
-
-        const delay = (0.03 * i + rnd() * 0.10).toFixed(2);
-        const dur = (0.95 + rnd() * 0.55).toFixed(2);
-
-        shards.push(
-          `<polyline class="shard" fill="none" points="${p1} ${p2} ${p3}"
-            style="animation-delay:${delay}s;animation-duration:${dur}s;"/>`
-        );
+        const len = 120 + rnd() * 520;
+        const seg = 6 + Math.floor(rnd() * 10);
+        const d = makeWobblyPath(rnd, sx, sy, a, len, seg, 0.10 + rnd() * 0.10);
+        const dash = 999;
+        hair.push(`<path class="hair crack-path" d="${d}" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>`);
       }
 
       return `
-        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none"
-             xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <g class="hair-stage">${hair.join("")}</g>
           ${stageMarkup}
-          ${shards.join("")}
         </svg>
       `;
     }
@@ -399,87 +470,102 @@
     }
 
     /* ======================
-       PAGE FALL TRANSITION
+       FALLING PIECES REVEAL
     ====================== */
-    function pageFallToSim() {
-      if (stage === 99) return;
+    function buildFallingTiles() {
+      shatterLayer.innerHTML = "";
+      shatterLayer.classList.remove("hidden");
 
-      const wrap = document.getElementById("wrap");
-      const rect = wrap.getBoundingClientRect();
+      // reveal sim behind
+      simRoom.classList.remove("hidden");
 
-      const layer = document.createElement("div");
-      layer.id = "fallLayer";
+      const rows = 4;
+      const cols = 6;
 
-      const COLS = 4;
-      const ROWS = 3;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
 
-      const tileW = rect.width / COLS;
-      const tileH = rect.height / ROWS;
+      const tileW = Math.ceil(vw / cols);
+      const tileH = Math.ceil(vh / rows);
 
-      function makeCleanClone() {
-        const clone = wrap.cloneNode(true);
-        clone.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
-        return clone;
-      }
-
-      for (let r = 0; r < ROWS; r++) {
-        for (let c = 0; c < COLS; c++) {
-          const left = rect.left + c * tileW;
-          const top  = rect.top  + r * tileH;
+      // create a clone of the whole "landing" area (#wrap)
+      // and position it so each tile shows the right portion
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = c * tileW;
+          const y = r * tileH;
 
           const tile = document.createElement("div");
-          tile.className = "fallTile";
-          tile.style.left = `${left}px`;
-          tile.style.top = `${top}px`;
-          tile.style.width = `${tileW}px`;
-          tile.style.height = `${tileH}px`;
+          tile.className = "shatter-tile";
+          tile.style.left = x + "px";
+          tile.style.top = y + "px";
+          tile.style.width = tileW + "px";
+          tile.style.height = tileH + "px";
 
-          const dx = (Math.random() - 0.5) * 180;
-          const dy = 520 + Math.random() * 520;
-          const rot = (Math.random() - 0.5) * 26;
-          const delay = (r * 55 + c * 35 + Math.random() * 90) | 0;
-          const dur = (820 + Math.random() * 520) | 0;
+          // movement
+          const tx = (Math.random() - 0.5) * 220;
+          const ty = 520 + Math.random() * 560;
+          const rot = (Math.random() - 0.5) * 38;
 
-          tile.style.setProperty("--dx", `${dx}px`);
-          tile.style.setProperty("--dy", `${dy}px`);
+          tile.style.setProperty("--tx", `${tx}px`);
+          tile.style.setProperty("--ty", `${ty}px`);
           tile.style.setProperty("--rot", `${rot}deg`);
-          tile.style.setProperty("--delay", `${delay}ms`);
-          tile.style.setProperty("--dur", `${dur}ms`);
 
+          // inside clone (so tile looks like real page fragment)
           const inner = document.createElement("div");
-          inner.className = "fallInner";
+          inner.className = "shatter-inner";
 
-          const clone = makeCleanClone();
-          clone.style.position = "fixed";
-          clone.style.left = `${rect.left}px`;
-          clone.style.top = `${rect.top}px`;
-          clone.style.width = `${rect.width}px`;
-
-          inner.style.transform = `translate(${-c * tileW}px, ${-r * tileH}px)`;
+          const clone = wrap.cloneNode(true);
+          clone.style.margin = "0";
+          clone.style.transform = `translate(${-x}px, ${-y}px)`;
+          clone.style.width = vw + "px";
+          clone.style.maxWidth = "none";
 
           inner.appendChild(clone);
           tile.appendChild(inner);
-          layer.appendChild(tile);
+          shatterLayer.appendChild(tile);
         }
       }
-
-      document.body.classList.add("falling");
-      document.body.appendChild(layer);
-
-      const totalMs = 1600;
-      setTimeout(() => {
-        layer.remove();
-        cracks.classList.add("hidden");
-        document.body.classList.remove("falling");
-        document.body.classList.add("sim-transition");
-        openSimRoom();
-      }, totalMs);
     }
 
-    function shatterToSim() {
-      cracks.classList.add("flash", "shatter");
+    async function shatterToSim() {
+      // 1) gate access with Turnstile
+      const token = await ensureVerified();
+      if (!token) return; // user cancelled
+
+      // 2) crack flash at click position
+      cracks.classList.add("flash");
+      document.body.style.setProperty("--flash-x", `${(crackOrigin.x / 1000) * 100}%`);
+      document.body.style.setProperty("--flash-y", `${(crackOrigin.y / 1000) * 100}%`);
+
+      // 3) build falling tiles and animate them away
       document.body.classList.add("sim-transition");
-      pageFallToSim();
+      buildFallingTiles();
+
+      const tiles = Array.from(shatterLayer.querySelectorAll(".shatter-tile"));
+      tiles.forEach((t, i) => {
+        const delay = 0.02 * i + Math.random() * 0.06;
+        const dur = 0.95 + Math.random() * 0.55;
+        t.style.animation = `tileFall ${dur.toFixed(2)}s ease-in forwards`;
+        t.style.animationDelay = `${delay.toFixed(2)}s`;
+      });
+
+      // 4) while tiles fall, also show crack overlay briefly
+      cracks.classList.add("show");
+      cracks.classList.remove("hidden");
+
+      setTimeout(() => {
+        // remove old landing from view
+        wrap.style.opacity = "0";
+      }, 120);
+
+      // 5) finalize into sim
+      setTimeout(() => {
+        cracks.classList.add("hidden");
+        shatterLayer.classList.add("hidden");
+        shatterLayer.innerHTML = "";
+        openSimRoom();
+      }, 1450);
     }
 
     /* ======================
@@ -494,6 +580,13 @@
       lastClick = now;
 
       clicks++;
+
+      // set crack origin from click position
+      const px = e.clientX / window.innerWidth;
+      const py = e.clientY / window.innerHeight;
+      crackOrigin = { x: Math.round(px * 1000), y: Math.round(py * 1000) };
+      crackBuilt = false; // rebuild for new origin
+      cracks.innerHTML = "";
 
       if (clicks === 4) showCrackStage(1);
       if (clicks === 6) showCrackStage(2);
@@ -512,7 +605,7 @@
         setTimeout(() => { l3.textContent = "Stop."; }, t3);
 
         const tShatter = t3 + msToRead("Stop.") + 850;
-        setTimeout(shatterToSim, tShatter);
+        setTimeout(() => { shatterToSim(); }, tShatter);
       }
     });
   }
