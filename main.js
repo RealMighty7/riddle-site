@@ -673,30 +673,152 @@
       return true;
     }
 
-    /* ======================
-       CRACKS (simple placeholder)
-    ====================== */
-    var crackBuilt = false;
-    function ensureCracks() {
-      if (crackBuilt) return;
-      cracks.innerHTML = "<svg viewBox='0 0 1000 1000' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'></svg>";
-      crackBuilt = true;
+   /* ======================
+   CRACKS (WORKING)
+====================== */
+var crackLevel = 0;
+
+function buildCrackSVG(level) {
+  // level: 1..4
+  var w = 1000, h = 1000;
+  var cx = 500, cy = 500;
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+
+  function makePath(points) {
+    return "M " + points.map(function(p){ return p[0].toFixed(1)+" "+p[1].toFixed(1); }).join(" L ");
+  }
+
+  // more level => more branches + longer
+  var branches = 6 + level * 4;
+  var maxLen = 240 + level * 120;
+
+  var svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("viewBox","0 0 "+w+" "+h);
+  svg.setAttribute("preserveAspectRatio","none");
+
+  var g = document.createElementNS(svg.namespaceURI,"g");
+
+  for (var i=0;i<branches;i++){
+    var ang = (Math.PI*2) * (i/branches) + rand(-0.18,0.18);
+    var len = rand(maxLen*0.55, maxLen);
+
+    var pts = [];
+    pts.push([cx + rand(-6,6), cy + rand(-6,6)]);
+
+    var steps = 6 + level * 2;
+    var x = cx, y = cy;
+
+    for (var s=0;s<steps;s++){
+      var t = (s+1)/steps;
+      var wob = rand(-18,18) * (0.35 + t);
+      x = cx + Math.cos(ang) * (len*t) + Math.cos(ang+Math.PI/2)*wob;
+      y = cy + Math.sin(ang) * (len*t) + Math.sin(ang+Math.PI/2)*wob;
+      pts.push([x,y]);
+
+      // occasional micro-split
+      if (level >= 2 && Math.random() < 0.18) {
+        var bx = x + rand(-18,18);
+        var by = y + rand(-18,18);
+        pts.push([bx,by]);
+      }
     }
-    function showCrackStage() {
-      ensureCracks();
-      cracks.classList.remove("hidden");
-      cracks.classList.add("show");
+
+    var d = makePath(pts);
+
+    // under
+    var pUnder = document.createElementNS(svg.namespaceURI,"path");
+    pUnder.setAttribute("d", d);
+    pUnder.setAttribute("class","crack-path crack-under");
+
+    // main
+    var pLine = document.createElementNS(svg.namespaceURI,"path");
+    pLine.setAttribute("d", d);
+    pLine.setAttribute("class","crack-path crack-line");
+
+    // glint
+    var pGlint = document.createElementNS(svg.namespaceURI,"path");
+    pGlint.setAttribute("d", d);
+    pGlint.setAttribute("class","crack-path crack-glint");
+
+    g.appendChild(pUnder);
+    g.appendChild(pLine);
+    g.appendChild(pGlint);
+  }
+
+  // shards (only visible when #cracks has .shatter)
+  if (level >= 3) {
+    var shardCount = 10 + level * 6;
+    for (var k=0;k<shardCount;k++){
+      var sx = cx + rand(-260,260);
+      var sy = cy + rand(-180,180);
+      var sw = rand(22,90);
+      var sh = rand(16,70);
+
+      var shard = document.createElementNS(svg.namespaceURI,"rect");
+      shard.setAttribute("x", (sx - sw/2).toFixed(1));
+      shard.setAttribute("y", (sy - sh/2).toFixed(1));
+      shard.setAttribute("width", sw.toFixed(1));
+      shard.setAttribute("height", sh.toFixed(1));
+      shard.setAttribute("rx", "2");
+      shard.setAttribute("class","shard");
+
+      // fly direction
+      var dx = rand(-220,220);
+      var dy = rand(80,420);
+      var dr = rand(-30,30);
+      shard.style.setProperty("--dx", dx.toFixed(0)+"px");
+      shard.style.setProperty("--dy", dy.toFixed(0)+"px");
+      shard.style.setProperty("--dr", dr.toFixed(0)+"deg");
+
+      g.appendChild(shard);
     }
-    function shatterToSim() {
-      AUDIO.thud();
-      AUDIO.glitch();
-      cracks.classList.add("flash", "shatter");
-      document.body.classList.add("sim-transition");
-      setTimeout(function () {
-        cracks.classList.add("hidden");
-        openSimRoom();
-      }, 650);
-    }
+  }
+
+  svg.appendChild(g);
+  return svg;
+}
+
+function applyDash(svgEl){
+  // for each crack path, set dash so crackDraw animates
+  var paths = svgEl.querySelectorAll(".crack-path");
+  paths.forEach(function(p){
+    try{
+      var len = p.getTotalLength();
+      p.style.strokeDasharray = String(len);
+      p.style.strokeDashoffset = String(len);
+    }catch(e){}
+  });
+}
+
+function ensureCracks(level){
+  level = Math.max(1, Math.min(4, level));
+  if (level === crackLevel) return;
+  crackLevel = level;
+
+  cracks.innerHTML = "";
+  var svg = buildCrackSVG(level);
+  cracks.appendChild(svg);
+  applyDash(svg);
+}
+
+function showCrackStage(level){
+  ensureCracks(level);
+  cracks.classList.remove("hidden");
+  cracks.classList.add("show");
+}
+
+function shatterToSim(){
+  // final break: flash + shards fall
+  cracks.classList.add("flash");
+  cracks.classList.add("shatter");
+  document.body.classList.add("sim-transition");
+
+  setTimeout(function(){
+    cracks.classList.add("hidden");
+    openSimRoom();
+  }, 700);
+}
 
     /* ======================
        LANDING CLICK
@@ -711,7 +833,11 @@
 
       clicks++;
 
-      if (clicks === 4) showCrackStage();
+      if (clicks === 3) showCrackStage(1);
+      if (clicks === 5) showCrackStage(2);
+      if (clicks === 7) showCrackStage(3);
+      if (clicks === 8) showCrackStage(4);
+
 
       if (clicks >= 9) {
         stage = 2;
