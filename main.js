@@ -891,24 +891,46 @@ function addSeg(svg, d, rank) {
       crackBuilt = true;
     }
 
-    function setCrackStage(n) {
-      ensureCracks();
+function setCrackStage(n) {
+  ensureCracks();
 
-      const next = Math.max(crackStage, n);
-      if (next === crackStage) return;
+  const next = Math.max(crackStage, n);
+  if (next === crackStage) return;
 
-      crackStage = next;
-      cracks.dataset.stage = String(crackStage);
+  const prev = crackStage;
+  crackStage = next;
 
-      const paneMap = { 1: 0.14, 2: 0.24, 3: 0.34, 4: 0.44 };
-      cracks.style.setProperty("--paneOpacity", String(paneMap[crackStage] ?? 0.0));
+  cracks.dataset.stage = String(crackStage);
 
-      cracks.classList.remove("hidden");
-      cracks.classList.add("show");
+  // shard pane intensity (your existing look)
+  const paneMap = { 1: 0.14, 2: 0.24, 3: 0.34, 4: 0.44 };
+  cracks.style.setProperty("--paneOpacity", String(paneMap[crackStage] ?? 0.0));
 
-      if (crackStage === 1) playSfx("thud", 0.55);
-      else playSfx("static1", 0.3);
-    }
+  // show overlay
+  cracks.classList.remove("hidden");
+  cracks.classList.add("show");
+
+  // Reveal all segs up to current stage
+  const segs = cracks.querySelectorAll(".seg");
+  segs.forEach(seg => {
+    const r = Number(seg.getAttribute("data-rank") || "0");
+    if (r <= crackStage) seg.classList.add("on");
+  });
+
+  // Animate ONLY the newly unlocked rank(s)
+  // (usually just one rank at a time, but supports skipping)
+  for (let r = prev + 1; r <= crackStage; r++) {
+    const newly = cracks.querySelectorAll(`.seg[data-rank="${r}"] .crack-path.pending`);
+    newly.forEach(p => {
+      p.classList.remove("pending");
+      p.classList.add("draw");
+    });
+  }
+
+  if (crackStage === 1) playSfx("thud", 0.55);
+  else playSfx("static1", 0.30);
+}
+
 
     function buildGlassPieces() {
       glassFX.innerHTML = "";
