@@ -241,8 +241,13 @@ window.TASKS = (() => {
     const inEl = ctx.taskBody.querySelector("#in");
     const msg = ctx.taskBody.querySelector("#msg");
 
-    const showMs = clamp(1400 - (ctx.difficultyBoost?.() ?? 0) * 180, 850, 1600);
-    setTimeout(() => { seqEl.textContent = "— — — — —"; seqEl.style.opacity = "0.6"; }, showMs);
+    // Always give 10 seconds to memorize (per your request)
+    const showMs = 10000;
+    setTimeout(() => {
+      seqEl.textContent = Array.from({ length: sequence.length }, () => "—").join(" ");
+      seqEl.style.opacity = "0.6";
+    }, showMs);
+
 
     const pool = symbols.slice(0, 5 + clamp(ctx.difficultyBoost?.() ?? 0, 0, 2));
     pool.forEach(s => {
