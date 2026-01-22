@@ -606,6 +606,101 @@ function ensureCracks() {
     const r = radiusMin + rng() * (radiusMax - radiusMin);
     return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
   };
+function setCrackStage(n) {
+  ensureCracks();
+
+  const next = Math.max(crackStage, n);
+  if (next === crackStage) return;
+
+  crackStage = next;
+  cracks.dataset.stage = String(crackStage);
+
+  // flash intensity proportional to stage (used by CSS)
+  const paneMap = { 1: 0.10, 2: 0.18, 3: 0.26, 4: 0.34 };
+  cracks.style.setProperty("--paneOpacity", String(paneMap[crackStage] ?? 0.0));
+
+  cracks.classList.remove("hidden");
+  cracks.classList.add("show");
+
+  // only play audio when stage increases
+  if (crackStage === 1) playSfx("thud", 0.55);
+  else playSfx("static1", 0.30);
+}
+function buildGlassPieces() {
+  glassFX.innerHTML = "";
+
+  // make a simple grid of pieces that feels like “screen sections”
+  // (cheap + reliable, no canvas)
+  const cols = 7;
+  const rows = 5;
+
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  const pad = 6;
+  const cellW = Math.floor(w / cols);
+  const cellH = Math.floor(h / rows);
+
+  const pieces = [];
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = c * cellW + pad;
+      const y = r * cellH + pad;
+      const pw = cellW - pad * 2;
+      const ph = cellH - pad * 2;
+
+      const p = document.createElement("div");
+      p.className = "glass-piece";
+      p.style.left = x + "px";
+      p.style.top = y + "px";
+      p.style.width = pw + "px";
+      p.style.height = ph + "px";
+
+      // subtle random rotation variation
+      const rot = (Math.random() * 10 - 5).toFixed(2) + "deg";
+      p.style.setProperty("--rot", rot);
+
+      glassFX.appendChild(p);
+      pieces.push(p);
+    }
+  }
+
+  // randomize fall order so it feels like “panes dropping”
+  for (let i = pieces.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+  }
+
+  return pieces;
+}
+
+async function shatterToSim() {
+  // “freeze” clicks
+  stage = 99;
+
+  // show glass pieces
+  const pieces = buildGlassPieces();
+  document.body.classList.add("sim-transition");
+
+  // hide crack lines (the pieces become “the screen” now)
+  cracks.classList.add("hidden");
+
+  // drop them one by one
+  glassFX.classList.add("glass-fall");
+  pieces.forEach((p, i) => {
+    p.style.animationDelay = (i * 55) + "ms";
+  });
+
+  // wait until most pieces are gone
+  const totalMs = 1100 + pieces.length * 55;
+  setTimeout(() => {
+    glassFX.innerHTML = "";
+    glassFX.classList.remove("glass-fall");
+    document.body.classList.remove("sim-transition");
+    shatterToSim();
+  }, totalMs);
+}
 
   // =========================
   // STAGE 1 (rank 1): small center "impact" star
@@ -712,7 +807,7 @@ function ensureCracks() {
         }, Math.max(0, t3 - 280));
 
         setTimeout(() => {
-          openSimRoom();
+          shatterToSim();
         }, t3);
       }
     });
