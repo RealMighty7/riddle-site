@@ -1,13 +1,12 @@
 :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
 body { margin: 0; background: #f6f7f9; color: #111; }
 
+/* disable highlight globally */
 html, body { -webkit-tap-highlight-color: transparent; }
 body { user-select: none; -webkit-user-select: none; }
 
-input, textarea, [contenteditable="true"] {
-  user-select: text;
-  -webkit-user-select: text;
-}
+/* allow typing inside inputs */
+input, textarea, [contenteditable="true"] { user-select: text; -webkit-user-select: text; }
 
 #wrap{
   max-width: 900px;
@@ -47,37 +46,28 @@ p{ margin: 0; line-height: 1.4; }
 
 .hidden{ display:none !important; }
 
-/* pill helper used by tasks */
+/* small UI bits used by tasks */
 .pill{
-  display:inline-flex;
-  gap:8px;
-  align-items:center;
-  padding: 10px 12px;
+  display:inline-block;
+  padding: 8px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(0,0,0,0.22);
-  color:#e5e7eb;
-  font-size: 13px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: #e5e7eb;
 }
-
-/* anchors used by anchors task */
 .anchor{
   position: fixed;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 6px;
-  background: rgba(120,180,255,0.85);
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.35), 0 0 18px rgba(120,180,255,0.45);
+  border: 1px solid rgba(255,255,255,0.28);
+  background: rgba(120,180,255,0.22);
+  box-shadow: 0 0 20px rgba(120,180,255,0.22);
+  z-index: 10010;
   cursor: pointer;
-  z-index: 10005;
 }
-.anchor::after{
-  content:"";
-  position:absolute;
-  inset:-10px;
-  border-radius: 12px;
-  border: 1px dashed rgba(120,180,255,0.35);
-  opacity: .7;
+.anchor:hover{
+  background: rgba(120,180,255,0.34);
 }
 
 /* =========================
@@ -114,132 +104,70 @@ p{ margin: 0; line-height: 1.4; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-
 #cracks .crack-under{
-  stroke: rgba(0,0,0,.20);
-  stroke-width: 3.4;
-  filter: blur(.6px);
-  opacity: .82;
+  stroke: rgba(0,0,0,.28);
+  stroke-width: 3.0;
+  filter: blur(.35px);
+  opacity: .65;
 }
 #cracks .crack-line{
-  stroke: rgba(255,255,255,.86);
-  stroke-width: 1.55;
-  opacity: .95;
-}
-#cracks .crack-glint{
-  stroke: rgba(170,220,255,.85);
-  stroke-width: 1.0;
-  filter: drop-shadow(0 0 12px rgba(160,220,255,.45));
+  stroke: rgba(255,255,255,.85);
+  stroke-width: 1.6;
   opacity: .9;
 }
-
-#cracks .stageGroup{
-  opacity: 0;
-  transition: opacity .16s ease;
+#cracks .crack-glint{
+  stroke: rgba(170,220,255,.78);
+  stroke-width: 1.0;
+  filter: drop-shadow(0 0 12px rgba(160,220,255,.30));
+  opacity: .80;
 }
-#cracks.show .stageGroup.on{ opacity: 1; }
-#cracks .stageGroup.on .crack-path{ animation: crackDraw 0.85s ease-out forwards; }
+
+/* animate only newly-added paths (JS sets .new) */
+#cracks .new{ animation: crackDraw 1.05s ease-out forwards; }
 @keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
 
-#cracks .shard{
-  stroke: rgba(235,245,255,.55);
-  stroke-width: 1.1;
-  vector-effect: non-scaling-stroke;
-  opacity: 0;
-  filter: drop-shadow(0 0 14px rgba(180,220,255,.35));
-  transform-origin: center;
-}
-#cracks.shatter .shard{
-  opacity: 1;
-  animation: shardFly 0.9s ease-out forwards;
-}
-@keyframes shardFly{
-  0%   { transform: translate(0,0) scale(1); opacity: 0; }
-  15%  { opacity: .9; }
-  100% { transform: translate(var(--dx,0px), var(--dy,0px)) rotate(var(--dr,0deg)) scale(1.12); opacity: 0; }
-}
-
+/* flash pulse */
 #cracks.flash::after{
   content:"";
   position:absolute;
   inset:0;
-  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.85), rgba(255,255,255,0) 58%);
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.75), rgba(255,255,255,0) 58%);
   opacity: 0;
-  animation: crackFlash .32s ease-out forwards;
+  animation: crackFlash .35s ease-out forwards;
 }
 @keyframes crackFlash{
   0%{opacity:0}
-  35%{opacity:.55}
+  35%{opacity:.48}
   100%{opacity:0}
 }
 
 /* =========================
-   GLASS REFRACTION LAYER
+   CINEMATIC GLASS FALL (shards)
 ========================= */
 #glassFX.glassfx{
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 10000;
-  opacity: 0;
-  transition: opacity .18s ease;
+  z-index: 10002;
 }
-#glassFX.glassfx.show{
-  opacity: 1;
-  backdrop-filter:
-    blur(var(--glassBlur, 1px))
-    saturate(var(--glassSat, 1.12))
-    brightness(var(--glassBright, 1.02))
-    contrast(var(--glassContrast, 1.06));
-  -webkit-backdrop-filter:
-    blur(var(--glassBlur, 1px))
-    saturate(var(--glassSat, 1.12))
-    brightness(var(--glassBright, 1.02))
-    contrast(var(--glassContrast, 1.06));
-}
-#glassFX.glassfx::before{
-  content:"";
-  position:absolute;
-  inset:-12%;
-  background:
-    radial-gradient(900px 600px at 25% 35%, rgba(180,220,255,.14), transparent 60%),
-    radial-gradient(700px 500px at 70% 60%, rgba(255,170,210,.08), transparent 62%),
-    linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,0) 55%);
-  opacity: .55;
-  transform: rotate(2deg);
-  filter: blur(.2px);
-}
-
-#glassFX .piece{
+#glassFX .shard{
   position: absolute;
-  pointer-events: none;
-  backdrop-filter: blur(2.2px) saturate(1.25) contrast(1.10);
-  -webkit-backdrop-filter: blur(2.2px) saturate(1.25) contrast(1.10);
-  background: rgba(255,255,255,0.02);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.08) inset,
-    0 10px 40px rgba(0,0,0,0.35);
-  transform-origin: center;
-  opacity: 1;
+  inset: 0;
+  background: rgba(255,255,255,0.035);
+  backdrop-filter: blur(2px) saturate(140%);
+  -webkit-backdrop-filter: blur(2px) saturate(140%);
+  box-shadow: 0 18px 55px rgba(0,0,0,0.18);
+  opacity: 0.0;
+  transform: translate3d(0,0,0);
 }
-#glassFX .piece::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,0) 55%),
-    radial-gradient(circle at 30% 30%, rgba(170,220,255,.18), rgba(0,0,0,0) 55%);
-  mix-blend-mode: screen;
-  opacity: .65;
+#glassFX.falling .shard{
+  opacity: 0.9;
+  animation: shardFall 1.55s cubic-bezier(.2,.9,.2,1) forwards;
 }
-
-@keyframes pieceFall {
-  0%   { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
-  70%  { opacity: 1; }
-  100% { transform: translate(var(--px, 0px), var(--py, 520px)) rotate(var(--pr, 18deg)) scale(1.06); opacity: 0; }
-}
-#glassFX.fall .piece{
-  animation: pieceFall var(--pd, 900ms) cubic-bezier(.12,.82,.22,1) forwards;
+@keyframes shardFall{
+  0%   { transform: translate3d(0,0,0) rotate(0deg); opacity: .0; }
+  10%  { opacity: .95; }
+  100% { transform: translate3d(0, 120vh, 0) rotate(6deg); opacity: 0; }
 }
 
 /* =========================
@@ -252,6 +180,7 @@ p{ margin: 0; line-height: 1.4; }
   color: #e5e7eb;
   z-index: 9999;
 }
+
 .sim-bg{
   position: absolute;
   inset: 0;
@@ -260,36 +189,44 @@ p{ margin: 0; line-height: 1.4; }
     radial-gradient(900px 700px at 80% 60%, rgba(255,120,160,0.10), transparent 60%),
     linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.0));
 }
+
+/* prevent tasks being cut off: panel becomes full-height column */
 .sim-panel{
   position: relative;
   max-width: 900px;
-  margin: 40px auto;
-  padding: 20px;
-  padding-bottom: 96px; /* prevents task UI bottom clipping */
+  margin: 24px auto;
+  padding: 18px;
+  height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   box-sizing: border-box;
 }
+
 .sim-title{
   font-size: 12px;
   letter-spacing: 0.22em;
   opacity: 0.7;
-  margin-bottom: 12px;
 }
+
 .sim-text{
   background: rgba(10, 14, 28, 0.88);
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 14px;
   padding: 16px;
   line-height: 1.45;
-  max-height: 62vh;
   overflow: auto;
   white-space: pre-wrap;
+  flex: 1 1 auto;
+  min-height: 160px;
 }
+
 .sim-choices{
-  margin-top: 12px;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
+
 .sim-btn{
   border: 1px solid rgba(255,255,255,0.18);
   background: rgba(255,255,255,0.06);
@@ -303,8 +240,21 @@ p{ margin: 0; line-height: 1.4; }
   border-color: rgba(255, 80, 80, 0.45);
   background: rgba(255, 80, 80, 0.12);
 }
+
+#taskUI{
+  background: rgba(10, 14, 28, 0.68);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  padding: 14px;
+}
+#taskBody{
+  max-height: 34vh;
+  overflow: auto;
+  padding-right: 6px;
+}
 .task-actions{ margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
 
+/* reset overlay */
 .reset{
   position: fixed;
   inset: 0;
@@ -337,7 +287,17 @@ p{ margin: 0; line-height: 1.4; }
   font-size: 12px;
 }
 
-/* hack line helpers */
+/* hack lines */
+.hack-lines{
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.20);
+  max-height: 52vh;
+  overflow:auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
 .hack-line{
   display:flex;
   gap: 10px;
@@ -359,115 +319,4 @@ p{ margin: 0; line-height: 1.4; }
 .hack-line.target .hack-ln{
   color: rgba(255,210,140,.95);
   opacity: .95;
-}
-/* =========================
-   GLASS FX (cracks + falling pieces)
-========================= */
-
-#cracks.cracks{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10000;
-  opacity: 0;
-  transform: translateZ(0);
-}
-#cracks.cracks.show{ opacity: 1; }
-
-#cracks.cracks::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  /* subtle dim so cracks read on white pages */
-  background: rgba(0,0,0,0.06);
-}
-
-#cracks.cracks svg{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-}
-
-#cracks svg *{ fill: none !important; }
-
-#cracks .crack-path{
-  vector-effect: non-scaling-stroke;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  /* makes cracks pop on light backgrounds */
-  mix-blend-mode: multiply;
-}
-
-#cracks .crack-under{
-  stroke: rgba(0,0,0,.45);
-  stroke-width: 3.2;
-  filter: blur(.25px);
-  opacity: .85;
-}
-#cracks .crack-line{
-  stroke: rgba(255,255,255,.95);
-  stroke-width: 1.6;
-  opacity: .95;
-}
-#cracks .crack-glint{
-  stroke: rgba(140,210,255,.95);
-  stroke-width: 1.0;
-  filter: drop-shadow(0 0 10px rgba(140,210,255,.35));
-  opacity: .85;
-}
-
-#cracks.show .crack-path{
-  animation: crackDraw 1.05s ease-out forwards;
-}
-@keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
-
-/* stage reveal: hide all, then reveal up to stage */
-#cracks .seg{ opacity: 0; }
-#cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
-#cracks[data-stage="2"] .seg[data-rank="1"],
-#cracks[data-stage="2"] .seg[data-rank="2"]{ opacity: 1; }
-#cracks[data-stage="3"] .seg[data-rank="1"],
-#cracks[data-stage="3"] .seg[data-rank="2"],
-#cracks[data-stage="3"] .seg[data-rank="3"]{ opacity: 1; }
-
-/* Falling pieces overlay */
-#glassFX.glassfx{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10001;
-}
-
-#glassFX.hidden{ display:none !important; }
-
-.glass-piece{
-  position: absolute;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(220,240,255,0.28);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.20);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  transform-origin: center;
-  will-change: transform, opacity;
-}
-
-.glass-piece::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: linear-gradient(135deg, rgba(160,220,255,0.18), rgba(255,255,255,0));
-  opacity: .8;
-  border-radius: inherit;
-}
-
-.glass-fall .glass-piece{
-  animation: fallPiece 1.15s cubic-bezier(.2,.9,.25,1) forwards;
-}
-
-@keyframes fallPiece{
-  0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
-  20%  { opacity: 1; }
-  100% { transform: translateY(120vh) rotate(var(--rot, 18deg)) scale(1.02); opacity: 0; }
 }
