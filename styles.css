@@ -11,7 +11,6 @@ input, textarea, [contenteditable="true"] {
   -webkit-user-select: text;
 }
 
-
 #wrap{
   max-width: 900px;
   margin: 24px auto;
@@ -51,7 +50,7 @@ p{ margin: 0; line-height: 1.4; }
 .hidden{ display:none !important; }
 
 /* =========================
-   GLASS CRACK OVERLAY (hard-forced)
+   GLASS CRACK OVERLAY
 ========================= */
 #cracks.cracks{
   position: fixed;
@@ -63,14 +62,12 @@ p{ margin: 0; line-height: 1.4; }
 }
 #cracks.cracks.show{ opacity: 1; }
 
-/* light haze (NOT a blue screen) */
+/* ✅ NO BLUR (crisp). Just a subtle haze */
 #cracks.cracks::before{
   content:"";
   position:absolute;
   inset:0;
-  backdrop-filter: blur(1px);
-  -webkit-backdrop-filter: blur(1px);
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
 }
 
 /* full screen SVG */
@@ -81,7 +78,7 @@ p{ margin: 0; line-height: 1.4; }
   height:100%;
 }
 
-/* FORCE no fill no matter what */
+/* FORCE no fill */
 #cracks svg *{ fill: none !important; }
 
 /* cracks */
@@ -90,27 +87,31 @@ p{ margin: 0; line-height: 1.4; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
 #cracks .crack-under{
-  stroke: rgba(0,0,0,.22);
-  stroke-width: 3.25;
-  filter: blur(.6px);
-  opacity: .65;
+  stroke: rgba(0,0,0,.25);
+  stroke-width: 3.1;
+  filter: blur(.5px);
+  opacity: .60;
 }
 #cracks .crack-line{
-  stroke: rgba(255,255,255,.88);
-  stroke-width: 1.8;
-  opacity: .9;
+  stroke: rgba(255,255,255,.92);
+  stroke-width: 1.7;
+  opacity: .95;
 }
 #cracks .crack-glint{
-  stroke: rgba(170,220,255,.85);
-  stroke-width: 1.1;
-  filter: drop-shadow(0 0 10px rgba(150,210,255,.55));
-  opacity: .9;
+  stroke: rgba(190,225,255,.85);
+  stroke-width: 1.05;
+  filter: drop-shadow(0 0 12px rgba(180,220,255,.45));
+  opacity: .85;
 }
-#cracks.show .crack-path{ animation: crackDraw 1.05s ease-out forwards; }
+
+#cracks.show .crack-path{
+  animation: crackDraw 1.05s ease-out forwards;
+}
 @keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
 
-/* shards (thin glass lines, never filled) */
+/* shards */
 #cracks .shard{
   stroke: rgba(235,245,255,.55);
   stroke-width: 1.1;
@@ -140,6 +141,51 @@ p{ margin: 0; line-height: 1.4; }
   0%{opacity:0}
   35%{opacity:.55}
   100%{opacity:0}
+}
+
+/* =========================
+   PAGE-FALL TRANSITION
+========================= */
+#fallLayer{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10002;
+}
+
+.fallTile{
+  position: fixed;
+  overflow: hidden;
+  border-radius: 12px;
+  will-change: transform, opacity;
+  transform-origin: center;
+  opacity: 1;
+  filter: drop-shadow(0 18px 35px rgba(0,0,0,0.25));
+  animation: tileFall var(--dur, 900ms) cubic-bezier(.2,.8,.2,1) forwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+.fallInner{
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+
+@keyframes tileFall{
+  0%{
+    transform: translate3d(0,0,0) rotate(0deg);
+    opacity: 1;
+  }
+  100%{
+    transform: translate3d(var(--dx, 0px), var(--dy, 420px), 0) rotate(var(--rot, 8deg));
+    opacity: 0;
+  }
+}
+
+body.falling #wrap{
+  opacity: 0;
+  transform: scale(1);
 }
 
 /* =========================
