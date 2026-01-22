@@ -1,13 +1,13 @@
 :root{
   --bg0:#05070c;
   --bg1:#070b14;
+
   --card: rgba(255,255,255,0.06);
-  --card2: rgba(255,255,255,0.08);
   --stroke: rgba(255,255,255,0.14);
+
   --text: rgba(235,238,245,0.92);
   --muted: rgba(235,238,245,0.68);
-  --accent: rgba(120,180,255,0.65);
-  --danger: rgba(255,180,180,0.85);
+
   --shadow: 0 18px 60px rgba(0,0,0,0.55);
   --radius: 16px;
 }
@@ -27,10 +27,9 @@ body{
 }
 
 .hidden{ display:none !important; }
-
 a{ color:inherit; }
 
-/* Prevent selecting during click spam (you also do JS) */
+/* Prevent selecting during click spam */
 body.sim-transition, body.sim-transition *{
   user-select:none;
   cursor:default;
@@ -106,20 +105,17 @@ header.card p{
 
 #glassFX{ z-index: 60; }
 
-/* ============ CRACK SHARDS (pane refraction) ============ */
-/*
-  Each .pane is clipped into a shard shape.
-  The ::before does the “duplication/refraction”:
-  - backdrop-filter samples the content behind
-  - then we translate that sampling inside the shard
-  - giving the illusion that adjacent pixels are displaced
-*/
+/* =========================================================
+   CRACK SHARDS (pane refraction that looks like duplication)
+   ========================================================= */
 #cracks .pane{
   position:absolute;
   inset:0;
   opacity: 0;
-  transform: translateZ(0);
-  will-change: opacity, filter;
+  will-change: opacity, transform, filter;
+
+  /* IMPORTANT: move the element so backdrop samples a different area */
+  transform: translate(var(--dx, 0px), var(--dy, 0px));
 }
 
 /* stage reveal */
@@ -135,65 +131,64 @@ header.card p{
 #cracks[data-stage="3"] .pane[data-rank="1"],
 #cracks[data-stage="3"] .pane[data-rank="2"],
 #cracks[data-stage="3"] .pane[data-rank="3"] { opacity: var(--paneOpacity, 0.34); }
-/* ===== Reveal crack SVG segments by stage ===== */
-#cracks[data-stage="1"] .seg[data-rank="1"] { opacity: 1; }
-
-#cracks[data-stage="2"] .seg[data-rank="1"],
-#cracks[data-stage="2"] .seg[data-rank="2"] { opacity: 1; }
-
-#cracks[data-stage="3"] .seg[data-rank="1"],
-#cracks[data-stage="3"] .seg[data-rank="2"],
-#cracks[data-stage="3"] .seg[data-rank="3"] { opacity: 1; }
-
-#cracks[data-stage="4"] .seg { opacity: 1; }
 
 #cracks[data-stage="4"] .pane { opacity: var(--paneOpacity, 0.44); }
-/* the refracted copy */
+
+/* refracted “copy” inside the shard */
 #cracks .pane::before{
   content:"";
   position:absolute;
-  inset:-18px;
-  transform: translate(var(--dx, 0px), var(--dy, 0px));
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.10);
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,0.14),
-    inset 0 0 40px rgba(255,255,255,0.06);
+  inset:-22px;
+
+  /* counter-move so the shard doesn’t look like it slid */
+  transform: translate(calc(0px - var(--dx, 0px)), calc(0px - var(--dy, 0px)));
+
   backdrop-filter:
-    blur(1.1px)
-    saturate(1.15)
-    contrast(1.08);
+    blur(0.6px)
+    saturate(1.25)
+    contrast(1.18)
+    brightness(1.02);
   -webkit-backdrop-filter:
-    blur(1.1px)
-    saturate(1.15)
-    contrast(1.08);
+    blur(0.6px)
+    saturate(1.25)
+    contrast(1.18)
+    brightness(1.02);
+
+  background: rgba(255,255,255,0.00);
+  border: 1px solid rgba(255,255,255,0.06);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.20),
+    inset 0 0 24px rgba(0,0,0,0.20),
+    inset 0 0 40px rgba(255,255,255,0.06);
+
+  opacity: 0.95;
+  mix-blend-mode: normal; /* screen = “light”, normal = “glass” */
   border-radius: 14px;
-  opacity: 0.92;
-  mix-blend-mode: screen;
 }
 
-/* subtle edge brightening like real glass */
+/* edge highlight only (keep subtle) */
 #cracks .pane::after{
   content:"";
   position:absolute;
   inset:0;
+  pointer-events:none;
+
   background:
-    radial-gradient(600px 220px at 30% 20%, rgba(255,255,255,0.10), transparent 60%),
-    radial-gradient(420px 240px at 70% 70%, rgba(120,180,255,0.08), transparent 62%);
-  opacity: 0.55;
+    linear-gradient(135deg,
+      rgba(255,255,255,0.10),
+      rgba(255,255,255,0.00) 35%,
+      rgba(255,255,255,0.06) 65%,
+      rgba(255,255,255,0.00)
+    );
+
+  opacity: 0.22;
   filter: blur(0.8px);
   mix-blend-mode: screen;
-  pointer-events:none;
 }
 
-#cracks .pane.glint::after{
-  opacity: 0.85;
-}
-
-/* flash pulse */
-#cracks.flash .pane::after{
-  opacity: 0.95;
-}
+#cracks .pane.glint::after{ opacity: 0.35; }
+#cracks.flash .pane::after{ opacity: 0.55; }
 
 /* ============ CRACK SVG LINES ============ */
 #cracks svg{
@@ -213,112 +208,182 @@ header.card p{
 }
 
 #cracks .crack-under{
-  stroke: rgba(0,0,0,0.55);
-  stroke-width: 3.2;
-  filter: blur(0.4px);
-  opacity: 0.6;
+  stroke: rgba(0,0,0,0.65);
+  stroke-width: 3.6;
+  opacity: 0.55;
+  filter: blur(0.6px);
 }
 
 #cracks .crack-line{
-  stroke: rgba(240,245,255,0.75);
-  stroke-width: 1.25;
-  opacity: 0.95;
-  filter: drop-shadow(0 0 8px rgba(160,200,255,0.35));
+  stroke: rgba(240,245,255,0.72);
+  stroke-width: 1.15;
+  opacity: 0.92;
+  filter:
+    drop-shadow(0 0 10px rgba(120,180,255,0.20))
+    drop-shadow(0 0 2px rgba(255,255,255,0.25));
 }
 
 #cracks .crack-glint{
   stroke: rgba(160,210,255,0.85);
   stroke-width: 0.9;
   opacity: 0.7;
-  filter: blur(0.2px) drop-shadow(0 0 10px rgba(120,180,255,0.40));
+  filter: blur(0.2px) drop-shadow(0 0 10px rgba(120,180,255,0.30));
 }
-
 
 /* draw animation */
-#cracks .draw{
-  animation: crackDraw 700ms ease-out forwards;
-}
-@keyframes crackDraw{
-  to{ stroke-dashoffset: 0; }
-}
+#cracks .draw{ animation: crackDraw 700ms ease-out forwards; }
+@keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
 
 /* when shattering, hide the svg lines so shards are the focus */
-#cracks.shatter-hide-lines svg{
-  opacity: 0 !important;
+#cracks.shatter-hide-lines svg{ opacity: 0 !important; }
+
+/* =========================================================
+   FALLING SHARDS (cloned page + chromatic split)
+   ========================================================= */
+
+/* Hide the original page during shatter (only shards show it) */
+.wrap-hidden {
+  opacity: 0;
+  visibility: hidden;
 }
 
-/* ============ FALLING SHARDS (reuse panes) ============ */
+#glassFX{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
 #glassFX .glass-piece{
-  position:absolute;
-  inset:0;
-  transform: translateZ(0);
+  position: fixed;
+  inset: 0;
+  transform: translate3d(0,0,0) rotate(0deg);
+  transform-origin: 50% 50%;
   will-change: transform, opacity, filter;
   opacity: 0.98;
 }
 
-/* Give falling shards stronger edge + blur like motion */
+/* The inner “refraction” payload */
+#glassFX .glass-inner{
+  position: fixed;
+  inset: 0;
+
+  /* refraction offset */
+  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
+
+  filter: blur(var(--rblur, 1px)) saturate(1.10) contrast(1.06);
+  opacity: 0.98;
+
+  isolation: isolate; /* keep blend modes contained inside shard */
+}
+
+/* If a plain wrap clone exists, keep it hidden when using RGB */
+#glassFX .glass-inner > #wrap,
+#glassFX .glass-inner > .wrap-clone{
+  opacity: 0;
+}
+
+/* RGB layers */
+#glassFX .glass-rgb{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform, opacity, filter;
+  mix-blend-mode: screen;
+  opacity: 0.85;
+}
+
+#glassFX .glass-rgb.r{
+  transform: translate3d(calc(var(--rx, 0px) + var(--rgbx, 2px)), calc(var(--ry, 0px) + var(--rgby, -1px)), 0);
+  filter: blur(calc(var(--rblur, 1px) + 0.2px)) contrast(1.07) saturate(1.08);
+}
+#glassFX .glass-rgb.g{
+  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
+  filter: blur(var(--rblur, 1px)) contrast(1.05) saturate(1.06);
+}
+#glassFX .glass-rgb.b{
+  transform: translate3d(calc(var(--rx, 0px) - var(--rgbx, 2px)), calc(var(--ry, 0px) - var(--rgby, -1px)), 0);
+  filter: blur(calc(var(--rblur, 1px) + 0.25px)) contrast(1.07) saturate(1.08);
+}
+
+/* channel tint overlays */
+#glassFX .glass-rgb::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  pointer-events:none;
+  mix-blend-mode: multiply;
+  opacity: 0.95;
+}
+#glassFX .glass-rgb.r::before{ background: rgba(255, 80, 80, 1); }
+#glassFX .glass-rgb.g::before{ background: rgba(80, 255, 160, 1); }
+#glassFX .glass-rgb.b::before{ background: rgba(90, 150, 255, 1); }
+
+/* glass thickness + highlights */
 #glassFX .glass-piece::before{
   content:"";
   position:absolute;
-  inset:-18px;
-  transform: translate(var(--dx, 0px), var(--dy, 0px));
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.12);
+  inset:0;
   box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,0.18),
-    inset 0 0 55px rgba(255,255,255,0.07);
-  backdrop-filter:
-    blur(1.4px)
-    saturate(1.16)
-    contrast(1.10);
-  -webkit-backdrop-filter:
-    blur(1.4px)
-    saturate(1.16)
-    contrast(1.10);
-  border-radius: 14px;
-  opacity: 0.95;
+    inset 0 0 0 1px rgba(255,255,255,0.10),
+    inset 0 0 18px rgba(180,220,255,0.10);
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.08),
+    rgba(255,255,255,0.00) 40%,
+    rgba(255,255,255,0.06) 70%,
+    rgba(255,255,255,0.00)
+  );
   mix-blend-mode: screen;
+  opacity: 0.75;
 }
 
 #glassFX .glass-piece::after{
   content:"";
   position:absolute;
   inset:0;
-  background:
-    radial-gradient(520px 260px at 40% 30%, rgba(255,255,255,0.12), transparent 65%),
-    radial-gradient(520px 300px at 70% 70%, rgba(120,180,255,0.08), transparent 70%);
-  opacity: 0.55;
-  filter: blur(1px);
+  background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.22), rgba(255,255,255,0) 45%);
+  opacity: 0.25;
   mix-blend-mode: screen;
 }
 
+/* jitter shimmer while falling */
+#glassFX.glass-fall .glass-piece .glass-rgb{
+  animation: rgbJitter 240ms steps(2, end) infinite;
+}
+@keyframes rgbJitter{
+  0%   { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
+  50%  { filter: blur(calc(var(--rblur, 1px) + 0.35px)) contrast(1.10) saturate(1.12); opacity: 0.82; }
+  100% { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
+}
+
+/* Falling animation */
 #glassFX.glass-fall .glass-piece{
-  animation: shardFall 900ms cubic-bezier(.2,.7,.1,1) forwards;
+  animation: shardFall 1100ms cubic-bezier(.2,.7,.2,1) forwards;
 }
 
 @keyframes shardFall{
   0%{
-    transform: translate(0,0) rotate(0deg);
-    filter: blur(0px);
     opacity: 1;
+    transform: translate3d(0,0,0) rotate(0deg);
+    filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55));
   }
-  55%{
-    filter: blur(0.3px);
+  25%{
+    transform: translate3d(var(--sx, 0px), var(--sy, 0px), 0) rotate(var(--rot, 0deg));
   }
   100%{
-    transform:
-      translate(calc(var(--sx, 0px)), calc(110vh + var(--sy, 0px)))
-      rotate(var(--rot, 0deg));
-    filter: blur(1.1px);
     opacity: 0;
+    transform: translate3d(calc(var(--sx, 0px) * 1.15), 110vh, 0) rotate(calc(var(--rot, 0deg) * 1.8));
+    filter: drop-shadow(0 40px 80px rgba(0,0,0,0.65));
   }
 }
 
-/* ============ SIM ROOM (centered) ============ */
+/* =========================================================
+   SIM ROOM (centered + above overlays)
+   ========================================================= */
 #simRoom{
   position: fixed;
   inset: 0;
-  z-index: 5;
+  z-index: 70; /* IMPORTANT: above cracks (50) + glassFX (60) */
   display:flex;
   align-items:center;
   justify-content:center;
@@ -344,21 +409,8 @@ header.card p{
   backdrop-filter: blur(10px);
   padding: 18px;
 }
-/* Hide ONLY landing sections while in sim (simRoom is inside #wrap) */
-body.in-sim #wrap > header.card,
-body.in-sim #wrap > section.grid.card,
-body.in-sim #wrap > section.card:not(#simRoom):not(#hackRoom) {
-  display: none;
-}
 
-
-#simRoom .sim-head{
-  font-size: 12px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: rgba(235,238,245,0.72);
-  margin-bottom: 10px;
-}
+body.in-sim #wrap{ display:none; } /* hide landing content during sim */
 
 #simText{
   width: 100%;
@@ -427,20 +479,7 @@ body.in-sim #wrap > section.card:not(#simRoom):not(#hackRoom) {
   font-size: 13px;
   margin-bottom: 10px;
 }
-#taskBody{
-  margin-top: 10px;
-}
-
-.pill{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: rgba(235,238,245,0.84);
-}
+#taskBody{ margin-top: 10px; }
 
 /* anchors */
 .anchor{
@@ -455,7 +494,9 @@ body.in-sim #wrap > section.card:not(#simRoom):not(#hackRoom) {
   pointer-events: auto;
 }
 
-/* ============ reset overlay / modal basics ============ */
+/* =========================================================
+   reset overlay / modal basics
+   ========================================================= */
 #resetOverlay,
 #finalOverlay{
   position: fixed;
@@ -497,168 +538,4 @@ body.in-sim #wrap > section.card:not(#simRoom):not(#hackRoom) {
   .grid.card{ grid-template-columns: 1fr; }
   .grid img{ height: 160px; }
   #simText{ max-height: 44vh; }
-}
-/* Hide the original page during shatter (only shards show it) */
-.wrap-hidden {
-  opacity: 0;
-  visibility: hidden;
-}
-
-/* Glass overlay container */
-#glassFX {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  pointer-events: none;
-}
-
-/* Each shard is a full-screen “mask” clipped to shard polygon */
-.glass-piece {
-  position: fixed;
-  inset: 0;
-  transform: translate3d(0,0,0) rotate(0deg);
-  transform-origin: 50% 50%;
-  will-change: transform, opacity, filter;
-}
-
-/* The cloned page inside each shard */
-.glass-inner {
-  position: fixed;
-  inset: 0;
-
-  /* This offset creates the “duplicate / refract adjacent” feel */
-  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
-
-  /* Refraction look */
-  filter: blur(var(--rblur, 1px)) saturate(1.12) contrast(1.06);
-
-  /* Slightly dim so it feels like it’s behind glass */
-  opacity: 0.98;
-}
-/* =========================
-   Chromatic split (RGB aberration)
-   ========================= */
-
-/* We’ll render 3 copies (R/G/B) inside each shard */
-.glass-inner {
-  position: fixed;
-  inset: 0;
-  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
-  filter: blur(var(--rblur, 1px)) saturate(1.10) contrast(1.06);
-  opacity: 0.98;
-  isolation: isolate; /* important: keeps blend modes contained */
-}
-
-
-/* RGB layers: each is a full copy of the page */
-.glass-rgb {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  will-change: transform, opacity, filter;
-}
-
-/* Each channel has a slightly different offset (aberration) */
-.glass-rgb.r {
-  transform: translate3d(calc(var(--rx, 0px) + var(--rgbx, 2px)), calc(var(--ry, 0px) + var(--rgby, -1px)), 0);
-  filter: blur(calc(var(--rblur, 1px) + 0.2px)) contrast(1.07) saturate(1.08);
-  mix-blend-mode: screen;
-  opacity: 0.85;
-}
-.glass-rgb.g {
-  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
-  filter: blur(var(--rblur, 1px)) contrast(1.05) saturate(1.06);
-  mix-blend-mode: screen;
-  opacity: 0.85;
-}
-.glass-rgb.b {
-  transform: translate3d(calc(var(--rx, 0px) - var(--rgbx, 2px)), calc(var(--ry, 0px) - var(--rgby, -1px)), 0);
-  filter: blur(calc(var(--rblur, 1px) + 0.25px)) contrast(1.07) saturate(1.08);
-  mix-blend-mode: screen;
-  opacity: 0.85;
-}
-
-/* Channel tinting using CSS masks: we tint each layer with a color overlay */
-.glass-rgb::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  mix-blend-mode: multiply;
-  opacity: 0.95;
-}
-
-/* Red tint */
-.glass-rgb.r::before { background: rgba(255, 80, 80, 1); }
-/* Green tint */
-.glass-rgb.g::before { background: rgba(80, 255, 160, 1); }
-/* Blue tint */
-.glass-rgb.b::before { background: rgba(90, 150, 255, 1); }
-
-/* Subtle jitter shimmer while falling (feels like cracked LCD) */
-#glassFX.glass-fall .glass-piece .glass-rgb {
-  animation: rgbJitter 240ms steps(2, end) infinite;
-}
-
-@keyframes rgbJitter {
-  0%   { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
-  50%  { filter: blur(calc(var(--rblur, 1px) + 0.35px)) contrast(1.10) saturate(1.12); opacity: 0.82; }
-  100% { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
-}
-
-
-/* Glass thickness + highlights */
-.glass-piece::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-
-  /* edge + slight bloom */
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.10),
-    inset 0 0 18px rgba(180,220,255,0.10);
-
-  /* faint sheen */
-  background: linear-gradient(
-    135deg,
-    rgba(255,255,255,0.08),
-    rgba(255,255,255,0.00) 40%,
-    rgba(255,255,255,0.06) 70%,
-    rgba(255,255,255,0.00)
-  );
-
-  mix-blend-mode: screen;
-  opacity: 0.75;
-}
-
-/* Micro-sparkle along edges */
-.glass-piece::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.22), rgba(255,255,255,0) 45%);
-  opacity: 0.25;
-  mix-blend-mode: screen;
-}
-
-/* Falling animation */
-#glassFX.glass-fall .glass-piece {
-  animation: shardFall 1100ms cubic-bezier(.2,.7,.2,1) forwards;
-}
-
-/* Per-shard randomized motion via CSS variables */
-@keyframes shardFall {
-  0% {
-    opacity: 1;
-    transform: translate3d(0,0,0) rotate(0deg);
-    filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55));
-  }
-  25% {
-    transform: translate3d(var(--sx, 0px), var(--sy, 0px), 0) rotate(var(--rot, 0deg));
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(calc(var(--sx, 0px) * 1.15), 110vh, 0) rotate(calc(var(--rot, 0deg) * 1.8));
-    filter: drop-shadow(0 40px 80px rgba(0,0,0,0.65));
-  }
 }
