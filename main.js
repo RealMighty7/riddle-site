@@ -422,30 +422,102 @@ Reinitializing simulation…`
       renderFile(0);
     }
 
-    /* ====================== TASK RUNNER ====================== */
-    const taskContext = { taskPrimary, taskSecondary, taskBody, showTaskUI, doReset, difficultyBoost, penalize, glitch: glitchPulse };
+/* ====================== TASK RUNNER ====================== */
+const taskContext = { taskPrimary, taskSecondary, taskBody, showTaskUI, doReset, difficultyBoost, penalize, glitch: glitchPulse };
 
-    async function runSteps(steps) {
-      for (const step of steps) {
-        if (step.say) { await playLines(step.say); continue; }
-        if (step.task) {
-          const fn = TASKS[step.task];
-          if (fn) await fn(taskContext, step.args || {});
-          continue;
-        }
-        if (step.filler) {
-          const count = Number(step.filler.count || 1);
-          const poolName = String(step.filler.pool || "filler_standard");
-          const pool = DIALOGUE.fillerPools?.[poolName] || [];
-          for (let i = 0; i < count; i++) {
-            if (!pool.length) break;
-            const pick = pool[Math.floor(Math.random() * pool.length)];
-            if (typeof pick === "string") await playLines([pick]);
-            else if (pick?.say) await playLines(pick.say);
-          }
-        }
-      }
+// Track how many tasks have been completed in this run
+let tasksCompleted = 0;
+
+// Track which guide you followed at the start (set during choice beats)
+let guidePath = "unknown"; // "emma" | "liam" | "run" | "unknown"
+
+function chooseFillerPool() {
+  // resistanceScore: 0..12
+  // 0-2: system/Emma heavy, 3-6: mixed, 7+: Liam pressure/whispers + system pressure
+  if (guidePath === "run") {
+    if (resistanceScore >= 6) return "filler_run_hard";
+    return "filler_run";
+  }
+  if (guidePath === "emma") {
+    if (resistanceScore >= 6) return "filler_security_pressure";
+    return "filler_security";
+  }
+  if (guidePath === "liam") {
+    if (resistanceScore >= 6) return "filler_worker_pressure";
+    return "filler_worker";
+  }
+
+  // unknown fallback
+  if (resistanceScore >= 7) return "filler_system_pressure";
+  if (resistanceScore >= 3) return "filler_standard";
+  return "filler_security";
+}
+
+// Fire the “almost done” phase once
+let almostDoneTriggered = false;
+async function maybeAlmostDonePhase() {
+  if (almostDoneTriggered) return;
+  if (tasksCompleted < 10) return;
+
+  almostDoneTriggered = true;
+
+  // Tone shift: quieter, scarier, feels like the system is “helping”
+  const pool = DIALOGUE.almostDone?.say || [
+    "System: You are close.",
+    "System: Please do not celebrate early.",
+    "Emma (Security): This part is where people mess up.",
+    "Liam (Worker): Keep it boring. Keep it small."
+  ];
+  await playLines(pool);
+
+  // Optional: a couple dynamic filler lines right before the final modal
+  const endPoolName = chooseFillerPool();
+  const endPool = DIALOGUE.fillerPools?.[endPoolName] || [];
+  if (endPool.length) {
+    const pick1 = endPool[Math.floor(Math.random() * endPool.length)];
+    const pick2 = endPool[Math.floor(Math.random() * endPool.length)];
+    await playLines([String(pick1), String(pick2)]);
+  }
+
+  // Move into your existing Finalize modal → hack task
+  openFinalModal(finalDiscordName);
+}
+
+async function runSteps(steps) {
+  for (const step of steps) {
+    if (step.say) {
+      await playLines(step.say);
+      continue;
     }
+
+    if (step.task) {
+      const fn = TASKS[step.task];
+      if (fn) {
+        await fn(taskContext, step.args || {});
+        tasksCompleted++;
+        await maybeAlmostDonePhase();
+      }
+      continue;
+    }
+
+    if (step.filler) {
+      const count = Number(step.filler.count || 1);
+
+      // If filler.pool === "AUTO", choose based on state
+      let poolName = String(step.filler.pool || "filler_standard");
+      if (poolName === "AUTO") poolName = chooseFillerPool();
+
+      const pool = DIALOGUE.fillerPools?.[poolName] || [];
+      for (let i = 0; i < count; i++) {
+        if (!pool.length) break;
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        if (typeof pick === "string") await playLines([pick]);
+        else if (pick?.say) await playLines(pick.say);
+      }
+      continue;
+    }
+  }
+}
 
     /* ====================== SIM FLOW ====================== */
     async function openSimRoom() {
@@ -474,28 +546,39 @@ Reinitializing simulation…`
       });
     }
 
-    async function runChoiceBeats() {
-      for (const beat of DIALOGUE.choiceBeats || []) {
-        await playLines(beat.say || []);
-        showChoices(beat.choices);
+async function runChoiceBeats() {
+  for (let i = 0; i < (DIALOGUE.choiceBeats || []).length; i++) {
+    const beat = DIALOGUE.choiceBeats[i];
 
-        const choice = await waitForChoice();
-        // scoring
-        if (choice === "comply") {
-          if (!recordChoice(true)) return;
-          resistanceScore = Math.max(0, resistanceScore - 1);
-        } else if (choice === "lie") {
-          if (!recordChoice(true)) return;
-          resistanceScore = Math.min(12, resistanceScore + 0);
-        } else {
-          if (!recordChoice(false)) return;
-          resistanceScore = Math.min(12, resistanceScore + 2);
-        }
+    await playLines(beat.say || []);
+    showChoices(beat.choices);
 
-        hideChoices();
-        await playLines((beat.respond && beat.respond[choice]) ? beat.respond[choice] : []);
-      }
+    const choice = await waitForChoice();
+
+    // set starting guide only once (first beat)
+    if (i === 0) {
+      if (choice === "comply") guidePath = "emma";
+      else if (choice === "lie") guidePath = "liam";
+      else guidePath = "run";
     }
+
+    // scoring
+    if (choice === "comply") {
+      if (!recordChoice(true)) return;
+      resistanceScore = Math.max(0, resistanceScore - 1);
+    } else if (choice === "lie") {
+      if (!recordChoice(true)) return;
+      resistanceScore = Math.min(12, resistanceScore + 0);
+    } else {
+      if (!recordChoice(false)) return;
+      resistanceScore = Math.min(12, resistanceScore + 2);
+    }
+
+    hideChoices();
+    await playLines((beat.respond && beat.respond[choice]) ? beat.respond[choice] : []);
+  }
+}
+
 
     function isCountableClick(e) {
       const t = e.target;
@@ -720,8 +803,10 @@ Reinitializing simulation…`
       setTimeout(() => {
         glassFX.innerHTML = "";
         glassFX.classList.remove("glass-fall");
-        glassFX.classList.add("hidden");
         document.body.classList.remove("sim-transition");
+        openSimRoom(); // go to story room
+      }, totalMs);
+
     
         openSimRoom(); // ✅ THIS is what you wanted
       }, totalMs);
