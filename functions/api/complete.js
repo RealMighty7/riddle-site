@@ -80,6 +80,8 @@ Time: ${new Date().toISOString()}
       const err = await emailRes.text().catch(() => "");
       // return code anyway, but report email failure
       return json({ code, emailError: "Failed to send", details: err.slice(0, 400) }, 200);
+      sessionStorage.setItem("escape_code", data.code);
+      location.href = `/escaped.html?escaped=1`;
     }
 
     return json({ code }, 200);
