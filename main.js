@@ -690,3 +690,6 @@ Reinitializing simulation…`
         }, t3);
       }
     });
+  }
+  boot();
+})();
