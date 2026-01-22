@@ -43,27 +43,28 @@
     </section>
 
     <!-- security room -->
-    <section id="simRoom" class="card hidden">
-      <div style="opacity:.75;font-size:12px;margin-bottom:8px">OUTSIDE // SIMULATION</div>
-      <pre id="simText"></pre>
+<section id="simRoom" class="card hidden">
+  <div class="cardShell">
+    <div style="opacity:.75;font-size:12px;margin-bottom:8px">OUTSIDE // SIMULATION</div>
+    <pre id="simText"></pre>
 
-      <div id="simChoices" class="hidden" aria-label="choices">
-        <button id="choiceNeed" class="sim-btn">I'm sorry. I’ll stop.</button>
-        <button id="choiceLie" class="sim-btn">It was an accident.</button>
-        <button id="choiceRun" class="sim-btn">Run.</button>
-      </div>
+    <div id="simChoices" class="hidden" aria-label="choices">
+      <button id="choiceNeed" class="sim-btn">I'm sorry. I’ll stop.</button>
+      <button id="choiceLie" class="sim-btn">It was an accident.</button>
+      <button id="choiceRun" class="sim-btn">Run.</button>
+    </div>
 
-      <!-- task UI -->
-      <div id="taskUI" class="hidden">
-        <h3 id="taskTitle" style="margin:0 0 6px 0"></h3>
-        <div id="taskDesc" style="opacity:.8"></div>
-        <div id="taskBody"></div>
-        <div id="taskActions">
-          <button id="taskPrimary" class="sim-btn">continue</button>
-          <button id="taskSecondary" class="sim-btn hidden">secondary</button>
-        </div>
+    <div id="taskUI" class="hidden">
+      <h3 id="taskTitle" style="margin:0 0 6px 0"></h3>
+      <div id="taskDesc" style="opacity:.8"></div>
+      <div id="taskBody"></div>
+      <div id="taskActions">
+        <button id="taskPrimary" class="sim-btn">continue</button>
+        <button id="taskSecondary" class="sim-btn hidden">secondary</button>
       </div>
-    </section>
+    </div>
+  </div>
+</section>
 
     <!-- hack room -->
     <section id="hackRoom" class="card hidden" style="margin-top:14px">
