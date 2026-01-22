@@ -279,83 +279,109 @@ main#wrap{
 }
 
 /* =========================
-   GLASS PANE REFLECTION LAYER
-   ========================= */
+   STRONGER GLASS PANE REFLECTION
+   (still “dirty/real”, not glossy UI)
+========================= */
 
-/* A subtle reflective “pane” sitting above the site and below/with cracks.
-   Uses gradients + stage-based opacity to feel like glass catching light. */
-#cracks::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+/* The reflective pane layer sitting above the site and below/with cracks.
+   Stronger + more “window glare” streaks, plus subtle grime speckle. */
+#cracks::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
 
-  /* multi-layer sheen */
   background:
-    /* diagonal sheen streak */
+    /* BIG diagonal glare band */
     linear-gradient(125deg,
       rgba(255,255,255,0.00) 0%,
-      rgba(255,255,255,0.05) 18%,
-      rgba(255,255,255,0.00) 36%
+      rgba(255,255,255,0.03) 12%,
+      rgba(255,255,255,0.14) 18%,
+      rgba(255,255,255,0.05) 24%,
+      rgba(255,255,255,0.00) 34%
     ),
-    /* faint top highlight */
+
+    /* SECOND thinner band (offset) */
+    linear-gradient(118deg,
+      rgba(255,255,255,0.00) 0%,
+      rgba(180,220,255,0.00) 52%,
+      rgba(180,220,255,0.08) 60%,
+      rgba(255,255,255,0.00) 70%
+    ),
+
+    /* top edge catch-light */
     radial-gradient(1200px 520px at 50% -10%,
-      rgba(200,230,255,0.10) 0%,
-      rgba(200,230,255,0.00) 60%
+      rgba(200,230,255,0.16) 0%,
+      rgba(200,230,255,0.00) 62%
     ),
-    /* vignette to make it feel like a pane */
+
+    /* subtle corner vignette so it feels like a pane */
     radial-gradient(1200px 900px at 50% 50%,
-      rgba(0,0,0,0.00) 45%,
-      rgba(0,0,0,0.28) 100%
+      rgba(0,0,0,0.00) 42%,
+      rgba(0,0,0,0.38) 100%
+    ),
+
+    /* “dirty glass” speckle (cheap trick) */
+    repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.010) 0px,
+      rgba(255,255,255,0.010) 1px,
+      rgba(0,0,0,0.000) 3px,
+      rgba(0,0,0,0.000) 6px
     );
 
   opacity: 0; /* stage controls this */
   mix-blend-mode: screen;
-  filter: blur(0.2px) saturate(1.05);
+  filter: blur(0.22px) saturate(1.08) contrast(1.03);
   transition: opacity 220ms ease, filter 220ms ease;
 }
 
-/* A very subtle “refraction haze” around edges (helps depth).
-   Keep it low so it doesn’t look “polished UI”. */
-#cracks::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+/* A slightly stronger refraction haze for depth */
+#cracks::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
 
   background:
-    radial-gradient(800px 600px at 30% 35%,
-      rgba(120,180,255,0.05) 0%,
-      rgba(120,180,255,0.00) 60%
+    radial-gradient(860px 640px at 28% 38%,
+      rgba(120,180,255,0.09) 0%,
+      rgba(120,180,255,0.00) 62%
     ),
-    radial-gradient(900px 700px at 70% 65%,
-      rgba(255,255,255,0.04) 0%,
-      rgba(255,255,255,0.00) 65%
+    radial-gradient(980px 740px at 72% 66%,
+      rgba(255,255,255,0.07) 0%,
+      rgba(255,255,255,0.00) 68%
+    ),
+    radial-gradient(1200px 900px at 50% 50%,
+      rgba(255,255,255,0.00) 55%,
+      rgba(255,255,255,0.035) 100%
     );
 
   opacity: 0; /* stage controls this */
   mix-blend-mode: screen;
-  filter: blur(0.6px);
+  filter: blur(0.75px);
   transition: opacity 220ms ease;
 }
 
-/* Stage intensity — starts subtle and ramps up */
-#cracks[data-stage="1"]::before { opacity: 0.10; }
-#cracks[data-stage="2"]::before { opacity: 0.18; }
-#cracks[data-stage="3"]::before { opacity: 0.26; }
-#cracks[data-stage="4"]::before { opacity: 0.34; }
+/* Stage intensity — stronger ramp */
+#cracks[data-stage="1"]::before{ opacity: 0.14; }
+#cracks[data-stage="2"]::before{ opacity: 0.24; }
+#cracks[data-stage="3"]::before{ opacity: 0.34; }
+#cracks[data-stage="4"]::before{ opacity: 0.44; }
 
-#cracks[data-stage="1"]::after { opacity: 0.05; }
-#cracks[data-stage="2"]::after { opacity: 0.09; }
-#cracks[data-stage="3"]::after { opacity: 0.13; }
-#cracks[data-stage="4"]::after { opacity: 0.18; }
+#cracks[data-stage="1"]::after{ opacity: 0.08; }
+#cracks[data-stage="2"]::after{ opacity: 0.14; }
+#cracks[data-stage="3"]::after{ opacity: 0.20; }
+#cracks[data-stage="4"]::after{ opacity: 0.27; }
 
-/* When you flash, also flash the pane for a “glass catches light” pop */
-#cracks.flash::before {
-  opacity: calc(var(--paneOpacity, 0.34) + 0.14);
-  filter: blur(0.15px) saturate(1.15) brightness(1.1);
+/* Flash also flashes the pane */
+#cracks.flash::before{
+  opacity: calc(var(--paneOpacity, 0.44) + 0.18);
+  filter: blur(0.18px) saturate(1.18) brightness(1.12) contrast(1.06);
 }
-
+#cracks.flash::after{
+  opacity: calc((var(--paneOpacity, 0.44) * 0.7) + 0.12);
+}
 
 /* ======================
    GLASS FALL OVERLAY
@@ -369,15 +395,40 @@ main#wrap{
 
 .glass-piece{
   position:absolute;
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 8px;
-  background: rgba(255,255,255,0.03);
-  /* this is the “reflect the page” trick */
-  backdrop-filter: blur(2px) saturate(1.15);
-  -webkit-backdrop-filter: blur(2px) saturate(1.15);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+
+  /* stronger “pane” look */
+  background:
+    linear-gradient(135deg,
+      rgba(255,255,255,0.06) 0%,
+      rgba(255,255,255,0.015) 35%,
+      rgba(0,0,0,0.00) 100%
+    );
+
+  /* reflect the page */
+  backdrop-filter: blur(2.2px) saturate(1.25) contrast(1.05);
+  -webkit-backdrop-filter: blur(2.2px) saturate(1.25) contrast(1.05);
+
+  /* depth + subtle internal highlight (keeps it “real” not glossy) */
+  box-shadow:
+    0 12px 34px rgba(0,0,0,0.42),
+    inset 0 0 26px rgba(255,255,255,0.06),
+    inset 0 0 2px rgba(255,255,255,0.10);
+
   transform: translateY(0) rotate(var(--rot, 0deg));
   opacity: 1;
+}
+
+/* optional: give pieces a tiny shimmering edge */
+.glass-piece::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: inherit;
+  border: 1px solid rgba(255,255,255,0.06);
+  opacity: .9;
+  pointer-events:none;
 }
 
 @keyframes fall {
