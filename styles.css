@@ -255,6 +255,48 @@ body.in-sim #simRoom{
 /* =========================
    Overlays: cracks + glass
 ========================= */
+   /* ---------- Pane layer that sits under SVG crack lines ---------- */
+   #cracks{
+     position: fixed;
+     inset: 0;
+     z-index: 50;
+     pointer-events: none;
+     opacity: 0;
+     transition: opacity .25s ease;
+     /* IMPORTANT: allow pane + svg together */
+   }
+   
+   #cracks.show{ opacity: 1; }
+   #cracks.flash{ opacity: 1; filter: brightness(1.35); }
+   
+   #cracks .pane{
+     position:absolute;
+     inset: 0;
+     opacity: var(--paneOpacity, 0);
+     background: rgba(255,255,255,0.015);
+     border: 1px solid rgba(255,255,255,0.10);
+     box-shadow: 0 0 0 1px rgba(255,255,255,0.05) inset;
+     backdrop-filter: blur(10px) saturate(1.05) contrast(1.05);
+     -webkit-backdrop-filter: blur(10px) saturate(1.05) contrast(1.05);
+     transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0);
+     will-change: transform, opacity;
+     border-radius: 16px;
+   }
+   
+   /* a little edge sparkle on some panes */
+   #cracks .pane.glint::after{
+     content:"";
+     position:absolute;
+     inset:-10px;
+     background:
+       radial-gradient(160px 120px at 20% 25%, rgba(255,255,255,0.22), transparent 60%),
+       radial-gradient(220px 160px at 80% 75%, rgba(120,180,255,0.10), transparent 62%);
+     mix-blend-mode: screen;
+     opacity: 0.65;
+     pointer-events:none;
+     filter: blur(1px);
+   }
+
 #cracks{
   position: fixed;
   inset: 0;
