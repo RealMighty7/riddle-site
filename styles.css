@@ -233,6 +233,7 @@ header.card p{
   filter: blur(0.2px) drop-shadow(0 0 10px rgba(120,180,255,0.40));
 }
 
+
 /* draw animation */
 #cracks .draw{
   animation: crackDraw 700ms ease-out forwards;
