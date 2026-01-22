@@ -1,6 +1,6 @@
 (() => {
   function boot() {
-    // Wait until the DOM exists (prevents "required element missing" on Vercel/head loads)
+    // Wait until DOM exists (prevents false “missing element” on some hosts)
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", boot, { once: true });
       return;
@@ -15,7 +15,7 @@
     }
 
     /* ======================
-       RANDOM IMAGES (12 pool)
+       RANDOM IMAGES
     ====================== */
     const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
     document.querySelectorAll(".grid img").forEach(img => {
@@ -23,18 +23,8 @@
     });
 
     /* ======================
-       ELEMENTS (required IDs)
+       REQUIRED ELEMENTS
     ====================== */
-  const requiredIds = [
-    "system","l1","l2","l3","cracks",
-    "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
-    "taskUI","taskTitle","taskDesc","taskBody","taskPrimary","taskSecondary",
-    "resetOverlay","resetTitle","resetBody"
-  ];
-
-  console.log("Missing IDs:", requiredIds.filter(id => !document.getElementById(id)));
-
-    
     const ids = [
       "system","l1","l2","l3","cracks",
       "simRoom","simText","simChoices","choiceNeed","choiceLie","choiceRun",
@@ -46,7 +36,6 @@
     const missing = ids.filter(id => !els[id]);
 
     if (missing.length) {
-      // Helpful debug, but doesn't spam your banner forever
       console.error("Missing required element IDs:", missing);
       return;
     }
@@ -76,7 +65,7 @@
     resetOverlay.classList.add("hidden");
 
     /* ======================
-       TIMING (225 WPM)
+       TIMING
     ====================== */
     const WPM = 225;
     const MS_PER_WORD = 60000 / WPM;
@@ -93,7 +82,7 @@
     /* ======================
        STATE
     ====================== */
-    let stage = 1;         // 1 landing, 2 warning, 99 sim
+    let stage = 1; // 1 landing, 2 warning, 99 sim
     let clicks = 0;
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
@@ -104,7 +93,6 @@
     let choiceCompliant = 0;
 
     let resistanceScore = 0;
-
     function difficultyBoost() {
       return Math.max(0, Math.min(4, resistanceScore));
     }
@@ -213,9 +201,7 @@
           for (let i = 0; i < count; i++) {
             if (!pool.length) break;
             const pick = pool[Math.floor(Math.random() * pool.length)];
-
             if (pick.say) await playLines(pick.say);
-
             if (pick.task?.id) {
               const fn = TASKS[pick.task.id];
               if (fn) await fn(taskContext, pick.task.args || {});
@@ -282,7 +268,7 @@
     }
 
     /* ======================
-       CRACKS (fixed shards)
+       CRACKS (SVG)
     ====================== */
     let crackBuilt = false;
 
@@ -300,11 +286,11 @@
       let a = angle;
 
       for (let i = 0; i < segments; i++) {
-        const t = (i + 1) / segments;
-        a += (rnd() - 0.5) * (0.16 + wanderScale * t);
+        const tt = (i + 1) / segments;
+        a += (rnd() - 0.5) * (0.16 + wanderScale * tt);
 
         const step = length / segments;
-        const jitter = (rnd() - 0.5) * (8 + 28 * t);
+        const jitter = (rnd() - 0.5) * (8 + 28 * tt);
 
         const dx = Math.cos(a) * step + Math.cos(a + Math.PI / 2) * jitter;
         const dy = Math.sin(a) * step + Math.sin(a + Math.PI / 2) * jitter;
@@ -331,9 +317,9 @@
       const triple = (d) => {
         const dash = 999;
         return `
-          <path class="crack-under crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
-          <path class="crack-line  crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
-          <path class="crack-glint crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"></path>
+          <path class="crack-under crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
+          <path class="crack-line  crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
+          <path class="crack-glint crack-path" d="${d}" fill="none" stroke-dasharray="${dash}" stroke-dashoffset="${dash}"/>
         `;
       };
 
@@ -363,7 +349,7 @@
         return `<g class="crack-stage" data-stage="${cfg.id}" style="display:none">${parts.join("")}</g>`;
       }).join("");
 
-      // ✅ SHARDS: polyline (cannot "fill wedge"), stroke forced inline
+      // shards as polyline (never fill)
       const shards = [];
       for (let i = 0; i < 18; i++) {
         const a = rnd() * Math.PI * 2;
@@ -381,20 +367,15 @@
         const delay = (0.03 * i + rnd() * 0.10).toFixed(2);
         const dur = (0.95 + rnd() * 0.55).toFixed(2);
 
-        shards.push(`
-          <polyline
-            class="shard"
-            fill="none"
-            stroke="rgba(235,245,255,.55)"
-            stroke-width="1.1"
-            points="${p1} ${p2} ${p3}"
-            style="animation-delay:${delay}s;animation-duration:${dur}s;"
-          />
-        `);
+        shards.push(
+          `<polyline class="shard" fill="none" points="${p1} ${p2} ${p3}"
+            style="animation-delay:${delay}s;animation-duration:${dur}s;"/>`
+        );
       }
 
       return `
-        <svg viewBox="0 0 1000 1000" fill="none" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none"
+             xmlns="http://www.w3.org/2000/svg">
           ${stageMarkup}
           ${shards.join("")}
         </svg>
@@ -417,14 +398,88 @@
       });
     }
 
+    /* ======================
+       PAGE FALL TRANSITION
+    ====================== */
+    function pageFallToSim() {
+      if (stage === 99) return;
+
+      const wrap = document.getElementById("wrap");
+      const rect = wrap.getBoundingClientRect();
+
+      const layer = document.createElement("div");
+      layer.id = "fallLayer";
+
+      const COLS = 4;
+      const ROWS = 3;
+
+      const tileW = rect.width / COLS;
+      const tileH = rect.height / ROWS;
+
+      function makeCleanClone() {
+        const clone = wrap.cloneNode(true);
+        clone.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
+        return clone;
+      }
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const left = rect.left + c * tileW;
+          const top  = rect.top  + r * tileH;
+
+          const tile = document.createElement("div");
+          tile.className = "fallTile";
+          tile.style.left = `${left}px`;
+          tile.style.top = `${top}px`;
+          tile.style.width = `${tileW}px`;
+          tile.style.height = `${tileH}px`;
+
+          const dx = (Math.random() - 0.5) * 180;
+          const dy = 520 + Math.random() * 520;
+          const rot = (Math.random() - 0.5) * 26;
+          const delay = (r * 55 + c * 35 + Math.random() * 90) | 0;
+          const dur = (820 + Math.random() * 520) | 0;
+
+          tile.style.setProperty("--dx", `${dx}px`);
+          tile.style.setProperty("--dy", `${dy}px`);
+          tile.style.setProperty("--rot", `${rot}deg`);
+          tile.style.setProperty("--delay", `${delay}ms`);
+          tile.style.setProperty("--dur", `${dur}ms`);
+
+          const inner = document.createElement("div");
+          inner.className = "fallInner";
+
+          const clone = makeCleanClone();
+          clone.style.position = "fixed";
+          clone.style.left = `${rect.left}px`;
+          clone.style.top = `${rect.top}px`;
+          clone.style.width = `${rect.width}px`;
+
+          inner.style.transform = `translate(${-c * tileW}px, ${-r * tileH}px)`;
+
+          inner.appendChild(clone);
+          tile.appendChild(inner);
+          layer.appendChild(tile);
+        }
+      }
+
+      document.body.classList.add("falling");
+      document.body.appendChild(layer);
+
+      const totalMs = 1600;
+      setTimeout(() => {
+        layer.remove();
+        cracks.classList.add("hidden");
+        document.body.classList.remove("falling");
+        document.body.classList.add("sim-transition");
+        openSimRoom();
+      }, totalMs);
+    }
+
     function shatterToSim() {
       cracks.classList.add("flash", "shatter");
-      document.body.classList.add("shake", "sim-transition");
-
-      setTimeout(() => {
-        cracks.classList.add("hidden");
-        openSimRoom();
-      }, 1250);
+      document.body.classList.add("sim-transition");
+      pageFallToSim();
     }
 
     /* ======================
