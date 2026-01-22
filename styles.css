@@ -1,503 +1,468 @@
-/* styles.css */
-
-/* =========================
-   Base
-========================= */
 :root{
-  --bg0:#06080d;
-  --bg1:#0b1020;
+  --bg0:#05070c;
+  --bg1:#070b14;
   --card: rgba(255,255,255,0.06);
   --card2: rgba(255,255,255,0.08);
-  --stroke: rgba(255,255,255,0.10);
-  --text: rgba(235,240,255,0.92);
-  --muted: rgba(235,240,255,0.70);
-  --muted2: rgba(235,240,255,0.55);
-  --shadow: rgba(0,0,0,0.55);
+  --stroke: rgba(255,255,255,0.14);
+  --text: rgba(235,238,245,0.92);
+  --muted: rgba(235,238,245,0.68);
+  --accent: rgba(120,180,255,0.65);
+  --danger: rgba(255,180,180,0.85);
+  --shadow: 0 18px 60px rgba(0,0,0,0.55);
+  --radius: 16px;
 }
 
+/* ============ base ============ */
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
 body{
   margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
   color:var(--text);
   background:
-    radial-gradient(1200px 800px at 50% 15%, rgba(90,120,255,0.14), transparent 60%),
-    radial-gradient(900px 700px at 20% 70%, rgba(120,255,220,0.08), transparent 55%),
+    radial-gradient(1200px 800px at 50% 20%, rgba(42,72,150,0.22), transparent 55%),
+    radial-gradient(900px 700px at 20% 80%, rgba(42,72,150,0.14), transparent 60%),
     linear-gradient(180deg, var(--bg1), var(--bg0));
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
   overflow-x:hidden;
 }
 
 .hidden{ display:none !important; }
 
+a{ color:inherit; }
+
+/* Prevent selecting during click spam (you also do JS) */
+body.sim-transition, body.sim-transition *{
+  user-select:none;
+  cursor:default;
+}
+
+/* ============ layout cards/grid (landing) ============ */
 #wrap{
-  width:min(980px, calc(100% - 32px));
-  margin: 26px auto 120px;
+  width:min(980px, calc(100% - 40px));
+  margin:42px auto 80px;
   position:relative;
-  z-index:1;
+  z-index: 2;
 }
 
-/* During the shatter transition, the “surface” feels like it drops away */
-body.sim-transition #wrap{
-  animation: surfaceDrop 1.15s ease-in forwards;
-  transform-origin: 50% 40%;
-  filter: blur(0px);
-}
-@keyframes surfaceDrop{
-  0%   { transform: translateY(0) scale(1); opacity:1; filter: blur(0px); }
-  35%  { transform: translateY(10px) scale(0.995); opacity:0.96; }
-  100% { transform: translateY(220px) scale(0.96); opacity:0.0; filter: blur(2px); }
-}
-
-/* Once sim opens, keep landing surface gone */
-body.in-sim #wrap > header,
-body.in-sim #wrap > section.grid,
-body.in-sim #wrap > section.card:not(#simRoom):not(#hackRoom){
-  display:none !important;
-}
-
-/* =========================
-   Cards + Grid
-========================= */
 .card{
   background: var(--card);
   border: 1px solid var(--stroke);
-  border-radius: 14px;
-  box-shadow: 0 22px 70px var(--shadow);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  padding: 18px 18px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+header.card{
+  padding: 22px 22px 18px;
+  margin-bottom: 18px;
 }
 
 header.card h1{
-  margin: 0 0 8px;
-  font-weight: 750;
-  letter-spacing: 0.01em;
+  margin:0 0 10px;
+  font-size: 34px;
+  letter-spacing: -0.02em;
 }
+
 header.card p{
   margin:0;
   color: var(--muted);
   line-height: 1.45;
 }
 
-.grid{
-  margin-top: 14px;
+.grid.card{
+  padding: 18px;
   display:grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  padding: 12px;
+  gap: 16px;
 }
+
 .grid img{
   width:100%;
-  height: 134px;
+  height: 140px;
   object-fit: cover;
   border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.22);
+}
+
+/* the line you show under ads */
+#system{
+  margin-top: 14px;
+  padding: 14px 16px;
+  color: rgba(235,238,245,0.70);
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.25);
+  background: rgba(0,0,0,0.18);
 }
 
-/* =========================
-   Buttons / Pills
-========================= */
-.sim-btn{
-  appearance:none;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.25);
-  color: var(--text);
-  padding: 10px 12px;
-  border-radius: 12px;
-  cursor:pointer;
-  transition: transform .08s ease, background .18s ease, border-color .18s ease, opacity .18s ease;
-  user-select:none;
-}
-.sim-btn:hover{ background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.22); }
-.sim-btn:active{ transform: translateY(1px) scale(0.99); }
-.sim-btn:disabled{ opacity:0.45; cursor:not-allowed; }
-
-.pill{
-  display:inline-flex;
-  gap:8px;
-  align-items:center;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.25);
+/* ============ overlay stacks ============ */
+#cracks,
+#glassFX{
+  position: fixed;
+  inset: 0;
+  pointer-events:none;
+  z-index: 50;
 }
 
-/* =========================
-   OUTSIDE // SIMULATION (fixed overlay)
-========================= */
+#glassFX{ z-index: 60; }
+
+/* ============ CRACK SHARDS (pane refraction) ============ */
+/*
+  Each .pane is clipped into a shard shape.
+  The ::before does the “duplication/refraction”:
+  - backdrop-filter samples the content behind
+  - then we translate that sampling inside the shard
+  - giving the illusion that adjacent pixels are displaced
+*/
+#cracks .pane{
+  position:absolute;
+  inset:0;
+  opacity: 0;
+  transform: translateZ(0);
+  will-change: opacity, filter;
+}
+
+/* stage reveal */
+#cracks.show .pane{ opacity: var(--paneOpacity, 0.0); }
+#cracks[data-stage="1"] .pane[data-rank="1"]{ opacity: var(--paneOpacity, 0.14); }
+#cracks[data-stage="2"] .pane[data-rank="1"],
+#cracks[data-stage="2"] .pane[data-rank="2"]{ opacity: var(--paneOpacity, 0.24); }
+#cracks[data-stage="3"] .pane[data-rank="1"],
+#cracks[data-stage="3"] .pane[data-rank="2"],
+#cracks[data-stage="3"] .pane[data-rank="3"]{ opacity: var(--paneOpacity, 0.34); }
+#cracks[data-stage="4"] .pane{ opacity: var(--paneOpacity, 0.44); }
+
+/* the refracted copy */
+#cracks .pane::before{
+  content:"";
+  position:absolute;
+  inset:-18px;
+  transform: translate(var(--dx, 0px), var(--dy, 0px));
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.14),
+    inset 0 0 40px rgba(255,255,255,0.06);
+  backdrop-filter:
+    blur(1.1px)
+    saturate(1.15)
+    contrast(1.08);
+  -webkit-backdrop-filter:
+    blur(1.1px)
+    saturate(1.15)
+    contrast(1.08);
+  border-radius: 14px;
+  opacity: 0.92;
+  mix-blend-mode: screen;
+}
+
+/* subtle edge brightening like real glass */
+#cracks .pane::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(600px 220px at 30% 20%, rgba(255,255,255,0.10), transparent 60%),
+    radial-gradient(420px 240px at 70% 70%, rgba(120,180,255,0.08), transparent 62%);
+  opacity: 0.55;
+  filter: blur(0.8px);
+  mix-blend-mode: screen;
+  pointer-events:none;
+}
+
+#cracks .pane.glint::after{
+  opacity: 0.85;
+}
+
+/* flash pulse */
+#cracks.flash .pane::after{
+  opacity: 0.95;
+}
+
+/* ============ CRACK SVG LINES ============ */
+#cracks svg{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  opacity: 0;
+}
+
+#cracks.show svg{ opacity: 1; }
+
+#cracks .crack-path{
+  fill:none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#cracks .crack-under{
+  stroke: rgba(0,0,0,0.55);
+  stroke-width: 3.2;
+  filter: blur(0.4px);
+  opacity: 0.6;
+}
+
+#cracks .crack-line{
+  stroke: rgba(240,245,255,0.75);
+  stroke-width: 1.25;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 8px rgba(160,200,255,0.35));
+}
+
+#cracks .crack-glint{
+  stroke: rgba(160,210,255,0.85);
+  stroke-width: 0.9;
+  opacity: 0.7;
+  filter: blur(0.2px) drop-shadow(0 0 10px rgba(120,180,255,0.40));
+}
+
+/* draw animation */
+#cracks .draw{
+  animation: crackDraw 700ms ease-out forwards;
+}
+@keyframes crackDraw{
+  to{ stroke-dashoffset: 0; }
+}
+
+/* when shattering, hide the svg lines so shards are the focus */
+#cracks.shatter-hide-lines svg{
+  opacity: 0 !important;
+}
+
+/* ============ FALLING SHARDS (reuse panes) ============ */
+#glassFX .glass-piece{
+  position:absolute;
+  inset:0;
+  transform: translateZ(0);
+  will-change: transform, opacity, filter;
+  opacity: 0.98;
+}
+
+/* Give falling shards stronger edge + blur like motion */
+#glassFX .glass-piece::before{
+  content:"";
+  position:absolute;
+  inset:-18px;
+  transform: translate(var(--dx, 0px), var(--dy, 0px));
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.18),
+    inset 0 0 55px rgba(255,255,255,0.07);
+  backdrop-filter:
+    blur(1.4px)
+    saturate(1.16)
+    contrast(1.10);
+  -webkit-backdrop-filter:
+    blur(1.4px)
+    saturate(1.16)
+    contrast(1.10);
+  border-radius: 14px;
+  opacity: 0.95;
+  mix-blend-mode: screen;
+}
+
+#glassFX .glass-piece::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(520px 260px at 40% 30%, rgba(255,255,255,0.12), transparent 65%),
+    radial-gradient(520px 300px at 70% 70%, rgba(120,180,255,0.08), transparent 70%);
+  opacity: 0.55;
+  filter: blur(1px);
+  mix-blend-mode: screen;
+}
+
+#glassFX.glass-fall .glass-piece{
+  animation: shardFall 900ms cubic-bezier(.2,.7,.1,1) forwards;
+}
+
+@keyframes shardFall{
+  0%{
+    transform: translate(0,0) rotate(0deg);
+    filter: blur(0px);
+    opacity: 1;
+  }
+  55%{
+    filter: blur(0.3px);
+  }
+  100%{
+    transform:
+      translate(calc(var(--sx, 0px)), calc(110vh + var(--sy, 0px)))
+      rotate(var(--rot, 0deg));
+    filter: blur(1.1px);
+    opacity: 0;
+  }
+}
+
+/* ============ SIM ROOM (centered) ============ */
 #simRoom{
   position: fixed;
   inset: 0;
-  z-index: 30;
-  padding: 28px;
+  z-index: 5;            /* behind cracks/glassFX */
   display:flex;
-  align-items:center;
-  justify-content:center;
-  pointer-events: none; /* enabled when shown */
-}
-#simRoom.hidden{ display:none !important; }
-
-body.in-sim #simRoom{
-  pointer-events: auto;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 22px;
 }
 
-#simRoom.card{
-  background: transparent;
-  border: none;
-  box-shadow:none;
-  backdrop-filter:none;
-  -webkit-backdrop-filter:none;
-  padding:0;
-  width:100%;
-  max-width: 980px;
+body.in-sim #wrap{ display:none; } /* hide landing content during sim */
+
+#simRoom .sim-shell{
+  width: min(980px, 100%);
+  background: rgba(0,0,0,0.22);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  padding: 18px;
 }
-#simRoom > .cardShell{
-  width:100%;
-  background: rgba(10,14,26,0.78);
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 16px;
-  box-shadow: 0 30px 120px rgba(0,0,0,0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  padding: 16px;
+
+#simRoom .sim-head{
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(235,238,245,0.72);
+  margin-bottom: 10px;
 }
 
 #simText{
-  width:100%;
-  min-height: 260px;
-  max-height: 360px;
+  width: 100%;
+  min-height: 280px;
+  max-height: 380px;
   overflow:auto;
-  background: rgba(0,0,0,0.25);
-  border: 1px solid rgba(255,255,255,0.10);
+  padding: 14px 14px;
   border-radius: 14px;
-  padding: 14px;
-  margin: 0;
-  color: rgba(235,240,255,0.86);
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.25);
+  color: rgba(235,238,245,0.90);
   line-height: 1.45;
   white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size: 13px;
 }
 
 /* choices row */
 #simChoices{
   display:flex;
-  gap:10px;
-  flex-wrap:wrap;
+  gap: 10px;
   margin-top: 12px;
+  flex-wrap: wrap;
 }
 
-/* task UI inside sim */
+/* buttons */
+.sim-btn{
+  appearance:none;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(235,238,245,0.92);
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor:pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.sim-btn:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(140,190,255,0.25);
+}
+.sim-btn:disabled{
+  opacity: 0.5;
+  cursor:not-allowed;
+  transform:none;
+}
+
+/* TASK UI overlay block (inside sim) */
 #taskUI{
   margin-top: 14px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255,255,255,0.10);
-}
-#taskBody{ margin-top: 10px; }
-#taskActions{
-  display:flex;
-  gap:10px;
-  margin-top: 12px;
-  flex-wrap:wrap;
-}
-
-/* =========================
-   Anchors (click targets)
-========================= */
-.anchor{
-  position: fixed;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.22);
-  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.35), rgba(120,180,255,0.12));
-  box-shadow: 0 0 18px rgba(120,180,255,0.22);
-  z-index: 25;
-  cursor: pointer;
-}
-
-/* =========================
-   Hack room
-========================= */
-#hackRoom{
-  position: fixed;
-  inset: 0;
-  z-index: 35;
-  width: min(980px, calc(100% - 32px));
-  height: fit-content;
-  max-height: calc(100% - 56px);
-  margin: 28px auto;
-  overflow: auto;
-}
-#hackRoom.hidden{ display:none !important; }
-
-.hack-line{
-  display:grid;
-  grid-template-columns: 48px 1fr;
-  gap: 10px;
-  padding: 10px 10px;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.10);
   background: rgba(0,0,0,0.22);
+  padding: 12px;
+}
+
+#taskTitle{
+  font-size: 12px;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  color: rgba(235,238,245,0.78);
+  margin: 2px 0 4px;
+}
+#taskDesc{
+  color: rgba(235,238,245,0.68);
+  font-size: 13px;
   margin-bottom: 10px;
-  cursor:pointer;
 }
-.hack-line.target{
-  border-color: rgba(120,180,255,0.28);
-  background: rgba(120,180,255,0.08);
+#taskBody{
+  margin-top: 10px;
 }
-.hack-line.selected{
-  outline: 2px solid rgba(255,255,255,0.25);
-}
-.hack-ln{ opacity:0.7; font-variant-numeric: tabular-nums; }
-.hack-txt{ opacity:0.9; }
 
-/* =========================
-   Overlays: cracks + glass
-========================= */
-   /* ---------- Pane layer that sits under SVG crack lines ---------- */
-   #cracks{
-     position: fixed;
-     inset: 0;
-     z-index: 50;
-     pointer-events: none;
-     opacity: 0;
-     transition: opacity .25s ease;
-     /* IMPORTANT: allow pane + svg together */
-   }
-   
-   #cracks.show{ opacity: 1; }
-   #cracks.flash{ opacity: 1; filter: brightness(1.35); }
-   
-   #cracks .pane{
-     position:absolute;
-     inset: 0;
-     opacity: var(--paneOpacity, 0);
-     background: rgba(255,255,255,0.015);
-     border: 1px solid rgba(255,255,255,0.10);
-     box-shadow: 0 0 0 1px rgba(255,255,255,0.05) inset;
-     backdrop-filter: blur(10px) saturate(1.05) contrast(1.05);
-     -webkit-backdrop-filter: blur(10px) saturate(1.05) contrast(1.05);
-     transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0);
-     will-change: transform, opacity;
-     border-radius: 16px;
-   }
-   
-   /* a little edge sparkle on some panes */
-   #cracks .pane.glint::after{
-     content:"";
-     position:absolute;
-     inset:-10px;
-     background:
-       radial-gradient(160px 120px at 20% 25%, rgba(255,255,255,0.22), transparent 60%),
-       radial-gradient(220px 160px at 80% 75%, rgba(120,180,255,0.10), transparent 62%);
-     mix-blend-mode: screen;
-     opacity: 0.65;
-     pointer-events:none;
-     filter: blur(1px);
-   }
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(235,238,245,0.84);
+}
 
-#cracks{
+/* anchors */
+.anchor{
   position: fixed;
-  inset: 0;
-  z-index: 50;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity .25s ease;
-  mix-blend-mode: screen;
-}
-#cracks.show{ opacity: 1; }
-#cracks.flash{
-  opacity: 1;
-  filter: brightness(1.4);
-}
-#cracks svg{ width:100%; height:100%; }
-
-.crack-path{
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(140,190,255,0.7);
+  box-shadow: 0 0 18px rgba(120,180,255,0.55);
+  border: 1px solid rgba(255,255,255,0.18);
+  cursor: pointer;
+  pointer-events: auto;
 }
 
-/* The “realistic” look is layered: dark under + bright line + faint glint */
-.crack-under{
-  stroke: rgba(0,0,0,0.55);
-  stroke-width: 3.5;
-  filter: blur(0.4px);
-  opacity: 0.70;
-}
-.crack-line{
-  stroke: rgba(235,245,255,0.92);
-  stroke-width: 1.35;
-  filter: drop-shadow(0 0 8px rgba(180,220,255,0.25));
-  opacity: 0.92;
-}
-.crack-glint{
-  stroke: rgba(255,255,255,0.85);
-  stroke-width: 0.8;
-  filter: blur(0.3px);
-  opacity: 0.35;
-}
-
-/* dash “draw” anim (your JS sets --dash) */
-.draw{
-  animation: crackDraw 0.55s ease-out forwards;
-}
-@keyframes crackDraw{
-  to { stroke-dashoffset: 0; }
-}
-
-/* Stage-based visibility tuning */
-#cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
-#cracks[data-stage="1"] .seg:not([data-rank="1"]){ opacity: 0; }
-
-#cracks[data-stage="2"] .seg[data-rank="1"],
-#cracks[data-stage="2"] .seg[data-rank="2"]{ opacity: 1; }
-#cracks[data-stage="2"] .seg[data-rank="3"],
-#cracks[data-stage="2"] .seg[data-rank="4"]{ opacity: 0; }
-
-#cracks[data-stage="3"] .seg[data-rank="1"],
-#cracks[data-stage="3"] .seg[data-rank="2"],
-#cracks[data-stage="3"] .seg[data-rank="3"]{ opacity: 1; }
-#cracks[data-stage="3"] .seg[data-rank="4"]{ opacity: 0; }
-
-#cracks[data-stage="4"] .seg{ opacity: 1; }
-
-/* =========================
-   Glass FX “shards”
-   - Irregular clip-path polygons (set from JS)
-   - Backdrop blur + highlight edges
-   - Fake refraction: pseudo-element shifts
-========================= */
-#glassFX{
+/* ============ reset overlay / modal basics ============ */
+#resetOverlay,
+#finalOverlay{
   position: fixed;
-  inset: 0;
-  z-index: 60;
-  pointer-events: none;
-  opacity: 1;
-}
-
-.glass-piece{
-  position: fixed;
-  will-change: transform, opacity, filter;
-  border-radius: 10px;
-  transform: translate3d(0,0,0) rotate(var(--rot, 0deg));
-  opacity: 0.0;
-  /* Glass base */
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.20);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.06) inset,
-    0 18px 60px rgba(0,0,0,0.35);
-  backdrop-filter: blur(10px) saturate(1.05) contrast(1.05);
-  -webkit-backdrop-filter: blur(10px) saturate(1.05) contrast(1.05);
-  /* clip-path polygon is injected per piece */
-}
-
-/* Refraction / “adjacent reflection” illusion */
-.glass-piece::before{
-  content:"";
-  position:absolute;
-  inset:-14px; /* bleed so shifts don’t show empty edges */
-  background:
-    radial-gradient(120px 90px at 25% 20%, rgba(255,255,255,0.22), transparent 60%),
-    radial-gradient(180px 140px at 75% 70%, rgba(120,180,255,0.12), transparent 62%),
-    linear-gradient(135deg, rgba(255,255,255,0.06), rgba(0,0,0,0.0));
-  mix-blend-mode: screen;
-  opacity: 0.65;
-  transform: translate3d(var(--rx, -10px), var(--ry, -8px), 0);
-  filter: blur(0.8px);
-  pointer-events:none;
-}
-
-/* Shard edge highlight */
-.glass-piece::after{
-  content:"";
-  position:absolute;
   inset:0;
-  border-radius: 10px;
-  background:
-    linear-gradient(140deg, rgba(255,255,255,0.28), transparent 35%),
-    linear-gradient(320deg, rgba(255,255,255,0.12), transparent 50%);
-  opacity: 0.45;
-  pointer-events:none;
-}
-
-/* Falling animation (activated by parent class) */
-#glassFX.glass-fall .glass-piece{
-  opacity: 1;
-  animation: shardFall 1.15s cubic-bezier(.17,.84,.18,.98) forwards;
-}
-
-@keyframes shardFall{
-  0%{
-    transform: translate3d(0,0,0) rotate(var(--rot, 0deg));
-    filter: blur(0px);
-    opacity: 1;
-  }
-  55%{
-    transform: translate3d(var(--sx, 0px), calc(var(--sy, 0px) + 120px), 0) rotate(calc(var(--rot, 0deg) + 6deg));
-    opacity: 0.92;
-  }
-  100%{
-    transform: translate3d(calc(var(--sx, 0px) * 1.2), calc(var(--sy, 0px) + 780px), 0) rotate(calc(var(--rot, 0deg) + 16deg));
-    filter: blur(1px);
-    opacity: 0.0;
-  }
-}
-
-/* =========================
-   Modals (reset/final)
-========================= */
-.overlay{
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.55);
+  z-index: 80;
   display:flex;
   align-items:center;
   justify-content:center;
-  z-index: 80;
-  padding: 22px;
+  padding: 24px;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(10px);
 }
+
+#resetOverlay.hidden,
+#finalOverlay.hidden{ display:none !important; }
+
 .modal{
-  width: min(520px, calc(100% - 24px));
-  border-radius: 16px;
+  width: min(520px, 100%);
+  border-radius: 18px;
   border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(10,14,26,0.86);
-  box-shadow: 0 30px 120px rgba(0,0,0,0.78);
+  background: rgba(10,12,18,0.82);
+  box-shadow: var(--shadow);
   padding: 16px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-.modal-actions{
-  display:flex;
-  gap:10px;
-  justify-content:flex-end;
-  margin-top: 12px;
-  flex-wrap:wrap;
 }
 
-#finalOverlay input,
-#finalOverlay textarea,
-#finalOverlay select{
-  width:100%;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.25);
-  color: var(--text);
-  outline: none;
+.modal h2{
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.modal p{
+  margin: 0;
+  color: rgba(235,238,245,0.70);
+  white-space: pre-wrap;
+  line-height: 1.4;
 }
 
-/* =========================
-   Responsive
-========================= */
-@media (max-width: 860px){
-  .grid{ grid-template-columns: repeat(2, 1fr); }
-  .grid img{ height: 150px; }
-}
-@media (max-width: 520px){
-  .grid{ grid-template-columns: 1fr; }
-  .grid img{ height: 170px; }
-  #simText{ min-height: 240px; }
+/* ============ responsive ============ */
+@media (max-width: 780px){
+  .grid.card{ grid-template-columns: 1fr; }
+  .grid img{ height: 160px; }
+  #simText{ max-height: 44vh; }
 }
