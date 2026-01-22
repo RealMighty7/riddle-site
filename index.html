@@ -5,14 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>index</title>
 
-  <link rel="stylesheet" href="/styles.css?v=41" />
+  <link rel="stylesheet" href="/styles.css?v=1" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
+
+  <!-- Turnstile (2-step verification) -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
 
   <!-- load ONCE, in order -->
-  <script src="/dialogue.js?v=41" defer></script>
-  <script src="/tasks.js?v=41" defer></script>
-  <script src="/main.js?v=41" defer></script>
-
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
+  <script src="/dialogue.js" defer></script>
+  <script src="/tasks.js" defer></script>
+  <script src="/main.js" defer></script>
 </head>
 
 <body>
@@ -45,6 +47,9 @@
       <div id="l3" class="sysline small"></div>
     </section>
   </main>
+
+  <!-- falling pieces overlay (generated at shatter moment) -->
+  <div id="shatterLayer" class="shatter-layer hidden" aria-hidden="true"></div>
 
   <!-- SIMULATION ROOM -->
   <section id="simRoom" class="sim hidden" aria-live="polite">
@@ -81,5 +86,33 @@
       </div>
     </div>
   </section>
+
+  <!-- VERIFICATION OVERLAY (Turnstile gate) -->
+  <div id="verifyOverlay" class="verify hidden" aria-hidden="true">
+    <div class="verify-card">
+      <div class="verify-title">VERIFY // ACCESS</div>
+      <div class="verify-body">
+        <div class="verify-row">
+          <label class="verify-label" for="verifyDiscord">Discord (for completion log)</label>
+          <input id="verifyDiscord" class="verify-input" autocomplete="off" placeholder="username#0000 or name" />
+        </div>
+
+        <div class="verify-row">
+          <div id="turnstile" class="cf-turnstile" data-sitekey="773Ae995EF3nki38sIknal937manKNKandkni987"></div>
+        </div>
+
+        <div id="verifyMsg" class="verify-msg"></div>
+
+        <div class="verify-actions">
+          <button id="verifyCancel" class="sim-btn">cancel</button>
+          <button id="verifyGo" class="sim-btn">verify</button>
+        </div>
+
+        <div class="verify-note">
+          If you try to bypass this from DevTools, the server will refuse the request.
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
