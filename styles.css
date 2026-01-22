@@ -1,324 +1,360 @@
 /* =========================
-   ROOT / BASE
+   RAW / LESS POLISHED VERSION
+   (keeps same IDs/classes)
 ========================= */
-:root {
-  --bg: #070a12;
-  --card: rgba(10, 14, 25, 0.72);
-  --stroke: rgba(255,255,255,0.14);
-  --text: #e8edf7;
-  --muted: rgba(232, 237, 247, 0.72);
+
+:root{
+  --bg0:#03050a;
+  --bg1:#070b14;
+  --ink:#d7dde9;
+  --muted:rgba(215,221,233,.68);
+
+  --card:rgba(6, 9, 16, .82);
+  --stroke:rgba(255,255,255,.12);
+
+  --accent:rgba(140,190,255,.35);
+  --danger:rgba(255,190,190,.95);
 }
 
-* { box-sizing: border-box; }
+*{ box-sizing:border-box; }
 
-html, body {
-  height: 100%;
-  margin: 0;
-  background: radial-gradient(
-    1200px 800px at 35% 20%,
-    #0c1430 0%,
-    #05070d 55%,
-    #02030a 100%
-  );
-  color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system,
-               Segoe UI, Roboto, Arial, sans-serif;
+html,body{
+  height:100%;
+  margin:0;
+  color:var(--ink);
+  background:
+    radial-gradient(900px 560px at 38% 18%, #0a1230 0%, var(--bg1) 55%, var(--bg0) 100%);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  letter-spacing:.01em;
+}
+
+/* subtle grime / noise overlay */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+  opacity:.12;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0px, rgba(255,255,255,.04) 1px, transparent 1px, transparent 3px),
+    radial-gradient(circle at 30% 20%, rgba(255,255,255,.08), transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(255,255,255,.06), transparent 60%);
+  mix-blend-mode: overlay;
+}
+
+main#wrap{
+  width:min(980px, calc(100% - 40px));
+  margin:28px auto;
+  position:relative;
+  z-index:1;
 }
 
 /* =========================
-   LAYOUT
+   CARDS (less “premium”)
 ========================= */
-main#wrap {
-  width: min(980px, calc(100% - 40px));
-  margin: 32px auto;
-  position: relative;
-  z-index: 2;
+.card{
+  background:var(--card);
+  border:1px solid var(--stroke);
+  border-radius:8px;               /* less rounded */
+  padding:14px;                    /* tighter */
+  box-shadow: 0 10px 26px rgba(0,0,0,.45); /* less “soft luxury” */
 }
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--stroke);
-  border-radius: 14px;
-  padding: 18px;
-  box-shadow: 0 12px 50px rgba(0,0,0,0.35);
+header.card h1{
+  margin:0 0 10px 0;
+  font-size:28px;
+  letter-spacing:.02em;
 }
 
-.hidden { display: none !important; }
+header.card p{
+  margin:0;
+  color:var(--muted);
+  line-height:1.45;
+}
+
+/* make things feel “slightly off” */
+header.card{
+  transform: translateY(0.5px);
+}
+
+.hidden{ display:none !important; }
 
 /* =========================
-   GRID / IMAGES
+   GRID / IMAGES (less curated)
 ========================= */
-.grid.card { padding: 14px; }
+.grid.card{ padding:12px; }
 
-.grid {
-  display: grid;
+.grid{
+  display:grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap:10px;
 }
 
-.grid img {
-  width: 100%;
-  height: 155px;
-  object-fit: cover;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.18);
+.grid img{
+  width:100%;
+  height:150px;
+  object-fit:cover;
+  border-radius:6px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.25);
+  filter: contrast(1.02) saturate(.95);
+}
+
+/* slight imperfect “thrown in” feel */
+.grid img:nth-child(2){ transform: translateY(1px); }
+.grid img:nth-child(5){ transform: translateY(-1px); }
+
+/* =========================
+   SYSTEM BAR
+========================= */
+#system{
+  color: rgba(215,221,233,.78);
+  font-size: 13px;
 }
 
 /* =========================
    SIM ROOM
 ========================= */
-#simRoom { margin-top: 14px; }
+#simRoom{ margin-top:12px; }
 
-#simText {
-  width: 100%;
-  height: 340px;
-  overflow: auto;
-  background: rgba(0,0,0,0.18);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 12px;
-  padding: 14px;
+#simText{
+  width:100%;
+  height:340px;
+  overflow:auto;
+  background: rgba(0,0,0,.26);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:8px;
+  padding:12px;
   white-space: pre-wrap;
-  line-height: 1.35;
-  font-family: ui-monospace, SFMono-Regular,
-               Menlo, Monaco, Consolas,
-               "Liberation Mono", monospace;
-  color: rgba(232,237,247,0.90);
-}
-
-#simChoices {
-  display: flex;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
+  line-height:1.35;
+  color: rgba(215,221,233,.88);
 }
 
 /* =========================
-   BUTTONS
+   BUTTONS (more “system UI”)
 ========================= */
-.sim-btn {
-  background: rgba(10, 16, 30, 0.65);
-  border: 1px solid rgba(255,255,255,0.16);
-  border-radius: 12px;
-  padding: 10px 14px;
-  color: rgba(232,237,247,0.9);
-  cursor: pointer;
-  transition:
-    transform 0.06s ease,
-    border-color 0.12s ease,
-    background 0.12s ease;
+#simChoices{
+  display:flex;
+  gap:8px;
+  margin-top:10px;
+  flex-wrap:wrap;
 }
 
-.sim-btn:hover {
-  border-color: rgba(170,210,255,0.38);
+.sim-btn{
+  background: rgba(0,0,0,.25);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:8px;
+  padding:9px 12px;
+  color: rgba(215,221,233,.90);
+  cursor:pointer;
+  transition: transform .06s ease, border-color .12s ease;
 }
 
-.sim-btn:active {
+.sim-btn:hover{
+  border-color: rgba(140,190,255,.35);
+}
+
+.sim-btn:active{
   transform: translateY(1px);
 }
 
-.sim-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.sim-btn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
 }
 
 /* =========================
    TASK UI
 ========================= */
-#taskUI { margin-top: 14px; }
+#taskUI{ margin-top:12px; }
 
-#taskBody {
-  margin-top: 12px;
+#taskBody{
+  margin-top:10px;
   max-height: min(52vh, 520px);
-  overflow: auto;
-  padding-right: 6px;
+  overflow:auto;
+  padding-right:6px;
 }
 
-#taskActions {
-  display: flex;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
+#taskActions{
+  display:flex;
+  gap:8px;
+  margin-top:10px;
+  flex-wrap:wrap;
 }
 
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.22);
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.26);
+  color: rgba(215,221,233,.86);
 }
 
 /* =========================
    ANCHORS
 ========================= */
-.anchor {
-  position: fixed;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  border: 1px solid rgba(180,220,255,0.6);
-  background: rgba(120,180,255,0.18);
-  box-shadow: 0 0 16px rgba(120,180,255,0.22);
-  z-index: 50;
-  cursor: pointer;
+.anchor{
+  position:fixed;
+  width:14px;
+  height:14px;
+  border-radius:3px;
+  border:1px solid rgba(180,220,255,.55);
+  background: rgba(120,180,255,.14);
+  box-shadow: 0 0 14px rgba(120,180,255,.18);
+  z-index:50;
+  cursor:pointer;
 }
 
 /* =========================
    CRACK OVERLAY
 ========================= */
-#cracks {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 100;
-  opacity: 0;
+#cracks{
+  position:fixed;
+  inset:0;
+  width:100vw;
+  height:100vh;
+  pointer-events:none;
+  z-index:100;
+  opacity:0;
   transition: opacity 220ms ease;
 }
 
-#cracks.show { opacity: 1; }
+#cracks.show{ opacity:1; }
 
-#cracks svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+#cracks svg{
+  width:100%;
+  height:100%;
+  display:block;
 }
 
-.crack-path {
-  fill: none;
-  stroke: rgba(180, 200, 220, 0.70);
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 1px rgba(255,255,255,0.35));
+.crack-path{
+  fill:none;
+  stroke: rgba(185,205,235,.70);
+  stroke-width:2.1;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  filter: drop-shadow(0 0 1px rgba(255,255,255,.25));
 }
 
-@keyframes draw {
-  from { stroke-dashoffset: var(--dash); opacity: 0; }
-  to   { stroke-dashoffset: 0; opacity: 1; }
+@keyframes draw{
+  from{ stroke-dashoffset: var(--dash); opacity:0; }
+  to{ stroke-dashoffset: 0; opacity:1; }
 }
 
-.draw {
-  animation: draw 520ms ease forwards;
-}
+.draw{ animation: draw 520ms ease forwards; }
 
-#cracks.flash { opacity: 1; }
-#cracks.flash svg {
-  filter: drop-shadow(0 0 5px rgba(120,180,255,0.35));
-}
+#cracks.flash{ opacity:1; }
+#cracks.flash svg{ filter: drop-shadow(0 0 5px rgba(120,180,255,.25)); }
 
 /* =========================
-   GLASS SHATTER
+   GLASS FX (only if you add #glassFX)
 ========================= */
-#glassFX {
-  position: fixed;
-  inset: 0;
-  z-index: 120;
-  pointer-events: none;
+#glassFX{
+  position:fixed;
+  inset:0;
+  z-index:120;
+  pointer-events:none;
 }
 
-.glass-piece {
-  position: absolute;
-  border: 1px solid rgba(180,220,255,0.20);
-  background: rgba(140,190,255,0.05);
-  backdrop-filter: blur(1px);
-  border-radius: 2px;
+.glass-piece{
+  position:absolute;
+  border:1px solid rgba(180,220,255,.18);
+  background: rgba(140,190,255,.04);
+  border-radius:2px;
   transform: translateY(0) rotate(var(--rot, 0deg));
 }
 
-.glass-fall .glass-piece {
+.glass-fall .glass-piece{
   animation: fall 1.05s cubic-bezier(.2,.8,.2,1) forwards;
 }
 
-@keyframes fall {
-  to {
+@keyframes fall{
+  to{
     transform: translateY(120vh) rotate(calc(var(--rot, 0deg) + 18deg));
-    opacity: 0;
+    opacity:0;
   }
 }
 
-body.sim-transition #wrap {
-  opacity: 0.45;
-  filter: blur(0.6px);
-  transition: opacity 250ms ease, filter 250ms ease;
+body.sim-transition #wrap{
+  opacity:.55;
+  filter: blur(.7px);
+  transition: opacity 220ms ease, filter 220ms ease;
 }
 
 /* =========================
    OVERLAYS / MODALS
 ========================= */
-.overlay {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: rgba(0,0,0,0.55);
-  z-index: 200;
+.overlay{
+  position:fixed;
+  inset:0;
+  display:grid;
+  place-items:center;
+  background: rgba(0,0,0,.62);
+  z-index:200;
 }
 
-.modal {
-  width: min(560px, calc(100% - 28px));
-  background: rgba(10, 14, 25, 0.92);
-  border: 1px solid rgba(255,255,255,0.16);
-  border-radius: 14px;
-  padding: 16px;
+.modal{
+  width:min(560px, calc(100% - 28px));
+  background: rgba(6, 9, 16, .96);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:10px;
+  padding:14px;
+  box-shadow: 0 14px 36px rgba(0,0,0,.55);
 }
 
-.modal input,
-.modal textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(0,0,0,0.25);
-  color: var(--text);
+.modal input, .modal textarea{
+  width:100%;
+  padding:10px 11px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.35);
+  color: var(--ink);
 }
 
-.modal-actions {
-  margin-top: 12px;
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
+.modal-actions{
+  margin-top:12px;
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+  flex-wrap:wrap;
 }
 
 /* =========================
    HACK ROOM
 ========================= */
-#hackRoom .hack-filebtn {
-  margin-right: 8px;
-  margin-top: 10px;
+#hackRoom .hack-filebtn{
+  margin-right:6px;
+  margin-top:8px;
 }
 
-.hack-line {
-  display: grid;
+.hack-line{
+  display:grid;
   grid-template-columns: 42px 1fr;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.18);
+  gap:10px;
+  padding:8px 10px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
   margin: 8px 0;
-  cursor: pointer;
+  cursor:pointer;
 }
 
-.hack-line.target {
-  border-color: rgba(120,180,255,0.32);
+.hack-line.target{
+  border-color: rgba(140,190,255,.22);
 }
 
-.hack-line.selected {
-  outline: 2px solid rgba(120,180,255,0.45);
+.hack-line.selected{
+  outline: 2px solid rgba(140,190,255,.32);
 }
 
-.hack-ln {
-  opacity: 0.7;
-  font-family: ui-monospace, monospace;
+.hack-ln{
+  opacity:.68;
 }
 
-.hack-txt {
-  font-family: ui-monospace, monospace;
-  opacity: 0.92;
+.hack-txt{
+  opacity:.92;
 }
