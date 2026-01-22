@@ -142,6 +142,7 @@
       taskBody.innerHTML = "";
       taskSecondary.classList.add("hidden");
       taskPrimary.disabled = false;
+      taskUI.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
     function hardReload() {
