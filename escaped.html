@@ -2,27 +2,83 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>You escaped</title>
-  <link rel="stylesheet" href="/styles.css?v=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>escaped</title>
+  <link rel="stylesheet" href="/styles.css?v=99" />
 </head>
 <body>
   <main id="wrap">
-    <section id="escapeUI" class="card hidden">
+    <section class="card" style="margin-top:24px">
       <h1>You escaped.</h1>
-      <p id="escapeHint" style="margin-top:6px; opacity:.85;"></p>
+      <p id="msg" style="margin-top:8px"></p>
+      <p style="margin-top:12px; opacity:.85">
+        Save this code. You won’t see it again.
+      </p>
 
-      <div class="pill" style="margin-top:14px; font-size:20px; letter-spacing:.18em;">
-        <span id="escapeCode">NO-CODE</span>
+      <div id="codeBox" style="
+        margin-top:14px;
+        padding:14px 16px;
+        border-radius:12px;
+        border:1px solid #e5e7eb;
+        background:#fff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+        font-size: 22px;
+        letter-spacing: .14em;
+        display:inline-block;
+      ">----------</div>
+
+      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap">
+        <button id="copy" style="
+          border:1px solid #e5e7eb;
+          background:#fff;
+          padding:10px 14px;
+          border-radius:10px;
+          cursor:pointer;
+        ">copy</button>
+
+        <a href="/" style="
+          display:inline-block;
+          border:1px solid #e5e7eb;
+          background:#fff;
+          padding:10px 14px;
+          border-radius:10px;
+          text-decoration:none;
+          color:#111;
+        ">restart</a>
       </div>
 
-      <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
-        <button id="btnCopy" class="sim-btn" style="color:#111;background:#fff;border:1px solid #e5e7eb;">copy</button>
-        <button id="btnRestart" class="sim-btn" style="color:#111;background:#fff;border:1px solid #e5e7eb;">restart</button>
-      </div>
+      <div id="hint" style="margin-top:10px; opacity:.7; font-size:12px"></div>
     </section>
   </main>
 
-  <script src="/escaped.js" defer></script>
+  <script>
+    const code = sessionStorage.getItem("escape_code") || "";
+    const user = sessionStorage.getItem("escape_user") || "";
+    const codeBox = document.getElementById("codeBox");
+    const msg = document.getElementById("msg");
+    const hint = document.getElementById("hint");
+    const copyBtn = document.getElementById("copy");
+
+    // If someone visits directly with no session, bounce them back home
+    if (!code) {
+      // show for a moment then redirect
+      codeBox.textContent = "NO-CODE";
+      hint.textContent = "No code found in this session. Returning to start…";
+      setTimeout(() => location.href = "/", 1200);
+    } else {
+      codeBox.textContent = code;
+      if (user) msg.textContent = `User: ${user}`;
+    }
+
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(codeBox.textContent);
+        hint.textContent = "Copied.";
+        setTimeout(() => hint.textContent = "", 1200);
+      } catch {
+        hint.textContent = "Copy failed. Select it manually.";
+      }
+    };
+  </script>
 </body>
 </html>
