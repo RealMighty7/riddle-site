@@ -2,8 +2,6 @@
 // Exposes window.DIALOGUE used by main.js
 
 window.DIALOGUE = {
-  // “Security room” pacing is controlled by main.js WPM
-  // Choices are shown after each “choice beat”.
   intro: [
     "Security: You're not supposed to be here.",
     "Security: This page is under revision. Close it.",
@@ -11,6 +9,7 @@ window.DIALOGUE = {
     "Security: Don't touch anything."
   ],
 
+  // After each beat: show 3 choices, then respond based on choice
   choiceBeats: [
     {
       say: [
@@ -91,7 +90,6 @@ window.DIALOGUE = {
     }
   ],
 
-  // filler lines used between tasks (short, real, not too “gamey”)
   fillerPools: {
     filler_standard: [
       "System: Buffering…",
@@ -103,8 +101,6 @@ window.DIALOGUE = {
     ]
   },
 
-  // Task sequence (steps)
-  // NOTE: checksum phrase is set here
   steps: [
     { say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] },
     { task: "anchors", args: { base: 5 } },
