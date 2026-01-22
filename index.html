@@ -3,147 +3,79 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>index</title>
-
+  <title>escaped</title>
   <link rel="stylesheet" href="/styles.css?v=99" />
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-
-  <!-- load ONCE, in order -->
-  <script src="/dialogue.js" defer></script>
-  <script src="/tasks.js" defer></script>
-  <script src="/main.js" defer></script>
-
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
 </head>
-
 <body>
   <main id="wrap">
-    <header class="card">
-      <h1>Welcome</h1>
-      <p>
-        This page is currently under revision.<br><br>
-        Some content may be incomplete or displayed incorrectly.
-        If you believe you’ve reached this page in error, you may close it at any time.
+    <section class="card" style="margin-top:24px">
+      <h1>You escaped.</h1>
+      <p id="msg" style="margin-top:8px"></p>
+      <p style="margin-top:12px; opacity:.85">
+        Save this code. You won’t see it again.
       </p>
-    </header>
 
-    <section class="grid card" aria-label="media">
-      <img data-slot="0" alt="">
-      <img data-slot="1" alt="">
-      <img data-slot="2" alt="">
-      <img data-slot="3" alt="">
-      <img data-slot="4" alt="">
-      <img data-slot="5" alt="">
-    </section>
+      <div id="codeBox" style="
+        margin-top:14px;
+        padding:14px 16px;
+        border-radius:12px;
+        border:1px solid #e5e7eb;
+        background:#fff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+        font-size: 22px;
+        letter-spacing: .14em;
+        display:inline-block;
+      ">----------</div>
 
-    <!-- crack overlay -->
-    <div id="cracks" class="cracks hidden" aria-hidden="true"></div>
+      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap">
+        <button id="copy" style="
+          border:1px solid #e5e7eb;
+          background:#fff;
+          padding:10px 14px;
+          border-radius:10px;
+          cursor:pointer;
+        ">copy</button>
 
-    <!-- system warning -->
-    <section id="system" class="system card hidden" aria-live="polite">
-      <div id="l1" class="sysline"></div>
-      <div id="l2" class="sysline"></div>
-      <div id="l3" class="sysline small"></div>
+        <a href="/" style="
+          display:inline-block;
+          border:1px solid #e5e7eb;
+          background:#fff;
+          padding:10px 14px;
+          border-radius:10px;
+          text-decoration:none;
+          color:#111;
+        ">restart</a>
+      </div>
+
+      <div id="hint" style="margin-top:10px; opacity:.7; font-size:12px"></div>
     </section>
   </main>
 
-  <!-- SIMULATION ROOM -->
-  <section id="simRoom" class="sim hidden" aria-live="polite">
-    <div class="sim-bg"></div>
-    <div class="sim-panel">
-      <div class="sim-title">OUTSIDE // SIMULATION</div>
+  <script>
+    const code = sessionStorage.getItem("escape_code") || "";
+    const user = sessionStorage.getItem("escape_user") || "";
+    const codeBox = document.getElementById("codeBox");
+    const msg = document.getElementById("msg");
+    const hint = document.getElementById("hint");
+    const copyBtn = document.getElementById("copy");
 
-      <pre id="simText" class="sim-text"></pre>
+    if (user) msg.textContent = `User: ${user}`;
+    if (code) {
+      codeBox.textContent = code;
+    } else {
+      codeBox.textContent = "NO-CODE";
+      hint.textContent = "No code found in this session. Finish the final step again to generate one.";
+    }
 
-      <div id="simChoices" class="sim-choices hidden">
-        <button id="choiceNeed" class="sim-btn">i need something first</button>
-        <button id="choiceLie" class="sim-btn">i clicked by accident</button>
-        <button id="choiceRun" class="sim-btn danger">run</button>
-      </div>
-
-      <div id="taskUI" class="task-ui hidden">
-        <div id="taskTitle" class="task-title"></div>
-        <div id="taskDesc" class="task-desc"></div>
-        <div id="taskBody" class="task-body"></div>
-
-        <div class="task-actions">
-          <button id="taskPrimary" class="sim-btn">continue</button>
-          <button id="taskSecondary" class="sim-btn hidden">secondary</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- reset overlay -->
-    <div id="resetOverlay" class="reset hidden" aria-hidden="true">
-      <div class="reset-card">
-        <div id="resetTitle" class="reset-title"></div>
-        <div id="resetBody" class="reset-body"></div>
-        <div class="reset-hint">restarting…</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FINAL VERIFY MODAL -->
-  <div id="finalOverlay" class="final hidden" aria-hidden="true">
-    <div class="final-card">
-      <div class="final-title">FINAL STEP</div>
-      <div class="final-body">
-        <div class="final-msg">
-          You are almost done — hack into this computer to erase your files and that will set you free!
-        </div>
-
-        <label class="final-label">Username</label>
-        <input id="finalDiscord" class="final-input" placeholder="Discord username">
-
-        <label class="final-label">Answer (accepts anything)</label>
-        <textarea id="finalAnswer" class="final-textarea" placeholder="type anything..."></textarea>
-
-        <div id="turnstileBox" class="turnstile-box"></div>
-
-        <div class="final-actions">
-          <button id="finalCancel" class="sim-btn">cancel</button>
-          <button id="finalVerify" class="sim-btn">verify</button>
-        </div>
-
-        <div id="finalErr" class="final-err"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- HACK SCREEN -->
-  <section id="hackRoom" class="hack hidden" aria-live="polite">
-    <div class="hack-panel">
-      <div class="hack-head">
-        <div class="hack-title">WORKSTATION // FILE WIPE</div>
-        <div id="hackUser" class="hack-user"></div>
-      </div>
-
-      <div class="hack-instructions">
-        <b>Task:</b> Open files. Delete these lines only.
-        <span id="hackTargets"></span>
-      </div>
-
-      <div class="hack-grid">
-        <div class="hack-files">
-          <div class="hack-files-title">FILES</div>
-          <button class="hack-filebtn" data-file="0">logs/boot.log</button>
-          <button class="hack-filebtn" data-file="1">user/profile.cfg</button>
-          <button class="hack-filebtn" data-file="2">sys/cache.tmp</button>
-        </div>
-
-        <div class="hack-editor">
-          <div class="hack-editor-title">
-            <span id="hackFilename">logs/boot.log</span>
-            <div class="hack-editor-actions">
-              <button id="hackDelete" class="sim-btn">delete selected lines</button>
-              <button id="hackReset" class="sim-btn">reset</button>
-            </div>
-          </div>
-          <div id="hackLines" class="hack-lines"></div>
-          <div id="hackStatus" class="hack-status"></div>
-        </div>
-      </div>
-    </div>
-  </section>
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(codeBox.textContent);
+        hint.textContent = "Copied.";
+        setTimeout(() => hint.textContent = "", 1200);
+      } catch {
+        hint.textContent = "Copy failed. Select it manually.";
+      }
+    };
+  </script>
 </body>
 </html>
