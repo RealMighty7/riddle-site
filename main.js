@@ -683,6 +683,9 @@ function ensureCracks() {
       if (clicks === 6) setCrackStage(2);
       if (clicks === 8) setCrackStage(3);
       if (clicks === 10) setCrackStage(4);
+      // keep flash intensity proportional to stage (used by CSS)
+      const paneMap = { 1: 0.10, 2: 0.18, 3: 0.26, 4: 0.34 };
+      cracks.style.setProperty("--paneOpacity", String(paneMap[crackStage] ?? 0.0));
 
       // enter sim at 10 clicks
       if (clicks >= 10) {
