@@ -234,7 +234,7 @@
         callback: (token) => { tsToken = token; },
         "expired-callback": () => { tsToken = null; },
         "error-callback": () => { tsToken = null; },
-        refresh-expired: "auto",
+        refreshexpired: "auto",
         retry: "auto",
       });
     }
