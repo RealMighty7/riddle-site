@@ -7,14 +7,13 @@
   const TASKS = (window.TASKS = window.TASKS || {});
   // Pools for random selection
   const TASK_POOLS = (window.TASK_POOLS = window.TASK_POOLS || {});
-  
+
   // pack files call: registerTaskPool("core", [{ id:"anchors", w:1 }, ...])
   window.registerTaskPool = function registerTaskPool(poolName, entries) {
     if (!poolName) return;
     if (!Array.isArray(entries)) return;
     TASK_POOLS[poolName] = (TASK_POOLS[poolName] || []).concat(entries);
   };
-
 
   // Pack system hook (packs call registerTasks({ ... }))
   window.registerTasks = function registerTasks(map) {
@@ -23,10 +22,9 @@
       if (typeof v === "function") TASKS[k] = v;
     }
   };
-    // ---------------- Pool utilities ----------------
 
+  // ---------------- Pool utilities ----------------
   function pickWeighted(entries) {
-    // entries: [{id, w}, ...]
     let total = 0;
     for (const e of entries) total += Math.max(0, Number(e.w ?? 1));
     if (total <= 0) return null;
@@ -53,8 +51,12 @@
   TASKS.random = async function random(ctx, args = {}) {
     const pools = args.pools || args.pool || "core";
     const entries = poolEntries(pools).filter(e => e && typeof e.id === "string");
+
     if (!entries.length) {
-      ctx.showTaskUI("TASK ROUTER", `No tasks in pool: ${Array.isArray(pools) ? pools.join(", ") : pools}`);
+      ctx.showTaskUI(
+        "TASK ROUTER",
+        `No tasks in pool: ${Array.isArray(pools) ? pools.join(", ") : pools}`
+      );
       ctx.taskBody.innerHTML = `<div style="opacity:.85">Pool is empty or missing.</div>`;
       ctx.taskPrimary.textContent = "continue";
       ctx.taskPrimary.disabled = false;
@@ -75,10 +77,8 @@
       return;
     }
 
-    // optional: pass through args.inner to the picked task
     await fn(ctx, args.inner || {});
   };
-
 
   function el(tag, props = {}, children = []) {
     const n = document.createElement(tag);
@@ -121,7 +121,6 @@
       ctx.showTaskUI("RESTART // ANCHOR SYNC", `Stabilize boundary. Locate and click ${count} anchors.`);
       ctx.taskBody.innerHTML = "";
 
-      // Ensure primary button is in a known state
       ctx.taskPrimary.textContent = "continue";
       ctx.taskPrimary.disabled = true;
 
@@ -160,7 +159,6 @@
 
       for (let i = 0; i < count; i++) spawn();
 
-      // timeout consequence
       const timeLimit = 14000 + (ctx.difficultyBoost?.() ?? 0) * 1200;
       let timedOut = false;
 
@@ -177,10 +175,8 @@
       }, timeLimit);
 
       const ok = await new Promise(resolve => {
-        // success path
         ctx.taskPrimary.onclick = () => resolve(true);
 
-        // if timed out: allow continue, but as failure
         const watcher = setInterval(() => {
           if (!timedOut) return;
           clearInterval(watcher);
@@ -188,12 +184,12 @@
           ctx.taskPrimary.onclick = () => resolve(false);
         }, 120);
 
-        // ensure watcher stops if task finishes early
         L.on(window, "beforeunload", () => { try { clearInterval(watcher); } catch {} });
       });
 
       clearTimeout(to);
       for (const x of anchors) x.remove();
+      L.clear();
 
       if (ok) return;
 
@@ -205,7 +201,6 @@
       }
 
       await wait(450);
-      L.clear();
     }
   };
 
@@ -617,7 +612,9 @@
       }
       await wait(450);
     }
-      // Core pool
+  };
+
+  // ✅ Core pool belongs OUT HERE (not inside mismatch)
   window.registerTaskPool("core", [
     { id: "anchors", w: 1 },
     { id: "reorder", w: 1 },
@@ -626,5 +623,4 @@
     { id: "pattern", w: 1 },
     { id: "mismatch", w: 1 },
   ]);
-  };
 })();
