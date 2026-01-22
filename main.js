@@ -520,17 +520,20 @@ async function runSteps(steps) {
 }
 
     /* ====================== SIM FLOW ====================== */
-    async function openSimRoom() {
-      stage = 99;
-      simRoom.classList.remove("hidden");
-      taskUI.classList.add("hidden");
-      simChoices.classList.add("hidden");
-      simText.textContent = "";
+async function openSimRoom() {
+  stage = 99;
 
-      await playLines(DIALOGUE.intro);
-      await runChoiceBeats();       // choices + responses
-      await runSteps(DIALOGUE.steps); // tasks
-    }
+  document.body.classList.add("in-sim"); 
+
+  simRoom.classList.remove("hidden");
+  taskUI.classList.add("hidden");
+  simChoices.classList.add("hidden");
+  simText.textContent = "";
+
+  await playLines(DIALOGUE.intro);
+  await runChoiceBeats();
+  await runSteps(DIALOGUE.steps);
+}
 
     function waitForChoice() {
       return new Promise(resolve => {
@@ -783,54 +786,86 @@ function ensureCracks() {
       else playSfx("static1", 0.30);
     }
     
-    function buildGlassPieces() {
-      glassFX.innerHTML = "";
-    
-      // make sure glassFX is visible
-      glassFX.classList.remove("hidden");
-    
-      const cols = 7;
-      const rows = 5;
-    
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-    
-      const pad = 6;
-      const cellW = Math.floor(w / cols);
-      const cellH = Math.floor(h / rows);
-    
-      const pieces = [];
-    
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const x = c * cellW + pad;
-          const y = r * cellH + pad;
-          const pw = cellW - pad * 2;
-          const ph = cellH - pad * 2;
-    
-          const p = document.createElement("div");
-          p.className = "glass-piece";
-          p.style.left = x + "px";
-          p.style.top = y + "px";
-          p.style.width = pw + "px";
-          p.style.height = ph + "px";
-    
-          const rot = (Math.random() * 10 - 5).toFixed(2) + "deg";
-          p.style.setProperty("--rot", rot);
-    
-          glassFX.appendChild(p);
-          pieces.push(p);
-        }
-      }
-    
-      // randomize fall order
-      for (let i = pieces.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
-      }
-    
-      return pieces;
+function buildGlassPieces() {
+  glassFX.innerHTML = "";
+
+  // make sure glassFX is visible
+  glassFX.classList.remove("hidden");
+
+  const cols = 7;
+  const rows = 5;
+
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  const pad = 6;
+  const cellW = Math.floor(w / cols);
+  const cellH = Math.floor(h / rows);
+
+  const pieces = [];
+
+  // helper: random polygon shard (in percentages)
+  function shardPoly() {
+    // 6–9 points, jagged-ish
+    const pts = [];
+    const n = 6 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) {
+      const x = 8 + Math.random() * 84;
+      const y = 8 + Math.random() * 84;
+      pts.push([x, y]);
     }
+    // sort around center for a valid polygon-ish shape
+    const cx = 50, cy = 50;
+    pts.sort((a,b) => Math.atan2(a[1]-cy,a[0]-cx) - Math.atan2(b[1]-cy,b[0]-cx));
+    return `polygon(${pts.map(p => `${p[0].toFixed(1)}% ${p[1].toFixed(1)}%`).join(",")})`;
+  }
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = c * cellW + pad;
+      const y = r * cellH + pad;
+      const pw = cellW - pad * 2;
+      const ph = cellH - pad * 2;
+
+      const p = document.createElement("div");
+      p.className = "glass-piece";
+      p.style.left = x + "px";
+      p.style.top = y + "px";
+      p.style.width = pw + "px";
+      p.style.height = ph + "px";
+
+      // rotation
+      const rot = (Math.random() * 14 - 7).toFixed(2) + "deg";
+      p.style.setProperty("--rot", rot);
+
+      // fall spread
+      const sx = (Math.random() * 220 - 110).toFixed(1) + "px";
+      const sy = (Math.random() * 90 - 45).toFixed(1) + "px";
+      p.style.setProperty("--sx", sx);
+      p.style.setProperty("--sy", sy);
+
+      // “refraction offset” (pseudo-element shift)
+      const rx = (Math.random() * 18 - 9).toFixed(1) + "px";
+      const ry = (Math.random() * 18 - 9).toFixed(1) + "px";
+      p.style.setProperty("--rx", rx);
+      p.style.setProperty("--ry", ry);
+
+      // irregular shard shape
+      p.style.clipPath = shardPoly();
+
+      glassFX.appendChild(p);
+      pieces.push(p);
+    }
+  }
+
+  // randomize fall order
+  for (let i = pieces.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+  }
+
+  return pieces;
+}
     
 function shatterToSim() {
   // freeze input
