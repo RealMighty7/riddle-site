@@ -360,3 +360,114 @@ p{ margin: 0; line-height: 1.4; }
   color: rgba(255,210,140,.95);
   opacity: .95;
 }
+/* =========================
+   GLASS FX (cracks + falling pieces)
+========================= */
+
+#cracks.cracks{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10000;
+  opacity: 0;
+  transform: translateZ(0);
+}
+#cracks.cracks.show{ opacity: 1; }
+
+#cracks.cracks::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  /* subtle dim so cracks read on white pages */
+  background: rgba(0,0,0,0.06);
+}
+
+#cracks.cracks svg{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+}
+
+#cracks svg *{ fill: none !important; }
+
+#cracks .crack-path{
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* makes cracks pop on light backgrounds */
+  mix-blend-mode: multiply;
+}
+
+#cracks .crack-under{
+  stroke: rgba(0,0,0,.45);
+  stroke-width: 3.2;
+  filter: blur(.25px);
+  opacity: .85;
+}
+#cracks .crack-line{
+  stroke: rgba(255,255,255,.95);
+  stroke-width: 1.6;
+  opacity: .95;
+}
+#cracks .crack-glint{
+  stroke: rgba(140,210,255,.95);
+  stroke-width: 1.0;
+  filter: drop-shadow(0 0 10px rgba(140,210,255,.35));
+  opacity: .85;
+}
+
+#cracks.show .crack-path{
+  animation: crackDraw 1.05s ease-out forwards;
+}
+@keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
+
+/* stage reveal: hide all, then reveal up to stage */
+#cracks .seg{ opacity: 0; }
+#cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
+#cracks[data-stage="2"] .seg[data-rank="1"],
+#cracks[data-stage="2"] .seg[data-rank="2"]{ opacity: 1; }
+#cracks[data-stage="3"] .seg[data-rank="1"],
+#cracks[data-stage="3"] .seg[data-rank="2"],
+#cracks[data-stage="3"] .seg[data-rank="3"]{ opacity: 1; }
+
+/* Falling pieces overlay */
+#glassFX.glassfx{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10001;
+}
+
+#glassFX.hidden{ display:none !important; }
+
+.glass-piece{
+  position: absolute;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(220,240,255,0.28);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.20);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.glass-piece::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: linear-gradient(135deg, rgba(160,220,255,0.18), rgba(255,255,255,0));
+  opacity: .8;
+  border-radius: inherit;
+}
+
+.glass-fall .glass-piece{
+  animation: fallPiece 1.15s cubic-bezier(.2,.9,.25,1) forwards;
+}
+
+@keyframes fallPiece{
+  0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+  20%  { opacity: 1; }
+  100% { transform: translateY(120vh) rotate(var(--rot, 18deg)) scale(1.02); opacity: 0; }
+}
