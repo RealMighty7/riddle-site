@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>index</title>
 
-  <link rel="stylesheet" href="/styles.css?v=99" />
+  <link rel="stylesheet" href="/styles.css?v=100" />
   <!-- Turnstile (load once) -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
 </head>
@@ -37,8 +37,11 @@
     </section>
   </main>
 
-  <!-- overlays (must match your main.js required IDs) -->
+  <!-- overlays -->
   <div id="cracks" class="cracks hidden" aria-hidden="true"></div>
+
+  <!-- glitch overlay -->
+  <div id="glitchFX" aria-hidden="true"></div>
 
   <section id="simRoom" class="sim hidden" aria-hidden="true">
     <div class="sim-bg"></div>
@@ -64,8 +67,6 @@
       </div>
     </div>
   </section>
-  
-  <div id="glitchFX" aria-hidden="true"></div>
 
   <div id="resetOverlay" class="reset hidden" aria-hidden="true">
     <div class="reset-card">
@@ -81,12 +82,15 @@
       <div class="reset-title">FINAL STEP</div>
       <div class="reset-body" style="margin-bottom:12px">
         You are almost done. Hack into this computer to erase your files and that will set you free!
+        <div style="margin-top:10px;opacity:.8;font-size:12px">
+          Disclosure: No passwords. Just what you go by on Discord.
+        </div>
       </div>
 
-      <label style="display:block; margin:8px 0 4px; opacity:.8">Username</label>
+      <label style="display:block; margin:8px 0 4px; opacity:.8">Discord Username</label>
       <input id="finalDiscord" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#fff" />
 
-      <label style="display:block; margin:10px 0 4px; opacity:.8">Answer</label>
+      <label style="display:block; margin:10px 0 4px; opacity:.8">Answer (any)</label>
       <input id="finalAnswer" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#fff" />
 
       <div id="turnstileBox" style="margin-top:12px"></div>
@@ -129,9 +133,9 @@
     </div>
   </section>
 
-  <!-- scripts (order matters) -->
-  <script src="/dialogue.js?v=99"></script>
-  <script src="/tasks.js?v=99"></script>
-  <script src="/main.js?v=99"></script>
+  <!-- scripts -->
+  <script src="/dialogue.js?v=100"></script>
+  <script src="/tasks.js?v=100"></script>
+  <script src="/main.js?v=100"></script>
 </body>
 </html>
