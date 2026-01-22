@@ -83,22 +83,66 @@ p{ margin: 0; line-height: 1.4; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* main crack lines */
 #cracks .crack-under{
   stroke: rgba(0,0,0,.20);
-  stroke-width: 3.2;
-  filter: blur(.4px);
-  opacity: .75;
+  stroke-width: 3.4;
+  filter: blur(.6px);
+  opacity: .85;
 }
 #cracks .crack-line{
   stroke: rgba(255,255,255,.85);
-  stroke-width: 1.7;
-  opacity: .9;
+  stroke-width: 1.6;
+  opacity: .95;
 }
 #cracks .crack-glint{
   stroke: rgba(170,220,255,.85);
   stroke-width: 1.0;
   filter: drop-shadow(0 0 12px rgba(160,220,255,.45));
-  opacity: .85;
+  opacity: .9;
+}
+
+/* draw animation */
+#cracks.show .crack-path{
+  animation: crackDraw 0.9s ease-out forwards;
+}
+@keyframes crackDraw{
+  to{ stroke-dashoffset: 0; }
+}
+
+/* shards for shatter moment */
+#cracks .shard{
+  stroke: rgba(235,245,255,.55);
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+  filter: drop-shadow(0 0 14px rgba(180,220,255,.35));
+  transform-origin: center;
+}
+#cracks.shatter .shard{
+  opacity: 1;
+  animation: shardFly 0.9s ease-out forwards;
+}
+@keyframes shardFly{
+  0%   { transform: translate(0,0) scale(1); opacity: 0; }
+  15%  { opacity: .9; }
+  100% { transform: translate(var(--dx,0px), var(--dy,0px)) rotate(var(--dr,0deg)) scale(1.12); opacity: 0; }
+}
+
+/* flash when it breaks */
+#cracks.flash::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,.85), rgba(255,255,255,0) 58%);
+  opacity: 0;
+  animation: crackFlash .32s ease-out forwards;
+}
+@keyframes crackFlash{
+  0%{opacity:0}
+  35%{opacity:.55}
+  100%{opacity:0}
 }
 
 /* =========================
