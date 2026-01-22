@@ -1,170 +1,137 @@
 // dialogue.js
-// Narrative + task pools.
-// main.js plays this.
+// Exposes window.DIALOGUE used by main.js
 
 window.DIALOGUE = {
+  // “Security room” pacing is controlled by main.js WPM
+  // Choices are shown after each “choice beat”.
   intro: [
-    `Security: "Control, I have an unregistered pointer event."`,
-    `Security: "Confirm it's not internal QA."`,
-    `System: "UNAUTHORIZED INTERACTION DETECTED."`,
-    `System: "SOURCE: EXTERNAL INPUT."`,
-    ``,
-    `Worker 2: "It’s not mapped to any sandbox profile."`,
-    `Security: "Then treat it as live."`,
-    ``,
-    `PA System: "CODE THREE. CODE THREE."`,
-    `PA System: "Containment protocol initiating."`,
-    ``,
-    `Security: "Lock auxiliary exits. Kill corridor cams."`,
-    `Worker 1: "They’re still clicking."`,
-    `Security: "I see it."`,
-    ``,
-    `Security: "Listen carefully."`,
-    `Security: "You are in a restricted system."`,
-    `Security: "Say something. Now."`
+    "Security: You're not supposed to be here.",
+    "Security: This page is under revision. Close it.",
+    "You: ...",
+    "Security: Don't touch anything."
   ],
 
+  choiceBeats: [
+    {
+      say: [
+        "Security: That click was logged.",
+        "Security: Tell me why you did that."
+      ],
+      choices: {
+        complyLabel: "I'm sorry. I’ll stop.",
+        lieLabel: "It was an accident.",
+        runLabel: "Run."
+      },
+      respond: {
+        comply: [
+          "Security: Good. Hands off.",
+          "Security: Stay still."
+        ],
+        lie: [
+          "Security: Accidents don't repeat.",
+          "Security: Watch yourself."
+        ],
+        run: [
+          "Security: Don't.",
+          "System: TRACE REQUIRED.",
+          "Security: You're making this worse."
+        ]
+      }
+    },
+    {
+      say: [
+        "Security: You're still interacting.",
+        "Security: You're triggering safeguards."
+      ],
+      choices: {
+        complyLabel: "Okay. I’ll cooperate.",
+        lieLabel: "I didn’t mean to.",
+        runLabel: "Run."
+      },
+      respond: {
+        comply: [
+          "Security: Then prove it.",
+          "Security: Do what the system asks."
+        ],
+        lie: [
+          "Security: Intent doesn’t matter here.",
+          "Security: Outcome does."
+        ],
+        run: [
+          "Security: Stop.",
+          "System: RECOVERY WINDOW NARROW.",
+          "Security: You feel that? That’s containment."
+        ]
+      }
+    },
+    {
+      say: [
+        "Security: Last warning.",
+        "Security: One more mistake and you lose the window."
+      ],
+      choices: {
+        complyLabel: "Tell me what to do.",
+        lieLabel: "I won’t touch anything else.",
+        runLabel: "Run."
+      },
+      respond: {
+        comply: [
+          "Security: Fine.",
+          "Security: Follow instructions exactly."
+        ],
+        lie: [
+          "Security: You'll say anything to buy time.",
+          "Security: We'll see."
+        ],
+        run: [
+          "Security: You're choosing the hard way.",
+          "System: ATTEMPTS LIMITED."
+        ]
+      }
+    }
+  ],
+
+  // filler lines used between tasks (short, real, not too “gamey”)
   fillerPools: {
     filler_standard: [
-      {
-        say: [
-          `Security: "Re-anchor the boundary nodes."`,
-          `System: "RESTART MODE: MANUAL."`,
-        ],
-        task: { id: "anchors", args: { base: 5 } }
-      },
-      {
-        say: [
-          `Security: "Rebuild the sequence. No guessing."`,
-          `System: "LOG FRAGMENTS: OUT OF ORDER."`,
-        ],
-        task: { id: "reorder", args: {
-          items: ["impact", "fracture", "alarm", "lockdown", "observer"],
-          correct: ["observer", "impact", "fracture", "alarm", "lockdown"]
-        }}
-      },
-      {
-        say: [
-          `Security: "Checksum verification."`,
-          `Worker 2: "If it fails twice, we wipe the session."`,
-        ],
-        task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } }
-      },
-      {
-        say: [
-          `Security: "Hold stabilization."`,
-          `System: "BOUNDARY: DRIFTING."`,
-        ],
-        task: { id: "hold", args: { baseMs: 3200 } }
-      },
-      {
-        say: [
-          `Security: "Pattern lock."`,
-          `Security: "If you can follow directions, prove it."`,
-        ],
-        task: { id: "pattern", args: { base: 5 } }
-      },
-      {
-        say: [
-          `Security: "Mismatch scan. Find the corrupted fragment."`,
-          `System: "ONE FRAGMENT DOES NOT MATCH."`,
-        ],
-        task: { id: "mismatch", args: { base: 7 } }
-      },
-    ],
-
-    filler_hard: [
-      {
-        say: [
-          `Security: "Stop resisting."`,
-          `Security: "More resistance means longer recovery."`,
-          `System: "RECOVERY WINDOW: NARROWING."`,
-        ],
-        task: { id: "anchors", args: { base: 7 } }
-      },
-      {
-        say: [
-          `Security: "Reorder again. Faster."`,
-          `Worker 3: "If they break pace, reset them."`,
-        ],
-        task: { id: "reorder", args: {
-          items: ["panic", "push", "crack", "alarm", "seal"],
-          correct: ["push", "crack", "alarm", "seal", "panic"]
-        }}
-      },
-      {
-        say: [
-          `Security: "Checksum. Last warning."`,
-          `System: "VALIDATION REQUIRED."`,
-        ],
-        task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } }
-      },
-      {
-        say: [
-          `Security: "Stabilize. Longer hold."`,
-          `System: "BOUNDARY: UNSTABLE."`,
-        ],
-        task: { id: "hold", args: { baseMs: 3900 } }
-      },
-      {
-        say: [
-          `Security: "Pattern lock."`,
-          `Security: "You do not get many tries."`,
-        ],
-        task: { id: "pattern", args: { base: 6 } }
-      },
-      {
-        say: [
-          `Security: "Mismatch scan. And don’t spam-click."`,
-          `Worker 2: "They’re making it worse."`,
-        ],
-        task: { id: "mismatch", args: { base: 9 } }
-      },
+      "System: Buffering…",
+      "System: Integrity check pending.",
+      "Security: Don't improvise.",
+      "Security: You're leaving traces.",
+      "System: Surface tension unstable.",
+      "System: Microfractures detected."
     ]
   },
 
-  branches: {
-    apology: {
-      preface: [
-        `You: "I’m sorry. I’ll do what you say."`,
-        `Security: "Good."`,
-        `Security: "Then you work until the corridor stabilizes."`,
-        `System: "COMPLIANCE NOTED."`
-      ],
-      steps: [
-        { filler: { count: 3, pool: "filler_standard" } },
-        { say: [
-          `Security: "Not finished."`,
-          `Security: "Keep going."`
-        ]},
-        { filler: { count: 2, pool: "filler_standard" } },
-      ]
-    },
+  // Task sequence (steps)
+  // NOTE: checksum phrase is set here
+  steps: [
+    { say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] },
+    { task: "anchors", args: { base: 5 } },
 
-    accident: {
-      preface: [
-        `You: "It was an accident."`,
-        `Security: "No. Accidents don’t repeat at a steady interval."`,
-        `System: "BEHAVIORAL FLAG: EVASIVE."`,
-        `Security: "Do the work."`
-      ],
-      steps: [
-        { filler: { count: 3, pool: "filler_standard" } },
-        { filler: { count: 2, pool: "filler_standard" } },
-      ]
-    },
+    { filler: { pool: "filler_standard", count: 2 } },
+    { say: ["System: Fragmented logs detected.", "System: Reconstruction needed."] },
+    { task: "reorder", args: {
+      items: ["clickstream", "session_map", "boot", "audit", "cache"],
+      correct: ["boot", "cache", "audit", "session_map", "clickstream"]
+    }},
 
-    run: {
-      preface: [
-        `You: "Run."`,
-        `Security: "Stop."`,
-        `System: "THREAT SCORE: INCREASING."`,
-        `Security: "If you push, we push back."`
-      ],
-      steps: [
-        { filler: { count: 3, pool: "filler_hard" } },
-        { filler: { count: 2, pool: "filler_hard" } },
-      ]
-    }
-  }
+    { filler: { pool: "filler_standard", count: 2 } },
+    { say: ["System: Memory integrity degraded.", "System: Checksum required."] },
+    { task: "checksum", args: { phrase: "echostatic07-vault" } },
+
+    { filler: { pool: "filler_standard", count: 2 } },
+    { say: ["System: Stabilization cycle begins.", "System: Do not release."] },
+    { task: "hold", args: { baseMs: 3200 } },
+
+    { filler: { pool: "filler_standard", count: 2 } },
+    { say: ["System: Pattern lock engaged.", "System: 10 seconds to memorize."] },
+    { task: "pattern", args: { base: 5 } },
+
+    { filler: { pool: "filler_standard", count: 2 } },
+    { say: ["System: Corrupted fragment detected.", "System: Identify mismatch."] },
+    { task: "mismatch", args: { base: 7 } },
+
+    { say: ["System: Surface failure imminent.", "Security: ...", "System: HANDOFF."] }
+  ]
 };
