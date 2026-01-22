@@ -295,7 +295,6 @@ window.TASKS = (() => {
 
       ctx.showTaskUI("RESTART // PATTERN LOCK", "Memorize the sequence. You have 10 seconds.");
 
-      // stable symbol set
       const symbols = ["▲","■","●","◆","✚","✖","◈","◇","⬡"];
       const sequence = Array.from({ length: count }, () => symbols[Math.floor(Math.random() * symbols.length)]);
       let input = [];
@@ -317,18 +316,13 @@ window.TASKS = (() => {
       const inEl = ctx.taskBody.querySelector("#in");
       const msg = ctx.taskBody.querySelector("#msg");
 
-      // 10 seconds memorize
       const SHOW_MS = 10000;
       let left = 10;
       timerEl.textContent = `Time remaining: ${left}s`;
       const t = setInterval(() => {
         left--;
-        if (left <= 0) {
-          clearInterval(t);
-          timerEl.textContent = "";
-        } else {
-          timerEl.textContent = `Time remaining: ${left}s`;
-        }
+        if (left <= 0) { clearInterval(t); timerEl.textContent = ""; }
+        else timerEl.textContent = `Time remaining: ${left}s`;
       }, 1000);
 
       setTimeout(() => {
@@ -336,7 +330,6 @@ window.TASKS = (() => {
         seqEl.style.opacity = "0.6";
       }, SHOW_MS);
 
-      // IMPORTANT: buttons must include every symbol that appears in sequence
       const needed = Array.from(new Set(sequence));
       const decoys = symbols.filter(s => !needed.includes(s));
       while (needed.length < Math.min(7, symbols.length) && decoys.length) {
@@ -356,10 +349,7 @@ window.TASKS = (() => {
             const ok = input.join("|") === sequence.join("|");
             msg.textContent = ok ? "pattern accepted." : "pattern rejected.";
             ctx.taskPrimary.disabled = !ok;
-            if (!ok) {
-              ctx.penalize?.(1, "PATTERN FAIL: penalty applied.");
-              ctx.glitch?.();
-            }
+            if (!ok) { ctx.penalize?.(1, "PATTERN FAIL: penalty applied."); ctx.glitch?.(); }
           }
         };
         btns.appendChild(b);
@@ -368,12 +358,7 @@ window.TASKS = (() => {
       const resetBtn = document.createElement("button");
       resetBtn.className = "sim-btn";
       resetBtn.textContent = "reset";
-      resetBtn.onclick = () => {
-        input = [];
-        inEl.textContent = "";
-        msg.textContent = "";
-        ctx.taskPrimary.disabled = true;
-      };
+      resetBtn.onclick = () => { input = []; inEl.textContent = ""; msg.textContent = ""; ctx.taskPrimary.disabled = true; };
       btns.appendChild(resetBtn);
 
       ctx.taskPrimary.textContent = "continue";
@@ -381,7 +366,6 @@ window.TASKS = (() => {
 
       await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
 
-      // must be correct to proceed
       const ok = input.join("|") === sequence.join("|");
       if (ok) return;
 
