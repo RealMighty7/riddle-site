@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>You escaped</title>
+  <link rel="stylesheet" href="/styles.css?v=1" />
+</head>
+<body>
+  <main id="wrap">
+    <section id="escapeUI" class="card hidden">
+      <h1>You escaped.</h1>
+      <p id="escapeHint" style="margin-top:6px; opacity:.85;"></p>
+
+      <div class="pill" style="margin-top:14px; font-size:20px; letter-spacing:.18em;">
+        <span id="escapeCode">NO-CODE</span>
+      </div>
+
+      <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button id="btnCopy" class="sim-btn" style="color:#111;background:#fff;border:1px solid #e5e7eb;">copy</button>
+        <button id="btnRestart" class="sim-btn" style="color:#111;background:#fff;border:1px solid #e5e7eb;">restart</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/escaped.js" defer></script>
+</body>
+</html>
