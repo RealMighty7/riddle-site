@@ -588,9 +588,14 @@ async function runChoiceBeats() {
     function isCountableClick(e) {
       const t = e.target;
       if (!t) return true;
-      if (t.closest("button, input, textarea, select, label, a, pre, img")) return false;
+    
+      // still ignore actual interactive UI
+      if (t.closest("button, input, textarea, select, label, a")) return false;
+    
+      // allow clicks on images + cards + background to count
       return true;
     }
+    
 
     /* ======================
        CRACKS (4 staged) + GLASS FALL -> SIM
@@ -875,64 +880,17 @@ function buildGlassPieces() {
 
   return pieces;
 }
-
-
-function shatterToSim() {
-  stage = 99;
-
-  // Ensure cracks exist so panes exist
-  ensureCracks();
-
-  // Build falling shards from the cracked panes
-  const pieces = buildGlassPiecesFromCracks();
-
-  // Freeze visuals and prep reveal
-  document.body.classList.add("sim-transition");
-  cracks.classList.add("shatter-hide-lines"); // hides svg lines during fall
-
-  // IMPORTANT: show sim behind, but keep it visually “behind the glass” until shards clear
-  simRoom.classList.remove("hidden");
-  taskUI.classList.add("hidden");
-  simChoices.classList.add("hidden");
-
-  // Start falling
-  glassFX.classList.add("glass-fall");
-  pieces.forEach((p, i) => {
-    p.style.animationDelay = (i * 28) + "ms";
-  });
-
-  const totalMs = 900 + pieces.length * 28;
-
-  setTimeout(() => {
-    // Remove crack overlay completely
-    cracks.classList.add("hidden");
-    cracks.classList.remove("show");
-
-    // Clear shards
-    glassFX.innerHTML = "";
-    glassFX.classList.remove("glass-fall");
-    glassFX.classList.add("hidden");
-
-    document.body.classList.remove("sim-transition");
-
-    // Now actually run the sim lines / choices
-    openSimRoom();
-  }, totalMs);
-}
-
     
 function shatterToSim() {
   stage = 99;
 
-  // Build shards from crack panes
+  // Build shards from crack panes (ensure cracks exist first)
+  ensureCracks();
   const pieces = buildGlassPieces();
 
-  // Hide the original page so only shards show it
   document.body.classList.add("sim-transition");
-  const wrap = document.getElementById("wrap");
-  if (wrap) wrap.classList.add("wrap-hidden");
 
-  // Hide crack lines (we are now using the shard polygons)
+  // Hide crack overlay (we are now using shard polygons)
   cracks.classList.add("hidden");
 
   // Start falling
@@ -941,18 +899,15 @@ function shatterToSim() {
     p.style.animationDelay = (i * 45) + "ms";
   });
 
-  // When done, clear shards and enter sim
   const totalMs = 1100 + pieces.length * 45;
+
   setTimeout(() => {
     glassFX.innerHTML = "";
     glassFX.classList.remove("glass-fall");
     document.body.classList.remove("sim-transition");
-
-    // keep wrap hidden once we're in the sim room (optional — remove if you want it visible behind)
     openSimRoom();
   }, totalMs);
 }
-
     
     /* ======================
        LANDING -> SIM
