@@ -585,107 +585,79 @@ Reinitializing simulation…`
       if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
     }
 
-    function ensureCracks() {
-      if (crackBuilt) return;
+function ensureCracks() {
+  if (crackBuilt) return;
 
-      const seed = Date.now() & 0xffffffff;
-      const rng = rand(seed);
+  // Stable per-load randomness so it doesn't look like "three random cracks stacked"
+  const seed = (Date.now() ^ (Math.random() * 1e9)) & 0xffffffff;
+  const rng = rand(seed);
 
-      cracks.innerHTML = "";
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("viewBox", "0 0 1000 1000");
-      svg.setAttribute("preserveAspectRatio", "none");
-      cracks.appendChild(svg);
+  cracks.innerHTML = "";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 1000 1000");
+  svg.setAttribute("preserveAspectRatio", "none");
+  cracks.appendChild(svg);
 
-      const cx = 500, cy = 500;
+  const cx = 500, cy = 500;
 
-      // Rank 1: main spokes (small-ish but long)
-      for (let i = 0; i < 10; i++) {
-        const d = makePathFromCenter(rng, cx, cy, 12 + Math.floor(rng() * 6), 48, 0.55);
-        addSeg(svg, d, 1);
-      }
+  // helper: random point on a ring (keeps early stages near center)
+  const ring = (radiusMin, radiusMax) => {
+    const a = rng() * Math.PI * 2;
+    const r = radiusMin + rng() * (radiusMax - radiusMin);
+    return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+  };
 
-      // Rank 2: branching cracks
-      for (let i = 0; i < 14; i++) {
-        const sx = cx + (rng() - 0.5) * 240;
-        const sy = cy + (rng() - 0.5) * 160;
-        const d = makePathFromCenter(rng, sx, sy, 10 + Math.floor(rng() * 6), 34, 0.9);
-        addSeg(svg, d, 2);
-      }
+  // =========================
+  // STAGE 1 (rank 1): small center "impact" star
+  // short spokes, few lines, tight radius
+  // =========================
+  for (let i = 0; i < 7; i++) {
+    const [sx, sy] = ring(0, 26);
+    const d = makePathFromCenter(rng, sx, sy, 6 + Math.floor(rng() * 3), 18, 0.85);
+    addSeg(svg, d, 1);
+  }
 
-      // Rank 3: hairlines
-      for (let i = 0; i < 18; i++) {
-        const sx = cx + (rng() - 0.5) * 520;
-        const sy = cy + (rng() - 0.5) * 360;
-        const d = makePathFromCenter(rng, sx, sy, 8 + Math.floor(rng() * 6), 22, 1.15);
-        addSeg(svg, d, 3);
-      }
+  // =========================
+  // STAGE 2 (rank 2): extends outward a bit + branching
+  // still centered, medium length
+  // =========================
+  for (let i = 0; i < 12; i++) {
+    const [sx, sy] = ring(18, 120);
+    const d = makePathFromCenter(rng, sx, sy, 9 + Math.floor(rng() * 4), 28, 0.75);
+    addSeg(svg, d, 2);
+  }
 
-      crackBuilt = true;
-    }
+  // =========================
+  // STAGE 3 (rank 3): webbing / hairlines around the page
+  // wider radius so it "fills in" naturally
+  // =========================
+  for (let i = 0; i < 18; i++) {
+    const [sx, sy] = ring(120, 360);
+    const d = makePathFromCenter(rng, sx, sy, 10 + Math.floor(rng() * 5), 22, 1.05);
+    addSeg(svg, d, 3);
+  }
 
-    function setCrackStage(n) {
-      ensureCracks();
+  // =========================
+  // STAGE 4 (rank 4): long “shatter” traversals (full coverage)
+  // big lines that can reach edges — ONLY revealed at stage 4
+  // =========================
+  for (let i = 0; i < 14; i++) {
+    const [sx, sy] = ring(60, 220);
+    const d = makePathFromCenter(rng, sx, sy, 18 + Math.floor(rng() * 8), 46, 0.55);
+    addSeg(svg, d, 4);
+  }
 
-      const next = Math.max(crackStage, n);
-      if (next === crackStage) return;
-
-      crackStage = next;
-      cracks.dataset.stage = String(crackStage);
-
-      cracks.classList.remove("hidden");
-      cracks.classList.add("show");
-      function spawnFallingPieces() {
-        glassFX.innerHTML = "";
-        glassFX.classList.remove("hidden");
-        glassFX.classList.add("glass-fall");
-      
-        const cols = 7;
-        const rows = 4;
-        const w = window.innerWidth / cols;
-        const h = window.innerHeight / rows;
-
-        for (let r = 0; r < rows; r++) {
-          for (let c = 0; c < cols; c++) {
-            const piece = document.createElement("div");
-            piece.className = "glass-piece";
-            piece.style.left = `${c * w}px`;
-            piece.style.top = `${r * h}px`;
-            piece.style.width = `${w + 1}px`;
-            piece.style.height = `${h + 1}px`;
-
-            const rot = (Math.random() * 40 - 20).toFixed(1) + "deg";
-            piece.style.setProperty("--rot", rot);
-
-      // stagger so they fall “one by one”
-            const delay = (0.06 * (r + c) + Math.random() * 0.06).toFixed(2);
-            piece.style.animationDelay = `${delay}s`;
-
-      // a few gaps looks more real
-            if (Math.random() < 0.10) piece.style.opacity = "0.0";
-
-            glassFX.appendChild(piece);
-          }
-        }
-      }
-
-      function shatterToSim() {
-  // stage 4 already set; do the fall now
-        playSfx("thud", 0.55);
-        cracks.classList.add("flash");
-
-        spawnFallingPieces();
-        document.body.classList.add("sim-transition");
+  crackBuilt = true;
+}
 
   // hide cracks quickly (glass pieces are now “the screen”)
       setTimeout(() => cracks.classList.add("hidden"), 280);
 
   // after fall, enter sim
-        setTimeout(() => {
-          glassFX.classList.add("hidden");
-          openSimRoom();
-        }, 1250);
-      }
+      setTimeout(() => {
+        shatterToSim();
+      }, t3);
+    }
 
       // only play audio when stage increases
       if (crackStage === 1) playSfx("thud", 0.55);
