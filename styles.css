@@ -518,6 +518,82 @@ body.in-sim #wrap{ display:none; } /* hide landing content during sim */
   /* Slightly dim so it feels like it’s behind glass */
   opacity: 0.98;
 }
+/* =========================
+   Chromatic split (RGB aberration)
+   ========================= */
+
+/* We’ll render 3 copies (R/G/B) inside each shard */
+.glass-inner {
+  position: fixed;
+  inset: 0;
+  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
+  filter: blur(var(--rblur, 1px)) saturate(1.10) contrast(1.06);
+  opacity: 0.98;
+  isolation: isolate; /* important: keeps blend modes contained */
+}
+
+/* Hide the base clone visually if we’re using RGB layers */
+.glass-inner > #wrap,
+.glass-inner > .wrap-clone {
+  opacity: 0; /* keep it in DOM but not visible */
+}
+
+/* RGB layers: each is a full copy of the page */
+.glass-rgb {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform, opacity, filter;
+}
+
+/* Each channel has a slightly different offset (aberration) */
+.glass-rgb.r {
+  transform: translate3d(calc(var(--rx, 0px) + var(--rgbx, 2px)), calc(var(--ry, 0px) + var(--rgby, -1px)), 0);
+  filter: blur(calc(var(--rblur, 1px) + 0.2px)) contrast(1.07) saturate(1.08);
+  mix-blend-mode: screen;
+  opacity: 0.85;
+}
+.glass-rgb.g {
+  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
+  filter: blur(var(--rblur, 1px)) contrast(1.05) saturate(1.06);
+  mix-blend-mode: screen;
+  opacity: 0.85;
+}
+.glass-rgb.b {
+  transform: translate3d(calc(var(--rx, 0px) - var(--rgbx, 2px)), calc(var(--ry, 0px) - var(--rgby, -1px)), 0);
+  filter: blur(calc(var(--rblur, 1px) + 0.25px)) contrast(1.07) saturate(1.08);
+  mix-blend-mode: screen;
+  opacity: 0.85;
+}
+
+/* Channel tinting using CSS masks: we tint each layer with a color overlay */
+.glass-rgb::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.95;
+}
+
+/* Red tint */
+.glass-rgb.r::before { background: rgba(255, 80, 80, 1); }
+/* Green tint */
+.glass-rgb.g::before { background: rgba(80, 255, 160, 1); }
+/* Blue tint */
+.glass-rgb.b::before { background: rgba(90, 150, 255, 1); }
+
+/* Subtle jitter shimmer while falling (feels like cracked LCD) */
+#glassFX.glass-fall .glass-piece .glass-rgb {
+  animation: rgbJitter 240ms steps(2, end) infinite;
+}
+
+@keyframes rgbJitter {
+  0%   { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
+  50%  { filter: blur(calc(var(--rblur, 1px) + 0.35px)) contrast(1.10) saturate(1.12); opacity: 0.82; }
+  100% { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
+}
+
 
 /* Glass thickness + highlights */
 .glass-piece::before {
