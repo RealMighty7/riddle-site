@@ -5,6 +5,9 @@
       document.addEventListener("DOMContentLoaded", boot, { once: true });
       return;
     }
+    function clamp(n, a, b) {
+      return Math.max(a, Math.min(b, n));
+    }
 
     const DIALOGUE = window.DIALOGUE;
     const TASKS = window.TASKS;
