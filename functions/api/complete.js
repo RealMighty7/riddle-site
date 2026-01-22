@@ -1,3 +1,5 @@
+// functions/api/complete.js
+
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
@@ -24,13 +26,16 @@ export async function onRequestPost({ request, env }) {
       body: new URLSearchParams({
         secret: tsSecret,
         response: token,
-        ...(ip ? { remoteip: ip } : {})
-      })
+        ...(ip ? { remoteip: ip } : {}),
+      }),
     });
 
     const verify = await verifyRes.json();
     if (!verify.success) {
-      return json({ error: "Turnstile failed", details: verify["error-codes"] || [] }, 403);
+      return json(
+        { error: "Turnstile failed", details: verify["error-codes"] || [] },
+        403
+      );
     }
 
     // ---- Generate 10-digit code (server-authoritative) ----
@@ -60,15 +65,15 @@ Time: ${new Date().toISOString()}
     const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        "authorization": `Bearer ${resendKey}`,
-        "content-type": "application/json"
+        authorization: `Bearer ${resendKey}`,
+        "content-type": "application/json",
       },
       body: JSON.stringify({
         from: emailFrom,
         to: [emailTo],
         subject,
-        text
-      })
+        text,
+      }),
     });
 
     if (!emailRes.ok) {
@@ -78,7 +83,7 @@ Time: ${new Date().toISOString()}
     }
 
     return json({ code }, 200);
-  } catch (err) {
+  } catch {
     return json({ error: "Bad request" }, 400);
   }
 }
@@ -86,7 +91,7 @@ Time: ${new Date().toISOString()}
 function json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
     status,
-    headers: { "content-type": "application/json" }
+    headers: { "content-type": "application/json" },
   });
 }
 
