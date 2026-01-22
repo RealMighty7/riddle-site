@@ -504,8 +504,21 @@ Reinitializing simulation…`
       return true;
     }
 
-    /* ====================== CRACKS ====================== */
+    /* ======================
+       CRACKS (4 staged)
+       stage 0 = hidden
+       stage 1 @ 4 clicks
+       stage 2 @ 6 clicks
+       stage 3 @ 8 clicks
+       stage 4 @ 10 clicks (full coverage)
+    ====================== */
+
+    // prevent “drag highlight” / selection artifacts while spam clicking
+    document.addEventListener("selectstart", (e) => e.preventDefault());
+
     let crackBuilt = false;
+    let crackStage = 0;
+
     function rand(seed) {
       let t = seed >>> 0;
       return () => {
@@ -515,10 +528,12 @@ Reinitializing simulation…`
         return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
       };
     }
+
     function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
       let x = cx, y = cy;
       let ang = rng() * Math.PI * 2;
       const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
+
       for (let i = 0; i < steps; i++) {
         ang += (rng() - 0.5) * jitter;
         x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
@@ -529,41 +544,106 @@ Reinitializing simulation…`
       }
       return pts.join(" ");
     }
-    function addSeg(svg, d) {
-      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      p.setAttribute("d", d);
-      p.setAttribute("class", "crack-path");
-      svg.appendChild(p);
-      try {
-        const len = p.getTotalLength();
-        p.style.strokeDasharray = String(len);
-        p.style.strokeDashoffset = String(len);
-        p.style.setProperty("--dash", String(len));
-        p.classList.add("draw");
-      } catch {}
+
+    function addSeg(svg, d, rank) {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.setAttribute("class", "seg");
+      g.setAttribute("data-rank", String(rank));
+
+      // under shadow
+      const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pUnder.setAttribute("d", d);
+      pUnder.setAttribute("class", "crack-path crack-under");
+
+      // main line
+      const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pLine.setAttribute("d", d);
+      pLine.setAttribute("class", "crack-path crack-line");
+
+      // glint
+      const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pGlint.setAttribute("d", d);
+      pGlint.setAttribute("class", "crack-path crack-glint");
+      pGlint.style.opacity = "0.0";
+
+      g.appendChild(pUnder);
+      g.appendChild(pLine);
+      g.appendChild(pGlint);
+      svg.appendChild(g);
+
+      // dash animation setup
+      [pUnder, pLine, pGlint].forEach(p => {
+        try {
+          const len = p.getTotalLength();
+          p.style.strokeDasharray = String(len);
+          p.style.strokeDashoffset = String(len);
+          p.style.setProperty("--dash", String(len));
+          p.classList.add("draw");
+        } catch {}
+      });
+
+      if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
     }
+
     function ensureCracks() {
       if (crackBuilt) return;
+
+      const seed = Date.now() & 0xffffffff;
+      const rng = rand(seed);
+
       cracks.innerHTML = "";
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("viewBox", "0 0 1000 1000");
       svg.setAttribute("preserveAspectRatio", "none");
       cracks.appendChild(svg);
-      const rng = rand(Date.now() & 0xffffffff);
+
       const cx = 500, cy = 500;
-      for (let i = 0; i < 10; i++) addSeg(svg, makePathFromCenter(rng, cx, cy, 12 + Math.floor(rng()*6), 48, 0.55));
-      for (let i = 0; i < 14; i++) addSeg(svg, makePathFromCenter(rng, cx + (rng()-0.5)*240, cy + (rng()-0.5)*160, 10 + Math.floor(rng()*6), 34, 0.9));
-      for (let i = 0; i < 18; i++) addSeg(svg, makePathFromCenter(rng, cx + (rng()-0.5)*520, cy + (rng()-0.5)*360, 8 + Math.floor(rng()*6), 22, 1.15));
+
+      // Rank 1: main spokes (small-ish but long)
+      for (let i = 0; i < 10; i++) {
+        const d = makePathFromCenter(rng, cx, cy, 12 + Math.floor(rng() * 6), 48, 0.55);
+        addSeg(svg, d, 1);
+      }
+
+      // Rank 2: branching cracks
+      for (let i = 0; i < 14; i++) {
+        const sx = cx + (rng() - 0.5) * 240;
+        const sy = cy + (rng() - 0.5) * 160;
+        const d = makePathFromCenter(rng, sx, sy, 10 + Math.floor(rng() * 6), 34, 0.9);
+        addSeg(svg, d, 2);
+      }
+
+      // Rank 3: hairlines
+      for (let i = 0; i < 18; i++) {
+        const sx = cx + (rng() - 0.5) * 520;
+        const sy = cy + (rng() - 0.5) * 360;
+        const d = makePathFromCenter(rng, sx, sy, 8 + Math.floor(rng() * 6), 22, 1.15);
+        addSeg(svg, d, 3);
+      }
+
       crackBuilt = true;
     }
-    function showCracks() {
+
+    function setCrackStage(n) {
       ensureCracks();
+
+      const next = Math.max(crackStage, n);
+      if (next === crackStage) return;
+
+      crackStage = next;
+      cracks.dataset.stage = String(crackStage);
+
       cracks.classList.remove("hidden");
       cracks.classList.add("show");
-      playSfx("static1", 0.32);
+
+      // only play audio when stage increases
+      if (crackStage === 1) playSfx("thud", 0.55);
+      else playSfx("static1", 0.30);
     }
 
-    /* ====================== LANDING -> SIM ====================== */
+    /* ======================
+       LANDING -> SIM
+    ====================== */
     document.addEventListener("click", (e) => {
       unlockAudio();
       if (stage !== 1) return;
@@ -574,16 +654,39 @@ Reinitializing simulation…`
       lastClick = now;
 
       clicks++;
-      if (clicks === 4) showCracks();
-      if (clicks === 9) {
+
+      // staged cracks
+      if (clicks === 4) setCrackStage(1);
+      if (clicks === 6) setCrackStage(2);
+      if (clicks === 8) setCrackStage(3);
+      if (clicks === 10) setCrackStage(4);
+
+      // enter sim at 10 clicks
+      if (clicks >= 10) {
         stage = 2;
-        systemBox.textContent = "That isn’t how this page is supposed to be used.";
-        setTimeout(() => systemBox.textContent = "You weren’t meant to interact with this.", msToRead("That isn’t how this page is supposed to be used."));
-        setTimeout(() => systemBox.textContent = "Stop.", msToRead("That isn’t how this page is supposed to be used.") + msToRead("You weren’t meant to interact with this."));
-        setTimeout(openSimRoom, msToRead("That isn’t how this page is supposed to be used.") + msToRead("You weren’t meant to interact with this.") + msToRead("Stop.") + 650);
+
+        systemBox.textContent = "You weren't supposed to do that.";
+        const t1 = msToRead(systemBox.textContent);
+
+        setTimeout(() => {
+          systemBox.textContent = "All you had to do was sit there like everyone else and watch the ads.";
+        }, t1);
+
+        const t2 = t1 + msToRead("All you had to do was sit there like everyone else and watch the ads.");
+        setTimeout(() => {
+          systemBox.textContent = "Stop.";
+        }, t2);
+
+        const t3 = t2 + msToRead("Stop.") + 650;
+
+        // small “flash” right before we drop into sim
+        setTimeout(() => {
+          cracks.classList.add("flash");
+          setTimeout(() => cracks.classList.remove("flash"), 220);
+        }, Math.max(0, t3 - 280));
+
+        setTimeout(() => {
+          openSimRoom();
+        }, t3);
       }
     });
-  }
-
-  boot();
-})();
