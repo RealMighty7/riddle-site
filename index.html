@@ -5,12 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>index</title>
 
-  <link rel="stylesheet" href="/styles.css?v=200" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
+  <link rel="stylesheet" href="/styles.css?v=99" />
 
   <!-- Turnstile (explicit render) -->
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
+
 <body>
+  <!-- crack overlay -->
+  <div id="cracks" aria-hidden="true"></div>
 
   <main id="wrap">
     <header class="card">
@@ -23,118 +27,102 @@
     </header>
 
     <section class="grid card" aria-label="media">
-      <img src="" alt="">
-      <img src="" alt="">
-      <img src="" alt="">
-      <img src="" alt="">
-      <img src="" alt="">
-      <img src="" alt="">
+      <img src="/assets/img1.jpg" alt="">
+      <img src="/assets/img2.jpg" alt="">
+      <img src="/assets/img3.jpg" alt="">
+      <img src="/assets/img4.jpg" alt="">
+      <img src="/assets/img5.jpg" alt="">
+      <img src="/assets/img6.jpg" alt="">
     </section>
 
-    <section id="system" class="system hidden card">
-      <div id="l1" class="sysline"></div>
-      <div id="l2" class="sysline"></div>
-      <div id="l3" class="sysline"></div>
+    <section class="card" style="margin-top:14px">
+      <div id="system" style="opacity:.85">That isn’t how this page is supposed to be used.</div>
     </section>
-  </main>
 
-  <!-- overlays -->
-  <div id="cracks" class="cracks hidden" aria-hidden="true"></div>
-  <div id="glassFX" class="glassfx hidden" aria-hidden="true"></div>
+    <!-- security room -->
+    <section id="simRoom" class="card">
+      <div style="opacity:.75;font-size:12px;margin-bottom:8px">OUTSIDE // SIMULATION</div>
+      <pre id="simText"></pre>
 
-  <!-- SIM ROOM -->
-  <section id="simRoom" class="sim hidden" aria-hidden="true">
-    <div class="sim-bg"></div>
-    <div class="sim-panel">
-      <div class="sim-title">OUTSIDE // SIMULATION</div>
-
-      <div id="simText" class="sim-text"></div>
-
-      <div id="simChoices" class="sim-choices hidden">
-        <button id="choiceNeed" class="sim-btn">I’m sorry. I’ll do what you say.</button>
+      <div id="simChoices" class="hidden" aria-label="choices">
+        <button id="choiceNeed" class="sim-btn">I'm sorry. I’ll stop.</button>
         <button id="choiceLie" class="sim-btn">It was an accident.</button>
-        <button id="choiceRun" class="sim-btn danger">Run.</button>
+        <button id="choiceRun" class="sim-btn">Run.</button>
       </div>
 
+      <!-- task UI -->
       <div id="taskUI" class="hidden">
-        <div id="taskTitle" class="sysline"></div>
-        <div id="taskDesc" class="sysline small"></div>
+        <h3 id="taskTitle" style="margin:0 0 6px 0"></h3>
+        <div id="taskDesc" style="opacity:.8"></div>
         <div id="taskBody"></div>
-        <div class="task-actions">
+        <div id="taskActions">
           <button id="taskPrimary" class="sim-btn">continue</button>
           <button id="taskSecondary" class="sim-btn hidden">secondary</button>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- RESET -->
-  <div id="resetOverlay" class="reset hidden" aria-hidden="true">
-    <div class="reset-card">
-      <div id="resetTitle" class="reset-title">RESET</div>
-      <div id="resetBody" class="reset-body"></div>
-      <div class="reset-hint">Reinitializing…</div>
-    </div>
-  </div>
-
-  <!-- FINAL MODAL -->
-  <div id="finalOverlay" class="reset hidden" aria-hidden="true">
-    <div class="reset-card">
-      <div class="reset-title">FINAL STEP</div>
-      <div class="reset-body" style="margin-bottom:12px">
-        You are almost done. Hack into this computer to erase your files and that will set you free!<br>
-        <span style="opacity:.8">Disclosure: no passwords — just your Discord username.</span>
-      </div>
-
-      <label style="display:block; margin:8px 0 4px; opacity:.8">Discord username</label>
-      <input id="finalDiscord" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#fff" />
-
-      <label style="display:block; margin:10px 0 4px; opacity:.8">Answer (anything)</label>
-      <input id="finalAnswer" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#fff" />
-
-      <div id="turnstileBox" style="margin-top:12px"></div>
-      <div id="finalErr" style="margin-top:10px; color:#ffb4b4"></div>
-
-      <div style="margin-top:12px; display:flex; gap:10px; justify-content:flex-end">
-        <button id="finalCancel" class="sim-btn">cancel</button>
-        <button id="finalVerify" class="sim-btn danger">verify</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- HACK ROOM -->
-  <section id="hackRoom" class="sim hidden" aria-hidden="true">
-    <div class="sim-bg"></div>
-    <div class="sim-panel">
-      <div class="sim-title">WORKSTATION // FILE ACCESS</div>
-      <div id="hackUser" class="sysline small"></div>
-
-      <div class="card" style="background:rgba(10,14,28,.88); border-color:rgba(255,255,255,.10)">
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px">
+    <!-- hack room -->
+    <section id="hackRoom" class="card hidden" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <div id="hackUser" style="opacity:.85">USER:</div>
+          <div style="opacity:.75;font-size:12px;margin-top:4px">Workstation // line wipe</div>
+        </div>
+        <div>
           <button class="sim-btn hack-filebtn" data-file="0">boot.log</button>
           <button class="sim-btn hack-filebtn" data-file="1">profile.cfg</button>
           <button class="sim-btn hack-filebtn" data-file="2">cache.tmp</button>
         </div>
+      </div>
 
-        <div style="opacity:.8; margin-bottom:6px">
-          <span id="hackFilename"></span><span id="hackTargets"></span>
-        </div>
+      <div style="margin-top:10px;opacity:.85">
+        <b id="hackFilename"></b><span id="hackTargets" style="opacity:.7"></span>
+      </div>
 
-        <div id="hackLines" class="hack-lines"></div>
+      <div id="hackStatus" style="margin-top:8px;opacity:.8"></div>
+      <div id="hackLines" style="margin-top:10px"></div>
 
-        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap">
-          <button id="hackDelete" class="sim-btn danger">delete selected</button>
-          <button id="hackReset" class="sim-btn">reset</button>
-        </div>
+      <div class="modal-actions" style="justify-content:flex-start">
+        <button id="hackDelete" class="sim-btn">delete</button>
+        <button id="hackReset" class="sim-btn">reset</button>
+      </div>
+    </section>
+  </main>
 
-        <div id="hackStatus" style="margin-top:10px; opacity:.85"></div>
+  <!-- reset overlay -->
+  <div id="resetOverlay" class="overlay hidden" aria-hidden="true">
+    <div class="modal">
+      <h3 id="resetTitle" style="margin:0 0 6px 0">RESET</h3>
+      <pre id="resetBody" style="white-space:pre-wrap;opacity:.85;margin:0"></pre>
+    </div>
+  </div>
+
+  <!-- final overlay -->
+  <div id="finalOverlay" class="overlay hidden" aria-hidden="true">
+    <div class="modal">
+      <h3 style="margin:0 0 8px 0">Finalize</h3>
+      <div style="opacity:.8;margin-bottom:10px">Enter your Discord and final answer, then verify.</div>
+
+      <label style="display:block;margin-bottom:8px;opacity:.8">Discord</label>
+      <input id="finalDiscord" placeholder="your discord username" />
+
+      <label style="display:block;margin:12px 0 8px;opacity:.8">Answer</label>
+      <input id="finalAnswer" placeholder="answer" />
+
+      <div style="margin-top:12px" id="turnstileBox"></div>
+      <div id="finalErr" style="margin-top:10px;color:rgba(255,190,190,.95)"></div>
+
+      <div class="modal-actions">
+        <button id="finalCancel" class="sim-btn">cancel</button>
+        <button id="finalVerify" class="sim-btn">verify</button>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- scripts -->
-  <script src="/dialogue.js?v=200"></script>
-  <script src="/tasks.js?v=200"></script>
-  <script src="/main.js?v=200"></script>
+  <!-- scripts in correct order -->
+  <script src="/dialogue.js?v=99"></script>
+  <script src="/tasks.js?v=99"></script>
+  <script src="/main.js?v=99"></script>
 </body>
 </html>
