@@ -782,35 +782,31 @@ async function runChoiceBeats() {
       return pieces;
     }
     
-    function shatterToSim() {
-      // freeze input
-      stage = 99;
-    
-      const pieces = buildGlassPieces();
-      document.body.classList.add("sim-transition");
-    
-      // hide crack lines (pieces are “the screen” now)
-      cracks.classList.add("hidden");
-    
-      // start falling
-      glassFX.classList.add("glass-fall");
-      pieces.forEach((p, i) => {
-        p.style.animationDelay = (i * 55) + "ms";
-      });
-    
-      // when done, clear overlay and enter sim
-      const totalMs = 1100 + pieces.length * 55;
-      setTimeout(() => {
-        glassFX.innerHTML = "";
-        glassFX.classList.remove("glass-fall");
-        document.body.classList.remove("sim-transition");
-        openSimRoom(); // go to story room
-      }, totalMs);
+function shatterToSim() {
+  // freeze input
+  stage = 99;
 
-    
-        openSimRoom(); // ✅ THIS is what you wanted
-      }, totalMs);
-    }
+  const pieces = buildGlassPieces();
+  document.body.classList.add("sim-transition");
+
+  // hide crack lines (pieces are “the screen” now)
+  cracks.classList.add("hidden");
+
+  // start falling
+  glassFX.classList.add("glass-fall");
+  pieces.forEach((p, i) => {
+    p.style.animationDelay = (i * 55) + "ms";
+  });
+
+  // when done, clear overlay and enter sim
+  const totalMs = 1100 + pieces.length * 55;
+  setTimeout(() => {
+    glassFX.innerHTML = "";
+    glassFX.classList.remove("glass-fall");
+    document.body.classList.remove("sim-transition");
+    openSimRoom(); //
+  }, totalMs);
+}
     
     /* ======================
        LANDING -> SIM
