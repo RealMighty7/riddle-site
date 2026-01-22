@@ -343,8 +343,13 @@ header.card p{
   backdrop-filter: blur(10px);
   padding: 18px;
 }
+/* Hide ONLY landing sections while in sim (simRoom is inside #wrap) */
+body.in-sim #wrap > header.card,
+body.in-sim #wrap > section.grid.card,
+body.in-sim #wrap > section.card:not(#simRoom):not(#hackRoom) {
+  display: none;
+}
 
-body.in-sim #wrap{ display:none; } /* hide landing content during sim */
 
 #simRoom .sim-head{
   font-size: 12px;
@@ -543,11 +548,6 @@ body.in-sim #wrap{ display:none; } /* hide landing content during sim */
   isolation: isolate; /* important: keeps blend modes contained */
 }
 
-/* Hide the base clone visually if we’re using RGB layers */
-.glass-inner > #wrap,
-.glass-inner > .wrap-clone {
-  opacity: 0; /* keep it in DOM but not visible */
-}
 
 /* RGB layers: each is a full copy of the page */
 .glass-rgb {
