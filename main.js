@@ -881,35 +881,69 @@ function buildGlassPieces() {
   return pieces;
 }
     
+// ======================
+// SHATTER -> SIM (single source of truth)
+// Put this in main.js where your current shatterToSim() is.
+// Assumes: ensureCracks(), buildGlassPieces(), openSimRoom() already exist
+// and els/cracks/glassFX/simRoom/taskUI/simChoices are in scope (as in your file).
+// ======================
 function shatterToSim() {
   stage = 99;
 
-  // Make sure panes + svg exist
+  // Make sure panes + svg exist (so buildGlassPieces() can reuse pane clip-paths)
   ensureCracks();
 
   // Build shards from crack panes
   const pieces = buildGlassPieces();
 
-  // Hide the original page so only shards show it
+  // If for some reason no shards were created, just fall back into sim
+  if (!pieces || !pieces.length) {
+    cracks.classList.add("hidden");
+    openSimRoom();
+    return;
+  }
+
+  // Hide landing content during the fall so shards are the only thing showing it
   document.body.classList.add("sim-transition");
   const wrap = document.getElementById("wrap");
   if (wrap) wrap.classList.add("wrap-hidden");
 
-  // Hide crack lines (we are now using the shard polygons)
+  // Hide crack overlay (we're using the shard polygons now)
   cracks.classList.add("hidden");
+  cracks.classList.remove("show");
+  cracks.classList.remove("flash");
+
+  // (Optional but recommended) pre-show sim container behind shards
+  // so when shards clear it feels like you "fell through" into sim
+  simRoom.classList.remove("hidden");
+  taskUI.classList.add("hidden");
+  simChoices.classList.add("hidden");
 
   // Start falling
+  glassFX.classList.remove("hidden");
   glassFX.classList.add("glass-fall");
+
+  // Stagger shards so it's a wave, not all-at-once
+  const STAGGER_MS = 28;   // faster stagger looks more like "screen collapse"
+  const BASE_MS = 900;     // should roughly match your CSS shardFall duration
+
   pieces.forEach((p, i) => {
-    p.style.animationDelay = (i * 45) + "ms";
+    p.style.animationDelay = (i * STAGGER_MS) + "ms";
   });
 
   // When done, clear shards and enter sim
-  const totalMs = 1100 + pieces.length * 45;
+  const totalMs = BASE_MS + pieces.length * STAGGER_MS + 80;
+
   setTimeout(() => {
+    // Clear shard overlay
     glassFX.innerHTML = "";
     glassFX.classList.remove("glass-fall");
+    glassFX.classList.add("hidden");
+
+    // Cleanup transition flags
     document.body.classList.remove("sim-transition");
+
+    // Now run the sim sequence (this will set body.in-sim etc.)
     openSimRoom();
   }, totalMs);
 }
