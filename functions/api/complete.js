@@ -20,15 +20,18 @@ export async function onRequestPost({ request, env }) {
     if (!tsSecret) return json({ error: "Server misconfigured" }, 500);
 
     const ip = request.headers.get("CF-Connecting-IP") || "";
-    const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        secret: tsSecret,
-        response: token,
-        ...(ip ? { remoteip: ip } : {}),
-      }),
-    });
+    const verifyRes = await fetch(
+      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          secret: tsSecret,
+          response: token,
+          ...(ip ? { remoteip: ip } : {}),
+        }),
+      }
+    );
 
     const verify = await verifyRes.json();
     if (!verify.success) {
@@ -42,18 +45,14 @@ export async function onRequestPost({ request, env }) {
     const code = generate10DigitCode();
 
     // ---- Email you (Resend) ----
-    // Set RESEND_API_KEY + EMAIL_TO + EMAIL_FROM in Cloudflare Pages Variables
+    // Secrets in Cloudflare Pages: RESEND_API_KEY, EMAIL_TO, EMAIL_FROM
     const resendKey = env.RESEND_API_KEY;
     const emailTo = env.EMAIL_TO;
     const emailFrom = env.EMAIL_FROM;
 
-    if (!resendKey || !emailTo || !emailFrom) {
-      // Still return code, but tell you what’s missing
-      return json({ error: "Email not configured", code }, 200);
-    }
-
-    const subject = `ESCAPED: ${discord} (${code})`;
-    const text =
+    if (resendKey && emailTo && emailFrom) {
+      const subject = `ESCAPED: ${discord} (${code})`;
+      const text =
 `A player completed the game.
 
 Discord: ${discord}
@@ -62,26 +61,31 @@ Code: ${code}
 Time: ${new Date().toISOString()}
 `;
 
-    const emailRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${resendKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        from: emailFrom,
-        to: [emailTo],
-        subject,
-        text,
-      }),
-    });
+      const emailRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${resendKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          from: emailFrom,
+          to: [emailTo],
+          subject,
+          text,
+        }),
+      });
 
-    if (!emailRes.ok) {
-      const err = await emailRes.text().catch(() => "");
-      // return code anyway, but report email failure
-      return json({ code, emailError: "Failed to send", details: err.slice(0, 400) }, 200);
-      sessionStorage.setItem("escape_code", data.code);
-      location.href = `/escaped.html?escaped=1`;
+      // Don’t block the player if email fails — just include debug info
+      if (!emailRes.ok) {
+        const err = await emailRes.text().catch(() => "");
+        return json(
+          { code, emailError: "Failed to send", details: err.slice(0, 400) },
+          200
+        );
+      }
+    } else {
+      // If you haven't configured Resend yet, still let the player proceed
+      return json({ code, emailWarning: "Email not configured" }, 200);
     }
 
     return json({ code }, 200);
@@ -98,10 +102,8 @@ function json(obj, status = 200) {
 }
 
 function generate10DigitCode() {
-  // crypto-safe
   const arr = new Uint32Array(2);
   crypto.getRandomValues(arr);
-  // 0..(10^10 - 1)
   const n = (BigInt(arr[0]) << 32n) | BigInt(arr[1]);
   const mod = n % 10000000000n;
   return mod.toString().padStart(10, "0");
