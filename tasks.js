@@ -1,6 +1,6 @@
 // tasks.js
 // window.TASKS async tasks
-// ctx provides: showTaskUI, taskBody, taskPrimary, doReset, difficultyBoost, penalize(), glitch()
+// ctx provides: showTaskUI, taskBody, taskPrimary, doReset, difficultyBoost, penalize(amount, note), glitch()
 
 window.TASKS = (() => {
   function el(tag, props = {}, children = []) {
@@ -90,7 +90,6 @@ window.TASKS = (() => {
 
       if (ok) return;
 
-      // penalty
       ctx.glitch?.();
       ctx.penalize?.(1, "ANCHOR DESYNC: penalty applied.");
       if (attempts >= 2) {
@@ -155,9 +154,7 @@ window.TASKS = (() => {
       ctx.taskPrimary.textContent = "confirm order";
       ctx.taskPrimary.disabled = true;
 
-      await new Promise(resolve => {
-        ctx.taskPrimary.onclick = () => resolve();
-      });
+      await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
 
       // validate again (anti-edge-case)
       const ok = state.join("|") === correct.join("|");
@@ -184,7 +181,7 @@ window.TASKS = (() => {
 
       ctx.taskBody.innerHTML = `
         <div style="opacity:.85;margin-bottom:8px">Checksum required:</div>
-        <div class="pill" style="opacity:.9">Riddlers passcode: lowercase / no spaces</div>
+        <div class="pill" style="opacity:.9">Format: WORDWORD-WORD</div>
         <div style="margin-top:10px">
           <input id="chk" placeholder="enter checksum..." style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:rgba(0,0,0,0.25);color:#e5e7eb;">
         </div>
@@ -206,9 +203,7 @@ window.TASKS = (() => {
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = true;
 
-      await new Promise(resolve => {
-        ctx.taskPrimary.onclick = () => resolve();
-      });
+      await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
 
       const v = (inp.value || "").trim();
       const ok = v.toLowerCase() === phrase.toLowerCase();
@@ -286,9 +281,7 @@ window.TASKS = (() => {
     ctx.taskPrimary.textContent = "continue";
     ctx.taskPrimary.disabled = true;
 
-    await new Promise(resolve => {
-      ctx.taskPrimary.onclick = () => resolve();
-    });
+    await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
   }
 
   async function pattern(ctx, args = {}) {
@@ -302,7 +295,7 @@ window.TASKS = (() => {
 
       ctx.showTaskUI("RESTART // PATTERN LOCK", "Memorize the sequence. You have 10 seconds.");
 
-      // Use a stable symbol set, and ensure the input buttons contain the symbols used.
+      // stable symbol set
       const symbols = ["▲","■","●","◆","✚","✖","◈","◇","⬡"];
       const sequence = Array.from({ length: count }, () => symbols[Math.floor(Math.random() * symbols.length)]);
       let input = [];
@@ -324,7 +317,7 @@ window.TASKS = (() => {
       const inEl = ctx.taskBody.querySelector("#in");
       const msg = ctx.taskBody.querySelector("#msg");
 
-      // 10s memorize
+      // 10 seconds memorize
       const SHOW_MS = 10000;
       let left = 10;
       timerEl.textContent = `Time remaining: ${left}s`;
@@ -343,7 +336,7 @@ window.TASKS = (() => {
         seqEl.style.opacity = "0.6";
       }, SHOW_MS);
 
-      // Ensure pool includes all symbols in sequence, plus a few decoys
+      // IMPORTANT: buttons must include every symbol that appears in sequence
       const needed = Array.from(new Set(sequence));
       const decoys = symbols.filter(s => !needed.includes(s));
       while (needed.length < Math.min(7, symbols.length) && decoys.length) {
@@ -386,15 +379,16 @@ window.TASKS = (() => {
       ctx.taskPrimary.textContent = "continue";
       ctx.taskPrimary.disabled = true;
 
-      const ok = await new Promise(resolve => {
-        ctx.taskPrimary.onclick = () => resolve(true);
-        // If they never succeed, they can retry by failing and we loop on attempts
-      });
+      await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
 
+      // must be correct to proceed
+      const ok = input.join("|") === sequence.join("|");
       if (ok) return;
 
+      ctx.glitch?.();
+      ctx.penalize?.(1, "PATTERN REJECTED: penalty applied.");
       if (attempts >= 2) {
-        ctx.doReset?.("LOCKDOWN", "Pattern validation failed repeatedly.\n\nRestart required.");
+        ctx.doReset?.("LOCKDOWN", "Pattern validation failed twice.\n\nRestart required.");
         return;
       }
       await wait(450);
@@ -443,11 +437,8 @@ window.TASKS = (() => {
             b.textContent = "✖";
             ctx.penalize?.(1, "WRONG PICK: penalty applied.");
             ctx.glitch?.();
-            if (wrongClicks >= 2) {
-              // escalate on repeated mistakes
-              if (attempts >= 2) {
-                ctx.doReset?.("RESET", "Repeated mismatch errors.\n\nSimulation restart required.");
-              }
+            if (wrongClicks >= 2 && attempts >= 2) {
+              ctx.doReset?.("RESET", "Repeated mismatch errors.\n\nSimulation restart required.");
             }
           }
         };
@@ -460,14 +451,14 @@ window.TASKS = (() => {
       ctx.taskPrimary.textContent = "continue";
       ctx.taskPrimary.disabled = true;
 
-      await new Promise(resolve => {
-        ctx.taskPrimary.onclick = () => resolve();
-      });
+      await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
 
       if (solved) return;
 
+      ctx.glitch?.();
+      ctx.penalize?.(1, "MISMATCH FAILED: penalty applied.");
       if (attempts >= 2) {
-        ctx.doReset?.("LOCKDOWN", "Mismatch scan failed.\n\nRestart required.");
+        ctx.doReset?.("LOCKDOWN", "Mismatch scan failed twice.\n\nRestart required.");
         return;
       }
       await wait(450);
