@@ -530,7 +530,6 @@ async function runSteps(steps) {
       await playLines(DIALOGUE.intro);
       await runChoiceBeats();       // choices + responses
       await runSteps(DIALOGUE.steps); // tasks
-      openFinalModal(finalDiscordName); // then final modal
     }
 
     function waitForChoice() {
