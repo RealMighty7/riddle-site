@@ -5,16 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>index</title>
 
-  <link rel="stylesheet" href="/styles.css?v=1" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-
-  <!-- Turnstile (2-step verification) -->
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+  <link rel="stylesheet" href="/styles.css?v=99" />
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
   <!-- load ONCE, in order -->
   <script src="/dialogue.js" defer></script>
   <script src="/tasks.js" defer></script>
   <script src="/main.js" defer></script>
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
 </head>
 
 <body>
@@ -47,9 +46,6 @@
       <div id="l3" class="sysline small"></div>
     </section>
   </main>
-
-  <!-- falling pieces overlay (generated at shatter moment) -->
-  <div id="shatterLayer" class="shatter-layer hidden" aria-hidden="true"></div>
 
   <!-- SIMULATION ROOM -->
   <section id="simRoom" class="sim hidden" aria-live="polite">
@@ -87,32 +83,67 @@
     </div>
   </section>
 
-  <!-- VERIFICATION OVERLAY (Turnstile gate) -->
-  <div id="verifyOverlay" class="verify hidden" aria-hidden="true">
-    <div class="verify-card">
-      <div class="verify-title">VERIFY // ACCESS</div>
-      <div class="verify-body">
-        <div class="verify-row">
-          <label class="verify-label" for="verifyDiscord">Discord (for completion log)</label>
-          <input id="verifyDiscord" class="verify-input" autocomplete="off" placeholder="username#0000 or name" />
+  <!-- FINAL VERIFY MODAL -->
+  <div id="finalOverlay" class="final hidden" aria-hidden="true">
+    <div class="final-card">
+      <div class="final-title">FINAL STEP</div>
+      <div class="final-body">
+        <div class="final-msg">
+          You are almost done — hack into this computer to erase your files and that will set you free!
         </div>
 
-        <div class="verify-row">
-          <div id="turnstile" class="cf-turnstile" data-sitekey="773Ae995EF3nki38sIknal937manKNKandkni987"></div>
+        <label class="final-label">Username</label>
+        <input id="finalDiscord" class="final-input" placeholder="Discord username">
+
+        <label class="final-label">Answer (accepts anything)</label>
+        <textarea id="finalAnswer" class="final-textarea" placeholder="type anything..."></textarea>
+
+        <div id="turnstileBox" class="turnstile-box"></div>
+
+        <div class="final-actions">
+          <button id="finalCancel" class="sim-btn">cancel</button>
+          <button id="finalVerify" class="sim-btn">verify</button>
         </div>
 
-        <div id="verifyMsg" class="verify-msg"></div>
-
-        <div class="verify-actions">
-          <button id="verifyCancel" class="sim-btn">cancel</button>
-          <button id="verifyGo" class="sim-btn">verify</button>
-        </div>
-
-        <div class="verify-note">
-          If you try to bypass this from DevTools, the server will refuse the request.
-        </div>
+        <div id="finalErr" class="final-err"></div>
       </div>
     </div>
   </div>
+
+  <!-- HACK SCREEN -->
+  <section id="hackRoom" class="hack hidden" aria-live="polite">
+    <div class="hack-panel">
+      <div class="hack-head">
+        <div class="hack-title">WORKSTATION // FILE WIPE</div>
+        <div id="hackUser" class="hack-user"></div>
+      </div>
+
+      <div class="hack-instructions">
+        <b>Task:</b> Open files. Delete these lines only.
+        <span id="hackTargets"></span>
+      </div>
+
+      <div class="hack-grid">
+        <div class="hack-files">
+          <div class="hack-files-title">FILES</div>
+          <button class="hack-filebtn" data-file="0">logs/boot.log</button>
+          <button class="hack-filebtn" data-file="1">user/profile.cfg</button>
+          <button class="hack-filebtn" data-file="2">sys/cache.tmp</button>
+        </div>
+
+        <div class="hack-editor">
+          <div class="hack-editor-title">
+            <span id="hackFilename">logs/boot.log</span>
+            <div class="hack-editor-actions">
+              <button id="hackDelete" class="sim-btn">delete selected lines</button>
+              <button id="hackReset" class="sim-btn">reset</button>
+            </div>
+          </div>
+          <div id="hackLines" class="hack-lines"></div>
+          <div id="hackStatus" class="hack-status"></div>
+        </div>
+      </div>
+    </div>
+  </section>
 </body>
 </html>
