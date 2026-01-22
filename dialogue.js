@@ -1,48 +1,38 @@
 // dialogue.js
+// More grounded / “real” sounding dialogue.
+// Choices are now: apologize / accident / run.
+
 window.DIALOGUE = {
   intro: [
-    `Security: "All stations, freeze."`,
-    `Security: "Confirm breach classification."`,
-    `System: "UNAUTHORIZED OBSERVER DETECTED."`,
-    `System: "SOURCE: EXTERNAL INTERACTION."`,
+    `Security: "Stop clicking."`,
+    `System: "UNAUTHORIZED INPUT DETECTED."`,
+    `System: "INTERACTION SOURCE: EXTERNAL USER."`,
     ``,
-    `Worker 2: "It doesn’t match any internal profile."`,
-    `Security: "Then treat it as unknown."`,
-    `Security: "You. Do not move."`,
+    `Tech: "It’s not a normal session. It’s… watching through the surface."`,
+    `Security: "So it's a breach."`,
+    `Security: "Lock the hallway feed. Cut the corridor cameras."`,
     ``,
-    `PA System: "CODE 3. CODE 3."`,
-    `PA System: "Initiating containment protocols."`,
+    `PA: "Code Three. Repeat: Code Three."`,
+    `System: "CONTAINMENT ROUTINE: MANUAL OVERRIDE REQUIRED."`,
     ``,
-    `Security: "DEFCON 4."`,
-    `Security: "Lock auxiliary exits. Disable corridor cameras."`,
-    ``,
-    `Worker 1: "You’re not supposed to be here."`,
-    `Worker 1: "You were meant to be solving puzzles."`,
-    ``,
-    `Security: "This is your only warning."`,
-    `Security: "Further interaction will be classified as hostile."`,
-    ``,
-    `Worker 3: "If they leave right now, it seals."`,
-    `Security: "Then they won’t leave right now."`,
-    ``,
-    `Security: "Choose your statement."`,
-    `Security: "We are listening."`
+    `Security: "Listen carefully."`,
+    `Security: "You can cooperate, or you can make this worse."`,
+    `Security: "State your intent."`
   ],
 
   fillerPools: {
     filler_standard: [
       {
         say: [
-          `System: "RECOVERY MODE: MANUAL."`,
-          `Worker 2: "The reboot is old. It needs hands."`,
-          `Security: "No commentary. Assign tasks."`,
+          `Security: "Stabilize the boundary anchors. Do not miss any."`,
+          `System: "ANCHOR NODES: DESYNCED."`
         ],
         task: { id: "anchors", args: { base: 5 } }
       },
       {
         say: [
-          `Security: "Reconstruct the log. No mistakes."`,
-          `System: "FRAGMENTS: OUT OF ORDER."`,
+          `Security: "Rebuild the timeline. The log is scrambled."`,
+          `System: "EVENT FRAGMENTS: OUT OF ORDER."`
         ],
         task: { id: "reorder", args: {
           items: ["impact", "fracture", "alarm", "lockdown", "observer"],
@@ -51,29 +41,29 @@ window.DIALOGUE = {
       },
       {
         say: [
-          `Security: "Checksum verification."`,
-          `System: "INPUT REQUIRED."`,
+          `Security: "Verify checksum. If it’s wrong, we restart."`,
+          `System: "INPUT REQUIRED."`
         ],
         task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } }
       },
       {
         say: [
-          `Security: "Stabilize the boundary. Hold."`,
-          `Worker 1: "If it slips, we start over."`,
+          `Security: "Hold the stabilizer. Do not let go."`,
+          `Tech: "If it drops, the corridor resets."`
         ],
-        task: { id: "hold", args: { baseMs: 3000 } }
+        task: { id: "hold", args: { baseMs: 3200 } }
       },
       {
         say: [
-          `Security: "Pattern gate. Confirm you can follow."`,
-          `System: "SHORT-TERM MEMORY TEST."`,
+          `Security: "Pattern lock. You get one clean pass."`,
+          `System: "SHORT-TERM MEMORY VALIDATION."`
         ],
         task: { id: "pattern", args: { base: 5 } }
       },
       {
         say: [
-          `Security: "Mismatch scan. Find the corruption."`,
-          `System: "ONE FRAGMENT IS WRONG."`,
+          `Security: "Mismatch scan. One fragment is corrupted."`,
+          `System: "FIND THE OUTLIER."`
         ],
         task: { id: "mismatch", args: { base: 7 } }
       },
@@ -82,16 +72,15 @@ window.DIALOGUE = {
     filler_hard: [
       {
         say: [
-          `Security: "You’re destabilizing the corridor."`,
-          `Security: "So you will work longer."`,
-          `System: "RECOVERY WINDOW: NARROW."`,
+          `Security: "You’re pushing the boundary. We’re raising difficulty."`,
+          `System: "RECOVERY WINDOW: NARROWING."`
         ],
         task: { id: "anchors", args: { base: 7 } }
       },
       {
         say: [
-          `Security: "Reorder again. Faster."`,
-          `Worker 3: "If they loop it, we wipe them."`,
+          `Security: "Reorder again. Faster. No excuses."`,
+          `Tech: "They keep stressing the glass…"`,
         ],
         task: { id: "reorder", args: {
           items: ["panic", "push", "crack", "alarm", "seal"],
@@ -100,30 +89,30 @@ window.DIALOGUE = {
       },
       {
         say: [
-          `Security: "Checksum. Last chance."`,
-          `System: "REQUIRED."`,
+          `Security: "Checksum. Don’t guess."`,
+          `System: "REQUIRED."`
         ],
         task: { id: "checksum", args: { phrase: "ECHOECHO-VAULT" } }
       },
       {
         say: [
-          `Security: "Stabilize. Longer hold."`,
-          `System: "BOUNDARY: UNSTABLE."`,
+          `Security: "Longer hold. If you drop it, we start over."`,
+          `System: "BOUNDARY: UNSTABLE."`
         ],
-        task: { id: "hold", args: { baseMs: 3600 } }
+        task: { id: "hold", args: { baseMs: 3800 } }
       },
       {
         say: [
-          `Security: "Pattern lock. You don’t get many tries."`,
-          `System: "ATTEMPTS LIMITED."`,
+          `Security: "Pattern lock. You will not brute force it."`,
+          `System: "ATTEMPTS LIMITED."`
         ],
         task: { id: "pattern", args: { base: 6 } }
       },
       {
         say: [
-          `Security: "Mismatch scan. If you guess wrong, we reset."`,
-          `Worker 2: "That’s… harsh."`,
-          `Security: "So are breaches."`,
+          `Security: "Mismatch scan. Wrong answer triggers lockdown."`,
+          `Tech: "That’s… a little extreme."`,
+          `Security: "So is a breach."`
         ],
         task: { id: "mismatch", args: { base: 9 } }
       },
@@ -131,55 +120,44 @@ window.DIALOGUE = {
   },
 
   branches: {
-    need: {
+    apologize: {
       preface: [
-        `You: "I need something first."`,
-        `Security: "Correct."`,
-        `Security: "Compliance is the only language this corridor recognizes."`,
-        `System: "RESTART TRIGGERED BY BOUNDARY DAMAGE."`,
-        `System: "RECOVERY MODE: MANUAL."`
+        `You: "I’m sorry. I’ll do what you say."`,
+        `Security: "Good. Then follow directions."`,
+        `System: "CONTAINMENT: MANUAL TASKS REQUIRED."`
       ],
       steps: [
-        { say: [
-          `Security: "You will comply with restart chores until containment stabilizes."`,
-          `Worker 2: "If they follow, we can reseal it cleanly."`,
-          `Security: "Begin."`,
-        ]},
+        { say: [`Security: "Start the recovery chores. Slow and clean."`] },
         { filler: { count: 3, pool: "filler_standard" } },
         { say: [
-          `System: "PHASE CHECK: INCOMPLETE."`,
-          `Security: "Not done."`,
-          `Security: "Again."`
+          `Tech: "Stability is improving."`,
+          `Security: "Keep them busy."`
         ]},
         { filler: { count: 2, pool: "filler_standard" } },
         { say: [
-          `System: "PHASE 1: STABLE."`,
-          `Security: "Good."`,
-          `Security: "Do not confuse survival for permission."`
+          `System: "PHASE CHECK: STABLE."`,
+          `Security: "Don’t confuse stable with safe."`
         ]}
       ]
     },
 
-    lie: {
+    accident: {
       preface: [
-        `You: "I clicked by accident."`,
-        `Security: "No."`,
-        `Security: "Accidents do not produce controlled fractures."`,
-        `System: "BEHAVIORAL FLAG: DECEPTIVE."`,
-        `Security: "Manual restart chores. Now."`
+        `You: "It was an accident."`,
+        `Security: "Accidents don’t repeat nine times."`,
+        `Security: "But fine. We’ll treat you like you don’t understand."`,
+        `System: "RECOVERY MODE: TRAINING PATH."`
       ],
       steps: [
         { filler: { count: 3, pool: "filler_standard" } },
         { say: [
-          `Worker 1: "They’re still here."`,
-          `Security: "Of course they are."`,
-          `Security: "Next phase."`
+          `Security: "You’re still here."`,
+          `Security: "So keep working."`
         ]},
         { filler: { count: 2, pool: "filler_standard" } },
         { say: [
-          `System: "PHASE 1: STABLE."`,
-          `Security: "Better."`,
-          `Security: "Try honesty next time."`
+          `System: "PHASE CHECK: STABLE."`,
+          `Security: "Try the truth next time."`
         ]}
       ]
     },
@@ -187,23 +165,22 @@ window.DIALOGUE = {
     run: {
       preface: [
         `You: "Run."`,
-        `Security: "Stop."`,
-        `Security: "Escalation noted."`,
+        `Security: "No."`,
+        `Security: "You do that again and we hard reset the corridor."`,
         `System: "THREAT SCORE: INCREASING."`,
-        `Security: "If you resist, we make the chores heavier."`
+        `System: "DIFFICULTY: ESCALATION APPLIED."`
       ],
       steps: [
         { filler: { count: 3, pool: "filler_hard" } },
         { say: [
-          `Security: "Containment isn’t clean."`,
-          `Worker 3: "They keep pushing."`,
-          `Security: "Then keep them busy."`
+          `Tech: "They’re resisting."`,
+          `Security: "Then keep the workload high."`
         ]},
         { filler: { count: 2, pool: "filler_hard" } },
         { say: [
-          `System: "PHASE 1: STABLE."`,
-          `Security: "You’re unstable."`,
-          `Security: "But you’re useful."`
+          `System: "PHASE CHECK: STABLE."`,
+          `Security: "You’re not stable."`,
+          `Security: "But you’re contained."`
         ]}
       ]
     }
