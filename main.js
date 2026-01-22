@@ -589,27 +589,68 @@
     }
 
     /* ======================
-       CRACKS (simple placeholder so it always draws)
-       Your fancy “continue crack from existing” builder can replace this later.
+       CRACKS (single web, revealed by stages)
     ====================== */
     let crackBuilt = false;
+    let crackStage = 0;
 
-    function ensureCracks() {
-      if (crackBuilt) return;
-      // IMPORTANT: this is a minimal always-working SVG so you SEE something.
-      cracks.innerHTML = `
-        <svg viewBox="0 0 1000 1000" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <path class="crack-path crack-under" d="M500 500 L620 420 L720 360 L820 280" />
-          <path class="crack-path crack-line"  d="M500 500 L620 420 L720 360 L820 280" />
-          <path class="crack-path crack-under" d="M500 500 L380 580 L300 650 L210 740" />
-          <path class="crack-path crack-line"  d="M500 500 L380 580 L300 650 L210 740" />
-          <path class="crack-path crack-under" d="M500 500 L520 650 L540 780 L560 920" />
-          <path class="crack-path crack-line"  d="M500 500 L520 650 L540 780 L560 920" />
-        </svg>
-      `;
+    function rand(seed) {
+      // deterministic-ish PRNG from current time seed
+      let t = seed >>> 0;
+      return () => {
+        t += 0x6D2B79F5;
+        let x = Math.imul(t ^ (t >>> 15), 1 | t);
+        x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+        return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+      };
+    }
 
-      // stroke-dash so animation can draw
-      cracks.querySelectorAll(".crack-path").forEach(p => {
+    function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
+      let x = cx, y = cy;
+      let ang = rng() * Math.PI * 2;
+
+      const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
+
+      for (let i = 0; i < steps; i++) {
+        // gently drift angle, with jitter
+        ang += (rng() - 0.5) * jitter;
+        x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
+        y += Math.sin(ang) * stepLen * (0.75 + rng() * 0.7);
+
+        // keep it in bounds but allow it to reach edges
+        x = Math.max(-60, Math.min(1060, x));
+        y = Math.max(-60, Math.min(1060, y));
+
+        pts.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
+      }
+      return pts.join(" ");
+    }
+
+    function addSeg(svg, d, rank) {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.setAttribute("class", "seg");
+      g.setAttribute("data-rank", String(rank));
+
+      const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pUnder.setAttribute("d", d);
+      pUnder.setAttribute("class", "crack-path crack-under");
+
+      const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pLine.setAttribute("d", d);
+      pLine.setAttribute("class", "crack-path crack-line");
+
+      const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pGlint.setAttribute("d", d);
+      pGlint.setAttribute("class", "crack-path crack-glint");
+      pGlint.style.opacity = "0.0"; // only for some segments (enabled below)
+
+      g.appendChild(pUnder);
+      g.appendChild(pLine);
+      g.appendChild(pGlint);
+      svg.appendChild(g);
+
+      // dash animation prep
+      [pUnder, pLine, pGlint].forEach(p => {
         try {
           const len = p.getTotalLength();
           p.style.strokeDasharray = String(len);
@@ -617,26 +658,115 @@
         } catch {}
       });
 
+      // randomly enable glint on some segments
+      if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
+    }
+
+    function ensureCracks() {
+      if (crackBuilt) return;
+
+      const seed = Date.now() & 0xffffffff;
+      const rng = rand(seed);
+
+      cracks.innerHTML = "";
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 1000 1000");
+      svg.setAttribute("preserveAspectRatio", "none");
+      svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      cracks.appendChild(svg);
+
+      const cx = 500, cy = 500;
+
+      // Rank 1: main spokes (big, reach edges)
+      for (let i = 0; i < 10; i++) {
+        const d = makePathFromCenter(rng, cx, cy, 12 + Math.floor(rng() * 6), 48, 0.55);
+        addSeg(svg, d, 1);
+      }
+
+      // Rank 2: branching cracks (medium)
+      for (let i = 0; i < 14; i++) {
+        const startX = cx + (rng() - 0.5) * 240;
+        const startY = cy + (rng() - 0.5) * 160;
+        const d = makePathFromCenter(rng, startX, startY, 10 + Math.floor(rng() * 6), 34, 0.9);
+        addSeg(svg, d, 2);
+      }
+
+      // Rank 3: hairline fractures (small)
+      for (let i = 0; i < 18; i++) {
+        const startX = cx + (rng() - 0.5) * 520;
+        const startY = cy + (rng() - 0.5) * 360;
+        const d = makePathFromCenter(rng, startX, startY, 8 + Math.floor(rng() * 6), 22, 1.15);
+        addSeg(svg, d, 3);
+      }
+
       crackBuilt = true;
     }
 
-    function showCrackStage() {
+    function setCrackStage(n) {
       ensureCracks();
+      crackStage = Math.max(crackStage, n);
+      cracks.dataset.stage = String(crackStage);
       cracks.classList.remove("hidden");
       cracks.classList.add("show");
-      playSfx("static1", 0.35);
+      playSfx("static1", 0.32);
+    }
+
+    function spawnFallingPieces() {
+      glassFX.innerHTML = "";
+      glassFX.classList.remove("hidden");
+      glassFX.classList.add("glass-fall");
+
+      // Create a grid of “pane pieces”
+      const cols = 7;
+      const rows = 4;
+      const w = window.innerWidth / cols;
+      const h = window.innerHeight / rows;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const piece = document.createElement("div");
+          piece.className = "glass-piece";
+          piece.style.left = `${c * w}px`;
+          piece.style.top = `${r * h}px`;
+          piece.style.width = `${w + 1}px`;
+          piece.style.height = `${h + 1}px`;
+
+          // random rotation per piece
+          const rot = (Math.random() * 40 - 20).toFixed(1) + "deg";
+          piece.style.setProperty("--rot", rot);
+
+          // slightly different delays so it feels cinematic
+          const delay = (0.05 * (r + c) + Math.random() * 0.08).toFixed(2);
+          piece.style.animationDelay = `${delay}s`;
+
+          // make some pieces “missing” earlier (looks like holes)
+          if (Math.random() < 0.10) piece.style.opacity = "0.0";
+
+          glassFX.appendChild(piece);
+        }
+      }
     }
 
     function shatterToSim() {
-      // quick shatter cue
-      playSfx("thud", 0.5);
-      cracks.classList.add("flash", "shatter");
+      // don’t rebuild cracks; just run the fall
+      playSfx("thud", 0.55);
+      cracks.classList.add("flash");
+
+      spawnFallingPieces();
+
+      // fade the underlying page while pieces fall
       document.body.classList.add("sim-transition");
 
+      // keep cracks visible during the fall, then hide
       setTimeout(() => {
         cracks.classList.add("hidden");
+      }, 350);
+
+      // after the pieces fall, enter sim
+      setTimeout(() => {
+        glassFX.classList.add("hidden");
         openSimRoom();
-      }, 650);
+      }, 1250);
     }
 
     /* ======================
@@ -655,7 +785,10 @@
 
       clicks++;
 
-      if (clicks === 4) showCrackStage();
+      if (clicks === 4) setCrackStage(1);
+      if (clicks === 6) setCrackStage(2);
+      if (clicks === 8) setCrackStage(3);
+
 
       if (clicks >= 9) {
         stage = 2;
