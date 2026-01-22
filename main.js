@@ -884,13 +884,18 @@ function buildGlassPieces() {
 function shatterToSim() {
   stage = 99;
 
-  // Build shards from crack panes (ensure cracks exist first)
+  // Make sure panes + svg exist
   ensureCracks();
+
+  // Build shards from crack panes
   const pieces = buildGlassPieces();
 
+  // Hide the original page so only shards show it
   document.body.classList.add("sim-transition");
+  const wrap = document.getElementById("wrap");
+  if (wrap) wrap.classList.add("wrap-hidden");
 
-  // Hide crack overlay (we are now using shard polygons)
+  // Hide crack lines (we are now using the shard polygons)
   cracks.classList.add("hidden");
 
   // Start falling
@@ -899,8 +904,8 @@ function shatterToSim() {
     p.style.animationDelay = (i * 45) + "ms";
   });
 
+  // When done, clear shards and enter sim
   const totalMs = 1100 + pieces.length * 45;
-
   setTimeout(() => {
     glassFX.innerHTML = "";
     glassFX.classList.remove("glass-fall");
@@ -908,6 +913,7 @@ function shatterToSim() {
     openSimRoom();
   }, totalMs);
 }
+
     
     /* ======================
        LANDING -> SIM
