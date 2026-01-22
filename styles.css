@@ -15,6 +15,7 @@
 /* ============ base ============ */
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
+
 body{
   margin:0;
   color:var(--text);
@@ -114,15 +115,22 @@ header.card p{
   opacity: 0;
   will-change: opacity, transform, filter;
 
-  /* IMPORTANT: move the element so backdrop samples a different area */
+  /* Move the pane, so the backdrop sample changes (duplication feel) */
   transform: translate(var(--dx, 0px), var(--dy, 0px));
 }
 
-/* stage reveal */
-#cracks .seg { opacity: 0; transition: opacity 160ms ease; }
-#cracks .pane { opacity: 0; }
+/* IMPORTANT FIX:
+   You were never revealing the SVG segments (".seg"), so crack lines could be invisible.
+   We show segments by stage rank. */
+#cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
+#cracks[data-stage="2"] .seg[data-rank="1"],
+#cracks[data-stage="2"] .seg[data-rank="2"]{ opacity: 1; }
+#cracks[data-stage="3"] .seg[data-rank="1"],
+#cracks[data-stage="3"] .seg[data-rank="2"],
+#cracks[data-stage="3"] .seg[data-rank="3"]{ opacity: 1; }
+#cracks[data-stage="4"] .seg{ opacity: 1; }
 
-/* Stage reveal by rank */
+/* Stage reveal by shard rank */
 #cracks[data-stage="1"] .pane[data-rank="1"] { opacity: var(--paneOpacity, 0.14); }
 
 #cracks[data-stage="2"] .pane[data-rank="1"],
@@ -163,7 +171,7 @@ header.card p{
     inset 0 0 40px rgba(255,255,255,0.06);
 
   opacity: 0.95;
-  mix-blend-mode: normal; /* screen = “light”, normal = “glass” */
+  mix-blend-mode: normal;
   border-radius: 14px;
 }
 
@@ -196,7 +204,10 @@ header.card p{
   inset:0;
   width:100%;
   height:100%;
-  opacity: 0;
+
+  /* Keep visible when .show is applied, but don't hide completely otherwise
+     (the seg opacity gates visibility now) */
+  opacity: 1;
 }
 
 #cracks.show svg{ opacity: 1; }
@@ -242,7 +253,7 @@ header.card p{
    ========================================================= */
 
 /* Hide the original page during shatter (only shards show it) */
-.wrap-hidden {
+.wrap-hidden{
   opacity: 0;
   visibility: hidden;
 }
@@ -273,7 +284,7 @@ header.card p{
   filter: blur(var(--rblur, 1px)) saturate(1.10) contrast(1.06);
   opacity: 0.98;
 
-  isolation: isolate; /* keep blend modes contained inside shard */
+  isolation: isolate;
 }
 
 /* If a plain wrap clone exists, keep it hidden when using RGB */
@@ -383,12 +394,24 @@ header.card p{
 #simRoom{
   position: fixed;
   inset: 0;
-  z-index: 70; /* IMPORTANT: above cracks (50) + glassFX (60) */
+  z-index: 70;
   display:flex;
   align-items:center;
   justify-content:center;
   padding: 28px 22px;
   background: transparent;
+}
+
+/* IMPORTANT FIX:
+   You never defined .sim-head in this trimmed file,
+   so your header text could "disappear" visually depending on defaults. */
+#simRoom .sim-head{
+  opacity:.75;
+  font-size:12px;
+  margin-bottom:8px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(235,238,245,0.72);
 }
 
 #simRoom.card{
@@ -399,7 +422,6 @@ header.card p{
   padding: 0;
 }
 
-/* your inner wrapper */
 #simRoom .cardShell{
   width: min(980px, 100%);
   background: rgba(0,0,0,0.22);
@@ -410,7 +432,7 @@ header.card p{
   padding: 18px;
 }
 
-body.in-sim #wrap{ display:none; } /* hide landing content during sim */
+body.in-sim #wrap{ display:none; }
 
 #simText{
   width: 100%;
@@ -428,7 +450,6 @@ body.in-sim #wrap{ display:none; } /* hide landing content during sim */
   font-size: 13px;
 }
 
-/* choices row */
 #simChoices{
   display:flex;
   gap: 10px;
@@ -436,7 +457,6 @@ body.in-sim #wrap{ display:none; } /* hide landing content during sim */
   flex-wrap: wrap;
 }
 
-/* buttons */
 .sim-btn{
   appearance:none;
   border: 1px solid rgba(255,255,255,0.14);
@@ -458,7 +478,6 @@ body.in-sim #wrap{ display:none; } /* hide landing content during sim */
   transform:none;
 }
 
-/* TASK UI overlay block (inside sim) */
 #taskUI{
   margin-top: 14px;
   border-radius: 14px;
