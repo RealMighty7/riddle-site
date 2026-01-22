@@ -5,6 +5,16 @@
 (() => {
   // Keep TASKS object stable for packs
   const TASKS = (window.TASKS = window.TASKS || {});
+  // Pools for random selection
+  const TASK_POOLS = (window.TASK_POOLS = window.TASK_POOLS || {});
+  
+  // pack files call: registerTaskPool("core", [{ id:"anchors", w:1 }, ...])
+  window.registerTaskPool = function registerTaskPool(poolName, entries) {
+    if (!poolName) return;
+    if (!Array.isArray(entries)) return;
+    TASK_POOLS[poolName] = (TASK_POOLS[poolName] || []).concat(entries);
+  };
+
 
   // Pack system hook (packs call registerTasks({ ... }))
   window.registerTasks = function registerTasks(map) {
