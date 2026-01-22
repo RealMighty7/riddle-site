@@ -23,6 +23,62 @@
       if (typeof v === "function") TASKS[k] = v;
     }
   };
+    // ---------------- Pool utilities ----------------
+
+  function pickWeighted(entries) {
+    // entries: [{id, w}, ...]
+    let total = 0;
+    for (const e of entries) total += Math.max(0, Number(e.w ?? 1));
+    if (total <= 0) return null;
+
+    let r = Math.random() * total;
+    for (const e of entries) {
+      r -= Math.max(0, Number(e.w ?? 1));
+      if (r <= 0) return e;
+    }
+    return entries[entries.length - 1] || null;
+  }
+
+  function poolEntries(nameOrNames) {
+    const names = Array.isArray(nameOrNames) ? nameOrNames : [nameOrNames];
+    const out = [];
+    for (const n of names) {
+      const list = TASK_POOLS[n];
+      if (Array.isArray(list)) out.push(...list);
+    }
+    return out;
+  }
+
+  // Runs one random task from a pool (or list of pools)
+  TASKS.random = async function random(ctx, args = {}) {
+    const pools = args.pools || args.pool || "core";
+    const entries = poolEntries(pools).filter(e => e && typeof e.id === "string");
+    if (!entries.length) {
+      ctx.showTaskUI("TASK ROUTER", `No tasks in pool: ${Array.isArray(pools) ? pools.join(", ") : pools}`);
+      ctx.taskBody.innerHTML = `<div style="opacity:.85">Pool is empty or missing.</div>`;
+      ctx.taskPrimary.textContent = "continue";
+      ctx.taskPrimary.disabled = false;
+      await new Promise(r => (ctx.taskPrimary.onclick = r));
+      return;
+    }
+
+    const pick = pickWeighted(entries);
+    const id = pick?.id;
+    const fn = TASKS[id];
+
+    if (typeof fn !== "function") {
+      ctx.showTaskUI("TASK ROUTER", `Missing task: ${id}`);
+      ctx.taskBody.innerHTML = `<div style="opacity:.85">A pool references a task that isn't registered yet.</div>`;
+      ctx.taskPrimary.textContent = "continue";
+      ctx.taskPrimary.disabled = false;
+      await new Promise(r => (ctx.taskPrimary.onclick = r));
+      return;
+    }
+
+    // optional: pass through args.inner to the picked task
+    await fn(ctx, args.inner || {});
+  };
+
 
   function el(tag, props = {}, children = []) {
     const n = document.createElement(tag);
