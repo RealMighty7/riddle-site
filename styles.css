@@ -460,3 +460,29 @@ p{ margin: 0; line-height: 1.4; }
   opacity: .8;
   font-size: 12px;
 }
+/* =========================
+   TASK UI - prevent cut off
+========================= */
+
+/* Make the sim panel fit the viewport and scroll internally */
+.sim-panel{
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  padding-bottom: 28px;
+}
+
+/* Keep task UI from pushing off-screen */
+#taskUI{
+  margin-top: 12px;
+  max-height: 60vh;
+  overflow: auto;
+  padding-right: 6px; /* prevents scrollbar overlay */
+}
+
+/* On short screens (laptops / small windows), tighten margins */
+@media (max-height: 760px){
+  .sim-panel{ margin: 14px auto; }
+  .sim-text{ max-height: 48vh; }
+  #taskUI{ max-height: 52vh; }
+}
+
