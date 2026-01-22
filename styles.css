@@ -123,15 +123,21 @@ header.card p{
 }
 
 /* stage reveal */
-#cracks.show .pane{ opacity: var(--paneOpacity, 0.0); }
-#cracks[data-stage="1"] .pane[data-rank="1"]{ opacity: var(--paneOpacity, 0.14); }
+#cracks .seg { opacity: 0; transition: opacity 160ms ease; }
+#cracks .pane { opacity: 0; }
+
+/* Stage reveal by rank */
+#cracks[data-stage="1"] .pane[data-rank="1"] { opacity: var(--paneOpacity, 0.14); }
+
 #cracks[data-stage="2"] .pane[data-rank="1"],
-#cracks[data-stage="2"] .pane[data-rank="2"]{ opacity: var(--paneOpacity, 0.24); }
+#cracks[data-stage="2"] .pane[data-rank="2"] { opacity: var(--paneOpacity, 0.24); }
+
 #cracks[data-stage="3"] .pane[data-rank="1"],
 #cracks[data-stage="3"] .pane[data-rank="2"],
-#cracks[data-stage="3"] .pane[data-rank="3"]{ opacity: var(--paneOpacity, 0.34); }
-#cracks[data-stage="4"] .pane{ opacity: var(--paneOpacity, 0.44); }
+#cracks[data-stage="3"] .pane[data-rank="3"] { opacity: var(--paneOpacity, 0.34); }
 
+#cracks[data-stage="4"] .pane { opacity: var(--paneOpacity, 0.44); }
+#cracks svg { opacity: 1; } /* segments control visibility now */
 /* the refracted copy */
 #cracks .pane::before{
   content:"";
@@ -301,24 +307,34 @@ header.card p{
 #simRoom{
   position: fixed;
   inset: 0;
-  z-index: 5;            /* behind cracks/glassFX */
+  z-index: 5;
   display:flex;
-  align-items: center;
-  justify-content: center;
+  align-items:center;
+  justify-content:center;
   padding: 28px 22px;
+  background: transparent;
 }
 
-body.in-sim #wrap{ display:none; } /* hide landing content during sim */
+#simRoom.card{
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 0;
+}
 
-#simRoom .sim-shell{
+/* your inner wrapper */
+#simRoom .cardShell{
   width: min(980px, 100%);
   background: rgba(0,0,0,0.22);
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  border-radius: 16px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
   backdrop-filter: blur(10px);
   padding: 18px;
 }
+
+body.in-sim #wrap{ display:none; } /* hide landing content during sim */
 
 #simRoom .sim-head{
   font-size: 12px;
