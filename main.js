@@ -814,45 +814,48 @@ function shatterToSim() {
       unlockAudio();
       if (stage !== 1) return;
       if (!isCountableClick(e)) return;
-    
+
       const now = Date.now();
       if (now - lastClick < CLICK_COOLDOWN) return;
       lastClick = now;
-    
+
       clicks++;
-    
+
       if (clicks === 4) setCrackStage(1);
       if (clicks === 6) setCrackStage(2);
       if (clicks === 8) setCrackStage(3);
       if (clicks === 10) setCrackStage(4);
-    
+
       // enter sim at 10 clicks
       if (clicks >= 10) {
         stage = 2;
-    
+
         systemBox.textContent = "You weren't supposed to do that.";
         const t1 = msToRead(systemBox.textContent);
-    
+
         setTimeout(() => {
           systemBox.textContent = "All you had to do was sit there like everyone else and watch the ads.";
         }, t1);
-    
+
         const t2 = t1 + msToRead("All you had to do was sit there like everyone else and watch the ads.");
         setTimeout(() => {
           systemBox.textContent = "Stop.";
         }, t2);
-    
+
         const t3 = t2 + msToRead("Stop.") + 650;
-    
+
         setTimeout(() => {
           cracks.classList.add("flash");
           setTimeout(() => cracks.classList.remove("flash"), 220);
         }, Math.max(0, t3 - 280));
-    
+
         setTimeout(() => {
           shatterToSim();
         }, t3);
       }
     });
+
+  }
+
   boot();
 })();
