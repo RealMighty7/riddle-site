@@ -184,7 +184,7 @@ window.TASKS = (() => {
 
       ctx.taskBody.innerHTML = `
         <div style="opacity:.85;margin-bottom:8px">Checksum required:</div>
-        <div class="pill" style="opacity:.9">Format: WORDWORD-WORD</div>
+        <div class="pill" style="opacity:.9">Riddlers passcode: lowercase / no spaces</div>
         <div style="margin-top:10px">
           <input id="chk" placeholder="enter checksum..." style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:rgba(0,0,0,0.25);color:#e5e7eb;">
         </div>
