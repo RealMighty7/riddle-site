@@ -6,17 +6,17 @@
   <title>index</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-  <link rel="stylesheet" href="/styles.css?v=100" />
+  <link rel="stylesheet" href="/styles.css?v=101" />
 
   <!-- Turnstile (explicit render) -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
 
 <body>
-<!-- crack overlay -->
+  <!-- crack overlay -->
   <div id="cracks" aria-hidden="true" class="hidden"></div>
 
-<!-- falling glass overlay -->
+  <!-- falling glass overlay -->
   <div id="glassFX" aria-hidden="true" class="hidden"></div>
 
   <main id="wrap">
@@ -43,40 +43,44 @@
     </section>
 
     <!-- security room -->
-<section id="simRoom" class="card hidden">
-  <div class="cardShell">
-    <div style="opacity:.75;font-size:12px;margin-bottom:8px">OUTSIDE // SIMULATION</div>
-    <pre id="simText"></pre>
+    <section id="simRoom" class="card hidden" aria-hidden="true">
+      <div class="cardShell">
+        <div class="sim-head">OUTSIDE // SIMULATION</div>
 
-    <div id="simChoices" class="hidden" aria-label="choices">
-      <button id="choiceNeed" class="sim-btn">I'm sorry. I’ll stop.</button>
-      <button id="choiceLie" class="sim-btn">It was an accident.</button>
-      <button id="choiceRun" class="sim-btn">Run.</button>
-    </div>
+        <!-- IMPORTANT: main.js expects #simText to be a normal element (it sets .textContent).
+             Keep <pre> but ensure it has the id and no nesting surprises. -->
+        <pre id="simText"></pre>
 
-    <div id="taskUI" class="hidden">
-      <h3 id="taskTitle" style="margin:0 0 6px 0"></h3>
-      <div id="taskDesc" style="opacity:.8"></div>
-      <div id="taskBody"></div>
-      <div id="taskActions">
-        <button id="taskPrimary" class="sim-btn">continue</button>
-        <button id="taskSecondary" class="sim-btn hidden">secondary</button>
+        <div id="simChoices" class="hidden" aria-label="choices">
+          <button id="choiceNeed" class="sim-btn" type="button">I'm sorry. I’ll stop.</button>
+          <button id="choiceLie" class="sim-btn" type="button">It was an accident.</button>
+          <button id="choiceRun" class="sim-btn" type="button">Run.</button>
+        </div>
+
+        <div id="taskUI" class="hidden">
+          <h3 id="taskTitle" style="margin:0 0 6px 0"></h3>
+          <div id="taskDesc" style="opacity:.8"></div>
+          <div id="taskBody"></div>
+
+          <div id="taskActions">
+            <button id="taskPrimary" class="sim-btn" type="button">continue</button>
+            <button id="taskSecondary" class="sim-btn hidden" type="button">secondary</button>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-</section>
+    </section>
 
     <!-- hack room -->
-    <section id="hackRoom" class="card hidden" style="margin-top:14px">
+    <section id="hackRoom" class="card hidden" style="margin-top:14px" aria-hidden="true">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <div>
           <div id="hackUser" style="opacity:.85">USER:</div>
           <div style="opacity:.75;font-size:12px;margin-top:4px">Workstation // line wipe</div>
         </div>
         <div>
-          <button class="sim-btn hack-filebtn" data-file="0">boot.log</button>
-          <button class="sim-btn hack-filebtn" data-file="1">profile.cfg</button>
-          <button class="sim-btn hack-filebtn" data-file="2">cache.tmp</button>
+          <button class="sim-btn hack-filebtn" data-file="0" type="button">boot.log</button>
+          <button class="sim-btn hack-filebtn" data-file="1" type="button">profile.cfg</button>
+          <button class="sim-btn hack-filebtn" data-file="2" type="button">cache.tmp</button>
         </div>
       </div>
 
@@ -88,8 +92,8 @@
       <div id="hackLines" style="margin-top:10px"></div>
 
       <div class="modal-actions" style="justify-content:flex-start">
-        <button id="hackDelete" class="sim-btn">delete</button>
-        <button id="hackReset" class="sim-btn">reset</button>
+        <button id="hackDelete" class="sim-btn" type="button">delete</button>
+        <button id="hackReset" class="sim-btn" type="button">reset</button>
       </div>
     </section>
   </main>
@@ -108,35 +112,34 @@
       <h3 style="margin:0 0 8px 0">Finalize</h3>
       <div style="opacity:.8;margin-bottom:10px">Enter your Discord and final answer, then verify.</div>
 
-      <label style="display:block;margin-bottom:8px;opacity:.8">Discord</label>
-      <input id="finalDiscord" placeholder="your discord username" />
+      <label for="finalDiscord" style="display:block;margin-bottom:8px;opacity:.8">Discord</label>
+      <input id="finalDiscord" placeholder="your discord username" autocomplete="off" />
 
-      <label style="display:block;margin:12px 0 8px;opacity:.8">Answer</label>
-      <input id="finalAnswer" placeholder="answer" />
+      <label for="finalAnswer" style="display:block;margin:12px 0 8px;opacity:.8">Answer</label>
+      <input id="finalAnswer" placeholder="answer" autocomplete="off" />
 
       <div style="margin-top:12px" id="turnstileBox"></div>
       <div id="finalErr" style="margin-top:10px;color:rgba(255,190,190,.95)"></div>
 
       <div class="modal-actions">
-        <button id="finalCancel" class="sim-btn">cancel</button>
-        <button id="finalVerify" class="sim-btn">verify</button>
+        <button id="finalCancel" class="sim-btn" type="button">cancel</button>
+        <button id="finalVerify" class="sim-btn" type="button">verify</button>
       </div>
     </div>
   </div>
 
   <!-- scripts in correct order -->
-  <script src="/dialogue.js?v=100"></script>
-  
-  <script src="/tasks.js"></script>
-  
-  <script src="/packs/pack1.js"></script>
-  <script src="/packs/pack2.js"></script>
-  <script src="/packs/pack3.js"></script>
-  <script src="/packs/pack4.js"></script>
-  <script src="/packs/pack5.js"></script>
+  <script src="/dialogue.js?v=101"></script>
 
-  
-  <script src="/main.js?v=100"></script>
+  <!-- tasks must exist before packs (packs usually add/extend TASKS/DIALOGUE) -->
+  <script src="/tasks.js?v=101"></script>
 
+  <script src="/packs/pack1.js?v=101"></script>
+  <script src="/packs/pack2.js?v=101"></script>
+  <script src="/packs/pack3.js?v=101"></script>
+  <script src="/packs/pack4.js?v=101"></script>
+  <script src="/packs/pack5.js?v=101"></script>
+
+  <script src="/main.js?v=101"></script>
 </body>
 </html>
