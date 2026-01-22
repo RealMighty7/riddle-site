@@ -1,6 +1,4 @@
 // tasks.js
-// Exposes window.TASKS with async tasks returning Promises.
-// main.js calls TASKS[id](context, args)
 
 window.TASKS = (() => {
   function el(tag, props = {}, children = []) {
@@ -11,6 +9,7 @@ window.TASKS = (() => {
   }
 
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  const rand = (a,b) => a + Math.random()*(b-a);
 
   async function anchors(ctx, args = {}) {
     const base = args.base ?? 5;
@@ -19,24 +18,34 @@ window.TASKS = (() => {
     ctx.showTaskUI("RESTART // ANCHOR SYNC", `Stabilize boundary. Locate and click ${count} anchors.`);
     let remaining = count;
 
+    // layer ABOVE sim
+    const layer = document.createElement("div");
+    layer.className = "anchor-layer";
+    document.body.appendChild(layer);
+
     const anchors = [];
     const spawn = () => {
       const a = document.createElement("div");
       a.className = "anchor";
-      a.style.left = `${10 + Math.random() * 80}vw`;
-      a.style.top = `${12 + Math.random() * 72}vh`;
+      a.style.left = `${rand(8, 92)}vw`;
+      a.style.top  = `${rand(10, 86)}vh`;
 
       a.addEventListener("click", () => {
         remaining--;
         a.remove();
         if (remaining <= 0) {
-          for (const x of anchors) x.remove();
+          cleanup();
           ctx.taskPrimary.disabled = false;
         }
       });
 
-      document.body.appendChild(a);
+      layer.appendChild(a);
       anchors.push(a);
+    };
+
+    const cleanup = () => {
+      for (const x of anchors) x.remove();
+      layer.remove();
     };
 
     for (let i = 0; i < count; i++) spawn();
@@ -59,10 +68,7 @@ window.TASKS = (() => {
     ctx.taskPrimary.disabled = true;
 
     await new Promise(resolve => {
-      ctx.taskPrimary.onclick = () => {
-        for (const x of anchors) x.remove();
-        resolve();
-      };
+      ctx.taskPrimary.onclick = () => { cleanup(); resolve(); };
     });
   }
 
@@ -113,9 +119,7 @@ window.TASKS = (() => {
     ctx.taskPrimary.textContent = "confirm order";
     ctx.taskPrimary.disabled = true;
 
-    await new Promise(resolve => {
-      ctx.taskPrimary.onclick = () => resolve();
-    });
+    await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
   }
 
   async function checksum(ctx, args = {}) {
@@ -147,9 +151,7 @@ window.TASKS = (() => {
     ctx.taskPrimary.textContent = "verify";
     ctx.taskPrimary.disabled = true;
 
-    await new Promise(resolve => {
-      ctx.taskPrimary.onclick = () => resolve();
-    });
+    await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
   }
 
   async function hold(ctx, args = {}) {
@@ -212,9 +214,7 @@ window.TASKS = (() => {
     ctx.taskPrimary.textContent = "continue";
     ctx.taskPrimary.disabled = true;
 
-    await new Promise(resolve => {
-      ctx.taskPrimary.onclick = () => resolve();
-    });
+    await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
   }
 
   async function pattern(ctx, args = {}) {
@@ -241,7 +241,6 @@ window.TASKS = (() => {
     const inEl = ctx.taskBody.querySelector("#in");
     const msg = ctx.taskBody.querySelector("#msg");
 
-    // show time scales (harder if resistant)
     const showMs = clamp(1400 - (ctx.difficultyBoost?.() ?? 0) * 180, 850, 1600);
     setTimeout(() => { seqEl.textContent = "— — — — —"; seqEl.style.opacity = "0.6"; }, showMs);
 
@@ -273,9 +272,7 @@ window.TASKS = (() => {
     ctx.taskPrimary.textContent = "continue";
     ctx.taskPrimary.disabled = true;
 
-    await new Promise(resolve => {
-      ctx.taskPrimary.onclick = () => resolve();
-    });
+    await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
   }
 
   async function mismatch(ctx, args = {}) {
@@ -307,12 +304,8 @@ window.TASKS = (() => {
           ctx.taskPrimary.disabled = false;
         } else {
           b.textContent = "✖";
-          // on high difficulty, wrong guesses can reset
           if ((ctx.difficultyBoost?.() ?? 0) >= 3) {
-            ctx.doReset?.(
-              "TOO ERRATIC",
-              "Your behavior destabilized the reboot window.\n\nRestart required."
-            );
+            ctx.doReset?.("TOO ERRATIC", "Your behavior destabilized the reboot window.\n\nRestart required.");
           }
         }
       };
@@ -324,10 +317,253 @@ window.TASKS = (() => {
     ctx.taskPrimary.textContent = "continue";
     ctx.taskPrimary.disabled = true;
 
+    await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
+  }
+
+  // ---------- NEW TASKS (for 10 total) ----------
+
+  async function trace(ctx, args = {}) {
+    const base = Number(args.base ?? 6);
+    const count = base + (ctx.difficultyBoost?.() ?? 0);
+
+    ctx.showTaskUI("RESTART // TRACE NODES", `Tag ${count} moving trace nodes.`);
+    ctx.taskPrimary.textContent = "continue";
+    ctx.taskPrimary.disabled = true;
+
+    let remaining = count;
+
+    const layer = document.createElement("div");
+    layer.className = "anchor-layer";
+    document.body.appendChild(layer);
+
+    const nodes = [];
+    const spawn = () => {
+      const n = document.createElement("div");
+      n.className = "anchor";
+      n.style.width = "18px";
+      n.style.height = "18px";
+      n.style.left = `${rand(10, 90)}vw`;
+      n.style.top  = `${rand(12, 84)}vh`;
+      layer.appendChild(n);
+
+      let vx = rand(-0.08, 0.08);
+      let vy = rand(-0.06, 0.06);
+
+      const tick = () => {
+        const r = n.getBoundingClientRect();
+        let x = r.left + vx * 16;
+        let y = r.top + vy * 16;
+        if (x < 8 || x > window.innerWidth - 26) vx *= -1;
+        if (y < 8 || y > window.innerHeight - 26) vy *= -1;
+        n.style.left = `${x}px`;
+        n.style.top  = `${y}px`;
+      };
+
+      const iv = setInterval(tick, 16);
+      n.addEventListener("click", () => {
+        clearInterval(iv);
+        n.remove();
+        remaining--;
+        if (remaining <= 0) {
+          cleanup();
+          ctx.taskPrimary.disabled = false;
+        }
+      });
+
+      nodes.push({ n, iv });
+    };
+
+    const cleanup = () => {
+      for (const k of nodes) { clearInterval(k.iv); k.n.remove(); }
+      layer.remove();
+    };
+
+    for (let i = 0; i < count; i++) spawn();
+
+    ctx.taskBody.innerHTML = `<div class="pill">Remaining: <b id="r">${remaining}</b></div>`;
+    const rEl = ctx.taskBody.querySelector("#r");
+    const uiTick = setInterval(() => {
+      if (!rEl?.isConnected) { clearInterval(uiTick); return; }
+      rEl.textContent = String(remaining);
+      if (remaining <= 0) clearInterval(uiTick);
+    }, 80);
+
     await new Promise(resolve => {
-      ctx.taskPrimary.onclick = () => resolve();
+      ctx.taskPrimary.onclick = () => { cleanup(); resolve(); };
     });
   }
 
-  return { anchors, reorder, checksum, hold, pattern, mismatch };
+  async function scrub(ctx, args = {}) {
+    const base = Number(args.base ?? 5);
+    const switches = clamp(base + (ctx.difficultyBoost?.() ?? 0), 4, 8);
+
+    ctx.showTaskUI("RESTART // SCRUB FLAGS", "Set the switches to match the required states.");
+
+    const required = Array.from({ length: switches }, () => Math.random() < 0.5);
+    const state = Array.from({ length: switches }, () => Math.random() < 0.5);
+
+    const render = () => {
+      ctx.taskBody.innerHTML = `
+        <div style="opacity:.85;margin-bottom:8px">Required:</div>
+        <div class="pill" style="opacity:.9">${required.map(x => x ? "ON" : "OFF").join(" · ")}</div>
+        <div style="opacity:.85;margin:12px 0 8px">Your switches (click to toggle):</div>
+        <div id="sw" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+        <div id="msg" style="margin-top:10px;opacity:.85"></div>
+      `;
+
+      const sw = ctx.taskBody.querySelector("#sw");
+      const msg = ctx.taskBody.querySelector("#msg");
+
+      state.forEach((v, i) => {
+        const b = document.createElement("button");
+        b.className = "sim-btn";
+        b.textContent = v ? `ON ${i+1}` : `OFF ${i+1}`;
+        b.onclick = () => { state[i] = !state[i]; render(); };
+        sw.appendChild(b);
+      });
+
+      const ok = state.every((v,i) => v === required[i]);
+      ctx.taskPrimary.disabled = !ok;
+      msg.textContent = ok ? "flags clean." : "";
+    };
+
+    ctx.taskPrimary.textContent = "confirm";
+    ctx.taskPrimary.disabled = true;
+
+    render();
+
+    await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
+  }
+
+  async function cipher(ctx, args = {}) {
+    const base = Number(args.base ?? 7);
+    const n = clamp(base + (ctx.difficultyBoost?.() ?? 0), 6, 12);
+
+    ctx.showTaskUI("RESTART // CIPHER ECHO", "Type the phrase exactly as it appears. It will distort quickly.");
+
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const phrase = Array.from({ length: n }, () => chars[Math.floor(Math.random()*chars.length)]).join("");
+
+    ctx.taskBody.innerHTML = `
+      <div style="opacity:.85;margin-bottom:8px">Memorize:</div>
+      <div id="ph" style="font-size:22px;letter-spacing:.22em" class="pill">${phrase}</div>
+      <div style="opacity:.85;margin:12px 0 8px">Type it:</div>
+      <input id="in" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:rgba(0,0,0,0.25);color:#e5e7eb;">
+      <div id="msg" style="margin-top:10px;opacity:.85"></div>
+    `;
+
+    const ph = ctx.taskBody.querySelector("#ph");
+    const inp = ctx.taskBody.querySelector("#in");
+    const msg = ctx.taskBody.querySelector("#msg");
+
+    // distort quickly
+    const hideMs = clamp(1200 - (ctx.difficultyBoost?.() ?? 0) * 140, 650, 1300);
+    setTimeout(() => {
+      ph.textContent = phrase.split("").map(() => (Math.random()<0.5?"#":"—")).join("");
+      ph.style.opacity = "0.6";
+    }, hideMs);
+
+    const validate = () => {
+      const ok = (inp.value || "").trim().toUpperCase() === phrase;
+      ctx.taskPrimary.disabled = !ok;
+      msg.textContent = ok ? "echo accepted." : "";
+    };
+
+    inp.addEventListener("input", validate);
+
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.disabled = true;
+
+    await new Promise(resolve => { ctx.taskPrimary.onclick = () => resolve(); });
+  }
+
+  async function focus(ctx, args = {}) {
+    const baseMs = Number(args.baseMs ?? 1800);
+    const ms = baseMs + (ctx.difficultyBoost?.() ?? 0) * 450;
+
+    ctx.showTaskUI("RESTART // FOCUS LOCK", "Keep the crosshair centered. Leaving the zone resets.");
+
+    ctx.taskBody.innerHTML = `
+      <div style="opacity:.85;margin-bottom:10px">Move your mouse into the center circle and stay there.</div>
+      <div id="zone" style="
+        width:220px;height:220px;border-radius:999px;margin:10px auto 0;
+        border:1px solid rgba(255,255,255,0.18);
+        background: radial-gradient(circle at 50% 50%, rgba(120,180,255,0.14), rgba(0,0,0,0.18));
+        display:grid;place-items:center; position:relative;
+      ">
+        <div style="width:34px;height:34px;border-radius:999px;border:1px solid rgba(255,255,255,0.22);
+          box-shadow: 0 0 12px rgba(160,220,255,0.22)"></div>
+      </div>
+      <div style="margin-top:12px">
+        <div style="height:10px;border-radius:999px;border:1px solid rgba(255,255,255,0.18);overflow:hidden;background:rgba(0,0,0,0.25)">
+          <div id="bar" style="height:100%;width:0%"></div>
+        </div>
+      </div>
+      <div id="hint" style="margin-top:10px;opacity:.85"></div>
+    `;
+
+    const zone = ctx.taskBody.querySelector("#zone");
+    const bar = ctx.taskBody.querySelector("#bar");
+    const hint = ctx.taskBody.querySelector("#hint");
+
+    let inside = false;
+    let start = null;
+    let raf = null;
+
+    const reset = () => {
+      start = null;
+      bar.style.width = "0%";
+      hint.textContent = "lock broken.";
+      ctx.taskPrimary.disabled = true;
+    };
+
+    const step = (ts) => {
+      if (!inside) return;
+      if (start === null) start = ts;
+      const pct = clamp((ts - start) / ms, 0, 1);
+      bar.style.width = `${(pct*100).toFixed(1)}%`;
+      bar.style.background = "rgba(120,180,255,0.45)";
+      hint.textContent = "locking…";
+      if (pct >= 1) {
+        hint.textContent = "focus locked.";
+        ctx.taskPrimary.disabled = false;
+        return;
+      }
+      raf = requestAnimationFrame(step);
+    };
+
+    const onMove = (e) => {
+      const r = zone.getBoundingClientRect();
+      const cx = r.left + r.width/2;
+      const cy = r.top + r.height/2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      const nowInside = dist <= (r.width * 0.18);
+
+      if (nowInside && !inside) {
+        inside = true;
+        hint.textContent = "";
+        raf = requestAnimationFrame(step);
+      } else if (!nowInside && inside) {
+        inside = false;
+        if (raf) cancelAnimationFrame(raf);
+        reset();
+      }
+    };
+
+    window.addEventListener("mousemove", onMove);
+
+    ctx.taskPrimary.textContent = "continue";
+    ctx.taskPrimary.disabled = true;
+
+    await new Promise(resolve => {
+      ctx.taskPrimary.onclick = () => {
+        window.removeEventListener("mousemove", onMove);
+        resolve();
+      };
+    });
+  }
+
+  return { anchors, reorder, checksum, hold, pattern, mismatch, trace, scrub, cipher, focus };
 })();
