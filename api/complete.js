@@ -1,25 +1,57 @@
-// api/complete.js
-const crypto = require("crypto");
+export async function onRequestPost({ request, env }) {
+  try {
+    const body = await request.json();
+    const name = (body.discord || "").trim();
 
-module.exports = async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    if (!name || name.length > 64) {
+      return new Response(
+        JSON.stringify({ error: "Invalid username" }),
+        { status: 400, headers: { "content-type": "application/json" } }
+      );
+    }
+
+    const secret = env.COMPLETION_SECRET;
+    if (!secret) {
+      return new Response(
+        JSON.stringify({ error: "Server misconfigured" }),
+        { status: 500, headers: { "content-type": "application/json" } }
+      );
+    }
+
+    const timestamp = new Date().toISOString();
+    const payload = `${name}|${timestamp}`;
+
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+
+    const sigBuffer = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(payload)
+    );
+
+    const sig = btoa(
+      String.fromCharCode(...new Uint8Array(sigBuffer))
+    ).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+    const token = btoa(`${payload}|${sig}`)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    return new Response(
+      JSON.stringify({ token }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: "Bad request" }),
+      { status: 400, headers: { "content-type": "application/json" } }
+    );
   }
-
-  const name = (req.body?.discord || "").trim();
-  if (!name || name.length > 64) {
-    return res.status(400).json({ error: "Invalid username" });
-  }
-
-  const secret = process.env.COMPLETION_SECRET;
-  if (!secret) {
-    return res.status(500).json({ error: "Server misconfigured" });
-  }
-
-  const timestamp = new Date().toISOString();
-  const payload = `${name}|${timestamp}`;
-  const sig = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-  const token = Buffer.from(`${payload}|${sig}`).toString("base64url");
-
-  return res.status(200).json({ token });
-};
+}
