@@ -11,6 +11,250 @@
   --shadow: 0 18px 60px rgba(0,0,0,0.55);
   --radius: 16px;
 }
+/* =========================
+   GLOBAL POLISH UTILITIES
+   ========================= */
+
+:root{
+  --ring: rgba(140,190,255,0.35);
+  --ring2: rgba(140,190,255,0.18);
+  --danger: rgba(255,190,190,.95);
+  --ok: rgba(232,237,247,0.92);
+  --glass: rgba(0,0,0,0.22);
+  --glass2: rgba(0,0,0,0.18);
+}
+
+/* smoother interactions */
+*{ -webkit-tap-highlight-color: transparent; }
+button, input { outline: none; }
+
+/* Focus ring that matches your style */
+.sim-btn:focus-visible,
+#taskBody input:focus-visible,
+.modal input:focus-visible{
+  box-shadow: 0 0 0 3px var(--ring2), 0 0 0 1px var(--ring);
+  border-color: rgba(140,190,255,0.28);
+}
+
+/* nicer scrollbar where applicable */
+#simText, .modal, #hackLines{
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+#simText::-webkit-scrollbar,
+#hackLines::-webkit-scrollbar{
+  height: 10px;
+  width: 10px;
+}
+#simText::-webkit-scrollbar-thumb,
+#hackLines::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+/* =========================
+   LANDING POLISH
+   ========================= */
+
+header.card{
+  position: relative;
+  overflow: hidden;
+}
+
+header.card::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    radial-gradient(900px 300px at 15% 10%, rgba(140,190,255,0.10), transparent 55%),
+    radial-gradient(700px 260px at 85% 15%, rgba(140,190,255,0.07), transparent 55%);
+  pointer-events:none;
+  opacity: 0.9;
+}
+
+.grid.card{
+  position: relative;
+  overflow: hidden;
+}
+
+.grid.card::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.03), transparent 40%),
+    radial-gradient(600px 220px at 50% 0%, rgba(140,190,255,0.08), transparent 60%);
+  pointer-events:none;
+}
+
+.grid img{
+  transition: transform 140ms ease, border-color 140ms ease, filter 140ms ease;
+}
+.grid img:hover{
+  transform: translateY(-2px);
+  border-color: rgba(140,190,255,0.22);
+  filter: saturate(1.04) contrast(1.02);
+}
+
+/* system line polish */
+#system{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+#system::before{
+  content:"";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(140,190,255,0.55);
+  box-shadow: 0 0 18px rgba(140,190,255,0.30);
+  opacity: 0.9;
+}
+
+/* optional: a subtle “scanline” feel */
+@keyframes scanShift{
+  0%{ transform: translateY(-10%); opacity: .10; }
+  50%{ opacity: .18; }
+  100%{ transform: translateY(10%); opacity: .10; }
+}
+body:not(.in-sim) #wrap::after{
+  content:"";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.05), transparent);
+  opacity: 0.10;
+  animation: scanShift 8.5s ease-in-out infinite;
+}
+/* =========================
+   SIM ROOM POLISH
+   ========================= */
+
+#simRoom .cardShell{
+  position: relative;
+  overflow: hidden;
+}
+
+#simRoom .cardShell::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    radial-gradient(900px 320px at 10% 0%, rgba(140,190,255,0.10), transparent 55%),
+    radial-gradient(700px 280px at 90% 0%, rgba(140,190,255,0.06), transparent 55%);
+  pointer-events:none;
+  opacity: .9;
+}
+
+#simText{
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.28);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.22);
+}
+
+/* choices look more “systemy” */
+#simChoices{
+  padding-top: 2px;
+}
+#simChoices .sim-btn{
+  flex: 1 1 160px;
+}
+
+/* task UI looks more like a “module” */
+#taskUI{
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.26);
+}
+#taskActions{
+  display:flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+#taskActions .sim-btn{
+  flex: 0 0 auto;
+}
+/* =========================
+   HACK ROOM POLISH
+   ========================= */
+
+#hackRoom.card{
+  background: rgba(0,0,0,0.20);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.hack-filebtn{
+  position: relative;
+  overflow: hidden;
+}
+.hack-filebtn.active{
+  border-color: rgba(140,190,255,0.28);
+  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
+}
+
+#hackStatus{
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+}
+
+#hackLines{
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.22);
+  overflow: hidden;
+}
+
+/* each line */
+.hack-line{
+  display:flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  cursor: pointer;
+  user-select: none;
+}
+.hack-line:first-child{ border-top: 0; }
+
+.hack-line:hover{
+  background: rgba(255,255,255,0.03);
+}
+
+.hack-ln{
+  width: 34px;
+  opacity: 0.55;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size: 12px;
+  text-align: right;
+}
+.hack-txt{
+  flex: 1;
+  opacity: 0.88;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+/* target lines (your code adds .target) */
+.hack-line.target{
+  background: rgba(255,190,190,0.04);
+}
+.hack-line.target .hack-txt{
+  opacity: 0.95;
+}
+
+/* selected lines */
+.hack-line.selected{
+  background: rgba(140,190,255,0.08);
+  outline: 1px solid rgba(140,190,255,0.20);
+}
+.hack-line.selected .hack-ln{
+  opacity: 0.8;
+}
+
 
 /* ============ base ============ */
 *{ box-sizing:border-box; }
