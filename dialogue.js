@@ -254,6 +254,8 @@ window.DIALOGUE = {
     
     // Final pressure: pack5 only
     { task: "random", args: { pool: ["pack5"] } },
+    { say: ["System: …"] },
+    { filler: { pool: "AUTO", count: 1 } },
 
   ]
 };
