@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>index</title>
+  <title>Campaign Launcher</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-  <link rel="stylesheet" href="/styles.css?v=101" />
+  <link rel="stylesheet" href="/styles.css?v=200" />
 
   <!-- Turnstile (explicit render) -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
@@ -19,28 +19,126 @@
   <!-- falling glass overlay -->
   <div id="glassFX" aria-hidden="true" class="hidden"></div>
 
-  <!-- LANDING PAGE ONLY -->
-  <main id="wrap">
-    <header class="card">
-      <h1>Welcome</h1>
-      <p>
-        This page is currently under revision.<br><br>
-        Some content may be incomplete or displayed incorrectly.
-        If you believe you’ve reached this page in error, you may close it at any time.
-      </p>
-    </header>
+  <!-- LANDING PAGE (NEW) -->
+  <main id="wrap" class="landing">
+    <!-- Side ads (fixed) -->
+    <aside class="sideAds left" aria-hidden="true">
+      <img class="adImg" data-ad="1" alt="">
+      <img class="adImg" data-ad="2" alt="">
+      <img class="adImg" data-ad="3" alt="">
+    </aside>
 
-    <section class="grid card" aria-label="media">
-      <img src="/assets/img1.jpg" alt="">
-      <img src="/assets/img2.jpg" alt="">
-      <img src="/assets/img3.jpg" alt="">
-      <img src="/assets/img4.jpg" alt="">
-      <img src="/assets/img5.jpg" alt="">
-      <img src="/assets/img6.jpg" alt="">
-    </section>
+    <aside class="sideAds right" aria-hidden="true">
+      <img class="adImg" data-ad="4" alt="">
+      <img class="adImg" data-ad="5" alt="">
+      <img class="adImg" data-ad="6" alt="">
+    </aside>
 
-    <section class="card" style="margin-top:14px">
-      <div id="system" style="opacity:.85"></div>
+    <!-- Center content -->
+    <section class="panel">
+      <div class="topBar">
+        <div class="brand">
+          <div class="mark">ADS</div>
+          <div>
+            <div class="title">Campaign Launcher</div>
+            <div class="sub">staging / incomplete / do not share</div>
+          </div>
+        </div>
+
+        <div class="meta">
+          <div class="pill" id="timestamp">booting…</div>
+          <div class="pill ghost" id="build">build: pending</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card big">
+          <h1>Ad Viewing Campaign</h1>
+          <p class="muted">
+            Connect to a sponsor campaign and begin view tracking.
+            <span class="warn">If this page loaded for you, ignore it.</span>
+          </p>
+
+          <div class="launcher">
+            <button id="launchBtn" class="launch">LAUNCH CAMPAIGN</button>
+            <div class="hintline">
+              <span class="dot"></span>
+              <span>status:</span>
+              <span id="launchStatus" class="muted">idle</span>
+            </div>
+          </div>
+
+          <div class="miniRow">
+            <div class="kv">
+              <div class="k">campaign_id</div>
+              <div class="v">auto</div>
+            </div>
+            <div class="kv">
+              <div class="k">mode</div>
+              <div class="v">watch</div>
+            </div>
+            <div class="kv">
+              <div class="k">telemetry</div>
+              <div class="v">on</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row">
+            <div class="label">Queue</div>
+            <div class="pill small">unsynced</div>
+          </div>
+
+          <div class="queue">
+            <div class="qitem"><span class="qdot"></span> sponsor_rollup.mp4 <span class="muted">(?)</span></div>
+            <div class="qitem"><span class="qdot"></span> placement_300x250.png</div>
+            <div class="qitem missing"><span class="qdot"></span> creative_pack.zip <span class="muted">(missing)</span></div>
+            <div class="qitem"><span class="qdot"></span> fallback_banner.png</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="row">
+            <div class="label">System</div>
+            <div class="pill small ghost">partial</div>
+          </div>
+
+          <div id="system" class="systemLog">
+            initializing…
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row">
+            <div class="label">Viewer</div>
+            <div class="pill small">unverified</div>
+          </div>
+
+          <div class="viewerBox">
+            <div class="fakeInput">
+              <span class="muted">viewer token</span>
+              <span class="cursor">▌</span>
+            </div>
+            <div class="fine muted">
+              this module is unfinished. do not rely on output.
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="fine muted">
+            // TODO: remove public access<br>
+            // TODO: disable indexing<br>
+            // TODO: fix layout in firefox
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="fine muted">© sponsor tools (internal) — “temporary”</div>
+        <div class="fine muted">If you close this tab, nothing is saved.</div>
+      </div>
     </section>
   </main>
 
@@ -68,7 +166,7 @@
     </div>
   </section>
 
-  <!-- HACK ROOM (also outside #wrap so it can show during sim) -->
+  <!-- HACK ROOM -->
   <section id="hackRoom" class="card hidden" style="margin:42px auto 80px; width:min(980px, calc(100% - 40px));">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div>
@@ -126,15 +224,62 @@
   </div>
 
   <!-- scripts in correct order -->
-  <script src="/dialogue.js?v=101"></script>
-  <script src="/tasks.js?v=101"></script>
+  <script src="/dialogue.js?v=200"></script>
+  <script src="/tasks.js?v=200"></script>
 
-  <script src="/packs/pack1.js?v=101"></script>
-  <script src="/packs/pack2.js?v=101"></script>
-  <script src="/packs/pack3.js?v=101"></script>
-  <script src="/packs/pack4.js?v=101"></script>
-  <script src="/packs/pack5.js?v=101"></script>
+  <script src="/packs/pack1.js?v=200"></script>
+  <script src="/packs/pack2.js?v=200"></script>
+  <script src="/packs/pack3.js?v=200"></script>
+  <script src="/packs/pack4.js?v=200"></script>
+  <script src="/packs/pack5.js?v=200"></script>
 
-  <script src="/main.js?v=101"></script>
+  <script src="/main.js?v=200"></script>
+
+  <!-- landing-only tiny script -->
+  <script>
+    // Random side ads from your existing pool
+    const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
+    document.querySelectorAll(".adImg").forEach(img => {
+      img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
+    });
+
+    // Live timestamp (updates every second)
+    const ts = document.getElementById("timestamp");
+    const build = document.getElementById("build");
+    const started = Date.now() - Math.floor(Math.random() * 900000);
+
+    function tick(){
+      const now = new Date();
+      const t = now.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit" });
+      ts.textContent = `time: ${t}`;
+
+      const delta = Date.now() - started;
+      const s = Math.floor(delta/1000)%60;
+      const m = Math.floor(delta/60000)%60;
+      const h = Math.floor(delta/3600000);
+      build.textContent = `uptime: ${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    // Fake launcher feedback (doesn't block your existing click-to-crack flow)
+    const btn = document.getElementById("launchBtn");
+    const st = document.getElementById("launchStatus");
+    let busy = false;
+
+    btn.addEventListener("click", () => {
+      if (busy) return;
+      busy = true;
+      st.textContent = "requesting campaign…";
+      btn.classList.add("busy");
+      setTimeout(() => st.textContent = "loading creatives…", 500);
+      setTimeout(() => st.textContent = "waiting for view signal…", 1100);
+      setTimeout(() => {
+        st.textContent = "idle";
+        btn.classList.remove("busy");
+        busy = false;
+      }, 1800);
+    });
+  </script>
 </body>
 </html>
