@@ -12,6 +12,39 @@
   --radius: 16px;
 }
 /* =========================
+   POP-IN + SHAKE LAYER
+   ========================= */
+
+/* Pop-in (used when showing rooms/cards/modals/task UI) */
+@keyframes popIn {
+  0%   { opacity: 0; transform: translateY(8px) scale(0.985); filter: blur(0.6px); }
+  100% { opacity: 1; transform: translateY(0)   scale(1);     filter: blur(0); }
+}
+.pop-in{
+  animation: popIn 180ms ease-out both;
+  will-change: transform, opacity, filter;
+}
+
+/* Soft shake (used for glitch pulses / “caught” moments) */
+@keyframes softShake {
+  0%   { transform: translate3d(0,0,0); }
+  15%  { transform: translate3d(-2px, 0, 0); }
+  30%  { transform: translate3d( 2px,-1px,0); }
+  45%  { transform: translate3d(-2px, 1px,0); }
+  60%  { transform: translate3d( 1px, 0,0); }
+  75%  { transform: translate3d(-1px,-1px,0); }
+  100% { transform: translate3d(0,0,0); }
+}
+.shake{
+  animation: softShake 220ms ease-out both;
+  will-change: transform;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .pop-in, .shake{ animation: none !important; }
+}
+/* =========================
    OVERLAY / MODAL POLISH
    ========================= */
 
