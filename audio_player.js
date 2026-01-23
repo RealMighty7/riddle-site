@@ -74,6 +74,7 @@ export class VoiceBank {
     this._ctx = null;
     this._ctxUnlocked = false;
   }
+  window.VoiceBank = VoiceBank;
 
   bindSubtitleUI({ nameEl, subtitleEl }) {
     this.nameEl = nameEl || null;
