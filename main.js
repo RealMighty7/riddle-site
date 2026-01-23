@@ -275,11 +275,19 @@ Reinitializing simulation…`
       }
     }
 
-    function glitchPulse() {
-      playSfx(Math.random() < 0.5 ? "glitch1" : "glitch2", 0.55);
-      cracks.classList.add("flash");
-      setTimeout(() => cracks.classList.remove("flash"), 220);
-    }
+function glitchPulse() {
+  playSfx(Math.random() < 0.5 ? "glitch1" : "glitch2", 0.55);
+  cracks.classList.add("flash");
+  setTimeout(() => cracks.classList.remove("flash"), 220);
+
+  // UI feedback on task card (safe even when hidden)
+  try {
+    taskUI.classList.remove("is-ok");
+    taskUI.classList.add("is-error");
+    setTimeout(() => taskUI.classList.remove("is-error"), 240);
+  } catch {}
+}
+
 
     /* ====================== TURNSTILE ====================== */
     let tsWidgetId = null;
