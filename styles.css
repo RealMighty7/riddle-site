@@ -12,6 +12,70 @@
   --radius: 16px;
 }
 /* =========================
+   OVERLAY / MODAL POLISH
+   ========================= */
+
+.overlay{
+  animation: overlayIn 160ms ease-out both;
+}
+@keyframes overlayIn{
+  from{ opacity: 0; }
+  to{ opacity: 1; }
+}
+
+.modal{
+  position: relative;
+  overflow: hidden;
+}
+.modal::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    radial-gradient(700px 240px at 10% 0%, rgba(140,190,255,0.10), transparent 55%),
+    radial-gradient(500px 220px at 90% 0%, rgba(140,190,255,0.06), transparent 55%);
+  pointer-events:none;
+  opacity: .85;
+}
+
+/* modal inputs match sim style */
+#finalOverlay input{
+  width:100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.22);
+  color: rgba(235,238,245,0.92);
+}
+
+.modal-actions{
+  display:flex;
+  gap:10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.modal-actions .sim-btn{
+  flex: 1 1 160px;
+}
+/* =========================
+   ESCAPED PAGE POLISH
+   ========================= */
+
+.escapeCode{
+  margin-top:14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.22);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 22px;
+  letter-spacing: .14em;
+  display:inline-block;
+  color: rgba(235,238,245,0.92);
+}
+
+/* =========================
    GLOBAL POLISH UTILITIES
    ========================= */
 
