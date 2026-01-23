@@ -10,12 +10,44 @@
 
   --shadow: 0 18px 60px rgba(0,0,0,0.55);
   --radius: 16px;
-}
-/* =========================
-   POP-IN + SHAKE LAYER
-   ========================= */
 
-/* Pop-in (used when showing rooms/cards/modals/task UI) */
+  --ring: rgba(140,190,255,0.35);
+  --ring2: rgba(140,190,255,0.18);
+  --danger: rgba(255,190,190,.95);
+  --ok: rgba(232,237,247,0.92);
+
+  --glass: rgba(0,0,0,0.22);
+  --glass2: rgba(0,0,0,0.18);
+}
+
+/* ============ base ============ */
+*{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+html,body{ height:100%; }
+
+body{
+  margin:0;
+  color:var(--text);
+  background:
+    radial-gradient(1200px 800px at 50% 20%, rgba(42,72,150,0.22), transparent 55%),
+    radial-gradient(900px 700px at 20% 80%, rgba(42,72,150,0.14), transparent 60%),
+    linear-gradient(180deg, var(--bg1), var(--bg0));
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  overflow-x:hidden;
+}
+
+.hidden{ display:none !important; }
+a{ color:inherit; }
+button, input { outline: none; }
+
+/* Prevent selecting during click spam */
+body.sim-transition, body.sim-transition *{
+  user-select:none;
+  cursor:default;
+}
+
+/* =========================
+   POP-IN + SHAKE
+   ========================= */
 @keyframes popIn {
   0%   { opacity: 0; transform: translateY(8px) scale(0.985); filter: blur(0.6px); }
   100% { opacity: 1; transform: translateY(0)   scale(1);     filter: blur(0); }
@@ -25,7 +57,6 @@
   will-change: transform, opacity, filter;
 }
 
-/* Soft shake (used for glitch pulses / “caught” moments) */
 @keyframes softShake {
   0%   { transform: translate3d(0,0,0); }
   15%  { transform: translate3d(-2px, 0, 0); }
@@ -40,14 +71,379 @@
   will-change: transform;
 }
 
-/* Respect reduced motion */
 @media (prefers-reduced-motion: reduce){
   .pop-in, .shake{ animation: none !important; }
 }
+
+/* =========================
+   COMMON: cards + pills
+   ========================= */
+.card{
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.18);
+  color: rgba(235,238,245,0.78);
+  font-size: 12px;
+  letter-spacing: .02em;
+}
+.pill.small{ padding: 6px 8px; font-size: 11px; }
+.pill.ghost{ background: transparent; opacity: .85; }
+
+.muted{ color: var(--muted); }
+.fine{ font-size: 12px; line-height: 1.45; opacity: .82; }
+
+/* Focus ring */
+.sim-btn:focus-visible,
+#taskBody input:focus-visible,
+.modal input:focus-visible{
+  box-shadow: 0 0 0 3px var(--ring2), 0 0 0 1px var(--ring);
+  border-color: rgba(140,190,255,0.28);
+}
+
+/* nicer scrollbar */
+#simText, .modal, #hackLines{
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+#simText::-webkit-scrollbar,
+#hackLines::-webkit-scrollbar{
+  height: 10px;
+  width: 10px;
+}
+#simText::-webkit-scrollbar-thumb,
+#hackLines::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* =========================
+   LANDING (NEW MARKUP)
+   ========================= */
+#wrap{
+  width:min(980px, calc(100% - 40px));
+  margin:42px auto 80px;
+  position:relative;
+  z-index: 2;
+}
+
+/* Side ads */
+.sideAds{
+  position: fixed;
+  top: 80px;
+  bottom: 80px;
+  width: 190px;
+  display:flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px;
+  pointer-events: none;
+  opacity: .92;
+  z-index: 1;
+}
+.sideAds.left{ left: 14px; }
+.sideAds.right{ right: 14px; }
+
+.adImg{
+  width: 100%;
+  height: 160px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.25);
+  object-fit: cover;
+  filter: saturate(0.95) contrast(1.02);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+}
+
+/* hide side ads on small screens */
+@media (max-width: 1100px){
+  .sideAds{ display:none; }
+}
+
+.panel{
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* subtle header glow */
+.panel::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    radial-gradient(900px 320px at 15% 0%, rgba(140,190,255,0.10), transparent 55%),
+    radial-gradient(700px 280px at 85% 0%, rgba(140,190,255,0.06), transparent 55%);
+  pointer-events:none;
+  opacity: .9;
+}
+
+.topBar{
+  display:flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 2;
+}
+
+.brand{
+  display:flex;
+  align-items: center;
+  gap: 12px;
+}
+.mark{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight: 800;
+  letter-spacing: .10em;
+  background: rgba(140,190,255,0.10);
+  border: 1px solid rgba(140,190,255,0.18);
+}
+.title{
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.sub{
+  font-size: 12px;
+  color: var(--muted);
+  opacity: .85;
+}
+
+.meta{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  flex-wrap: wrap;
+}
+
+.grid2{
+  display:grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 14px;
+  position: relative;
+  z-index: 2;
+}
+@media (max-width: 980px){
+  .grid2{ grid-template-columns: 1fr; }
+}
+
+.card.big{
+  padding: 18px;
+  min-height: 240px;
+}
+.card:not(.big){
+  padding: 16px;
+}
+
+.row{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.label{
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.warn{
+  color: rgba(255,190,190,.92);
+  font-weight: 600;
+}
+
+.launcher{
+  margin-top: 14px;
+  display:flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.launch{
+  appearance:none;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.08);
+  color: rgba(235,238,245,0.92);
+  padding: 12px 14px;
+  border-radius: 14px;
+  cursor:pointer;
+  font-weight: 800;
+  letter-spacing: .08em;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+.launch:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.11);
+  border-color: rgba(140,190,255,0.25);
+}
+.launch.busy{
+  opacity: .85;
+  transform: none;
+  cursor: progress;
+}
+
+.hintline{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-size: 12px;
+  color: rgba(235,238,245,0.72);
+}
+.hintline .dot{
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(140,190,255,0.60);
+  box-shadow: 0 0 14px rgba(140,190,255,0.25);
+}
+
+.miniRow{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+@media (max-width: 640px){
+  .miniRow{ grid-template-columns: 1fr; }
+}
+.kv{
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.18);
+}
+.kv .k{
+  font-size: 11px;
+  opacity: .75;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+}
+.kv .v{
+  margin-top: 6px;
+  font-weight: 700;
+}
+
+.queue{
+  display:flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+.qitem{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  opacity: .9;
+}
+.qitem .qdot{
+  width: 8px; height: 8px; border-radius: 999px;
+  background: rgba(140,190,255,0.55);
+  box-shadow: 0 0 10px rgba(140,190,255,0.18);
+}
+.qitem.missing{ opacity: .65; }
+
+.divider{
+  height: 1px;
+  background: rgba(255,255,255,0.10);
+  border-radius: 999px;
+  margin: 12px 0;
+  opacity: .9;
+}
+
+.systemLog{
+  margin-top: 10px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+  color: rgba(235,238,245,0.80);
+  min-height: 74px;
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+.systemLog::before{
+  content:"";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(140,190,255,0.55);
+  box-shadow: 0 0 18px rgba(140,190,255,0.30);
+  opacity: 0.9;
+}
+
+.viewerBox{
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+}
+.fakeInput{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.22);
+}
+.cursor{ opacity: .85; }
+
+.footer{
+  margin-top: 14px;
+  display:flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
+}
+
+/* subtle scanline feel */
+@keyframes scanShift{
+  0%{ transform: translateY(-10%); opacity: .10; }
+  50%{ opacity: .18; }
+  100%{ transform: translateY(10%); opacity: .10; }
+}
+body:not(.in-sim) #wrap::after{
+  content:"";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.05), transparent);
+  opacity: 0.10;
+  animation: scanShift 8.5s ease-in-out infinite;
+}
+
 /* =========================
    OVERLAY / MODAL POLISH
    ========================= */
-
 .overlay{
   animation: overlayIn 160ms ease-out both;
 }
@@ -71,6 +467,16 @@
   opacity: .85;
 }
 
+.modal-actions{
+  display:flex;
+  gap:10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.modal-actions .sim-btn{
+  flex: 1 1 160px;
+}
+
 /* modal inputs match sim style */
 #finalOverlay input{
   width:100%;
@@ -82,19 +488,7 @@
   color: rgba(235,238,245,0.92);
 }
 
-.modal-actions{
-  display:flex;
-  gap:10px;
-  margin-top: 14px;
-  flex-wrap: wrap;
-}
-.modal-actions .sim-btn{
-  flex: 1 1 160px;
-}
-/* =========================
-   ESCAPED PAGE POLISH
-   ========================= */
-
+/* ESCAPED PAGE polish */
 .escapeCode{
   margin-top:14px;
   padding: 14px 16px;
@@ -108,128 +502,273 @@
   color: rgba(235,238,245,0.92);
 }
 
-/* =========================
-   GLOBAL POLISH UTILITIES
-   ========================= */
+/* ============ overlay stacks ============ */
+#cracks,
+#glassFX{
+  position: fixed;
+  inset: 0;
+  pointer-events:none;
+}
+#cracks{ z-index: 50; }
+#glassFX{ z-index: 60; }
 
-:root{
-  --ring: rgba(140,190,255,0.35);
-  --ring2: rgba(140,190,255,0.18);
-  --danger: rgba(255,190,190,.95);
-  --ok: rgba(232,237,247,0.92);
-  --glass: rgba(0,0,0,0.22);
-  --glass2: rgba(0,0,0,0.18);
+/* =========================================================
+   CRACK SHARDS + STAGED LINES
+   ========================================================= */
+#cracks .pane{
+  position:absolute;
+  inset:0;
+  opacity: 0;
+  will-change: opacity, transform, filter;
+  transform: translate(var(--dx, 0px), var(--dy, 0px));
 }
 
-/* smoother interactions */
-*{ -webkit-tap-highlight-color: transparent; }
-button, input { outline: none; }
+#cracks[data-stage="1"] .pane[data-rank="1"] { opacity: var(--paneOpacity, 0.14); }
+#cracks[data-stage="2"] .pane[data-rank="1"],
+#cracks[data-stage="2"] .pane[data-rank="2"] { opacity: var(--paneOpacity, 0.24); }
+#cracks[data-stage="3"] .pane[data-rank="1"],
+#cracks[data-stage="3"] .pane[data-rank="2"],
+#cracks[data-stage="3"] .pane[data-rank="3"] { opacity: var(--paneOpacity, 0.34); }
+#cracks[data-stage="4"] .pane { opacity: var(--paneOpacity, 0.44); }
 
-/* Focus ring that matches your style */
-.sim-btn:focus-visible,
-#taskBody input:focus-visible,
-.modal input:focus-visible{
-  box-shadow: 0 0 0 3px var(--ring2), 0 0 0 1px var(--ring);
-  border-color: rgba(140,190,255,0.28);
-}
-
-/* nicer scrollbar where applicable */
-#simText, .modal, #hackLines{
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.18) transparent;
-}
-#simText::-webkit-scrollbar,
-#hackLines::-webkit-scrollbar{
-  height: 10px;
-  width: 10px;
-}
-#simText::-webkit-scrollbar-thumb,
-#hackLines::-webkit-scrollbar-thumb{
-  background: rgba(255,255,255,0.12);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-/* =========================
-   LANDING POLISH
-   ========================= */
-
-header.card{
-  position: relative;
-  overflow: hidden;
-}
-
-header.card::before{
+#cracks .pane::before{
   content:"";
   position:absolute;
-  inset:-2px;
-  background:
-    radial-gradient(900px 300px at 15% 10%, rgba(140,190,255,0.10), transparent 55%),
-    radial-gradient(700px 260px at 85% 15%, rgba(140,190,255,0.07), transparent 55%);
-  pointer-events:none;
-  opacity: 0.9;
+  inset:-22px;
+  transform: translate(calc(0px - var(--dx, 0px)), calc(0px - var(--dy, 0px)));
+  backdrop-filter: blur(0.6px) saturate(1.25) contrast(1.18) brightness(1.02);
+  -webkit-backdrop-filter: blur(0.6px) saturate(1.25) contrast(1.18) brightness(1.02);
+  background: rgba(255,255,255,0.00);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.20),
+    inset 0 0 24px rgba(0,0,0,0.20),
+    inset 0 0 40px rgba(255,255,255,0.06);
+  opacity: 0.95;
+  border-radius: 14px;
 }
 
-.grid.card{
-  position: relative;
-  overflow: hidden;
-}
-
-.grid.card::before{
+#cracks .pane::after{
   content:"";
   position:absolute;
   inset:0;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.03), transparent 40%),
-    radial-gradient(600px 220px at 50% 0%, rgba(140,190,255,0.08), transparent 60%);
   pointer-events:none;
+  background:
+    linear-gradient(135deg,
+      rgba(255,255,255,0.10),
+      rgba(255,255,255,0.00) 35%,
+      rgba(255,255,255,0.06) 65%,
+      rgba(255,255,255,0.00)
+    );
+  opacity: 0.22;
+  filter: blur(0.8px);
+  mix-blend-mode: screen;
 }
 
-.grid img{
-  transition: transform 140ms ease, border-color 140ms ease, filter 140ms ease;
+#cracks .pane.glint::after{ opacity: 0.35; }
+#cracks.flash .pane::after{ opacity: 0.55; }
+
+#cracks .seg{
+  opacity: 0;
+  transition: opacity 160ms ease;
 }
-.grid img:hover{
-  transform: translateY(-2px);
-  border-color: rgba(140,190,255,0.22);
-  filter: saturate(1.04) contrast(1.02);
+#cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
+#cracks[data-stage="2"] .seg[data-rank="1"],
+#cracks[data-stage="2"] .seg[data-rank="2"]{ opacity: 1; }
+#cracks[data-stage="3"] .seg[data-rank="1"],
+#cracks[data-stage="3"] .seg[data-rank="2"],
+#cracks[data-stage="3"] .seg[data-rank="3"]{ opacity: 1; }
+#cracks[data-stage="4"] .seg{ opacity: 1; }
+
+#cracks svg{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  opacity: 1;
 }
 
-/* system line polish */
-#system{
-  display:flex;
-  align-items:center;
-  gap: 10px;
+#cracks .crack-path{
+  fill:none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-#system::before{
-  content:"";
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(140,190,255,0.55);
-  box-shadow: 0 0 18px rgba(140,190,255,0.30);
-  opacity: 0.9;
+#cracks .crack-under{
+  stroke: rgba(0,0,0,0.65);
+  stroke-width: 3.6;
+  opacity: 0.55;
+  filter: blur(0.6px);
+}
+#cracks .crack-line{
+  stroke: rgba(240,245,255,0.72);
+  stroke-width: 1.15;
+  opacity: 0.92;
+  filter:
+    drop-shadow(0 0 10px rgba(120,180,255,0.20))
+    drop-shadow(0 0 2px rgba(255,255,255,0.25));
+}
+#cracks .crack-glint{
+  stroke: rgba(160,210,255,0.85);
+  stroke-width: 0.9;
+  opacity: 0.7;
+  filter: blur(0.2px) drop-shadow(0 0 10px rgba(120,180,255,0.30));
+}
+#cracks .draw{ animation: crackDraw 700ms ease-out forwards; }
+@keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
+
+#cracks.shatter-hide-lines svg{ opacity: 0 !important; }
+
+/* =========================================================
+   FALLING SHARDS
+   ========================================================= */
+.wrap-hidden{
+  opacity: 0;
+  visibility: hidden;
 }
 
-/* optional: a subtle “scanline” feel */
-@keyframes scanShift{
-  0%{ transform: translateY(-10%); opacity: .10; }
-  50%{ opacity: .18; }
-  100%{ transform: translateY(10%); opacity: .10; }
+#glassFX .glass-piece{
+  position: fixed;
+  inset: 0;
+  transform: translate3d(0,0,0) rotate(0deg);
+  transform-origin: 50% 50%;
+  will-change: transform, opacity, filter;
+  opacity: 0.98;
 }
-body:not(.in-sim) #wrap::after{
-  content:"";
-  position: absolute;
+
+#glassFX .glass-inner{
+  position: fixed;
+  inset: 0;
+  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
+  filter: blur(var(--rblur, 1px)) saturate(1.10) contrast(1.06);
+  opacity: 0.98;
+  isolation: isolate;
+}
+
+#glassFX .glass-inner > #wrap,
+#glassFX .glass-inner > .wrap-clone{
+  opacity: 0;
+}
+
+#glassFX .glass-rgb{
+  position: fixed;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.05), transparent);
-  opacity: 0.10;
-  animation: scanShift 8.5s ease-in-out infinite;
+  will-change: transform, opacity, filter;
+  mix-blend-mode: screen;
+  opacity: 0.85;
 }
-/* =========================
-   SIM ROOM POLISH
-   ========================= */
+
+#glassFX .glass-rgb.r{
+  transform: translate3d(calc(var(--rx, 0px) + var(--rgbx, 2px)), calc(var(--ry, 0px) + var(--rgby, -1px)), 0);
+  filter: blur(calc(var(--rblur, 1px) + 0.2px)) contrast(1.07) saturate(1.08);
+}
+#glassFX .glass-rgb.g{
+  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
+  filter: blur(var(--rblur, 1px)) contrast(1.05) saturate(1.06);
+}
+#glassFX .glass-rgb.b{
+  transform: translate3d(calc(var(--rx, 0px) - var(--rgbx, 2px)), calc(var(--ry, 0px) - var(--rgby, -1px)), 0);
+  filter: blur(calc(var(--rblur, 1px) + 0.25px)) contrast(1.07) saturate(1.08);
+}
+
+#glassFX .glass-rgb::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  pointer-events:none;
+  mix-blend-mode: multiply;
+  opacity: 0.95;
+}
+#glassFX .glass-rgb.r::before{ background: rgba(255, 80, 80, 1); }
+#glassFX .glass-rgb.g::before{ background: rgba(80, 255, 160, 1); }
+#glassFX .glass-rgb.b::before{ background: rgba(90, 150, 255, 1); }
+
+#glassFX .glass-piece::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.10),
+    inset 0 0 18px rgba(180,220,255,0.10);
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.08),
+    rgba(255,255,255,0.00) 40%,
+    rgba(255,255,255,0.06) 70%,
+    rgba(255,255,255,0.00)
+  );
+  mix-blend-mode: screen;
+  opacity: 0.75;
+}
+
+#glassFX .glass-piece::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.22), rgba(255,255,255,0) 45%);
+  opacity: 0.25;
+  mix-blend-mode: screen;
+}
+
+#glassFX.glass-fall .glass-piece .glass-rgb{
+  animation: rgbJitter 240ms steps(2, end) infinite;
+}
+@keyframes rgbJitter{
+  0%   { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
+  50%  { filter: blur(calc(var(--rblur, 1px) + 0.35px)) contrast(1.10) saturate(1.12); opacity: 0.82; }
+  100% { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
+}
+
+#glassFX.glass-fall .glass-piece{
+  animation: shardFall 1100ms cubic-bezier(.2,.7,.2,1) forwards;
+}
+@keyframes shardFall{
+  0%{
+    opacity: 1;
+    transform: translate3d(0,0,0) rotate(0deg);
+    filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55));
+  }
+  25%{
+    transform: translate3d(var(--sx, 0px), var(--sy, 0px), 0) rotate(var(--rot, 0deg));
+  }
+  100%{
+    opacity: 0;
+    transform: translate3d(calc(var(--sx, 0px) * 1.15), 110vh, 0)
+               rotate(calc(var(--rot, 0deg) * 1.8));
+    filter: drop-shadow(0 40px 80px rgba(0,0,0,0.65));
+  }
+}
+
+/* =========================================================
+   SIM ROOM (centered + above overlays)
+   ========================================================= */
+#simRoom{
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 28px 22px;
+  background: transparent;
+}
+
+#simRoom.card{
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 0;
+}
 
 #simRoom .cardShell{
+  width: min(980px, 100%);
+  background: rgba(0,0,0,0.22);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+  backdrop-filter: blur(10px);
+  padding: 18px;
   position: relative;
   overflow: hidden;
 }
@@ -245,38 +784,201 @@ body:not(.in-sim) #wrap::after{
   opacity: .9;
 }
 
+/* Hide landing while in sim */
+body.in-sim #wrap{ display:none; }
+
 #simText{
+  width: 100%;
+  min-height: 280px;
+  max-height: 380px;
+  overflow:auto;
+  padding: 14px 14px;
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(0,0,0,0.28);
+  color: rgba(235,238,245,0.90);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size: 13px;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.22);
 }
 
-/* choices look more “systemy” */
 #simChoices{
-  padding-top: 2px;
-}
-#simChoices .sim-btn{
-  flex: 1 1 160px;
-}
-
-/* task UI looks more like a “module” */
-#taskUI{
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.26);
-}
-#taskActions{
   display:flex;
   gap: 10px;
   margin-top: 12px;
   flex-wrap: wrap;
+  padding-top: 2px;
 }
-#taskActions .sim-btn{
-  flex: 0 0 auto;
-}
-/* =========================
-   HACK ROOM POLISH
-   ========================= */
 
+.sim-btn{
+  appearance:none;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(235,238,245,0.92);
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor:pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.sim-btn:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(140,190,255,0.25);
+}
+.sim-btn:disabled{
+  opacity: 0.5;
+  cursor:not-allowed;
+  transform:none;
+}
+
+/* =========================================================
+   TASK UI (kept consistent)
+   ========================================================= */
+#taskUI{
+  margin-top: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background:
+    radial-gradient(900px 220px at 20% 0%, rgba(140,190,255,0.10), transparent 60%),
+    rgba(0,0,0,0.22);
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+#taskUI::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,0.06),
+      rgba(255,255,255,0.00) 35%,
+      rgba(0,0,0,0.00) 65%,
+      rgba(255,255,255,0.04)
+    );
+  opacity: 0.35;
+  pointer-events:none;
+}
+
+#taskTitle{
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(235,238,245,0.80);
+  margin: 2px 0 6px;
+}
+#taskDesc{
+  color: rgba(235,238,245,0.70);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+#taskBody{
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+}
+#taskBody > * + *{ margin-top: 10px; }
+
+#taskActions{
+  margin-top: 12px;
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap: wrap;
+}
+
+#taskBody input{
+  width: min(520px, 100%);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.22);
+  color: rgba(235,238,245,0.92);
+}
+#taskBody input::placeholder{ color: rgba(235,238,245,0.45); }
+#taskBody input::selection{ background: rgba(140,190,255,0.22); }
+
+@keyframes taskIn{
+  from{ opacity: 0; transform: translateY(6px); filter: blur(1.5px); }
+  to  { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+#taskUI:not(.hidden){ animation: taskIn 180ms ease-out; }
+
+@keyframes taskShake{
+  0%,100%{ transform: translateX(0); }
+  20%{ transform: translateX(-3px); }
+  40%{ transform: translateX(3px); }
+  60%{ transform: translateX(-2px); }
+  80%{ transform: translateX(2px); }
+}
+#taskUI.is-error{ animation: taskShake 220ms ease; }
+
+#taskUI.is-ok{
+  box-shadow:
+    0 18px 60px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(140,190,255,0.10),
+    0 0 28px rgba(140,190,255,0.10);
+}
+
+/* Task kit helpers */
+.task-note{ opacity: 0.88; color: rgba(235,238,245,0.82); font-size: 13px; line-height: 1.45; }
+.task-error{ color: rgba(255,190,190,.95); opacity: 0.95; font-size: 13px; }
+.task-ok{ color: rgba(232,237,247,0.92); opacity: 0.92; font-size: 13px; }
+.task-code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; font-size: 13px; letter-spacing: 0.02em; }
+.task-panel{ padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18); }
+.task-divider{ height: 1px; background: rgba(255,255,255,0.10); border-radius: 999px; margin: 10px 0; opacity: 0.8; }
+
+.task-row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.task-grid-2{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.task-grid-3{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+.task-grid-4{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+
+#taskBody .sim-btn{ min-height: 40px; }
+.task-list-btn{ display:block; width:100%; text-align:left; }
+.task-chip{ padding: 10px 12px; border-radius: 999px; }
+
+.task-pill{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.16);
+  color: rgba(235,238,245,0.80);
+  font-size: 12px;
+}
+
+.task-bar{
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.22);
+  overflow:hidden;
+}
+.task-bar > div{
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: rgba(140,190,255,0.45);
+}
+
+@media (max-width: 520px){
+  .task-grid-4{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .task-grid-3{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+/* =========================================================
+   HACK ROOM POLISH
+   ========================================================= */
 #hackRoom.card{
   background: rgba(0,0,0,0.20);
   border: 1px solid rgba(255,255,255,0.12);
@@ -305,7 +1007,6 @@ body:not(.in-sim) #wrap::after{
   overflow: hidden;
 }
 
-/* each line */
 .hack-line{
   display:flex;
   gap: 12px;
@@ -315,10 +1016,7 @@ body:not(.in-sim) #wrap::after{
   user-select: none;
 }
 .hack-line:first-child{ border-top: 0; }
-
-.hack-line:hover{
-  background: rgba(255,255,255,0.03);
-}
+.hack-line:hover{ background: rgba(255,255,255,0.03); }
 
 .hack-ln{
   width: 34px;
@@ -335,761 +1033,18 @@ body:not(.in-sim) #wrap::after{
   line-height: 1.35;
 }
 
-/* target lines (your code adds .target) */
-.hack-line.target{
-  background: rgba(255,190,190,0.04);
-}
-.hack-line.target .hack-txt{
-  opacity: 0.95;
-}
+.hack-line.target{ background: rgba(255,190,190,0.04); }
+.hack-line.target .hack-txt{ opacity: 0.95; }
 
-/* selected lines */
 .hack-line.selected{
   background: rgba(140,190,255,0.08);
   outline: 1px solid rgba(140,190,255,0.20);
 }
-.hack-line.selected .hack-ln{
-  opacity: 0.8;
-}
-
-
-/* ============ base ============ */
-*{ box-sizing:border-box; }
-html,body{ height:100%; }
-
-body{
-  margin:0;
-  color:var(--text);
-  background:
-    radial-gradient(1200px 800px at 50% 20%, rgba(42,72,150,0.22), transparent 55%),
-    radial-gradient(900px 700px at 20% 80%, rgba(42,72,150,0.14), transparent 60%),
-    linear-gradient(180deg, var(--bg1), var(--bg0));
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
-  overflow-x:hidden;
-}
-
-.hidden{ display:none !important; }
-a{ color:inherit; }
-
-/* Prevent selecting during click spam */
-body.sim-transition, body.sim-transition *{
-  user-select:none;
-  cursor:default;
-}
-
-/* ============ layout cards/grid (landing) ============ */
-#wrap{
-  width:min(980px, calc(100% - 40px));
-  margin:42px auto 80px;
-  position:relative;
-  z-index: 2;
-}
-
-.card{
-  background: var(--card);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
-}
-
-header.card{
-  padding: 22px 22px 18px;
-  margin-bottom: 18px;
-}
-
-header.card h1{
-  margin:0 0 10px;
-  font-size: 34px;
-  letter-spacing: -0.02em;
-}
-
-header.card p{
-  margin:0;
-  color: var(--muted);
-  line-height: 1.45;
-}
-
-.grid.card{
-  padding: 18px;
-  display:grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.grid img{
-  width:100%;
-  height: 140px;
-  object-fit: cover;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.22);
-}
-
-.pill{
-  display:inline-block;
-  padding: 10px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.18);
-  color: rgba(235,238,245,0.78);
-  font-size: 12px;
-  letter-spacing: .02em;
-}
-
-
-/* the line you show under ads */
-#system{
-  margin-top: 14px;
-  padding: 14px 16px;
-  color: rgba(235,238,245,0.70);
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.18);
-}
-
-/* ============ overlay stacks ============ */
-#cracks,
-#glassFX{
-  position: fixed;
-  inset: 0;
-  pointer-events:none;
-}
-
-#cracks{ z-index: 50; }
-#glassFX{ z-index: 60; }
+.hack-line.selected .hack-ln{ opacity: 0.8; }
 
 /* =========================================================
-   CRACK SHARDS (pane refraction + staged reveal 1/2/3/4)
+   ANCHORS
    ========================================================= */
-
-/* Pane shards (refraction) */
-#cracks .pane{
-  position:absolute;
-  inset:0;
-  opacity: 0;
-  will-change: opacity, transform, filter;
-  transform: translate(var(--dx, 0px), var(--dy, 0px));
-}
-
-/* Stage reveal by shard rank (1..4) */
-#cracks[data-stage="1"] .pane[data-rank="1"] { opacity: var(--paneOpacity, 0.14); }
-
-#cracks[data-stage="2"] .pane[data-rank="1"],
-#cracks[data-stage="2"] .pane[data-rank="2"] { opacity: var(--paneOpacity, 0.24); }
-
-#cracks[data-stage="3"] .pane[data-rank="1"],
-#cracks[data-stage="3"] .pane[data-rank="2"],
-#cracks[data-stage="3"] .pane[data-rank="3"] { opacity: var(--paneOpacity, 0.34); }
-
-#cracks[data-stage="4"] .pane { opacity: var(--paneOpacity, 0.44); }
-
-/* refracted “copy” inside the shard */
-#cracks .pane::before{
-  content:"";
-  position:absolute;
-  inset:-22px;
-  transform: translate(calc(0px - var(--dx, 0px)), calc(0px - var(--dy, 0px)));
-
-  backdrop-filter:
-    blur(0.6px)
-    saturate(1.25)
-    contrast(1.18)
-    brightness(1.02);
-  -webkit-backdrop-filter:
-    blur(0.6px)
-    saturate(1.25)
-    contrast(1.18)
-    brightness(1.02);
-
-  background: rgba(255,255,255,0.00);
-  border: 1px solid rgba(255,255,255,0.06);
-
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,0.20),
-    inset 0 0 24px rgba(0,0,0,0.20),
-    inset 0 0 40px rgba(255,255,255,0.06);
-
-  opacity: 0.95;
-  mix-blend-mode: normal;
-  border-radius: 14px;
-}
-
-/* edge highlight only */
-#cracks .pane::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-
-  background:
-    linear-gradient(135deg,
-      rgba(255,255,255,0.10),
-      rgba(255,255,255,0.00) 35%,
-      rgba(255,255,255,0.06) 65%,
-      rgba(255,255,255,0.00)
-    );
-
-  opacity: 0.22;
-  filter: blur(0.8px);
-  mix-blend-mode: screen;
-}
-
-#cracks .pane.glint::after{ opacity: 0.35; }
-#cracks.flash .pane::after{ opacity: 0.55; }
-
-/* =========================
-   CRACK SVG LINES (staged)
-   ========================= */
-
-/* Segments default hidden until their rank is enabled */
-#cracks .seg{
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
-
-/* Stage reveal by seg rank (1..4) */
-#cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
-
-#cracks[data-stage="2"] .seg[data-rank="1"],
-#cracks[data-stage="2"] .seg[data-rank="2"]{ opacity: 1; }
-
-#cracks[data-stage="3"] .seg[data-rank="1"],
-#cracks[data-stage="3"] .seg[data-rank="2"],
-#cracks[data-stage="3"] .seg[data-rank="3"]{ opacity: 1; }
-
-#cracks[data-stage="4"] .seg{ opacity: 1; }
-
-#cracks svg{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  opacity: 1; /* seg opacity gates visibility */
-}
-
-#cracks .crack-path{
-  fill:none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-#cracks .crack-under{
-  stroke: rgba(0,0,0,0.65);
-  stroke-width: 3.6;
-  opacity: 0.55;
-  filter: blur(0.6px);
-}
-
-#cracks .crack-line{
-  stroke: rgba(240,245,255,0.72);
-  stroke-width: 1.15;
-  opacity: 0.92;
-  filter:
-    drop-shadow(0 0 10px rgba(120,180,255,0.20))
-    drop-shadow(0 0 2px rgba(255,255,255,0.25));
-}
-
-#cracks .crack-glint{
-  stroke: rgba(160,210,255,0.85);
-  stroke-width: 0.9;
-  opacity: 0.7;
-  filter: blur(0.2px) drop-shadow(0 0 10px rgba(120,180,255,0.30));
-}
-
-/* draw animation */
-#cracks .draw{ animation: crackDraw 700ms ease-out forwards; }
-@keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
-
-/* when shattering, hide the svg lines so shards are the focus */
-#cracks.shatter-hide-lines svg{ opacity: 0 !important; }
-
-/* =========================================================
-   FALLING SHARDS (cloned page + chromatic split)
-   ========================================================= */
-
-/* Hide the original page during shatter (only shards show it) */
-.wrap-hidden{
-  opacity: 0;
-  visibility: hidden;
-}
-
-/* Each shard */
-#glassFX .glass-piece{
-  position: fixed;
-  inset: 0;
-  transform: translate3d(0,0,0) rotate(0deg);
-  transform-origin: 50% 50%;
-  will-change: transform, opacity, filter;
-  opacity: 0.98;
-}
-
-/* Inner refraction payload */
-#glassFX .glass-inner{
-  position: fixed;
-  inset: 0;
-  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
-  filter: blur(var(--rblur, 1px)) saturate(1.10) contrast(1.06);
-  opacity: 0.98;
-  isolation: isolate;
-}
-
-/* Keep base clone hidden if present */
-#glassFX .glass-inner > #wrap,
-#glassFX .glass-inner > .wrap-clone{
-  opacity: 0;
-}
-
-/* RGB layers */
-#glassFX .glass-rgb{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  will-change: transform, opacity, filter;
-  mix-blend-mode: screen;
-  opacity: 0.85;
-}
-
-#glassFX .glass-rgb.r{
-  transform: translate3d(calc(var(--rx, 0px) + var(--rgbx, 2px)), calc(var(--ry, 0px) + var(--rgby, -1px)), 0);
-  filter: blur(calc(var(--rblur, 1px) + 0.2px)) contrast(1.07) saturate(1.08);
-}
-#glassFX .glass-rgb.g{
-  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
-  filter: blur(var(--rblur, 1px)) contrast(1.05) saturate(1.06);
-}
-#glassFX .glass-rgb.b{
-  transform: translate3d(calc(var(--rx, 0px) - var(--rgbx, 2px)), calc(var(--ry, 0px) - var(--rgby, -1px)), 0);
-  filter: blur(calc(var(--rblur, 1px) + 0.25px)) contrast(1.07) saturate(1.08);
-}
-
-/* channel tint overlays */
-#glassFX .glass-rgb::before{
-  content:"";
-  position: fixed;
-  inset: 0;
-  pointer-events:none;
-  mix-blend-mode: multiply;
-  opacity: 0.95;
-}
-#glassFX .glass-rgb.r::before{ background: rgba(255, 80, 80, 1); }
-#glassFX .glass-rgb.g::before{ background: rgba(80, 255, 160, 1); }
-#glassFX .glass-rgb.b::before{ background: rgba(90, 150, 255, 1); }
-
-/* glass thickness + highlights */
-#glassFX .glass-piece::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.10),
-    inset 0 0 18px rgba(180,220,255,0.10);
-  background: linear-gradient(
-    135deg,
-    rgba(255,255,255,0.08),
-    rgba(255,255,255,0.00) 40%,
-    rgba(255,255,255,0.06) 70%,
-    rgba(255,255,255,0.00)
-  );
-  mix-blend-mode: screen;
-  opacity: 0.75;
-}
-
-#glassFX .glass-piece::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.22), rgba(255,255,255,0) 45%);
-  opacity: 0.25;
-  mix-blend-mode: screen;
-}
-
-/* jitter shimmer while falling */
-#glassFX.glass-fall .glass-piece .glass-rgb{
-  animation: rgbJitter 240ms steps(2, end) infinite;
-}
-@keyframes rgbJitter{
-  0%   { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
-  50%  { filter: blur(calc(var(--rblur, 1px) + 0.35px)) contrast(1.10) saturate(1.12); opacity: 0.82; }
-  100% { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
-}
-
-/* Falling animation */
-#glassFX.glass-fall .glass-piece{
-  animation: shardFall 1100ms cubic-bezier(.2,.7,.2,1) forwards;
-}
-
-@keyframes shardFall{
-  0%{
-    opacity: 1;
-    transform: translate3d(0,0,0) rotate(0deg);
-    filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55));
-  }
-  25%{
-    transform: translate3d(var(--sx, 0px), var(--sy, 0px), 0) rotate(var(--rot, 0deg));
-  }
-  100%{
-    opacity: 0;
-    transform: translate3d(calc(var(--sx, 0px) * 1.15), 110vh, 0) rotate(calc(var(--rot, 0deg) * 1.8));
-    filter: drop-shadow(0 40px 80px rgba(0,0,0,0.65));
-  }
-}
-
-/* =========================================================
-   SIM ROOM (centered + above overlays)
-   ========================================================= */
-#simRoom{
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 28px 22px;
-  background: transparent;
-}
-
-#simRoom.card{
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  backdrop-filter: none;
-  padding: 0;
-}
-
-/* if you ever switch to using a class for that header */
-#simRoom .sim-head{
-  opacity:.75;
-  font-size:12px;
-  margin-bottom:8px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: rgba(235,238,245,0.72);
-}
-
-#simRoom .cardShell{
-  width: min(980px, 100%);
-  background: rgba(0,0,0,0.22);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 16px;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-  backdrop-filter: blur(10px);
-  padding: 18px;
-}
-
-/* Hide landing while in sim */
-body.in-sim #wrap{ display:none; }
-
-#simText{
-  width: 100%;
-  min-height: 280px;
-  max-height: 380px;
-  overflow:auto;
-  padding: 14px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.25);
-  color: rgba(235,238,245,0.90);
-  line-height: 1.45;
-  white-space: pre-wrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
-  font-size: 13px;
-}
-
-#simChoices{
-  display:flex;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-
-.sim-btn{
-  appearance:none;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: rgba(235,238,245,0.92);
-  padding: 10px 12px;
-  border-radius: 12px;
-  cursor:pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.sim-btn:hover{
-  transform: translateY(-1px);
-  background: rgba(255,255,255,0.09);
-  border-color: rgba(140,190,255,0.25);
-}
-.sim-btn:disabled{
-  opacity: 0.5;
-  cursor:not-allowed;
-  transform:none;
-}
-
-#taskUI{
-  margin-top: 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.22);
-  padding: 12px;
-}
-
-#taskTitle{
-  font-size: 12px;
-  letter-spacing: .10em;
-  text-transform: uppercase;
-  color: rgba(235,238,245,0.78);
-  margin: 2px 0 4px;
-}
-#taskDesc{
-  color: rgba(235,238,245,0.68);
-  font-size: 13px;
-  margin-bottom: 10px;
-}
-#taskBody{ margin-top: 10px; }
-
-/* =========================
-   TASK CARD (redesign)
-   ========================= */
-
-#taskUI{
-  margin-top: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background:
-    radial-gradient(900px 220px at 20% 0%, rgba(140,190,255,0.10), transparent 60%),
-    rgba(0,0,0,0.22);
-  padding: 14px;
-  position: relative;
-  overflow: hidden;
-}
-
-/* subtle scanline sheen */
-#taskUI::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  background:
-    linear-gradient(180deg,
-      rgba(255,255,255,0.06),
-      rgba(255,255,255,0.00) 35%,
-      rgba(0,0,0,0.00) 65%,
-      rgba(255,255,255,0.04)
-    );
-  opacity: 0.35;
-  pointer-events:none;
-}
-
-/* top row layout: title + optional badge slot */
-#taskTitle{
-  font-size: 12px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: rgba(235,238,245,0.80);
-  margin: 2px 0 6px;
-}
-
-/* description tightened, more readable */
-#taskDesc{
-  color: rgba(235,238,245,0.70);
-  font-size: 13px;
-  line-height: 1.45;
-  margin-bottom: 12px;
-}
-
-/* body gets a subtle container feel */
-#taskBody{
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.18);
-}
-
-/* actions row: clean spacing */
-#taskActions{
-  margin-top: 12px;
-  display:flex;
-  gap: 10px;
-  align-items:center;
-  justify-content:flex-end;
-  flex-wrap: wrap;
-}
-
-/* inputs inside tasks: match theme */
-#taskBody input{
-  width: min(520px, 100%);
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.22);
-  color: rgba(235,238,245,0.92);
-  outline: none;
-}
-#taskBody input:focus{
-  border-color: rgba(140,190,255,0.35);
-  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
-}
-
-/* pill helper used everywhere (you already use .pill in JS; make it consistent) */
-.pill{
-  display:inline-block;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.06);
-  color: rgba(235,238,245,0.85);
-  font-size: 12px;
-}
-
-/* entrance animation when taskUI shows */
-@keyframes taskIn{
-  from{ opacity: 0; transform: translateY(6px); filter: blur(1.5px); }
-  to  { opacity: 1; transform: translateY(0); filter: blur(0); }
-}
-#taskUI:not(.hidden){
-  animation: taskIn 180ms ease-out;
-}
-
-/* feedback micro-animations you can trigger by toggling classes later */
-@keyframes taskShake{
-  0%,100%{ transform: translateX(0); }
-  20%{ transform: translateX(-3px); }
-  40%{ transform: translateX(3px); }
-  60%{ transform: translateX(-2px); }
-  80%{ transform: translateX(2px); }
-}
-#taskUI.is-error{ animation: taskShake 220ms ease; }
-
-#taskUI.is-ok{
-  box-shadow:
-    0 18px 60px rgba(0,0,0,0.55),
-    0 0 0 1px rgba(140,190,255,0.10),
-    0 0 28px rgba(140,190,255,0.10);
-}
-
-/* =========================
-   TASK BODY UI KIT
-   ========================= */
-
-/* consistent vertical rhythm inside task bodies */
-#taskBody > * + *{ margin-top: 10px; }
-
-/* unified “note” line (your packs currently create divs with opacity — this makes them look consistent) */
-.task-note{
-  opacity: 0.88;
-  color: rgba(235,238,245,0.82);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-/* unified “error” + “ok” lines */
-.task-error{
-  color: rgba(255,190,190,.95);
-  opacity: 0.95;
-  font-size: 13px;
-}
-.task-ok{
-  color: rgba(232,237,247,0.92);
-  opacity: 0.92;
-  font-size: 13px;
-}
-
-/* code-ish line (tokens, strings, etc.) */
-.task-code{
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
-  font-size: 13px;
-  letter-spacing: 0.02em;
-}
-
-/* “panel” area for things like lists/chunks/targets */
-.task-panel{
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.18);
-}
-
-/* a subtle divider if you want breaks */
-.task-divider{
-  height: 1px;
-  background: rgba(255,255,255,0.10);
-  border-radius: 999px;
-  margin: 10px 0;
-  opacity: 0.8;
-}
-
-/* button rows & grids (works for nearly all your tasks) */
-.task-row{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-.task-grid-2{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
-.task-grid-3{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
-.task-grid-4{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
-
-/* make all sim-btns inside tasks consistent size */
-#taskBody .sim-btn{
-  min-height: 40px;
-}
-
-/* big “single choice list” buttons (like your path/IP tasks) */
-.task-list-btn{
-  display:block;
-  width:100%;
-  text-align:left;
-}
-
-/* “chip” buttons for small options */
-.task-chip{
-  padding: 10px 12px;
-  border-radius: 999px;
-}
-
-/* inputs inside tasks already styled by your earlier step;
-   give placeholder + selection a bit more polish */
-#taskBody input::placeholder{
-  color: rgba(235,238,245,0.45);
-}
-#taskBody input::selection{
-  background: rgba(140,190,255,0.22);
-}
-
-/* small “status pill” that’s quieter than .pill */
-.task-pill{
-  display:inline-flex;
-  align-items:center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.16);
-  color: rgba(235,238,245,0.80);
-  font-size: 12px;
-}
-
-/* subtle “progress bar” style you can reuse */
-.task-bar{
-  height: 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.22);
-  overflow:hidden;
-}
-.task-bar > div{
-  height: 100%;
-  width: 0%;
-  border-radius: 999px;
-  background: rgba(140,190,255,0.45);
-}
-
-/* Responsive: reduce columns on small screens */
-@media (max-width: 520px){
-  .task-grid-4{ grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .task-grid-3{ grid-template-columns: repeat(2, minmax(0,1fr)); }
-}
-
-/* anchors */
 .anchor{
   position: fixed;
   width: 16px;
@@ -1103,7 +1058,7 @@ body.in-sim #wrap{ display:none; }
 }
 
 /* =========================================================
-   reset overlay / modal basics
+   MODAL OVERLAYS (reset/final)
    ========================================================= */
 #resetOverlay,
 #finalOverlay{
@@ -1141,9 +1096,35 @@ body.in-sim #wrap{ display:none; }
   line-height: 1.4;
 }
 
-/* ============ responsive ============ */
-@media (max-width: 780px){
-  .grid.card{ grid-template-columns: 1fr; }
-  .grid img{ height: 160px; }
-  #simText{ max-height: 44vh; }
+/* =========================================================
+   SUBTITLES (if you use #subs)
+   ========================================================= */
+#subs{
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 95;
+  width: min(860px, calc(100% - 28px));
+  pointer-events: none;
+}
+#subs .subsWrap{
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.38);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+  padding: 12px 14px;
+}
+#subsName{
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  opacity: .78;
+  margin-bottom: 6px;
+}
+#subsText{
+  font-size: 16px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
 }
