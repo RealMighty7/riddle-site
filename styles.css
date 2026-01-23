@@ -29,13 +29,6 @@ body.landing-white{
   color: #111;
 }
 
-body.landing-white .card,
-body.landing-white .panel{
-  background: rgba(255,255,255);
-  border-color: rgba(0,0,0,0.08);
-  box-shadow: 0 18px 40px rgba(0,0,0,0.12);
-}
-
 
 .hidden{ display:none !important; }
 a{ color:inherit; }
