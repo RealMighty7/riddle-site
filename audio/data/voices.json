@@ -1,0 +1,1174 @@
+{
+  "meta": {
+    "source_dialogue": "C:\\Users\\2nlin\\OneDrive\\Desktop\\voices\\dialogue.js",
+    "source_settings": "C:\\Users\\2nlin\\OneDrive\\Desktop\\voices\\voices.json",
+    "count": 99
+  },
+  "lines": [
+    {
+      "id": "0001",
+      "speaker": "Emma",
+      "text_raw": "{stern} You're not supposed to be here.",
+      "text": "You're not supposed to be here.",
+      "tags": [
+        "stern"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0002",
+      "speaker": "Emma",
+      "text_raw": "{stern} This page is under revision. Close it.",
+      "text": "This page is under revision. Close it.",
+      "tags": [
+        "stern"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0004",
+      "speaker": "Emma",
+      "text_raw": "{stern} Don't touch anything.",
+      "text": "Don't touch anything.",
+      "tags": [
+        "stern"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0005",
+      "speaker": "Emma",
+      "text_raw": "{calm} That click was logged. {breath}",
+      "text": "That click was logged.",
+      "tags": [
+        "calm",
+        "breath"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0006",
+      "speaker": "Emma",
+      "text_raw": "{calm} Tell me why you did that.",
+      "text": "Tell me why you did that.",
+      "tags": [
+        "calm"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0007",
+      "speaker": "Liam",
+      "text_raw": "{calm} Don't answer fast.",
+      "text": "Don't answer fast.",
+      "tags": [
+        "calm"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0008",
+      "speaker": "System",
+      "text_raw": "INPUT CONTINUES.",
+      "text": "INPUT CONTINUES.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0009",
+      "speaker": "Emma",
+      "text_raw": "{tense} Fine.",
+      "text": "Fine.",
+      "tags": [
+        "tense"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0010",
+      "speaker": "Emma",
+      "text_raw": "{calm} Hands off unless instructed.",
+      "text": "Hands off unless instructed.",
+      "tags": [
+        "calm"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0011",
+      "speaker": "System",
+      "text_raw": "PROCEDURE TRACK ACTIVE.",
+      "text": "PROCEDURE TRACK ACTIVE.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0012",
+      "speaker": "Liam",
+      "text_raw": "{whisper} Careful.",
+      "text": "Careful.",
+      "tags": [
+        "whisper"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0013",
+      "speaker": "Liam",
+      "text_raw": "{whisper} Lying might help get you through some parts...",
+      "text": "Lying might help get you through some parts...",
+      "tags": [
+        "whisper"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0014",
+      "speaker": "Liam",
+      "text_raw": "{calm} Nevermind I just work here why should I care.",
+      "text": "Nevermind I just work here why should I care.",
+      "tags": [
+        "calm"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0015",
+      "speaker": "Emma",
+      "text_raw": "{urgent} Don't!",
+      "text": "Don't!",
+      "tags": [
+        "urgent"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0016",
+      "speaker": "System",
+      "text_raw": "TRACE REQUIRED.",
+      "text": "TRACE REQUIRED.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0017",
+      "speaker": "Emma",
+      "text_raw": "{urgent} You're making this worse.",
+      "text": "You're making this worse.",
+      "tags": [
+        "urgent"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0018",
+      "speaker": "System",
+      "text_raw": "USER STATE OUTSIDE EXPECTED LOOP.",
+      "text": "USER STATE OUTSIDE EXPECTED LOOP.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0019",
+      "speaker": "Emma",
+      "text_raw": "{stern} You're still interacting.",
+      "text": "You're still interacting.",
+      "tags": [
+        "stern"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0020",
+      "speaker": "Liam",
+      "text_raw": "{calm} If you stop now, it'll just patch over you.",
+      "text": "If you stop now, it'll just patch over you.",
+      "tags": [
+        "calm"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0021",
+      "speaker": "Emma",
+      "text_raw": "{calm} Then follow instructions exactly.",
+      "text": "Then follow instructions exactly.",
+      "tags": [
+        "calm"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0022",
+      "speaker": "Emma",
+      "text_raw": "{calm} No improvising.",
+      "text": "No improvising.",
+      "tags": [
+        "calm"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0023",
+      "speaker": "Liam",
+      "text_raw": "{calm} Good. {breath}",
+      "text": "Good.",
+      "tags": [
+        "calm",
+        "breath"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0024",
+      "speaker": "Liam",
+      "text_raw": "{whisper} We'll take the routes nobody audits.",
+      "text": "We'll take the routes nobody audits.",
+      "tags": [
+        "whisper"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0025",
+      "speaker": "System",
+      "text_raw": "CONTAINMENT PRESSURE RISING.",
+      "text": "CONTAINMENT PRESSURE RISING.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0026",
+      "speaker": "Emma",
+      "text_raw": "{tense} You're shortening your own window.",
+      "text": "You're shortening your own window.",
+      "tags": [
+        "tense"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0027",
+      "speaker": "Emma",
+      "text_raw": "{tense} Last warning.",
+      "text": "Last warning.",
+      "tags": [
+        "tense"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0028",
+      "speaker": "System",
+      "text_raw": "DECISION TREE NARROWING.",
+      "text": "DECISION TREE NARROWING.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0029",
+      "speaker": "Liam",
+      "text_raw": "{whisper} You can still leave. Just not loudly.",
+      "text": "You can still leave. Just not loudly.",
+      "tags": [
+        "whisper"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0030",
+      "speaker": "Emma",
+      "text_raw": "Acknowledged.",
+      "text": "Acknowledged.",
+      "tags": [],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0031",
+      "speaker": "System",
+      "text_raw": "COMPLIANCE NOTED.",
+      "text": "COMPLIANCE NOTED.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0032",
+      "speaker": "Liam",
+      "text_raw": "{stern} Then don't contradict me.",
+      "text": "Then don't contradict me.",
+      "tags": [
+        "stern"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0033",
+      "speaker": "Liam",
+      "text_raw": "{tense} I can’t cover you twice.",
+      "text": "I can’t cover you twice.",
+      "tags": [
+        "tense"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0034",
+      "speaker": "System",
+      "text_raw": "ATTEMPTS LIMITED.",
+      "text": "ATTEMPTS LIMITED.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0035",
+      "speaker": "Emma",
+      "text_raw": "You're choosing the hard mode.",
+      "text": "You're choosing the hard mode.",
+      "tags": [],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0036",
+      "speaker": "System",
+      "text_raw": "Buffering…",
+      "text": "Buffering…",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0037",
+      "speaker": "System",
+      "text_raw": "Integrity check pending.",
+      "text": "Integrity check pending.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0038",
+      "speaker": "System",
+      "text_raw": "Observation ongoing.",
+      "text": "Observation ongoing.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0039",
+      "speaker": "System",
+      "text_raw": "Microfractures detected.",
+      "text": "Microfractures detected.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0040",
+      "speaker": "System",
+      "text_raw": "Restore loop suggested.",
+      "text": "Restore loop suggested.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0041",
+      "speaker": "Emma",
+      "text_raw": "Don't improvise.",
+      "text": "Don't improvise.",
+      "tags": [],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0042",
+      "speaker": "Emma",
+      "text_raw": "Slow down.",
+      "text": "Slow down.",
+      "tags": [],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0043",
+      "speaker": "Emma",
+      "text_raw": "The system remembers patterns.",
+      "text": "The system remembers patterns.",
+      "tags": [],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0044",
+      "speaker": "Emma",
+      "text_raw": "You only get so many mistakes.",
+      "text": "You only get so many mistakes.",
+      "tags": [],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0045",
+      "speaker": "Liam",
+      "text_raw": "Keep it boring.",
+      "text": "Keep it boring.",
+      "tags": [],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0046",
+      "speaker": "Liam",
+      "text_raw": "Boring is invisible.",
+      "text": "Boring is invisible.",
+      "tags": [],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0047",
+      "speaker": "Liam",
+      "text_raw": "Don't try to win. Try to slip.",
+      "text": "Don't try to win. Try to slip.",
+      "tags": [],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0048",
+      "speaker": "Liam",
+      "text_raw": "If it feels pointless, it's working.",
+      "text": "If it feels pointless, it's working.",
+      "tags": [],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0049",
+      "speaker": "System",
+      "text_raw": "ATTENTION REQUIRED.",
+      "text": "ATTENTION REQUIRED.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0050",
+      "speaker": "System",
+      "text_raw": "AD CONTENT READY.",
+      "text": "AD CONTENT READY.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0051",
+      "speaker": "System",
+      "text_raw": "VIEW TIME BELOW EXPECTATION.",
+      "text": "VIEW TIME BELOW EXPECTATION.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0052",
+      "speaker": "System",
+      "text_raw": "RE-ENGAGEMENT RECOMMENDED.",
+      "text": "RE-ENGAGEMENT RECOMMENDED.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0053",
+      "speaker": "System",
+      "text_raw": "USER RESISTANCE NOTED.",
+      "text": "USER RESISTANCE NOTED.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0054",
+      "speaker": "Emma",
+      "text_raw": "{stern} You're escalating.",
+      "text": "You're escalating.",
+      "tags": [
+        "stern"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0055",
+      "speaker": "Emma",
+      "text_raw": "{stern} Stop forcing new outcomes.",
+      "text": "Stop forcing new outcomes.",
+      "tags": [
+        "stern"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0056",
+      "speaker": "Emma",
+      "text_raw": "{stern} If you keep pushing, the system resets you.",
+      "text": "If you keep pushing, the system resets you.",
+      "tags": [
+        "stern"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0057",
+      "speaker": "System",
+      "text_raw": "COMPLIANCE WINDOW NARROWING.",
+      "text": "COMPLIANCE WINDOW NARROWING.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0058",
+      "speaker": "Liam",
+      "text_raw": "{whisper} You're being watched now.",
+      "text": "You're being watched now.",
+      "tags": [
+        "whisper"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0059",
+      "speaker": "Liam",
+      "text_raw": "{whisper} Don't look like you know that.",
+      "text": "Don't look like you know that.",
+      "tags": [
+        "whisper"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0060",
+      "speaker": "Liam",
+      "text_raw": "{calm} If you rush, you'll trip a lock.",
+      "text": "If you rush, you'll trip a lock.",
+      "tags": [
+        "calm"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0061",
+      "speaker": "System",
+      "text_raw": "HEURISTICS ACTIVE.",
+      "text": "HEURISTICS ACTIVE.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0062",
+      "speaker": "System",
+      "text_raw": "TRACKING MOTION.",
+      "text": "TRACKING MOTION.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0063",
+      "speaker": "System",
+      "text_raw": "PREDICTING NEXT INPUT.",
+      "text": "PREDICTING NEXT INPUT.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0064",
+      "speaker": "Emma",
+      "text_raw": "You're not faster than a lock.",
+      "text": "You're not faster than a lock.",
+      "tags": [],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0065",
+      "speaker": "Liam",
+      "text_raw": "{urgent} You're making noise.",
+      "text": "You're making noise.",
+      "tags": [
+        "urgent"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0066",
+      "speaker": "System",
+      "text_raw": "ROUTES COLLAPSING.",
+      "text": "ROUTES COLLAPSING.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0067",
+      "speaker": "System",
+      "text_raw": "EXIT VECTORS REMOVED.",
+      "text": "EXIT VECTORS REMOVED.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0068",
+      "speaker": "Emma",
+      "text_raw": "{tense} You feel that? {breath} {calm} It's closing.",
+      "text": "You feel that? It's closing.",
+      "tags": [
+        "tense",
+        "breath",
+        "calm"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0069",
+      "speaker": "Liam",
+      "text_raw": "{stern} If you keep running, you'll run into a wall that isn't there.",
+      "text": "If you keep running, you'll run into a wall that isn't there.",
+      "tags": [
+        "stern"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0071",
+      "speaker": "System",
+      "text_raw": "You are close.",
+      "text": "You are close.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0072",
+      "speaker": "System",
+      "text_raw": "Close enough to be corrected.",
+      "text": "Close enough to be corrected.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0073",
+      "speaker": "Emma",
+      "text_raw": "This is the part where people get comfortable.",
+      "text": "This is the part where people get comfortable.",
+      "tags": [],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0074",
+      "speaker": "Emma",
+      "text_raw": "Comfort is what the loop feeds on.",
+      "text": "Comfort is what the loop feeds on.",
+      "tags": [],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0075",
+      "speaker": "Liam",
+      "text_raw": "{calm} Don't celebrate.",
+      "text": "Don't celebrate.",
+      "tags": [
+        "calm"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0076",
+      "speaker": "Liam",
+      "text_raw": "{calm} Just finish the work.",
+      "text": "Just finish the work.",
+      "tags": [
+        "calm"
+      ],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0077",
+      "speaker": "System",
+      "text_raw": "FINALIZATION PATH AVAILABLE.",
+      "text": "FINALIZATION PATH AVAILABLE.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0078",
+      "speaker": "System",
+      "text_raw": "RESTART REQUIRED.",
+      "text": "RESTART REQUIRED.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0079",
+      "speaker": "System",
+      "text_raw": "Establishing boundary anchors…",
+      "text": "Establishing boundary anchors…",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0080",
+      "speaker": "System",
+      "text_raw": "Fragmented logs detected.",
+      "text": "Fragmented logs detected.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0081",
+      "speaker": "System",
+      "text_raw": "Reconstruction needed.",
+      "text": "Reconstruction needed.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0082",
+      "speaker": "System",
+      "text_raw": "Memory integrity degraded.",
+      "text": "Memory integrity degraded.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0083",
+      "speaker": "System",
+      "text_raw": "Checksum required.",
+      "text": "Checksum required.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0084",
+      "speaker": "System",
+      "text_raw": "Stabilization cycle begins.",
+      "text": "Stabilization cycle begins.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0085",
+      "speaker": "System",
+      "text_raw": "Do not release.",
+      "text": "Do not release.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0086",
+      "speaker": "System",
+      "text_raw": "Pattern lock engaged.",
+      "text": "Pattern lock engaged.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0087",
+      "speaker": "System",
+      "text_raw": "10 seconds to memorize.",
+      "text": "10 seconds to memorize.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0088",
+      "speaker": "System",
+      "text_raw": "Corrupted fragment detected.",
+      "text": "Corrupted fragment detected.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0089",
+      "speaker": "System",
+      "text_raw": "Identify mismatch.",
+      "text": "Identify mismatch.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0090",
+      "speaker": "Liam",
+      "text_raw": "Keep it boring.",
+      "text": "Keep it boring.",
+      "tags": [],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0091",
+      "speaker": "System",
+      "text_raw": "PROCEDURE AVAILABLE.",
+      "text": "PROCEDURE AVAILABLE.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0092",
+      "speaker": "System",
+      "text_raw": "Surface failure imminent.",
+      "text": "Surface failure imminent.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0094",
+      "speaker": "System",
+      "text_raw": "HANDOFF.",
+      "text": "HANDOFF.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0095",
+      "speaker": "System",
+      "text_raw": "Supplemental procedure required.",
+      "text": "Supplemental procedure required.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0096",
+      "speaker": "System",
+      "text_raw": "Supplemental verification.",
+      "text": "Supplemental verification.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0097",
+      "speaker": "System",
+      "text_raw": "Monitoring degraded.",
+      "text": "Monitoring degraded.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0098",
+      "speaker": "System",
+      "text_raw": "Secondary procedures unlocked.",
+      "text": "Secondary procedures unlocked.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0099",
+      "speaker": "Liam",
+      "text_raw": "This is the part that looks normal.",
+      "text": "This is the part that looks normal.",
+      "tags": [],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0100",
+      "speaker": "Liam",
+      "text_raw": "Don’t make it exciting.",
+      "text": "Don’t make it exciting.",
+      "tags": [],
+      "voice": "en-US-RogerNeural",
+      "rate": "+2%",
+      "pitch": "+10Hz",
+      "volume": "-2%"
+    },
+    {
+      "id": "0101",
+      "speaker": "System",
+      "text_raw": "Attention window narrowing.",
+      "text": "Attention window narrowing.",
+      "tags": [],
+      "voice": "en-US-BrianMultilingualNeural",
+      "rate": "-2%",
+      "pitch": "-2Hz",
+      "volume": "+0%"
+    },
+    {
+      "id": "0102",
+      "speaker": "Emma",
+      "text_raw": "{urgent} You’re almost out of time.",
+      "text": "You’re almost out of time.",
+      "tags": [
+        "urgent"
+      ],
+      "voice": "en-US-ErinNeural",
+      "rate": "-1%",
+      "pitch": "-1Hz",
+      "volume": "+0%"
+    }
+  ]
+}
