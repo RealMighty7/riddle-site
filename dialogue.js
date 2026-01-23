@@ -224,5 +224,36 @@ window.DIALOGUE = {
     
     { filler: { pool: "AUTO", count: 1 } },
     { task: "random", args: { pool: ["pack4", "pack5"] } },
+      // ==========================
+    // LATE PHASE — breach window
+    // ==========================
+    
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: [
+      "System: Monitoring degraded.",
+      "System: Secondary procedures unlocked."
+    ]},
+    
+    // First escalation: procedural but calm
+    { task: "random", args: { pool: ["pack4"] } },
+    
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: [
+      "Liam (Worker): This is the part that looks normal.",
+      "Liam (Worker): Don’t make it exciting."
+    ]},
+    
+    // Second escalation: tense + mechanical
+    { task: "random", args: { pool: ["pack5"] } },
+    
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: [
+      "System: Attention window narrowing.",
+      "Emma (Security): You’re almost out of time."
+    ]},
+    
+    // Final pressure: pack5 only
+    { task: "random", args: { pool: ["pack5"] } },
+
   ]
 };
