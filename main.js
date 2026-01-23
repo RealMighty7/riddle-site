@@ -687,7 +687,17 @@ Reinitializing simulation…`
        CRACKS (4 staged) + GLASS FALL -> SIM
     ====================== */
 
-    document.addEventListener("selectstart", (e) => e.preventDefault());
+    document.addEventListener("selectstart", (e) => {
+      // allow selecting inside inputs/textareas
+      const t = e.target;
+      if (t && t.closest("input, textarea")) return;
+    
+      // only block selection during landing click-spam + shatter
+      if (stage === 1 || document.body.classList.contains("sim-transition")) {
+        e.preventDefault();
+      }
+    });
+
 
     let crackBuilt = false;
     let crackStage = 0;
