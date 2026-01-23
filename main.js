@@ -133,25 +133,23 @@ const ids = [
     SFX.ambience.loop = true;
     SFX.ambience.volume = 0.22;
 
-    let audioUnlocked = false;
-    function unlockAudio() {
-      if (audioUnlocked) return;
-      audioUnlocked = true;
-      try {
-        SFX.ambience.currentTime = 0;
-        SFX.ambience.play().catch(() => {});
-      } catch {}
-    }
-    function playSfx(name, vol = 0.6) {
-      const a = SFX[name];
-      if (!a) return;
-      try {
-        a.pause();
-        a.currentTime = 0;
-        a.volume = vol;
-        a.play().catch(() => {});
-      } catch {}
-    }
+let audioUnlocked = false;
+async function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+
+  // unlock VO system (AudioContext)
+  try {
+    if (window.AudioPlayer?.unlock) await window.AudioPlayer.unlock();
+  } catch {}
+
+  // unlock SFX (simple browser gesture capture)
+  try {
+    SFX.ambience.currentTime = 0;
+    SFX.ambience.play().catch(() => {});
+  } catch {}
+}
+
 
     // =========================
 // POP-IN + SHAKE HELPERS
@@ -225,9 +223,67 @@ async function emitLine(line) {
     simText.scrollTop = simText.scrollHeight;
     return;
   }
+  /* ====================== VOICE (voices.json + /audio/*) ====================== */
+/*
+  Requires: audio_player.js loaded BEFORE main.js
+  audio_player.js should export VoiceBank AND (ideally) attach it to window, OR be a module import.
+  Since your main.js is an IIFE script, easiest is: in audio_player.js add:
+    window.VoiceBank = VoiceBank;
+*/
+
+const VO = (window.VoiceBank)
+  ? new window.VoiceBank({
+      voicesUrl: "/data/voices.json",
+      onTag: (tag) => {
+        // Optional tag reactions. Keep it subtle.
+        if (tag === "breath") playSfx("static2", 0.08); // replace later with real breath sfx
+        if (tag === "calm") {
+          // Example: slight subtitle emphasis or style hook
+          subs?.classList?.add("calm");
+          setTimeout(() => subs?.classList?.remove("calm"), 900);
+        }
+      }
+    })
+  : null;
+
+// A tiny mapper: raw line -> id (if you embed ids) OR subtitle-only fallback.
+// Best path: add `audio_id` to dialogue lines OR ensure your AudioPlayer knows mapping.
+// For now: if raw line starts with "[0123]" we use 0123.
+function getIdFromLine(raw) {
+  const m = String(raw || "").match(/^\s*\[(\d{1,4})\]\s*/);
+  return m ? m[1] : null;
+}
+
+// Public shim your emitLine expects
+window.AudioPlayer = {
+  async unlock() {
+    if (VO) await VO.unlockAudio();
+  },
+
+  // rawLine: the string from dialogue.js
+  async playLine(rawLine, { subs, subsName, subsText } = {}) {
+    // Bind subtitle UI once (safe to call repeatedly)
+    if (VO) VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
+
+    // If you don’t have ids in dialogue lines yet, we still show subs (your emitLine does),
+    // but VO audio can only play when we can determine an id.
+    const id = getIdFromLine(rawLine);
+    if (!VO || !id) return;
+
+    // Strip the [id] prefix for display consistency if you want:
+    // (optional) keep sim log unmodified, only subs/audio uses id
+    await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: true });
+
+    // Ensure subtitle container is visible while playing (optional)
+    if (subs) subs.classList.remove("hidden");
+  }
+};
+
 
   // Show the text in the sim log immediately (your existing behavior)
-  simText.textContent += raw + "\n";
+  const logLine = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+  simText.textContent += logLine + "\n";
+
   simText.scrollTop = simText.scrollHeight;
 
   // If audio layer is present, ask it to play the correct line by ID
