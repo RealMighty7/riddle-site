@@ -25,41 +25,48 @@
     });
 
     /* ====================== ELEMENTS ====================== */
-    const ids = [
-      "system",
-      "cracks",
-      "glassFX",
-      "simRoom",
-      "simText",
-      "simChoices",
-      "choiceNeed",
-      "choiceLie",
-      "choiceRun",
-      "taskUI",
-      "taskTitle",
-      "taskDesc",
-      "taskBody",
-      "taskPrimary",
-      "taskSecondary",
-      "resetOverlay",
-      "resetTitle",
-      "resetBody",
-      "finalOverlay",
-      "finalDiscord",
-      "finalAnswer",
-      "finalCancel",
-      "finalVerify",
-      "finalErr",
-      "turnstileBox",
-      "hackRoom",
-      "hackUser",
-      "hackTargets",
-      "hackFilename",
-      "hackLines",
-      "hackDelete",
-      "hackReset",
-      "hackStatus",
-    ];
+const ids = [
+  "system",
+  "cracks",
+  "glassFX",
+
+  // NEW: subtitles UI (index.html already has these)
+  "subs",
+  "subsName",
+  "subsText",
+
+  "simRoom",
+  "simText",
+  "simChoices",
+  "choiceNeed",
+  "choiceLie",
+  "choiceRun",
+  "taskUI",
+  "taskTitle",
+  "taskDesc",
+  "taskBody",
+  "taskPrimary",
+  "taskSecondary",
+  "resetOverlay",
+  "resetTitle",
+  "resetBody",
+  "finalOverlay",
+  "finalDiscord",
+  "finalAnswer",
+  "finalCancel",
+  "finalVerify",
+  "finalErr",
+  "turnstileBox",
+  "hackRoom",
+  "hackUser",
+  "hackTargets",
+  "hackFilename",
+  "hackLines",
+  "hackDelete",
+  "hackReset",
+  "hackStatus",
+];
+
 
     const els = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
     const missing = ids.filter((id) => !els[id]);
@@ -67,11 +74,6 @@
       console.error("Missing required element IDs:", missing);
       return;
     }
-    const onClick = (e) => {
-      if (e.target && e.target.closest("#simRoom, #taskUI, #finalOverlay, #resetOverlay")) return;
-      clicks++;
-    };
-    window.addEventListener("click", onClick, true);
 
     const systemBox = els.system;
     const cracks = els.cracks;
@@ -211,22 +213,56 @@ function shake(el){
     }
 
     /* ====================== UI helpers ====================== */
-    function appendSimLine(line) {
-      simText.textContent += (line ? line : "") + "\n";
-      simText.scrollTop = simText.scrollHeight;
+const subs = els.subs;
+const subsName = els.subsName;
+const subsText = els.subsText;
+
+// NEW: a single “output” pipe for BOTH text + audio/subtitles
+async function emitLine(line) {
+  const raw = String(line || "");
+  if (!raw) {
+    simText.textContent += "\n";
+    simText.scrollTop = simText.scrollHeight;
+    return;
+  }
+
+  // Show the text in the sim log immediately (your existing behavior)
+  simText.textContent += raw + "\n";
+  simText.scrollTop = simText.scrollHeight;
+
+  // If audio layer is present, ask it to play the correct line by ID
+  // We support:
+  //  - "Speaker: text"
+  //  - "Speaker (Security): text"
+  //  - "System: TEXT"
+  //  - plain text fallback (no audio)
+  try {
+    if (window.AudioPlayer && typeof window.AudioPlayer.playLine === "function") {
+      // AudioPlayer.playLine should accept the same raw line format used in dialogue.js
+      // (it will map to /data/voices.json and play /audio/<speaker>/<id>.wav)
+      await window.AudioPlayer.playLine(raw, { subs, subsName, subsText });
     }
+  } catch (e) {
+    // don’t hard fail sim if audio errors
+    console.warn("AudioPlayer playLine failed:", e);
+  }
+}
+
 
     function playLines(lines) {
       clearTimers();
       return new Promise((resolve) => {
         let t = 260;
+    
         for (const line of lines) {
-          timers.push(setTimeout(() => appendSimLine(line), t));
+          timers.push(setTimeout(() => { emitLine(line); }, t));
           t += msToRead(line || " ");
         }
+    
         timers.push(setTimeout(resolve, t + 120));
       });
     }
+
 
     function showChoices(labels) {
       if (labels?.complyLabel) choiceNeed.textContent = labels.complyLabel;
@@ -1105,6 +1141,27 @@ function setCrackStage(n) {
         openSimRoom();
       }, totalMs);
     }
+// ======================
+// LAUNCH BUTTON -> SHATTER
+// ======================
+const launchBtn = document.getElementById("launchBtn");
+if (launchBtn) {
+  launchBtn.addEventListener("click", (e) => {
+    // don’t let the global landing click counter consume this
+    e.preventDefault();
+    e.stopPropagation();
+
+    unlockAudio();
+
+    // Optional: give feedback
+    try { popIn(systemBox); } catch {}
+
+    // If you’re still in landing stage, go directly to sim
+    if (stage === 1 || stage === 2) {
+      shatterToSim();
+    }
+  });
+}
 
     /* ======================
        LANDING -> SIM
