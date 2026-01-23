@@ -38,14 +38,15 @@
     ctx.taskBody.innerHTML = "";
   };
 
-  const note = (t, danger = false) => {
-    const n = el("div");
-    n.style.opacity = "0.82";
-    n.style.marginTop = "10px";
-    if (danger) n.style.color = "rgba(255,190,190,.95)";
-    n.textContent = t;
-    return n;
-  };
+const note = (t, kind = "note") => {
+  const n = el("div");
+  n.textContent = t ?? "";
+  n.className = (kind === "error") ? "task-error"
+              : (kind === "ok") ? "task-ok"
+              : "task-note";
+  return n;
+};
+
 
   const makeInput = (ph) => {
     const i = el("input");
