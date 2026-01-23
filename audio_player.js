@@ -1,6 +1,12 @@
 // audio_player.js
 // Cloudflare Pages friendly: plays /audio/<speakerFolder>/<id>.wav
-// Loads /data/voices.json for subtitle + tag timing.
+// Loads /data/voices.json for subtitle + tag timing (basic).
+//
+// Improvements:
+// - reliable browser unlock via AudioContext
+// - race-safe playback (token)
+// - stopCurrent() fully cancels + resets
+// - optional tag hooks (pause/beat already affect hold; add SFX later)
 
 const TAG_RE = /\{[a-zA-Z0-9_]+\}/g;
 
@@ -15,6 +21,16 @@ function speakerToFolder(speaker) {
   if (s.includes("system")) return "system";
   if (s.includes("ui")) return "ui";
   return "misc";
+}
+
+// Extracts tags like {pause_500}, {pause}, {beat_350}, {beat}, {breath}, {calm}
+function extractTags(textRaw) {
+  const raw = String(textRaw || "");
+  const tags = [];
+  for (const m of raw.matchAll(/\{([a-zA-Z0-9_]+)\}/g)) {
+    tags.push(m[1]);
+  }
+  return tags;
 }
 
 // {pause_500}, {pause}, {beat_350}, {beat}
@@ -37,8 +53,14 @@ function readableFallbackMs(cleanText) {
 }
 
 export class VoiceBank {
-  constructor({ voicesUrl = "/data/voices.json" } = {}) {
+  constructor({
+    voicesUrl = "/data/voices.json",
+    // Optional hook: (tagName, {id, speaker, folder, textRaw, clean}) => void
+    onTag = null
+  } = {}) {
     this.voicesUrl = voicesUrl;
+    this.onTag = typeof onTag === "function" ? onTag : null;
+
     this.byId = new Map();
     this.loaded = false;
 
@@ -46,6 +68,11 @@ export class VoiceBank {
     this.nameEl = null;
 
     this._currentAudio = null;
+    this._playToken = 0;
+
+    // Unlock helpers
+    this._ctx = null;
+    this._ctxUnlocked = false;
   }
 
   bindSubtitleUI({ nameEl, subtitleEl }) {
@@ -62,11 +89,13 @@ export class VoiceBank {
     const data = await res.json();
     const lines = Array.isArray(data) ? data : data.lines;
 
-    if (!Array.isArray(lines)) throw new Error("voices.json format invalid (missing lines array)");
+    if (!Array.isArray(lines)) {
+      throw new Error("voices.json format invalid (missing lines array)");
+    }
 
     for (const line of lines) {
       if (!line || !line.id) continue;
-      this.byId.set(String(line.id), line);
+      this.byId.set(String(line.id).padStart(4, "0"), line);
     }
 
     this.loaded = true;
@@ -74,21 +103,39 @@ export class VoiceBank {
 
   // Call this once after the first user click to unlock audio on browsers.
   async unlockAudio() {
+    // AudioContext unlock tends to be the most reliable across browsers.
     try {
-      const a = new Audio();
-      a.muted = true;
-      // tiny silent play attempt
-      await a.play();
-      a.pause();
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+
+      if (!this._ctx) this._ctx = new Ctx();
+      if (this._ctx.state === "suspended") await this._ctx.resume();
+
+      // Play a 1-sample silent buffer to fully unlock in iOS/Safari cases.
+      const buf = this._ctx.createBuffer(1, 1, 22050);
+      const src = this._ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(this._ctx.destination);
+      src.start(0);
+      this._ctxUnlocked = true;
     } catch {
-      // ignore; subsequent user-triggered play still works
+      // ignore; user-triggered <audio>.play will still work in many cases
     }
   }
 
   stopCurrent() {
-    if (this._currentAudio) {
-      try { this._currentAudio.pause(); } catch {}
-      this._currentAudio = null;
+    this._playToken++; // invalidate any pending resolves/listeners
+    const a = this._currentAudio;
+    this._currentAudio = null;
+
+    if (a) {
+      try {
+        a.onended = null;
+        a.onerror = null;
+        a.pause();
+        a.currentTime = 0;
+        a.src = ""; // helps cancel download on some browsers
+      } catch {}
     }
   }
 
@@ -99,7 +146,6 @@ export class VoiceBank {
     const line = this.byId.get(key);
 
     if (!line) {
-      // show something, don’t crash
       if (this.nameEl) this.nameEl.textContent = "";
       if (this.subtitleEl) this.subtitleEl.textContent = `(missing line ${key})`;
       await new Promise(r => setTimeout(r, 800));
@@ -113,30 +159,55 @@ export class VoiceBank {
     const textRaw = line.text_raw ?? line.text ?? "";
     const clean = line.text ?? stripTags(textRaw);
 
-    // Update subtitle UI
+    // Update subtitle UI immediately
     if (this.nameEl) this.nameEl.textContent = speaker;
     if (this.subtitleEl) this.subtitleEl.textContent = clean;
+
+    const tags = extractTags(textRaw);
+    if (this.onTag && tags.length) {
+      for (const t of tags) {
+        // Only fire “pure” tags; pause/beat are already handled as timing,
+        // but still exposed here for effects if you want.
+        try {
+          this.onTag(t, { id: key, speaker, folder, textRaw, clean });
+        } catch {}
+      }
+    }
 
     const extraHold = extraDelayFromRaw(textRaw);
     const fallbackMs = readableFallbackMs(clean);
 
     if (stopPrevious) this.stopCurrent();
 
+    const token = ++this._playToken;
+
     const audio = new Audio(url);
     this._currentAudio = audio;
-    audio.volume = volume;
+
+    // Better defaults for VO
+    audio.preload = "auto";
+    audio.crossOrigin = "anonymous"; // safe for same-origin; helps if you later analyze
+    audio.volume = Math.max(0, Math.min(1, volume));
+
+    // Optional: if you want to guarantee unlock first, you can auto-call unlockAudio()
+    // but ONLY after user interaction. So we don't do it here.
 
     return new Promise((resolve) => {
       let settled = false;
+
       const done = (ms) => {
         if (settled) return;
+        // ignore stale plays
+        if (token !== this._playToken) return;
         settled = true;
-        // only clear if we're still showing the same line
-        setTimeout(() => resolve(), ms);
+        setTimeout(() => {
+          if (token !== this._playToken) return;
+          resolve();
+        }, ms);
       };
 
-      audio.addEventListener("ended", () => done(baseHoldMs + extraHold));
-      audio.addEventListener("error", () => done(fallbackMs + extraHold));
+      audio.onended = () => done(baseHoldMs + extraHold);
+      audio.onerror = () => done(fallbackMs + extraHold);
 
       audio.play().catch(() => done(fallbackMs + extraHold));
     });
