@@ -67,6 +67,11 @@
       console.error("Missing required element IDs:", missing);
       return;
     }
+    const onClick = (e) => {
+      if (e.target && e.target.closest("#simRoom, #taskUI, #finalOverlay, #resetOverlay")) return;
+      clicks++;
+    };
+    window.addEventListener("click", onClick, true);
 
     const systemBox = els.system;
     const cracks = els.cracks;
