@@ -625,6 +625,129 @@ body.in-sim #wrap{ display:none; }
     0 0 28px rgba(140,190,255,0.10);
 }
 
+/* =========================
+   TASK BODY UI KIT
+   ========================= */
+
+/* consistent vertical rhythm inside task bodies */
+#taskBody > * + *{ margin-top: 10px; }
+
+/* unified “note” line (your packs currently create divs with opacity — this makes them look consistent) */
+.task-note{
+  opacity: 0.88;
+  color: rgba(235,238,245,0.82);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* unified “error” + “ok” lines */
+.task-error{
+  color: rgba(255,190,190,.95);
+  opacity: 0.95;
+  font-size: 13px;
+}
+.task-ok{
+  color: rgba(232,237,247,0.92);
+  opacity: 0.92;
+  font-size: 13px;
+}
+
+/* code-ish line (tokens, strings, etc.) */
+.task-code{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+/* “panel” area for things like lists/chunks/targets */
+.task-panel{
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+}
+
+/* a subtle divider if you want breaks */
+.task-divider{
+  height: 1px;
+  background: rgba(255,255,255,0.10);
+  border-radius: 999px;
+  margin: 10px 0;
+  opacity: 0.8;
+}
+
+/* button rows & grids (works for nearly all your tasks) */
+.task-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.task-grid-2{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.task-grid-3{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+.task-grid-4{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+
+/* make all sim-btns inside tasks consistent size */
+#taskBody .sim-btn{
+  min-height: 40px;
+}
+
+/* big “single choice list” buttons (like your path/IP tasks) */
+.task-list-btn{
+  display:block;
+  width:100%;
+  text-align:left;
+}
+
+/* “chip” buttons for small options */
+.task-chip{
+  padding: 10px 12px;
+  border-radius: 999px;
+}
+
+/* inputs inside tasks already styled by your earlier step;
+   give placeholder + selection a bit more polish */
+#taskBody input::placeholder{
+  color: rgba(235,238,245,0.45);
+}
+#taskBody input::selection{
+  background: rgba(140,190,255,0.22);
+}
+
+/* small “status pill” that’s quieter than .pill */
+.task-pill{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.16);
+  color: rgba(235,238,245,0.80);
+  font-size: 12px;
+}
+
+/* subtle “progress bar” style you can reuse */
+.task-bar{
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.22);
+  overflow:hidden;
+}
+.task-bar > div{
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: rgba(140,190,255,0.45);
+}
+
+/* Responsive: reduce columns on small screens */
+@media (max-width: 520px){
+  .task-grid-4{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .task-grid-3{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
 /* anchors */
 .anchor{
   position: fixed;
