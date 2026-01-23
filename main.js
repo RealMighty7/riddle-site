@@ -151,6 +151,24 @@
       } catch {}
     }
 
+    // =========================
+// POP-IN + SHAKE HELPERS
+// =========================
+function popIn(el){
+  if (!el) return;
+  el.classList.remove("pop-in");
+  // force reflow so animation restarts
+  void el.offsetWidth;
+  el.classList.add("pop-in");
+}
+
+function shake(el){
+  if (!el) return;
+  el.classList.remove("shake");
+  void el.offsetWidth;
+  el.classList.add("shake");
+}
+
     /* ====================== TIMING ====================== */
     const WPM = 300;
     const MS_PER_WORD = 60000 / WPM;
