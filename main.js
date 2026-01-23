@@ -179,8 +179,11 @@
 
     let resistanceScore = 0;
     function difficultyBoost() {
-      return Math.max(0, Math.min(6, resistanceScore));
+      const late = tasksCompleted >= 10;
+      const base = Math.max(0, Math.min(6, resistanceScore));
+      return late ? base + 1 : base;
     }
+
 
     /* ====================== TIMERS ====================== */
     let timers = [];
