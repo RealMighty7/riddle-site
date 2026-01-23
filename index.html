@@ -6,12 +6,11 @@
   <title>Campaign Launcher</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-  <link rel="stylesheet" href="/styles.css?v=200" />
+  <link rel="stylesheet" href="/styles.css?v=201" />
 
   <!-- Turnstile (explicit render) -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
-
 <body>
   <!-- crack overlay -->
   <div id="cracks" aria-hidden="true" class="hidden"></div>
@@ -19,7 +18,13 @@
   <!-- falling glass overlay -->
   <div id="glassFX" aria-hidden="true" class="hidden"></div>
 
-  <!-- LANDING PAGE (NEW) -->
+  <!-- SUBTITLES (global; used during sim room dialogue) -->
+  <div id="subs" aria-live="polite" class="subs hidden">
+    <div id="subsName" class="subsName"></div>
+    <div id="subsText" class="subsText"></div>
+  </div>
+
+  <!-- LANDING PAGE -->
   <main id="wrap" class="landing">
     <!-- Side ads (fixed) -->
     <aside class="sideAds left" aria-hidden="true">
@@ -224,16 +229,19 @@
   </div>
 
   <!-- scripts in correct order -->
-  <script src="/dialogue.js?v=200"></script>
-  <script src="/tasks.js?v=200"></script>
+  <script src="/dialogue.js?v=201"></script>
+  <script src="/tasks.js?v=201"></script>
 
-  <script src="/packs/pack1.js?v=200"></script>
-  <script src="/packs/pack2.js?v=200"></script>
-  <script src="/packs/pack3.js?v=200"></script>
-  <script src="/packs/pack4.js?v=200"></script>
-  <script src="/packs/pack5.js?v=200"></script>
+  <script src="/packs/pack1.js?v=201"></script>
+  <script src="/packs/pack2.js?v=201"></script>
+  <script src="/packs/pack3.js?v=201"></script>
+  <script src="/packs/pack4.js?v=201"></script>
+  <script src="/packs/pack5.js?v=201"></script>
 
-  <script src="/main.js?v=200"></script>
+  <!-- NEW: audio/subtitles layer (expects /data/voices.json + /audio/<speaker>/<id>.wav) -->
+  <script src="/audio_player.js?v=201"></script>
+
+  <script src="/main.js?v=201"></script>
 
   <!-- landing-only tiny script -->
   <script>
