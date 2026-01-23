@@ -215,6 +215,100 @@ const subs = els.subs;
 const subsName = els.subsName;
 const subsText = els.subsText;
 
+/* ======================
+   VOICE LAYER (voices.json + /audio/*)
+   ====================== */
+
+let VO = null;
+let VO_READY = false;
+
+// Optional: if you want tags like {breath} / {calm} to do stuff
+function handleVoiceTag(tag) {
+  if (tag === "breath") playSfx("static2", 0.08); // swap to breath sfx later
+  if (tag === "calm") {
+    if (subs) subs.classList.add("calm");
+    setTimeout(() => subs && subs.classList.remove("calm"), 900);
+  }
+}
+
+// If your dialogue lines don’t include ids, this tries to find a match by text.
+// It’s slower than id-based, but works as a fallback.
+function normalizeForMatch(s) {
+  return String(s || "")
+    .replace(/\{[a-zA-Z0-9_]+\}/g, "")         // strip {tags}
+    .replace(/^\s*\[\d{1,4}\]\s*/g, "")        // strip [0123]
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function getIdFromLine(rawLine) {
+  const raw = String(rawLine || "");
+
+  // Preferred: embed IDs like: "[0123] Emma (Security): hello"
+  const m = raw.match(/^\s*\[(\d{1,4})\]\s*/);
+  if (m) return String(m[1]).padStart(4, "0");
+
+  // Fallback: try match by text in voices.json
+  if (!VO || !VO.byId) return null;
+  const target = normalizeForMatch(raw);
+
+  for (const [id, line] of VO.byId.entries()) {
+    const textRaw = line.text_raw ?? line.text ?? "";
+    const clean = line.text ?? normalizeForMatch(textRaw);
+    if (normalizeForMatch(clean) === target) return String(id).padStart(4, "0");
+  }
+  return null;
+}
+
+window.AudioPlayer = {
+  async init() {
+    if (VO_READY) return;
+    if (!window.VoiceBank) {
+      console.warn("VoiceBank not found. Make sure audio_player.js loads before main.js.");
+      return;
+    }
+    VO = new window.VoiceBank({
+      voicesUrl: "/data/voices.json",
+      onTag: (tagName) => handleVoiceTag(tagName),
+    });
+    VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
+    await VO.load();
+    VO_READY = true;
+  },
+
+  async unlock() {
+    // Called from your unlockAudio() after a user gesture
+    try {
+      await this.init();
+      if (VO && VO.unlockAudio) await VO.unlockAudio();
+    } catch (e) {
+      console.warn("AudioPlayer.unlock failed:", e);
+    }
+  },
+
+  async playLine(rawLine) {
+    try {
+      await this.init();
+      if (!VO) return;
+
+      // Show subtitle box while VO is active
+      if (subs) subs.classList.remove("hidden");
+
+      const id = getIdFromLine(rawLine);
+      if (!id) return; // no match -> silently skip audio
+
+      await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: true });
+    } catch (e) {
+      console.warn("AudioPlayer.playLine failed:", e);
+    }
+  },
+
+  stop() {
+    try { VO?.stopCurrent?.(); } catch {}
+  }
+};
+
 // NEW: a single “output” pipe for BOTH text + audio/subtitles
 async function emitLine(line) {
   const raw = String(line || "");
@@ -223,87 +317,17 @@ async function emitLine(line) {
     simText.scrollTop = simText.scrollHeight;
     return;
   }
-  /* ====================== VOICE (voices.json + /audio/*) ====================== */
-/*
-  Requires: audio_player.js loaded BEFORE main.js
-  audio_player.js should export VoiceBank AND (ideally) attach it to window, OR be a module import.
-  Since your main.js is an IIFE script, easiest is: in audio_player.js add:
-    window.VoiceBank = VoiceBank;
-*/
 
-const VO = (window.VoiceBank)
-  ? new window.VoiceBank({
-      voicesUrl: "/data/voices.json",
-      onTag: (tag) => {
-        // Optional tag reactions. Keep it subtle.
-        if (tag === "breath") playSfx("static2", 0.08); // replace later with real breath sfx
-        if (tag === "calm") {
-          // Example: slight subtitle emphasis or style hook
-          subs?.classList?.add("calm");
-          setTimeout(() => subs?.classList?.remove("calm"), 900);
-        }
-      }
-    })
-  : null;
-
-// A tiny mapper: raw line -> id (if you embed ids) OR subtitle-only fallback.
-// Best path: add `audio_id` to dialogue lines OR ensure your AudioPlayer knows mapping.
-// For now: if raw line starts with "[0123]" we use 0123.
-function getIdFromLine(raw) {
-  const m = String(raw || "").match(/^\s*\[(\d{1,4})\]\s*/);
-  return m ? m[1] : null;
-}
-
-// Public shim your emitLine expects
-window.AudioPlayer = {
-  async unlock() {
-    if (VO) await VO.unlockAudio();
-  },
-
-  // rawLine: the string from dialogue.js
-  async playLine(rawLine, { subs, subsName, subsText } = {}) {
-    // Bind subtitle UI once (safe to call repeatedly)
-    if (VO) VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
-
-    // If you don’t have ids in dialogue lines yet, we still show subs (your emitLine does),
-    // but VO audio can only play when we can determine an id.
-    const id = getIdFromLine(rawLine);
-    if (!VO || !id) return;
-
-    // Strip the [id] prefix for display consistency if you want:
-    // (optional) keep sim log unmodified, only subs/audio uses id
-    await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: true });
-
-    // Ensure subtitle container is visible while playing (optional)
-    if (subs) subs.classList.remove("hidden");
-  }
-};
-
-
-  // Show the text in the sim log immediately (your existing behavior)
+  // Log line (optional: strip [0123] so sim log doesn't show ids)
   const logLine = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
   simText.textContent += logLine + "\n";
-
   simText.scrollTop = simText.scrollHeight;
 
-  // If audio layer is present, ask it to play the correct line by ID
-  // We support:
-  //  - "Speaker: text"
-  //  - "Speaker (Security): text"
-  //  - "System: TEXT"
-  //  - plain text fallback (no audio)
-  try {
-    if (window.AudioPlayer && typeof window.AudioPlayer.playLine === "function") {
-      // AudioPlayer.playLine should accept the same raw line format used in dialogue.js
-      // (it will map to /data/voices.json and play /audio/<speaker>/<id>.wav)
-      await window.AudioPlayer.playLine(raw, { subs, subsName, subsText });
-    }
-  } catch (e) {
-    // don’t hard fail sim if audio errors
-    console.warn("AudioPlayer playLine failed:", e);
+  // Voice/Subtitles
+  if (window.AudioPlayer && typeof window.AudioPlayer.playLine === "function") {
+    await window.AudioPlayer.playLine(raw);
   }
 }
-
 
     function playLines(lines) {
       clearTimers();
