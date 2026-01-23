@@ -505,6 +505,126 @@ body.in-sim #wrap{ display:none; }
 }
 #taskBody{ margin-top: 10px; }
 
+/* =========================
+   TASK CARD (redesign)
+   ========================= */
+
+#taskUI{
+  margin-top: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background:
+    radial-gradient(900px 220px at 20% 0%, rgba(140,190,255,0.10), transparent 60%),
+    rgba(0,0,0,0.22);
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* subtle scanline sheen */
+#taskUI::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,0.06),
+      rgba(255,255,255,0.00) 35%,
+      rgba(0,0,0,0.00) 65%,
+      rgba(255,255,255,0.04)
+    );
+  opacity: 0.35;
+  pointer-events:none;
+}
+
+/* top row layout: title + optional badge slot */
+#taskTitle{
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(235,238,245,0.80);
+  margin: 2px 0 6px;
+}
+
+/* description tightened, more readable */
+#taskDesc{
+  color: rgba(235,238,245,0.70);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+/* body gets a subtle container feel */
+#taskBody{
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+}
+
+/* actions row: clean spacing */
+#taskActions{
+  margin-top: 12px;
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap: wrap;
+}
+
+/* inputs inside tasks: match theme */
+#taskBody input{
+  width: min(520px, 100%);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.22);
+  color: rgba(235,238,245,0.92);
+  outline: none;
+}
+#taskBody input:focus{
+  border-color: rgba(140,190,255,0.35);
+  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
+}
+
+/* pill helper used everywhere (you already use .pill in JS; make it consistent) */
+.pill{
+  display:inline-block;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: rgba(235,238,245,0.85);
+  font-size: 12px;
+}
+
+/* entrance animation when taskUI shows */
+@keyframes taskIn{
+  from{ opacity: 0; transform: translateY(6px); filter: blur(1.5px); }
+  to  { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+#taskUI:not(.hidden){
+  animation: taskIn 180ms ease-out;
+}
+
+/* feedback micro-animations you can trigger by toggling classes later */
+@keyframes taskShake{
+  0%,100%{ transform: translateX(0); }
+  20%{ transform: translateX(-3px); }
+  40%{ transform: translateX(3px); }
+  60%{ transform: translateX(-2px); }
+  80%{ transform: translateX(2px); }
+}
+#taskUI.is-error{ animation: taskShake 220ms ease; }
+
+#taskUI.is-ok{
+  box-shadow:
+    0 18px 60px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(140,190,255,0.10),
+    0 0 28px rgba(140,190,255,0.10);
+}
+
 /* anchors */
 .anchor{
   position: fixed;
