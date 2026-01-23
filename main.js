@@ -456,12 +456,18 @@ function glitchPulse() {
       renderFile(activeFileIndex);
     }
 
-    document.querySelectorAll(".hack-filebtn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const idx = Number(btn.getAttribute("data-file") || "0");
-        renderFile(idx);
-      });
-    });
+const hackFileBtns = Array.from(document.querySelectorAll(".hack-filebtn"));
+hackFileBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    hackFileBtns.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const idx = Number(btn.getAttribute("data-file") || "0");
+    renderFile(idx);
+  });
+});
+// set initial active
+if (hackFileBtns[0]) hackFileBtns[0].classList.add("active");
+
 
     hackReset.onclick = resetHack;
 
