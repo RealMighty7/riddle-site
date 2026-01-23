@@ -214,5 +214,15 @@ window.DIALOGUE = {
     
     { filler: { pool: "AUTO", count: 1 } },
     { task: "random", args: { pool: ["core", "pack4", "pack5"] } },
+      // Mid-run: interleave procedural tasks
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["System: Supplemental verification."] },
+    { task: "random", args: { pool: ["pack4"] } },
+    
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "random", args: { pool: ["pack5"] } },
+    
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "random", args: { pool: ["pack4", "pack5"] } },
   ]
 };
