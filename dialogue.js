@@ -206,7 +206,7 @@ window.DIALOGUE = {
     { filler: { pool: "AUTO", count: 1 } },
     { task: "two_step" },
 
-    { say: ["System: Surface failure imminent.", "Emma (Security): ...", "System: HANDOFF."] }
+    { say: ["System: Surface failure imminent.", "Emma (Security): ...", "System: HANDOFF."] },
         // dialogue.js (inside steps)
     { filler: { pool: "AUTO", count: 1 } },
     { say: ["System: Supplemental procedure required."] },
