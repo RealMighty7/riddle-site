@@ -1261,8 +1261,6 @@ function shatterToSim() {
   const launchStatus = document.getElementById("launchStatus");
     
   let launchBusy = false;
-  const viewerToken = document.getElementById("viewerToken");
-
 viewerToken.addEventListener("input", async () => {
   const v = viewerToken.value.trim();
   if (!v || v.length < 8) return;
