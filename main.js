@@ -146,10 +146,14 @@ function grantAdmin(){
   document.body.classList.add("admin");
   console.log("%c[admin] elevated access granted","color:#8cbcff");
 
-  try { initAdminPanel(); } catch (e) { console.warn("[admin] panel init failed", e); }
+  // only init if panel exists
+  if (document.getElementById("adminPanel")) {
+    try { initAdminPanel(); } catch (e) { console.warn("[admin] panel init failed", e); }
+  }
 
   document.dispatchEvent(new CustomEvent("admin:enabled"));
 }
+
 
 
     // -------------------------------
@@ -182,12 +186,10 @@ function grantAdmin(){
       console.log("[audio] unlocked");
     }
 
-    window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
-    window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
+// Unlock on first user gesture (so sim room VO/SFX won’t get blocked)
+window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
+window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
 
-    // Unlock on first user gesture (so sim room VO/SFX won’t get blocked)
-window.addEventListener("pointerdown", () => unlockAudio(), { once: true, capture: true });
-window.addEventListener("keydown", () => unlockAudio(), { once: true, capture: true });
 
     document.addEventListener("admin:enabled", () => {
       const sys = document.getElementById("system");
@@ -284,6 +286,7 @@ window.addEventListener("keydown", () => unlockAudio(), { once: true, capture: t
     let choiceCompliant = 0;
 
     let resistanceScore = 0;
+    let tasksCompleted = 0;
     function difficultyBoost() {
       const late = tasksCompleted >= 10;
       const base = Math.max(0, Math.min(6, resistanceScore));
@@ -765,8 +768,6 @@ Reinitializing simulation…`
       penalize,
       glitch: glitchPulse,
     };
-
-    let tasksCompleted = 0;
     let guidePath = "unknown"; // "emma" | "liam" | "run" | "unknown"
 
     function chooseFillerPool() {
@@ -1146,6 +1147,10 @@ Reinitializing simulation…`
               clone.id = "";
               clone.classList.add("wrap-clone");
               clone.style.pointerEvents = "none";
+              
+              // remove duplicate ids inside clone
+              clone.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
+              layer.appendChild(clone);
               layer.appendChild(clone);
               return layer;
             };
@@ -1299,15 +1304,23 @@ function shatterToSim() {
   const launchStatus = document.getElementById("launchStatus");
     
   let launchBusy = false;
-viewerToken.addEventListener("input", async () => {
-  const v = viewerToken.value.trim();
-  if (!v || v.length < 8) return;
+if (viewerToken) {
+  viewerToken.addEventListener("input", async () => {
+    const v = viewerToken.value.trim();
+    if (!v || v.length < 8) return;
 
-  const h = await sha256(v);
-  if (h === ADMIN_HASH) {
-    grantAdmin();
-  }
-});
+    let h = "";
+    try {
+      h = await sha256(v);
+    } catch (e) {
+      console.warn("[admin] sha256 failed (non-secure context?)", e);
+      return;
+    }
+
+    if (h === ADMIN_HASH) grantAdmin();
+  });
+}
+
 
   function runLaunchStatusAnim() {
     if (!launchStatus || !launchBtn) return;
