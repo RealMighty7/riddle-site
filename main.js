@@ -215,9 +215,17 @@ window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
   });
 
   // skip current task (tasks.js listens for this)
-  btnSkip?.addEventListener("click", () => {
-    document.dispatchEvent(new CustomEvent("admin:skip"));
-  });
+btnSkip?.addEventListener("click", () => {
+  // global force-pass (tasks.js will consume this)
+  window.__ADMIN_FORCE_OK = true;
+
+  // dispatch (bubbles so anything can hear it)
+  document.dispatchEvent(new CustomEvent("admin:skip", { bubbles: true }));
+
+  // if a button inside the panel is focused, blur it to avoid aria warnings
+  try { document.activeElement?.blur?.(); } catch {}
+});
+
 
   // update panel when tasks.js publishes hints
   document.addEventListener("admin:task", (e) => {
