@@ -144,11 +144,8 @@ function grantAdmin(){
   if (document.body.classList.contains("admin")) return;
 
   document.body.classList.add("admin");
-
-  // subtle confirmation (no popup)
   console.log("%c[admin] elevated access granted","color:#8cbcff");
 
-  // ✅ mount / wire the diagnostic panel now that admin is active
   try { initAdminPanel(); } catch (e) { console.warn("[admin] panel init failed", e); }
 
   document.dispatchEvent(new CustomEvent("admin:enabled"));
