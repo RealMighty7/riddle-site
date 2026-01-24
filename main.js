@@ -65,10 +65,12 @@
       "hackDelete",
       "hackReset",
       "hackStatus",
+      "viewerToken",
     ];
 
     const els = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
     const missing = ids.filter((id) => !els[id]);
+    const viewerToken = els.viewerToken;
     if (missing.length) {
       console.error("Missing required element IDs:", missing);
       return;
@@ -167,6 +169,29 @@
         SFX.ambience.currentTime = 0;
         SFX.ambience.play().catch(() => {});
       } catch {}
+    }
+/* smth smth just look at it ngl */
+    const launchBtn = document.getElementById("launchBtn");
+    if (launchBtn) {
+      launchBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+    
+        unlockAudio(); // optional, safe
+    
+        // Only unlock the viewer token field
+        if (viewerToken) {
+          viewerToken.disabled = false;
+          viewerToken.removeAttribute("aria-disabled");
+          viewerToken.focus();
+    
+          // optional: select placeholder text if any
+          try { viewerToken.select(); } catch {}
+        }
+    
+        // optional: small UI feedback
+        try { popIn(viewerToken); } catch {}
+      });
     }
 
     /* =========================
