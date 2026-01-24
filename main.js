@@ -117,36 +117,19 @@ const ids = [
     systemBox.textContent = "This page is currently under revision.";
 
     /* ====================== AUDIO (SFX) ====================== */
-    const SFX = {
-      ambience: new Audio("/assets/ambience.wav"),
-      thud: new Audio("/assets/thud.wav"),
-      glitch1: new Audio("/assets/glitch1.wav"),
-      glitch2: new Audio("/assets/glitch2.wav"),
-      static1: new Audio("/assets/static1.wav"),
-      static2: new Audio("/assets/static2.wav"),
-    };
-
-    Object.values(SFX).forEach((a) => {
-      try {
-        a.preload = "auto";
-      } catch {}
+    // -------------------------------
+    // ASSETS
+    // -------------------------------
+    const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
+    document.querySelectorAll(".adImg").forEach((img) => {
+      img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
     });
 
-    SFX.ambience.loop = true;
-    SFX.ambience.volume = 0.22;
-
-    function playSfx(name, vol = 1) {
-      const a = SFX[name];
-      if (!a) return;
-      try {
-        a.pause();
-        a.currentTime = 0;
-        a.volume = Math.max(0, Math.min(1, vol));
-        a.play().catch(() => {});
-      } catch {}
-    }
-
+    // -------------------------------
+    // AUDIO UNLOCK (single source of truth)
+    // -------------------------------
     let audioUnlocked = false;
+
     async function unlockAudio() {
       if (audioUnlocked) return;
       audioUnlocked = true;
@@ -154,14 +137,27 @@ const ids = [
       // unlock VO system (AudioContext)
       try {
         if (window.AudioPlayer?.unlock) await window.AudioPlayer.unlock();
-      } catch {}
+      } catch (e) {
+        console.warn("[audio] VO unlock failed:", e);
+      }
 
-      // unlock SFX (simple browser gesture capture)
+      // unlock <audio> SFX by attempting a play once
       try {
-        SFX.ambience.currentTime = 0;
-        SFX.ambience.play().catch(() => {});
+        const any = document.querySelector("audio");
+        if (any) {
+          any.muted = true;
+          await any.play().catch(() => {});
+          any.pause();
+          any.currentTime = 0;
+          any.muted = false;
+        }
       } catch {}
+      console.log("[audio] unlocked");
     }
+
+    window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
+    window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
+
     // Unlock on first user gesture (so sim room VO/SFX won’t get blocked)
 window.addEventListener("pointerdown", () => unlockAudio(), { once: true, capture: true });
 window.addEventListener("keydown", () => unlockAudio(), { once: true, capture: true });
@@ -206,9 +202,10 @@ window.addEventListener("keydown", () => unlockAudio(), { once: true, capture: t
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
 
-    // crack thresholds (start at 15 clicks)
-    const CRACK_AT = [15, 20, 25, 30]; // stage 1..4
-    const SHATTER_AT = 31;
+    // crack thresholds (4 stages)
+    // stages occur at: 15, 17, 19, 21 (registered clicks)
+    const CRACK_AT = [15, 17, 19, 21]; // stage 1..4
+    const SHATTER_AT = 22; // next registered click after stage 4
 
     const MAX_COMPLIANT_RATIO = 0.40;
     const MIN_CHOICES_BEFORE_CHECK = 10;
