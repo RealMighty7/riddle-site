@@ -1185,6 +1185,7 @@ body.in-sim #wrap{ display:none; }
   border: 1px solid rgba(255,255,255,0.18);
   cursor: pointer;
   pointer-events: auto;
+  z-index: 120;
 }
 
 /* =========================================================
