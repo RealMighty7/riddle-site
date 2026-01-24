@@ -35,38 +35,74 @@ body{
   overflow-x: hidden;
 }
 
-/* ---------- LANDING (unfinished but readable) ---------- */
-body:not(.in-sim) .card {
-  background: rgba(255,255,255,0.92);
-  border: 1px solid rgba(0,0,0,0.08);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+/* ---------- LANDING: white page ---------- */
+body:not(.in-sim){
+  background: #ffffff !important;
+  color: rgba(10,12,16,0.92);
 }
 
+/* panels/cards on landing */
+body:not(.in-sim) .panel,
+body:not(.in-sim) .card{
+  background: rgba(255,255,255,0.96) !important;
+  border: 1px solid rgba(0,0,0,0.10) !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.08) !important;
+  backdrop-filter: none !important;
+}
+
+/* make all landing text readable */
+body:not(.in-sim) p,
+body:not(.in-sim) span,
+body:not(.in-sim) div,
+body:not(.in-sim) li{
+  color: rgba(10,12,16,0.88);
+}
+
+/* headings a bit darker */
+body:not(.in-sim) h1,
+body:not(.in-sim) h2,
+body:not(.in-sim) h3,
+body:not(.in-sim) .title,
+body:not(.in-sim) .label{
+  color: rgba(10,12,16,0.95);
+}
+
+/* muted still readable */
 body:not(.in-sim) .muted,
 body:not(.in-sim) .hint,
-body:not(.in-sim) .subtle {
-  color: rgba(20,24,34,0.72);
+body:not(.in-sim) .subtle,
+body:not(.in-sim) .sub{
+  color: rgba(10,12,16,0.66) !important;
 }
 
+/* buttons: readable on white */
 body:not(.in-sim) button,
-body:not(.in-sim) .btn {
-  background: rgba(25, 35, 55, 0.10);
-  border: 1px solid rgba(25, 35, 55, 0.22);
-  color: rgba(10,12,16,0.88);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+body:not(.in-sim) .btn,
+body:not(.in-sim) .launch{
+  background: rgba(15, 25, 45, 0.08) !important;
+  border: 1px solid rgba(15, 25, 45, 0.22) !important;
+  color: rgba(10,12,16,0.92) !important;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important;
 }
 
 body:not(.in-sim) button:hover,
-body:not(.in-sim) .btn:hover {
-  background: rgba(25, 35, 55, 0.14);
-  border-color: rgba(25, 35, 55, 0.30);
+body:not(.in-sim) .btn:hover,
+body:not(.in-sim) .launch:hover{
+  background: rgba(15, 25, 45, 0.12) !important;
+  border-color: rgba(15, 25, 45, 0.30) !important;
 }
 
-body:not(.in-sim) button:disabled,
-body:not(.in-sim) .btn.is-disabled {
-  opacity: 0.55;
-  filter: grayscale(0.2);
-  cursor: not-allowed;
+/* inputs readable on white */
+body:not(.in-sim) input,
+body:not(.in-sim) textarea{
+  background: rgba(0,0,0,0.04) !important;
+  border: 1px solid rgba(0,0,0,0.18) !important;
+  color: rgba(10,12,16,0.92) !important;
+}
+
+body:not(.in-sim) input::placeholder,
+body:not(.in-sim) textarea::placeholder{
+  color: rgba(10,12,16,0.50) !important;
 }
 
 /* ---------- SIM (polished) ---------- */
