@@ -628,8 +628,8 @@ Reinitializing simulation…`
             selected.delete(i);
             row.classList.remove("selected");
           } else {
-            selected.add(i);
             row.classList.add("selected");
+            selected.add(i);
           }
         };
 
