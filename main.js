@@ -207,12 +207,85 @@ window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
   const elAns  = document.getElementById("adminAnswer");
   const btnSkip = document.getElementById("adminSkip");
   const btnToggle = document.getElementById("adminToggle");
+      // -------------------------------
+// DRAGGABLE ADMIN PANEL
+// -------------------------------
+(function makeDraggable(panelEl, handleEl){
+  if (!panelEl || !handleEl) return;
+
+  // use fixed positioning so it can float anywhere
+  const r = panelEl.getBoundingClientRect();
+  panelEl.style.position = "fixed";
+  panelEl.style.left = `${Math.max(10, Math.min(window.innerWidth - r.width - 10, r.left))}px`;
+  panelEl.style.top  = `${Math.max(10, Math.min(window.innerHeight - r.height - 10, r.top))}px`;
+  panelEl.style.zIndex = "9999";
+
+  let dragging = false;
+  let startX = 0, startY = 0;
+  let baseLeft = 0, baseTop = 0;
+
+  const onDown = (e) => {
+    // don’t start drag when clicking actual buttons inside the head
+    const t = e.target;
+    if (t && t.closest && t.closest("button, input")) return;
+
+    dragging = true;
+    panelEl.classList.add("dragging");
+    handleEl.setPointerCapture?.(e.pointerId);
+
+    startX = e.clientX;
+    startY = e.clientY;
+
+    baseLeft = parseFloat(panelEl.style.left || "0");
+    baseTop  = parseFloat(panelEl.style.top  || "0");
+
+    e.preventDefault();
+  };
+
+  const onMove = (e) => {
+    if (!dragging) return;
+
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    const w = panelEl.offsetWidth;
+    const h = panelEl.offsetHeight;
+
+    let nextLeft = baseLeft + dx;
+    let nextTop  = baseTop + dy;
+
+    // clamp to viewport with small padding
+    nextLeft = Math.max(10, Math.min(window.innerWidth - w - 10, nextLeft));
+    nextTop  = Math.max(10, Math.min(window.innerHeight - h - 10, nextTop));
+
+    panelEl.style.left = `${nextLeft}px`;
+    panelEl.style.top  = `${nextTop}px`;
+  };
+
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    panelEl.classList.remove("dragging");
+  };
+
+  handleEl.style.cursor = "grab";
+  handleEl.addEventListener("pointerdown", onDown);
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+})(panel, panel.querySelector(".adminHead"));
+
 
   // toggle visibility (admin can hide it)
-  btnToggle?.addEventListener("click", () => {
-    panel.classList.toggle("hidden");
-    btnToggle.textContent = panel.classList.contains("hidden") ? "show" : "hide";
-  });
+btnToggle?.addEventListener("click", () => {
+  const willHide = !panel.classList.contains("hidden");
+
+  if (willHide) { try { document.activeElement?.blur?.(); } catch {} }
+
+  panel.classList.toggle("hidden");
+  panel.setAttribute("aria-hidden", panel.classList.contains("hidden") ? "true" : "false");
+  btnToggle.textContent = panel.classList.contains("hidden") ? "show" : "hide";
+});
+
 
   // skip current task (tasks.js listens for this)
 btnSkip?.addEventListener("click", () => {
@@ -223,6 +296,7 @@ btnSkip?.addEventListener("click", () => {
   document.dispatchEvent(new CustomEvent("admin:skip", { bubbles: true }));
 
   // if a button inside the panel is focused, blur it to avoid aria warnings
+  panel.setAttribute("aria-hidden", "false");
   try { document.activeElement?.blur?.(); } catch {}
 });
 
