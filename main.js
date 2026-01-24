@@ -195,6 +195,43 @@ window.addEventListener("keydown", () => unlockAudio(), { once: true, capture: t
       }
     });
 
+    function initAdminPanel(){
+  document.getElementById("adminPanel")?.classList.remove("hidden");
+  const panel = document.getElementById("adminPanel");
+  if (!panel) return;
+
+  const elTask = document.getElementById("adminTask");
+  const elAns  = document.getElementById("adminAnswer");
+  const btnSkip = document.getElementById("adminSkip");
+  const btnToggle = document.getElementById("adminToggle");
+
+  // toggle visibility (admin can hide it)
+  btnToggle?.addEventListener("click", () => {
+    panel.classList.toggle("hidden");
+    btnToggle.textContent = panel.classList.contains("hidden") ? "show" : "hide";
+  });
+
+  // skip current task (tasks.js listens for this)
+  btnSkip?.addEventListener("click", () => {
+    document.dispatchEvent(new CustomEvent("admin:skip"));
+  });
+
+  // update panel when tasks.js publishes hints
+  document.addEventListener("admin:task", (e) => {
+    const id = e?.detail?.taskId || "—";
+    if (elTask) elTask.textContent = id;
+    if (elAns) elAns.textContent = "—";
+  });
+
+  document.addEventListener("admin:hint", (e) => {
+    const hint = e?.detail?.hint;
+    if (!hint) return;
+
+    if (elTask && e?.detail?.taskId) elTask.textContent = e.detail.taskId;
+    if (elAns) elAns.textContent = String(hint);
+  });
+}
+
     /* =========================
        POP-IN + SHAKE HELPERS
     ========================= */
