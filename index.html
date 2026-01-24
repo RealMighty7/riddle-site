@@ -119,14 +119,14 @@
             <div class="label">Viewer</div>
             <div class="pill small" id="viewerState">unverified</div>
           </div>
-        
+
           <div class="viewerBox">
             <!-- Disabled-look placeholder -->
             <div id="viewerFake" class="fakeInput">
               <span class="muted">viewer token</span>
               <span class="cursor">▌</span>
             </div>
-        
+
             <!-- Real input (hidden/disabled until Launch) -->
             <input
               id="viewerToken"
@@ -138,14 +138,24 @@
               spellcheck="false"
               inputmode="text"
             />
-        
+
             <div class="fine muted">
               this module is unfinished. do not rely on output.
             </div>
+
+            <!-- Admin controls (Option A) -->
+            <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+              <button id="adminEnter" class="btn" type="button">validate</button>
+              <button id="adminClear" class="btn" type="button">clear</button>
+            </div>
+
+            <div id="adminMsg" class="fine muted" style="margin-top:10px">
+              notice: this endpoint is not intended for external access.
+            </div>
           </div>
-        
+
           <div class="divider"></div>
-        
+
           <div class="fine muted">
             // TODO: remove public access<br />
             // TODO: disable indexing<br />
@@ -153,6 +163,31 @@
           </div>
         </div>
 
+        <!-- ✅ Option A: hidden admin-only panel -->
+        <div class="card adminOnly" id="adminPanelHidden">
+          <div class="row">
+            <div class="label">Operator</div>
+            <div class="pill small">internal</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="fine muted" style="line-height:1.55">
+            notice: this endpoint is not intended for external access.<br/>
+            functionality may be incomplete.<br/><br/>
+            <span style="opacity:.9">flags:</span> <span class="pill small">telemetry_override</span>
+            <span class="pill small">queue_bypass</span>
+            <span class="pill small">trace_partial</span>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="systemLog" style="min-height:64px">
+            operator session flagged.
+          </div>
+        </div>
+
+      </div><!-- /grid2 -->
 
       <div class="footer">
         <div class="fine muted">© sponsor tools (internal) — “temporary”</div>
@@ -244,16 +279,15 @@
 
   <script src="/dialogue.js"></script>
   <script src="/tasks.js"></script>
-  
+
   <script src="/packs/pack1.js"></script>
   <script src="/packs/pack2.js"></script>
   <script src="/packs/pack3.js"></script>
   <script src="/packs/pack4.js"></script>
   <script src="/packs/pack5.js"></script>
-  
+
   <script src="/audio_player.js"></script>
   <script src="/main.js"></script>
-
 
   <!-- landing-only tiny script -->
   <script>
@@ -281,6 +315,52 @@
     }
     tick();
     setInterval(tick, 1000);
+  </script>
+
+  <!-- ✅ Admin token logic (Option A: unlock hidden panel) -->
+  <script>
+    // matches your new chosen token
+    const ADMIN_TOKEN = "echostatic07vault";
+
+    const elToken = document.getElementById("viewerToken");
+    const elEnter = document.getElementById("adminEnter");
+    const elClear = document.getElementById("adminClear");
+    const elMsg = document.getElementById("adminMsg");
+    const hiddenPanel = document.getElementById("adminPanelHidden");
+
+    function setAdmin(on){
+      document.body.classList.toggle("admin", !!on);
+      if (elMsg) elMsg.textContent = on
+        ? "operator session flagged: internal."
+        : "notice: this endpoint is not intended for external access.";
+      try { localStorage.setItem("admin_ok", on ? "1" : "0"); } catch {}
+    }
+
+    // restore
+    (function(){
+      try {
+        if (localStorage.getItem("admin_ok") === "1") setAdmin(true);
+      } catch {}
+    })();
+
+    function deny(){
+      setAdmin(false);
+      if (elMsg) elMsg.textContent = "denied: invalid token.";
+      document.body.classList.add("shake");
+      setTimeout(() => document.body.classList.remove("shake"), 260);
+      try { window.glitch?.(); } catch {}
+    }
+
+    function validate(){
+      const v = (elToken?.value || "").trim();
+      if (!v) return;
+      if (v.toLowerCase() === ADMIN_TOKEN.toLowerCase()) setAdmin(true);
+      else deny();
+    }
+
+    elEnter?.addEventListener("click", validate);
+    elToken?.addEventListener("keydown", (e) => { if (e.key === "Enter") validate(); });
+    elClear?.addEventListener("click", () => { if (elToken) elToken.value = ""; setAdmin(false); });
   </script>
 </body>
 </html>
