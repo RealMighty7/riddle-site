@@ -515,23 +515,24 @@ body:not(.in-sim) #wrap::after{
   margin-top: 10px;
   padding: 12px 12px;
   border-radius: 12px;
-  border: 1px solid rgba(0,0,0,.12);
-  background: rgba(255,255,255,.92);
-  color: rgba(10,14,22,.92);
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.22);
+  color: rgba(235,238,245,0.92);
   font: 600 14px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   letter-spacing: .2px;
   outline: none;
 }
 
 .viewerInput:focus{
-  border-color: rgba(70,120,255,.35);
-  box-shadow: 0 0 0 4px rgba(70,120,255,.12);
+  border-color: rgba(140,190,255,0.28);
+  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
 }
 
 .viewerInput:disabled{
-  opacity: .65;
+  opacity: .55;
   cursor: not-allowed;
 }
+
 
 /* Make "fakeInput" feel like disabled UI */
 .fakeInput{
