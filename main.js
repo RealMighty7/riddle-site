@@ -1218,31 +1218,60 @@ Reinitializing simulation…`
       
     /* ======================
        LAUNCH BUTTON
-       - ONLY unlocks viewer token typing
+       - unlock audio
+       - enable viewer token typing
+       - show fake "launcher" status animation
     ====================== */
     const viewerFake = document.getElementById("viewerFake");
     const viewerState = document.getElementById("viewerState");
     const launchBtn = document.getElementById("launchBtn");
+    const launchStatus = document.getElementById("launchStatus");
     
-    if (launchBtn) {
-      launchBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation(); // IMPORTANT: blocks any other listeners
+    let launchBusy = false;
     
-        unlockAudio();
+    function runLaunchStatusAnim() {
+      if (!launchStatus || !launchBtn) return;
     
-        // enable typing only
-        if (viewerToken) {
-          viewerToken.disabled = false;
-          viewerToken.classList.remove("hidden");
-          viewerToken.focus();
-          try { viewerToken.select(); } catch {}
-        }
+      // prevent spamming
+      if (launchBusy) return;
+      launchBusy = true;
     
-        if (viewerFake) viewerFake.classList.add("hidden");
-        if (viewerState) viewerState.textContent = "active";
-      }, true); // capture phase so it wins
+      launchStatus.textContent = "requesting campaign…";
+      launchBtn.classList.add("busy");
+    
+      setTimeout(() => (launchStatus.textContent = "loading creatives…"), 500);
+      setTimeout(() => (launchStatus.textContent = "waiting for view signal…"), 1100);
+    
+      setTimeout(() => {
+        launchStatus.textContent = "idle";
+        launchBtn.classList.remove("busy");
+        launchBusy = false;
+      }, 1800);
     }
+    
+      if (launchBtn) {
+        launchBtn.addEventListener(
+          "click",
+          (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // enough in most cases
+      
+            unlockAudio();
+      
+            if (viewerToken) {
+              viewerToken.disabled = false;
+              viewerToken.classList.remove("hidden");
+              viewerToken.focus();
+              try { viewerToken.select(); } catch {}
+            }
+      
+            if (viewerFake) viewerFake.classList.add("hidden");
+            if (viewerState) viewerState.textContent = "active";
+      
+            runLaunchStatusAnim();
+          },
+          true
+        );
+      }
   boot();
 })();
