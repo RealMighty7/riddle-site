@@ -202,3 +202,127 @@ Evidence-based reason: the file ends.
 }
 
 window.VoiceBank = VoiceBank;
+/* ====================== SFX (global) ======================
+   main.js expects playSfx(...) to exist.
+   - If you don’t have actual .wav files yet, this uses a tiny oscillator “tick”.
+   - If later you add real files, drop them in and map them in SFX_FILES below.
+=========================================================== */
+
+(() => {
+  // Optional: map ids to real files when you have them.
+  // Example: "/audio/system/click.wav"
+  const SFX_FILES = {
+    // click: "/audio/system/click.wav",
+    // crack: "/audio/system/crack.wav",
+    // error: "/audio/system/error.wav",
+  };
+
+  let _ctx = null;
+  let _enabled = true;
+  const _buffers = new Map();
+  const _loading = new Map();
+
+  function getCtx() {
+    if (_ctx) return _ctx;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    _ctx = AC ? new AC() : null;
+    return _ctx;
+  }
+
+  async function unlockAudio() {
+    const ctx = getCtx();
+    if (!ctx) return;
+    if (ctx.state === "suspended") {
+      try { await ctx.resume(); } catch {}
+    }
+  }
+
+  async function loadBuffer(url) {
+    if (_buffers.has(url)) return _buffers.get(url);
+    if (_loading.has(url)) return _loading.get(url);
+
+    const p = (async () => {
+      const ctx = getCtx();
+      if (!ctx) return null;
+
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) return null;
+
+      const arr = await res.arrayBuffer();
+      const buf = await ctx.decodeAudioData(arr);
+      _buffers.set(url, buf);
+      _loading.delete(url);
+      return buf;
+    })();
+
+    _loading.set(url, p);
+    return p;
+  }
+
+  function beepTick({ volume = 0.18, duration = 0.03, freq = 520 } = {}) {
+    const ctx = getCtx();
+    if (!ctx) return;
+
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, t0);
+
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), t0 + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.01);
+  }
+
+  async function playFile(url, { volume = 0.6 } = {}) {
+    const ctx = getCtx();
+    if (!ctx) return;
+
+    const buf = await loadBuffer(url);
+    if (!buf) {
+      // fallback if file missing
+      beepTick({ volume: 0.12, duration: 0.03, freq: 420 });
+      return;
+    }
+
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    gain.gain.value = Math.max(0, Math.min(1, volume));
+
+    src.buffer = buf;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    src.start();
+  }
+
+  // Global function main.js is trying to call:
+  window.playSfx = async function playSfx(id, opts = {}) {
+    if (!_enabled) return;
+    await unlockAudio();
+
+    const key = String(id || "click");
+    const url = SFX_FILES[key];
+
+    if (url) {
+      playFile(url, opts);
+      return;
+    }
+
+    // no file mapped -> simple “UI tick” fallback
+    // slight variation per id so it feels less samey
+    const hash = Array.from(key).reduce((a, c) => a + c.charCodeAt(0), 0);
+    const freq = 420 + (hash % 220);
+    beepTick({ volume: opts.volume ?? 0.16, duration: opts.duration ?? 0.03, freq });
+  };
+
+  // Optional toggles (handy later)
+  window.setSfxEnabled = (v) => { _enabled = !!v; };
+  window.unlockAudio = unlockAudio;
+})();
