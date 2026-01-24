@@ -176,7 +176,7 @@ window.DIALOGUE = {
 
     { filler: { pool: "AUTO", count: 2 } },
     { say: ["System: Memory integrity degraded.", "System: Checksum required."] },
-    { task: "checksum", args: { phrase: "echostatic07-vault" } },
+    { task: "checksum", args: { phrase: "echostatic07vault" } },
 
     { filler: { pool: "AUTO", count: 2 } },
     { say: ["System: Stabilization cycle begins.", "System: Do not release."] },
