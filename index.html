@@ -39,21 +39,24 @@
       <img class="adImg" data-ad="6" alt="">
     </aside>
     
-    <div class="card adminOnly">
-      <div class="row">
-        <div class="label">Internal</div>
-        <div class="pill small">admin</div>
+    <!-- ADMIN DIAGNOSTICS (hidden unless body.admin) -->
+    <section id="adminPanel" class="adminPanel hidden" aria-hidden="true">
+      <div class="adminHead">
+        <div class="adminTitle">DIAGNOSTIC</div>
+        <button id="adminToggle" class="sim-btn adminTiny" type="button">hide</button>
       </div>
     
-      <div class="fine muted">
-        privileged context detected.<br>
-        some operations may be unsafe.
+      <div class="adminRow">
+        <span class="pill small ghost">task</span>
+        <span class="pill small" id="adminTask">—</span>
       </div>
     
-      <button id="adminPanelBtn" class="sim-btn">
-        OPEN INTERNAL PANEL
-      </button>
-    </div>
+      <div class="adminAnswer" id="adminAnswer">—</div>
+    
+      <div class="adminActions">
+        <button id="adminSkip" class="sim-btn" type="button">skip task</button>
+      </div>
+    </section>
 
     <!-- Center content -->
     <section class="panel">
