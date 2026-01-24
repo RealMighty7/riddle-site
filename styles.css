@@ -568,6 +568,7 @@ body:not(.in-sim) #wrap::after{
   background: linear-gradient(180deg, transparent, rgba(255,255,255,0.05), transparent);
   opacity: 0.10;
   animation: scanShift 8.5s ease-in-out infinite;
+  display: none
 }
 
 /* =========================
