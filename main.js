@@ -18,11 +18,11 @@
       return;
     }
 
-    /* ====================== RANDOM IMAGES ====================== */
-    const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
-    document.querySelectorAll(".grid img").forEach((img) => {
-      img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
-    });
+      /* ====================== RANDOM IMAGES ====================== */
+  document.querySelectorAll(".adImg").forEach((img) => {
+    img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
+  });
+  
 
     /* ====================== ELEMENTS ====================== */
 const ids = [
@@ -1222,56 +1222,56 @@ Reinitializing simulation…`
      - enable viewer token typing
      - show fake "launcher" status animation
   ====================== */
-const viewerFake = document.getElementById("viewerFake");
-const viewerState = document.getElementById("viewerState");
-const launchBtn = document.getElementById("launchBtn");
-const launchStatus = document.getElementById("launchStatus");
+  const viewerFake = document.getElementById("viewerFake");
+  const viewerState = document.getElementById("viewerState");
+  const launchBtn = document.getElementById("launchBtn");
+  const launchStatus = document.getElementById("launchStatus");
+    
+  let launchBusy = false;
+    
+  function runLaunchStatusAnim() {
+    if (!launchStatus || !launchBtn) return;
+    if (launchBusy) return;
+    launchBusy = true;
+   
+    launchStatus.textContent = "requesting campaign…";
+    launchBtn.classList.add("busy");
+    
+    setTimeout(() => (launchStatus.textContent = "loading creatives…"), 500);
+    setTimeout(() => (launchStatus.textContent = "waiting for view signal…"), 1100);
   
-let launchBusy = false;
-  
-function runLaunchStatusAnim() {
-  if (!launchStatus || !launchBtn) return;
-  if (launchBusy) return;
-  launchBusy = true;
- 
-  launchStatus.textContent = "requesting campaign…";
-  launchBtn.classList.add("busy");
-  
-  setTimeout(() => (launchStatus.textContent = "loading creatives…"), 500);
-  setTimeout(() => (launchStatus.textContent = "waiting for view signal…"), 1100);
-
-  setTimeout(() => {
-    launchStatus.textContent = "idle";
-    launchBtn.classList.remove("busy");
-    launchBusy = false;
-  }, 1800);
-}
- 
-if (launchBtn) {
-  launchBtn.addEventListener(
-    "click",
-    (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-  
-      unlockAudio();
-  
-      if (viewerToken) {
-        viewerToken.disabled = false;
-        viewerToken.classList.remove("hidden");
-        viewerToken.focus();
-        try { viewerToken.select(); } catch {}
-      }
-  
-      if (viewerFake) viewerFake.classList.add("hidden");
-      if (viewerState) viewerState.textContent = "active";
-  
-      runLaunchStatusAnim();
-    },
-    true
-  );
-}
+    setTimeout(() => {
+      launchStatus.textContent = "idle";
+      launchBtn.classList.remove("busy");
+      launchBusy = false;
+    }, 1800);
+  }
+   
+  if (launchBtn) {
+    launchBtn.addEventListener(
+      "click",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+    
+        unlockAudio();
+    
+        if (viewerToken) {
+          viewerToken.disabled = false;
+          viewerToken.classList.remove("hidden");
+          viewerToken.focus();
+          try { viewerToken.select(); } catch {}
+        }
+    
+        if (viewerFake) viewerFake.classList.add("hidden");
+        if (viewerState) viewerState.textContent = "active";
+    
+        runLaunchStatusAnim();
+      },
+      true
+    );
+  }
 }
 boot();
 })();
