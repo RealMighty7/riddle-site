@@ -234,7 +234,7 @@ window.addEventListener("keydown", () => unlockAudio(), { once: true, capture: t
     let VO_READY = false;
 
     function handleVoiceTag(tag) {
-      if (tag === "breath") playSfx("static2", 0.08); // replace later with breath sfx
+      if (tag === "breath") playSfx("static1", { volume: 0.08, overlap: true });
       if (tag === "calm") {
         if (subs) subs.classList.add("calm");
         setTimeout(() => subs && subs.classList.remove("calm"), 900);
@@ -788,6 +788,7 @@ Reinitializing simulation…`
       taskUI.classList.add("hidden");
       simChoices.classList.add("hidden");
       simText.textContent = "";
+      playSfx("static1", { volume: 0.25, overlap: false });
 
       await playLines(DIALOGUE.intro);
       await runChoiceBeats();
@@ -1120,6 +1121,7 @@ Reinitializing simulation…`
         simRoom.classList.remove("hidden");
         taskUI.classList.add("hidden");
         simChoices.classList.add("hidden");
+        playSfx("static1", { volume: 0.35, overlap: false }); // breach enter sting
   
         glassFX.classList.remove("hidden");
         glassFX.classList.add("glass-fall");
@@ -1248,6 +1250,7 @@ Reinitializing simulation…`
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
+        playSfx("click", { volume: 0.25, overlap: true }); // UI click feedback
     
         unlockAudio();
     
