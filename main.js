@@ -1222,55 +1222,55 @@ Reinitializing simulation…`
      - enable viewer token typing
      - show fake "launcher" status animation
   ====================== */
-  const viewerFake = document.getElementById("viewerFake");
-  const viewerState = document.getElementById("viewerState");
-  const launchBtn = document.getElementById("launchBtn");
-  const launchStatus = document.getElementById("launchStatus");
+const viewerFake = document.getElementById("viewerFake");
+const viewerState = document.getElementById("viewerState");
+const launchBtn = document.getElementById("launchBtn");
+const launchStatus = document.getElementById("launchStatus");
   
-  let launchBusy = false;
+let launchBusy = false;
   
-  function runLaunchStatusAnim() {
-    if (!launchStatus || !launchBtn) return;
-    if (launchBusy) return;
-    launchBusy = true;
+function runLaunchStatusAnim() {
+  if (!launchStatus || !launchBtn) return;
+  if (launchBusy) return;
+  launchBusy = true;
+ 
+  launchStatus.textContent = "requesting campaign…";
+  launchBtn.classList.add("busy");
   
-    launchStatus.textContent = "requesting campaign…";
-    launchBtn.classList.add("busy");
+  setTimeout(() => (launchStatus.textContent = "loading creatives…"), 500);
+  setTimeout(() => (launchStatus.textContent = "waiting for view signal…"), 1100);
+
+  setTimeout(() => {
+    launchStatus.textContent = "idle";
+    launchBtn.classList.remove("busy");
+    launchBusy = false;
+  }, 1800);
+}
+ 
+if (launchBtn) {
+  launchBtn.addEventListener(
+    "click",
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
   
-    setTimeout(() => (launchStatus.textContent = "loading creatives…"), 500);
-    setTimeout(() => (launchStatus.textContent = "waiting for view signal…"), 1100);
+      unlockAudio();
   
-    setTimeout(() => {
-      launchStatus.textContent = "idle";
-      launchBtn.classList.remove("busy");
-      launchBusy = false;
-    }, 1800);
-  }
+      if (viewerToken) {
+        viewerToken.disabled = false;
+        viewerToken.classList.remove("hidden");
+        viewerToken.focus();
+        try { viewerToken.select(); } catch {}
+      }
   
-  if (launchBtn) {
-    launchBtn.addEventListener(
-      "click",
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
+      if (viewerFake) viewerFake.classList.add("hidden");
+      if (viewerState) viewerState.textContent = "active";
   
-        unlockAudio();
-  
-        if (viewerToken) {
-          viewerToken.disabled = false;
-          viewerToken.classList.remove("hidden");
-          viewerToken.focus();
-          try { viewerToken.select(); } catch {}
-        }
-  
-        if (viewerFake) viewerFake.classList.add("hidden");
-        if (viewerState) viewerState.textContent = "active";
-  
-        runLaunchStatusAnim();
-      },
-      true
-    );
-  }
-  boot();
+      runLaunchStatusAnim();
+    },
+    true
+  );
+}
+boot();
 })();
