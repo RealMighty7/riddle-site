@@ -281,25 +281,6 @@
     }
     tick();
     setInterval(tick, 1000);
-
-    // Fake launcher feedback (doesn't block your existing click-to-crack flow)
-    const btn = document.getElementById("launchBtn");
-    const st = document.getElementById("launchStatus");
-    let busy = false;
-
-    btn.addEventListener("click", () => {
-      if (busy) return;
-      busy = true;
-      st.textContent = "requesting campaign…";
-      btn.classList.add("busy");
-      setTimeout(() => st.textContent = "loading creatives…", 500);
-      setTimeout(() => st.textContent = "waiting for view signal…", 1100);
-      setTimeout(() => {
-        st.textContent = "idle";
-        btn.classList.remove("busy");
-        busy = false;
-      }, 1800);
-    });
   </script>
 </body>
 </html>
