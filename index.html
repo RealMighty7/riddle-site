@@ -234,6 +234,28 @@
         </div>
       </div>
     </div>
+    <!-- ADMIN DIAGNOSTIC PANEL (hidden unless admin) -->
+  <section id="adminPanel" class="adminPanel hidden" aria-hidden="true">
+    <div class="adminHead">
+      <div class="adminTitle">DIAGNOSTIC</div>
+      <button id="adminToggle" class="sim-btn adminTiny" type="button">hide</button>
+    </div>
+  
+    <div class="adminRow">
+      <span class="pill small ghost">task</span>
+      <span id="adminTask" class="pill small">—</span>
+    </div>
+  
+    <div class="adminRow" style="margin-top:8px">
+      <span class="pill small ghost">answer</span>
+    </div>
+  
+    <pre id="adminAnswer" class="adminAnswer">—</pre>
+  
+    <div class="adminActions">
+      <button id="adminSkip" class="sim-btn">skip task</button>
+    </div>
+  </section>
   </section>
 
   <!-- HACK ROOM -->
