@@ -11,9 +11,9 @@ const SFX_MAP = {
   static: "/assets/static1.wav",
   staticSoft: "/assets/static2.wav",
   ambience: "/assets/ambience.wav",
-  glassBreak: "/assets/thud.wav", // replace later if you add real glass
+  glassBreak: "/assets/glassbreaking.mp3",
+  mclick: "/assets/click.mp3",
 };
-
 function clamp01(v) {
   v = Number(v);
   return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
