@@ -609,13 +609,20 @@ body:not(.in-sim) #wrap::after{
 
 /* ============ overlay stacks ============ */
 #cracks,
-#glassFX{
-  position: fixed;
-  inset: 0;
-  pointer-events:none;
+#glassFX,
+canvas#cracks,
+canvas#glassFX,
+.glassFX,
+.cracks {
+  pointer-events: none;
 }
-#cracks{ z-index: 50; }
-#glassFX{ z-index: 60; }
+
+/* If you have clickable anchor dots inside the overlay, re-enable clicks for those only */
+.anchor,
+.anchorDot,
+[data-anchor] {
+  pointer-events: auto;
+}
 
 /* =========================================================
    CRACK SHARDS + STAGED LINES
