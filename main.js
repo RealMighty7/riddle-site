@@ -1272,5 +1272,6 @@ if (launchBtn) {
     true
   );
 }
+}
 boot();
 })();
