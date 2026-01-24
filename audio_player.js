@@ -1,9 +1,10 @@
 // audio_player.js (NON-module script)
 
-// ✅ no "export"
 class VoiceBank {
   constructor({
-    voicesUrl = "/data/voices.json",
+    // ✅ matches your folder: /audio/data/voices.json
+    voicesUrl = "/audio/data/voices.json",
+    // Optional hook: (tagName, ctx) => void
     onTag = null
   } = {}) {
     this.voicesUrl = voicesUrl;
@@ -31,7 +32,19 @@ class VoiceBank {
     if (this.loaded) return;
 
     const res = await fetch(this.voicesUrl, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Failed to load voices.json: ${res.status}`);
+    if (!res.ok) {
+      throw new Error(`Failed to load voices.json: ${res.status} (${this.voicesUrl})`);
+    }
+
+    // ✅ nicer error if server returns HTML
+    const contentType = (res.headers.get("content-type") || "").toLowerCase();
+    if (!contentType.includes("application/json")) {
+      const preview = (await res.text()).slice(0, 120);
+      throw new Error(
+        `voices.json is not JSON (content-type="${contentType}"). ` +
+        `Check voicesUrl="${this.voicesUrl}". Got: ${preview}`
+      );
+    }
 
     const data = await res.json();
     const lines = Array.isArray(data) ? data : data.lines;
