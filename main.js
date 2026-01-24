@@ -132,6 +132,17 @@ const ids = [
     });
     SFX.ambience.loop = true;
     SFX.ambience.volume = 0.22;
+function playSfx(name, vol = 1) {
+  const a = SFX[name];
+  if (!a) return;
+  try {
+    a.pause();
+    a.currentTime = 0;
+    a.volume = Math.max(0, Math.min(1, vol));
+    a.play().catch(() => {});
+  } catch {}
+}
+
 
 let audioUnlocked = false;
 async function unlockAudio() {
@@ -1257,12 +1268,12 @@ if (launchBtn) {
 
       clicks++;
 
-      if (clicks === 4) setCrackStage(1);
-      if (clicks === 6) setCrackStage(2);
-      if (clicks === 8) setCrackStage(3);
-      if (clicks === 10) setCrackStage(4);
+      if (clicks === 15) setCrackStage(1);
+      if (clicks === 20) setCrackStage(2);
+      if (clicks === 25) setCrackStage(3);
+      if (clicks === 30) setCrackStage(4);
 
-      if (clicks >= 10) {
+      if (clicks >= 20) {
         stage = 2;
 
         systemBox.textContent = "You weren't supposed to do that.";
