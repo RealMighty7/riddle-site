@@ -209,6 +209,18 @@ body.in-sim #wrap {
 /* =========================
    LANDING (NEW MARKUP)
    ========================= */
+/* Admin-only panel (Option A, no layout shift) */
+.adminOnly{
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+body.admin .adminOnly{
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 body.admin #adminStatus { color: rgba(210,255,220,0.92); }
 body.admin #adminMsg { color: rgba(210,255,220,0.80); }
 
