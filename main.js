@@ -216,9 +216,12 @@ window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
   // use fixed positioning so it can float anywhere
   const r = panelEl.getBoundingClientRect();
   panelEl.style.position = "fixed";
+  panelEl.style.right = "auto";
+  panelEl.style.bottom = "auto";
   panelEl.style.left = `${Math.max(10, Math.min(window.innerWidth - r.width - 10, r.left))}px`;
   panelEl.style.top  = `${Math.max(10, Math.min(window.innerHeight - r.height - 10, r.top))}px`;
   panelEl.style.zIndex = "9999";
+
 
   let dragging = false;
   let startX = 0, startY = 0;
@@ -1235,15 +1238,16 @@ Reinitializing simulation…`
             const makeLayer = (cls) => {
               const layer = document.createElement("div");
               layer.className = `glass-rgb ${cls}`;
-              const clone = wrap.cloneNode(true);
-              clone.id = "";
-              clone.classList.add("wrap-clone");
-              clone.style.pointerEvents = "none";
+              const clone1 = wrap.cloneNode(true);
+              clone1.id = "";
+              clone1.classList.add("wrap-clone");
+              clone1.style.pointerEvents = "none";
+              clone1.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
               
-              // remove duplicate ids inside clone
-              clone.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
-              layer.appendChild(clone);
-              layer.appendChild(clone);
+              const clone2 = clone1.cloneNode(true); // second copy (actual duplication)
+              
+              layer.appendChild(clone1);
+              layer.appendChild(clone2);
               return layer;
             };
   
