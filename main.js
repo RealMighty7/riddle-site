@@ -17,39 +17,6 @@
       console.error("Missing dialogue.js or tasks.js. Check script order.");
       return;
     }
-
-    let audioUnlocked = false;
-
-function unlockAudioOnce() {
-  if (audioUnlocked) return;
-  audioUnlocked = true;
-
-  // If you use <audio> tags
-  document.querySelectorAll("audio").forEach(a => {
-    a.muted = true;
-    a.play().catch(() => {});
-    a.pause();
-    a.currentTime = 0;
-    a.muted = false;
-  });
-
-  // If you use WebAudio
-  if (window.__audioCtx && window.__audioCtx.state === "suspended") {
-    window.__audioCtx.resume().catch(() => {});
-  }
-
-  console.log("[audio] unlocked");
-}
-
-window.addEventListener("pointerdown", unlockAudioOnce, { once: true, capture: true });
-window.addEventListener("keydown", unlockAudioOnce, { once: true, capture: true });
-
-      /* ====================== RANDOM IMAGES ====================== */
-  document.querySelectorAll(".adImg").forEach((img) => {
-    img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
-  });
-  
-
     /* ====================== ELEMENTS ====================== */
 const ids = [
   "system",
@@ -195,6 +162,10 @@ const ids = [
         SFX.ambience.play().catch(() => {});
       } catch {}
     }
+    // Unlock on first user gesture (so sim room VO/SFX won’t get blocked)
+window.addEventListener("pointerdown", () => unlockAudio(), { once: true, capture: true });
+window.addEventListener("keydown", () => unlockAudio(), { once: true, capture: true });
+
     /* =========================
        POP-IN + SHAKE HELPERS
     ========================= */
@@ -652,28 +623,6 @@ Reinitializing simulation…`
         renderFile(idx);
       });
     });
-    // Put near your other listeners, after DOM is ready
-const tasksRoot = document.getElementById("simChoices") || document.getElementById("tasks") || document.body;
-
-tasksRoot.addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-task]");
-  if (!btn) return;
-
-  const id = btn.getAttribute("data-task");
-  console.log("[task click]", id);
-
-  // Call your existing task handler (rename to whatever you use)
-  if (typeof window.onTaskClick === "function") {
-    window.onTaskClick(id);
-  } else if (typeof handleTaskClick === "function") {
-    handleTaskClick(id);
-  } else {
-    // Fallback so clicks at least do *something*
-    btn.classList.add("hit");
-    setTimeout(() => btn.classList.remove("hit"), 120);
-  }
-});
-
     if (hackFileBtns[0]) hackFileBtns[0].classList.add("active");
 
     hackReset.onclick = resetHack;
