@@ -8,6 +8,9 @@
   // Pools for random selection
   const TASK_POOLS = (window.TASK_POOLS = window.TASK_POOLS || {});
 
+  // Global admin force-pass latch (set by main.js admin panel)
+  if (typeof window.__ADMIN_FORCE_OK === "undefined") window.__ADMIN_FORCE_OK = false;
+
   // packs call: registerTaskPool("core" / "packX" / etc, [{ id:"anchors", w:1 }, ...])
   window.registerTaskPool = function registerTaskPool(poolName, entries) {
     if (!poolName) return;
@@ -49,6 +52,16 @@
 
   // Anti-repeat (light pacing)
   let _lastTaskId = null;
+
+  function adminForced(ctx) {
+    return !!(ctx?.admin?.forceOk || window.__ADMIN_FORCE_OK);
+  }
+
+  function consumeAdminForce(ctx) {
+    // consume the global latch so it only applies to ONE task completion
+    window.__ADMIN_FORCE_OK = false;
+    if (ctx?.admin) ctx.admin.forceOk = false;
+  }
 
   // Make packs harder to crash (esp during manual console tests)
   function normalizeCtx(ctx) {
@@ -94,7 +107,10 @@
     // bind skip once per ctx object
     if (!safe._adminBound) {
       safe._adminBound = true;
+
+      // When skip is requested, force-enable the taskPrimary and set a latch.
       document.addEventListener("admin:skip", () => {
+        window.__ADMIN_FORCE_OK = true;
         if (!safe.admin) safe.admin = {};
         safe.admin.forceOk = true;
         try {
@@ -163,6 +179,7 @@
   function clamp(n, a, b) {
     return Math.max(a, Math.min(b, n));
   }
+
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   function scopedListeners() {
@@ -197,7 +214,10 @@
       attempts++;
       ctx.admin.forceOk = false;
 
-      ctx.showTaskUI("RESTART // ANCHOR SYNC", `Stabilize boundary. Locate and click ${count} anchors.`);
+      ctx.showTaskUI(
+        "RESTART // ANCHOR SYNC",
+        `Stabilize boundary. Locate and click ${count} anchors.`
+      );
       ctx.setAdminHint?.(`Click ${count} anchors. (Admin: SKIP will force-pass)`);
 
       ctx.taskBody.innerHTML = "";
@@ -259,10 +279,11 @@
         ctx.taskPrimary.onclick = () => resolve(true);
 
         const watcher = setInterval(() => {
-          if (ctx.admin?.forceOk) {
+          if (adminForced(ctx)) {
             clearInterval(watcher);
             ctx.taskPrimary.disabled = false;
             ctx.taskPrimary.onclick = () => resolve(true);
+            consumeAdminForce(ctx);
             return;
           }
           if (!timedOut) return;
@@ -282,7 +303,10 @@
       for (const x of anchors) x.remove();
       L.clear();
 
-      if (ok || ctx.admin?.forceOk) return;
+      if (ok || adminForced(ctx)) {
+        consumeAdminForce(ctx);
+        return;
+      }
 
       ctx.glitch?.();
       ctx.penalize?.(1, "ANCHOR DESYNC: penalty applied.");
@@ -358,7 +382,7 @@
 
         ctx.taskBody.appendChild(wrap);
         const okNow = state.join("|") === correct.join("|");
-        ctx.taskPrimary.disabled = !okNow && !ctx.admin?.forceOk;
+        ctx.taskPrimary.disabled = !okNow && !adminForced(ctx);
       };
 
       ctx.taskPrimary.textContent = "confirm order";
@@ -368,7 +392,7 @@
       await new Promise((resolve) => {
         ctx.taskPrimary.onclick = () => resolve();
         const watcher = setInterval(() => {
-          if (ctx.admin?.forceOk) {
+          if (adminForced(ctx)) {
             clearInterval(watcher);
             try {
               ctx.taskPrimary.disabled = false;
@@ -378,7 +402,10 @@
       });
 
       const ok = state.join("|") === correct.join("|");
-      if (ok || ctx.admin?.forceOk) return;
+      if (ok || adminForced(ctx)) {
+        consumeAdminForce(ctx);
+        return;
+      }
 
       ctx.glitch?.();
       ctx.penalize?.(1, "LOG INTEGRITY FAILURE: penalty applied.");
@@ -429,7 +456,7 @@
       const validate = () => {
         const v = (inp.value || "").trim();
         const okNow = v.toLowerCase() === phrase.toLowerCase();
-        ctx.taskPrimary.disabled = !okNow && !ctx.admin?.forceOk;
+        ctx.taskPrimary.disabled = !okNow && !adminForced(ctx);
         msg.textContent = okNow ? "checksum accepted." : "";
       };
 
@@ -442,7 +469,7 @@
       await new Promise((resolve) => {
         ctx.taskPrimary.onclick = () => resolve();
         const watcher = setInterval(() => {
-          if (ctx.admin?.forceOk) {
+          if (adminForced(ctx)) {
             clearInterval(watcher);
             try {
               ctx.taskPrimary.disabled = false;
@@ -451,7 +478,10 @@
         }, 120);
       });
 
-      if (ctx.admin?.forceOk) return;
+      if (adminForced(ctx)) {
+        consumeAdminForce(ctx);
+        return;
+      }
 
       const v = (inp.value || "").trim();
       const ok = v.toLowerCase() === phrase.toLowerCase();
@@ -522,7 +552,7 @@
       raf = requestAnimationFrame(step);
     };
 
-    // only penalize once per attempt (prevents “hold” from stacking 10 penalties)
+    // only penalize once per attempt
     let droppedOnce = false;
     const reset = () => {
       if (completed) return;
@@ -551,13 +581,18 @@
       }
     });
 
-    L.on(holdBtn, "touchstart", (e) => {
-      e.preventDefault();
-      if (completed) return;
-      holdingNow = true;
-      hint.textContent = "";
-      raf = requestAnimationFrame(step);
-    }, { passive: false });
+    L.on(
+      holdBtn,
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        if (completed) return;
+        holdingNow = true;
+        hint.textContent = "";
+        raf = requestAnimationFrame(step);
+      },
+      { passive: false }
+    );
 
     L.on(window, "touchend", () => {
       if (holdingNow) {
@@ -569,7 +604,7 @@
     await new Promise((resolve) => {
       ctx.taskPrimary.onclick = () => resolve();
       const watcher = setInterval(() => {
-        if (ctx.admin?.forceOk) {
+        if (adminForced(ctx)) {
           clearInterval(watcher);
           try {
             ctx.taskPrimary.disabled = false;
@@ -578,6 +613,7 @@
       }, 120);
     });
 
+    if (adminForced(ctx)) consumeAdminForce(ctx);
     L.clear();
   };
 
@@ -658,7 +694,7 @@
           if (input.length === sequence.length) {
             const okNow = input.join("|") === sequence.join("|");
             msg.textContent = okNow ? "pattern accepted." : "pattern rejected.";
-            ctx.taskPrimary.disabled = (!okNow) && !ctx.admin?.forceOk;
+            ctx.taskPrimary.disabled = !okNow && !adminForced(ctx);
             if (!okNow) {
               ctx.penalize?.(1, "PATTERN FAIL: penalty applied.");
               ctx.glitch?.();
@@ -686,7 +722,7 @@
       await new Promise((resolve) => {
         ctx.taskPrimary.onclick = () => resolve();
         const watcher = setInterval(() => {
-          if (ctx.admin?.forceOk) {
+          if (adminForced(ctx)) {
             clearInterval(watcher);
             try {
               ctx.taskPrimary.disabled = false;
@@ -699,7 +735,10 @@
       clearTimeout(hideTimeout);
 
       const ok = input.join("|") === sequence.join("|");
-      if (ok || ctx.admin?.forceOk) return;
+      if (ok || adminForced(ctx)) {
+        consumeAdminForce(ctx);
+        return;
+      }
 
       ctx.glitch?.();
       ctx.penalize?.(1, "PATTERN REJECTED: penalty applied.");
@@ -763,7 +802,6 @@
             ctx.penalize?.(1, "WRONG PICK: penalty applied.");
             ctx.glitch?.();
 
-            // if they keep failing, force reset
             if (wrongClicks >= 2 && attempts >= 2) {
               ctx.doReset?.("RESET", "Repeated mismatch errors.\n\nSimulation restart required.");
             }
@@ -781,7 +819,7 @@
       await new Promise((resolve) => {
         ctx.taskPrimary.onclick = () => resolve();
         const watcher = setInterval(() => {
-          if (ctx.admin?.forceOk) {
+          if (adminForced(ctx)) {
             clearInterval(watcher);
             try {
               ctx.taskPrimary.disabled = false;
@@ -790,7 +828,10 @@
         }, 120);
       });
 
-      if (solved || ctx.admin?.forceOk) return;
+      if (solved || adminForced(ctx)) {
+        consumeAdminForce(ctx);
+        return;
+      }
 
       ctx.glitch?.();
       ctx.penalize?.(1, "MISMATCH FAILED: penalty applied.");
