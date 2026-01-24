@@ -852,19 +852,6 @@ Reinitializing simulation…`
         await playLines(beat.respond && beat.respond[choice] ? beat.respond[choice] : []);
       }
     }
-
-    function isCountableClick(e) {
-      const t = e.target;
-
-      // Text node / non-element safety
-      if (!(t instanceof Element)) return true;
-
-      // ignore interactive UI
-      if (t.closest("button, input, textarea, select, label, a")) return false;
-
-      return true;
-    }
-
     // NOTE: handleLandingClick is declared later (in the CRACKS section)
   
       /* ======================
@@ -1227,7 +1214,7 @@ Reinitializing simulation…`
       advanceLandingClick();
     }
     window.handleLandingClick = handleLandingClick;
-    
+    document.addEventListener("click", handleLandingClick);
       
     /* ======================
        LAUNCH BUTTON
