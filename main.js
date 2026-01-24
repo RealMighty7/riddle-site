@@ -1250,7 +1250,7 @@ Reinitializing simulation…`
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        playSfx("click", { volume: 0.25, overlap: true }); // UI click feedback
+        playSfx("mclick", { volume: 0.25, overlap: true }); // UI click feedback
     
         unlockAudio();
     
