@@ -65,19 +65,17 @@
     if (!safe.taskBody) safe.taskBody = document.body;
 
     // taskPrimary needs: textContent, disabled, onclick
-    if (!safe.taskPrimary) safe.taskPrimary = {};
-    if (typeof safe.taskPrimary !== "object") safe.taskPrimary = {};
+    if (!safe.taskPrimary || typeof safe.taskPrimary !== "object") safe.taskPrimary = {};
     if (!("textContent" in safe.taskPrimary)) safe.taskPrimary.textContent = "";
     if (!("disabled" in safe.taskPrimary)) safe.taskPrimary.disabled = false;
     if (!("onclick" in safe.taskPrimary)) safe.taskPrimary.onclick = null;
 
     // taskSecondary needs: classList at minimum
-    if (!safe.taskSecondary) safe.taskSecondary = {};
-    if (typeof safe.taskSecondary !== "object") safe.taskSecondary = {};
+    if (!safe.taskSecondary || typeof safe.taskSecondary !== "object") safe.taskSecondary = {};
     if (!safe.taskSecondary.classList) safe.taskSecondary.classList = fakeClassList;
 
     // --- admin diagnostics ---
-    if (!safe.admin) safe.admin = {};
+    if (!safe.admin || typeof safe.admin !== "object") safe.admin = {};
     safe.admin.enabled = document.body.classList.contains("admin");
     if (typeof safe.admin.forceOk !== "boolean") safe.admin.forceOk = false;
 
@@ -87,7 +85,7 @@
         if (!safe.admin.enabled) return;
         document.dispatchEvent(
           new CustomEvent("admin:hint", {
-            detail: { taskId: safe.currentTaskId || "—", hint: text },
+            detail: { taskId: safe.currentTaskId || "—", hint: String(text ?? "") },
           })
         );
       };
@@ -187,11 +185,10 @@
   /* ====================== CORE TASKS ====================== */
 
   // TASK: anchors
-  ctx.setAdminHint?.(`Solution: click ${count} anchors. Skip available.`);
   TASKS.anchors = async function anchors(ctx, args = {}) {
     ctx = normalizeCtx(ctx);
 
-    const base = args.base ?? 5;
+    const base = Number(args.base ?? 5);
     const count = base + (ctx.difficultyBoost?.() ?? 0);
 
     let attempts = 0;
@@ -202,8 +199,8 @@
 
       ctx.showTaskUI("RESTART // ANCHOR SYNC", `Stabilize boundary. Locate and click ${count} anchors.`);
       ctx.setAdminHint?.(`Click ${count} anchors. (Admin: SKIP will force-pass)`);
-      ctx.taskBody.innerHTML = "";
 
+      ctx.taskBody.innerHTML = "";
       ctx.taskPrimary.textContent = "continue";
       ctx.taskPrimary.disabled = true;
 
@@ -225,7 +222,7 @@
         a.style.left = `${10 + Math.random() * 80}vw`;
         a.style.top = `${12 + Math.random() * 72}vh`;
 
-        a.addEventListener("click", () => {
+        const click = () => {
           remaining--;
           remainText.textContent = String(remaining);
           a.remove();
@@ -234,8 +231,9 @@
             for (const x of anchors) x.remove();
             ctx.taskPrimary.disabled = false;
           }
-        });
+        };
 
+        L.on(a, "click", click);
         document.body.appendChild(a);
         anchors.push(a);
       };
@@ -298,12 +296,22 @@
   };
 
   // TASK: reorder
-  ctx.setAdminHint?.(`Correct order:\n- ${correct.join("\n- ")}`);
   TASKS.reorder = async function reorder(ctx, args = {}) {
     ctx = normalizeCtx(ctx);
 
     const items = Array.isArray(args.items) ? args.items.slice() : [];
     const correct = Array.isArray(args.correct) ? args.correct.slice() : [];
+
+    // Fallback: if caller forgot to pass items/correct, don't soft-crash
+    if (!items.length || !correct.length || items.length !== correct.length) {
+      ctx.showTaskUI("RESTART // LOG RECONSTRUCTION", "Fragments unavailable. Continuing.");
+      ctx.taskBody.innerHTML = `<div style="opacity:.85">log fragments missing.</div>`;
+      ctx.taskPrimary.textContent = "continue";
+      ctx.taskPrimary.disabled = false;
+      await new Promise((r) => (ctx.taskPrimary.onclick = r));
+      return;
+    }
+
     let attempts = 0;
 
     while (true) {
@@ -311,9 +319,11 @@
       ctx.admin.forceOk = false;
 
       ctx.showTaskUI("RESTART // LOG RECONSTRUCTION", "Reorder fragments to rebuild the event timeline.");
-      if (correct.length) ctx.setAdminHint?.(`Correct order:\n- ${correct.join("\n- ")}`);
+      ctx.setAdminHint?.(`Correct order:\n- ${correct.join("\n- ")}`);
+
       ctx.taskBody.innerHTML = "";
 
+      const state = items.slice();
       let first = null;
 
       const render = () => {
@@ -351,8 +361,6 @@
         ctx.taskPrimary.disabled = !okNow && !ctx.admin?.forceOk;
       };
 
-      const state = items.slice();
-
       ctx.taskPrimary.textContent = "confirm order";
       ctx.taskPrimary.disabled = true;
       render();
@@ -383,11 +391,20 @@
   };
 
   // TASK: checksum
-  ctx.setAdminHint?.(`Checksum:\n${phrase}`);
   TASKS.checksum = async function checksum(ctx, args = {}) {
     ctx = normalizeCtx(ctx);
 
     const phrase = String(args.phrase || "").trim();
+
+    if (!phrase) {
+      ctx.showTaskUI("RESTART // CHECKSUM", "Checksum phrase missing. Continuing.");
+      ctx.taskBody.innerHTML = `<div style="opacity:.85">checksum config missing.</div>`;
+      ctx.taskPrimary.textContent = "continue";
+      ctx.taskPrimary.disabled = false;
+      await new Promise((r) => (ctx.taskPrimary.onclick = r));
+      return;
+    }
+
     let attempts = 0;
 
     while (true) {
@@ -395,7 +412,8 @@
       ctx.admin.forceOk = false;
 
       ctx.showTaskUI("RESTART // CHECKSUM", "Enter the checksum phrase exactly to verify memory integrity.");
-      if (phrase) ctx.setAdminHint?.(`Phrase: ${phrase}`);
+      ctx.setAdminHint?.(`Phrase: ${phrase}`);
+
       ctx.taskBody.innerHTML = `
         <div style="opacity:.85;margin-bottom:8px">Checksum required:</div>
         <div class="pill" style="opacity:.9">Format: wordwordnumberword</div>
@@ -466,7 +484,7 @@
         <div id="bar" style="height:100%;width:0%"></div>
       </div>
       <div style="margin-top:12px">
-        <button id="hold" class="sim-btn">hold</button>
+        <button id="hold" class="sim-btn" type="button">hold</button>
       </div>
       <div id="hint" style="margin-top:8px;opacity:.8"></div>
     `;
@@ -504,14 +522,19 @@
       raf = requestAnimationFrame(step);
     };
 
+    // only penalize once per attempt (prevents “hold” from stacking 10 penalties)
+    let droppedOnce = false;
     const reset = () => {
       if (completed) return;
       start = null;
       bar.style.width = "0%";
       hint.textContent = "holding interrupted.";
       ctx.taskPrimary.disabled = true;
-      ctx.penalize?.(1, "STABILITY DROP: penalty applied.");
-      ctx.glitch?.();
+      if (!droppedOnce) {
+        droppedOnce = true;
+        ctx.penalize?.(1, "STABILITY DROP: penalty applied.");
+        ctx.glitch?.();
+      }
     };
 
     L.on(holdBtn, "mousedown", () => {
@@ -624,6 +647,7 @@
       needed.forEach((s) => {
         const b = document.createElement("button");
         b.className = "sim-btn";
+        b.type = "button";
         b.textContent = s;
         b.style.minWidth = "44px";
         b.onclick = () => {
@@ -646,6 +670,7 @@
 
       const resetBtn = document.createElement("button");
       resetBtn.className = "sim-btn";
+      resetBtn.type = "button";
       resetBtn.textContent = "reset";
       resetBtn.onclick = () => {
         input = [];
@@ -705,9 +730,9 @@
       const good = shapes[Math.floor(Math.random() * shapes.length)];
       const bad = shapes.filter((x) => x !== good)[Math.floor(Math.random() * (shapes.length - 1))];
       const badIndex = Math.floor(Math.random() * count);
-      ctx.setAdminHint?.(`Mismatch position: #${badIndex + 1}`);
 
-      ctx.setAdminHint?.(`Bad index: ${badIndex + 1} (0-based: ${badIndex})`);
+      // one hint (no duplicate spam / undefined refs)
+      ctx.setAdminHint?.(`Mismatch position: #${badIndex + 1}`);
 
       ctx.taskBody.innerHTML = `<div style="opacity:.85;margin-bottom:10px">Click the one that does not match.</div>`;
       const wrap = document.createElement("div");
@@ -721,6 +746,7 @@
       for (let i = 0; i < count; i++) {
         const b = document.createElement("button");
         b.className = "sim-btn";
+        b.type = "button";
         b.textContent = i === badIndex ? bad : good;
         b.style.minWidth = "46px";
 
@@ -737,9 +763,9 @@
             ctx.penalize?.(1, "WRONG PICK: penalty applied.");
             ctx.glitch?.();
 
+            // if they keep failing, force reset
             if (wrongClicks >= 2 && attempts >= 2) {
               ctx.doReset?.("RESET", "Repeated mismatch errors.\n\nSimulation restart required.");
-              return;
             }
           }
         };
