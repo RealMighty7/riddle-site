@@ -169,30 +169,6 @@ const ids = [
         SFX.ambience.play().catch(() => {});
       } catch {}
     }
-/* smth smth just look at it ngl */
-      const viewerFake = document.getElementById("viewerFake");
-      const viewerState = document.getElementById("viewerState");
-      
-      const launchBtn = document.getElementById("launchBtn");
-      if (launchBtn) {
-        launchBtn.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-      
-          unlockAudio(); // optional
-      
-          // enable typing only
-          if (viewerToken) {
-            viewerToken.disabled = false;
-            viewerToken.classList.remove("hidden");
-            viewerToken.focus();
-            try { viewerToken.select(); } catch {}
-          }
-          if (viewerFake) viewerFake.classList.add("hidden");
-          if (viewerState) viewerState.textContent = "active";
-        });
-      }
-
     /* =========================
        POP-IN + SHAKE HELPERS
     ========================= */
@@ -1251,25 +1227,29 @@ Reinitializing simulation…`
        LAUNCH BUTTON
        - ONLY unlocks viewer token typing
     ====================== */
+    const viewerFake = document.getElementById("viewerFake");
+    const viewerState = document.getElementById("viewerState");
     const launchBtn = document.getElementById("launchBtn");
+    
     if (launchBtn) {
       launchBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation(); // IMPORTANT: blocks any other listeners
     
-        unlockAudio(); // optional, safe
+        unlockAudio();
     
-        // ONLY enable typing in the viewer token box
+        // enable typing only
         if (viewerToken) {
           viewerToken.disabled = false;
-          viewerToken.removeAttribute("aria-disabled");
+          viewerToken.classList.remove("hidden");
           viewerToken.focus();
           try { viewerToken.select(); } catch {}
         }
     
-        // small visual feedback (optional)
-        try { popIn(viewerToken || systemBox); } catch {}
-      });
+        if (viewerFake) viewerFake.classList.add("hidden");
+        if (viewerState) viewerState.textContent = "active";
+      }, true); // capture phase so it wins
     }
   boot();
 })();
