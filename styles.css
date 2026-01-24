@@ -854,6 +854,24 @@ canvas#glassFX,
 /* =========================================================
    SIM ROOM (centered + above overlays)
    ========================================================= */
+/* Make sure the actual UI layer sits above background effects */
+#wrap,
+.card,
+#subs,
+#simRoom,
+#system {
+  position: relative;
+  z-index: 5;
+}
+
+/* Keep FX behind */
+#cracks,
+#glassFX {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+}
+
 #simRoom{
   position: fixed;
   inset: 0;
