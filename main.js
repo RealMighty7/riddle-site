@@ -170,28 +170,28 @@ const ids = [
       } catch {}
     }
 /* smth smth just look at it ngl */
-    const launchBtn = document.getElementById("launchBtn");
-    if (launchBtn) {
-      launchBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-    
-        unlockAudio(); // optional, safe
-    
-        // Only unlock the viewer token field
-        if (viewerToken) {
-          viewerToken.disabled = false;
-          viewerToken.removeAttribute("aria-disabled");
-          viewerToken.focus();
-    
-          // optional: select placeholder text if any
-          try { viewerToken.select(); } catch {}
-        }
-    
-        // optional: small UI feedback
-        try { popIn(viewerToken); } catch {}
-      });
-    }
+      const viewerFake = document.getElementById("viewerFake");
+      const viewerState = document.getElementById("viewerState");
+      
+      const launchBtn = document.getElementById("launchBtn");
+      if (launchBtn) {
+        launchBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+      
+          unlockAudio(); // optional
+      
+          // enable typing only
+          if (viewerToken) {
+            viewerToken.disabled = false;
+            viewerToken.classList.remove("hidden");
+            viewerToken.focus();
+            try { viewerToken.select(); } catch {}
+          }
+          if (viewerFake) viewerFake.classList.add("hidden");
+          if (viewerState) viewerState.textContent = "active";
+        });
+      }
 
     /* =========================
        POP-IN + SHAKE HELPERS
