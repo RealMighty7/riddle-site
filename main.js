@@ -437,26 +437,36 @@ window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
     }
 
     /* ====================== UI helpers ====================== */
+    document.getElementById("taskActions")?.classList.add("hidden");
     function showChoices(labels) {
       if (labels?.complyLabel) choiceNeed.textContent = labels.complyLabel;
       if (labels?.lieLabel) choiceLie.textContent = labels.lieLabel;
       if (labels?.runLabel) choiceRun.textContent = labels.runLabel;
+    
       simChoices.classList.remove("hidden");
+    
+      // ✅ HARD HIDE task UI so it cannot block clicks
       taskUI.classList.add("hidden");
     }
-
+    
     function hideChoices() {
       simChoices.classList.add("hidden");
     }
+    
 
     function showTaskUI(title, desc) {
       taskUI.classList.remove("hidden");
       taskTitle.textContent = title;
       taskDesc.textContent = desc;
       taskBody.innerHTML = "";
+    
       taskSecondary.classList.add("hidden");
       taskPrimary.disabled = false;
+    
+      // ✅ make sure actions are visible ONLY for tasks
+      document.getElementById("taskActions")?.classList.remove("hidden");
     }
+    
 
     function hardReload() {
       window.location.href = window.location.href.split("#")[0];
