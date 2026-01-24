@@ -1032,8 +1032,7 @@ Reinitializing simulation…`
           });
         }
   
-        if (crackStage === 1) playSfx("thud", 0.55);
-        else playSfx("static1", 0.30);
+        if (crackStage === 1) playSfx("glassBreak", { volume: 1.0 });
       }
   
       function buildGlassPieces() {
