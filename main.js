@@ -210,7 +210,7 @@
 
     // crack thresholds (start at 15 clicks)
     const CRACK_AT = [15, 20, 25, 30]; // stage 1..4
-    const SHATTER_AT = 30;
+    const SHATTER_AT = 31;
 
     const MAX_COMPLIANT_RATIO = 0.40;
     const MIN_CHOICES_BEFORE_CHECK = 10;
@@ -283,9 +283,11 @@
         }
 
         VO = new window.VoiceBank({
-          voicesUrl: "/data/voices.json",
+          // your real file location:
+          voicesUrl: "/audio/data/voices.json",
           onTag: (tagName) => handleVoiceTag(tagName),
         });
+        console.log("[VO] voicesUrl =", "/audio/data/voices.json");
 
         VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
 
@@ -1238,23 +1240,20 @@ Reinitializing simulation…`
         }
       }
   
-      // LAUNCH BUTTON now behaves like a landing click (does NOT skip cracks)
-      const launchBtn = document.getElementById("launchBtn");
-      if (launchBtn) {
-        launchBtn.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          unlockAudio();
-          try { popIn(systemBox); } catch {}
-          advanceLandingClick();
-        });
-      }
-  
-      // Any other click progresses cracks
-      document.addEventListener("click", (e) => {
+    /* ======================
+       LAUNCH BUTTON
+       - should NOT skip: it should behave like a landing click
+    ====================== */
+    const launchBtn = document.getElementById("launchBtn");
+    if (launchBtn) {
+      launchBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         unlockAudio();
-        if (!isCountableClick(e)) return;
-        advanceLandingClick();
+        popIn(systemBox);
+
+        // behave like a normal click (progress cracks)
+        handleLandingClick(e);
       });
     }
   }
