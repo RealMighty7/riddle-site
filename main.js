@@ -25,48 +25,47 @@
     });
 
     /* ====================== ELEMENTS ====================== */
-const ids = [
-  "system",
-  "cracks",
-  "glassFX",
+    const ids = [
+      "system",
+      "cracks",
+      "glassFX",
 
-  // NEW: subtitles UI (index.html already has these)
-  "subs",
-  "subsName",
-  "subsText",
+      // subtitles UI
+      "subs",
+      "subsName",
+      "subsText",
 
-  "simRoom",
-  "simText",
-  "simChoices",
-  "choiceNeed",
-  "choiceLie",
-  "choiceRun",
-  "taskUI",
-  "taskTitle",
-  "taskDesc",
-  "taskBody",
-  "taskPrimary",
-  "taskSecondary",
-  "resetOverlay",
-  "resetTitle",
-  "resetBody",
-  "finalOverlay",
-  "finalDiscord",
-  "finalAnswer",
-  "finalCancel",
-  "finalVerify",
-  "finalErr",
-  "turnstileBox",
-  "hackRoom",
-  "hackUser",
-  "hackTargets",
-  "hackFilename",
-  "hackLines",
-  "hackDelete",
-  "hackReset",
-  "hackStatus",
-];
-
+      "simRoom",
+      "simText",
+      "simChoices",
+      "choiceNeed",
+      "choiceLie",
+      "choiceRun",
+      "taskUI",
+      "taskTitle",
+      "taskDesc",
+      "taskBody",
+      "taskPrimary",
+      "taskSecondary",
+      "resetOverlay",
+      "resetTitle",
+      "resetBody",
+      "finalOverlay",
+      "finalDiscord",
+      "finalAnswer",
+      "finalCancel",
+      "finalVerify",
+      "finalErr",
+      "turnstileBox",
+      "hackRoom",
+      "hackUser",
+      "hackTargets",
+      "hackFilename",
+      "hackLines",
+      "hackDelete",
+      "hackReset",
+      "hackStatus",
+    ];
 
     const els = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
     const missing = ids.filter((id) => !els[id]);
@@ -78,6 +77,7 @@ const ids = [
     const systemBox = els.system;
     const cracks = els.cracks;
     const glassFX = els.glassFX;
+
     const simRoom = els.simRoom;
     const simText = els.simText;
     const simChoices = els.simChoices;
@@ -113,10 +113,15 @@ const ids = [
     const hackReset = els.hackReset;
     const hackStatus = els.hackStatus;
 
+    // subtitles nodes
+    const subs = els.subs;
+    const subsName = els.subsName;
+    const subsText = els.subsText;
+
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
 
-    /* ====================== AUDIO ====================== */
+    /* ====================== AUDIO (SFX) ====================== */
     const SFX = {
       ambience: new Audio("/assets/ambience.wav"),
       thud: new Audio("/assets/thud.wav"),
@@ -125,70 +130,72 @@ const ids = [
       static1: new Audio("/assets/static1.wav"),
       static2: new Audio("/assets/static2.wav"),
     };
+
     Object.values(SFX).forEach((a) => {
       try {
         a.preload = "auto";
       } catch {}
     });
+
     SFX.ambience.loop = true;
     SFX.ambience.volume = 0.22;
-function playSfx(name, vol = 1) {
-  const a = SFX[name];
-  if (!a) return;
-  try {
-    a.pause();
-    a.currentTime = 0;
-    a.volume = Math.max(0, Math.min(1, vol));
-    a.play().catch(() => {});
-  } catch {}
-}
 
+    function playSfx(name, vol = 1) {
+      const a = SFX[name];
+      if (!a) return;
+      try {
+        a.pause();
+        a.currentTime = 0;
+        a.volume = Math.max(0, Math.min(1, vol));
+        a.play().catch(() => {});
+      } catch {}
+    }
 
-let audioUnlocked = false;
-async function unlockAudio() {
-  if (audioUnlocked) return;
-  audioUnlocked = true;
+    let audioUnlocked = false;
+    async function unlockAudio() {
+      if (audioUnlocked) return;
+      audioUnlocked = true;
 
-  // unlock VO system (AudioContext)
-  try {
-    if (window.AudioPlayer?.unlock) await window.AudioPlayer.unlock();
-  } catch {}
+      // unlock VO system (AudioContext)
+      try {
+        if (window.AudioPlayer?.unlock) await window.AudioPlayer.unlock();
+      } catch {}
 
-  // unlock SFX (simple browser gesture capture)
-  try {
-    SFX.ambience.currentTime = 0;
-    SFX.ambience.play().catch(() => {});
-  } catch {}
-}
+      // unlock SFX (simple browser gesture capture)
+      try {
+        SFX.ambience.currentTime = 0;
+        SFX.ambience.play().catch(() => {});
+      } catch {}
+    }
 
+    /* =========================
+       POP-IN + SHAKE HELPERS
+    ========================= */
+    function popIn(el) {
+      if (!el) return;
+      el.classList.remove("pop-in");
+      void el.offsetWidth; // restart anim
+      el.classList.add("pop-in");
+    }
 
-    // =========================
-// POP-IN + SHAKE HELPERS
-// =========================
-function popIn(el){
-  if (!el) return;
-  el.classList.remove("pop-in");
-  // force reflow so animation restarts
-  void el.offsetWidth;
-  el.classList.add("pop-in");
-}
-
-function shake(el){
-  if (!el) return;
-  el.classList.remove("shake");
-  void el.offsetWidth;
-  el.classList.add("shake");
-}
+    function shake(el) {
+      if (!el) return;
+      el.classList.remove("shake");
+      void el.offsetWidth;
+      el.classList.add("shake");
+    }
 
     /* ====================== TIMING ====================== */
     const WPM = 300;
     const MS_PER_WORD = 60000 / WPM;
+
     function wordsCount(s) {
       return String(s || "")
         .trim()
         .split(/\s+/)
         .filter(Boolean).length;
     }
+
     function msToRead(line) {
       const w = wordsCount(line);
       if (!w) return 650;
@@ -200,6 +207,10 @@ function shake(el){
     let clicks = 0;
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
+
+    // crack thresholds (start at 15 clicks)
+    const CRACK_AT = [15, 20, 25, 30]; // stage 1..4
+    const SHATTER_AT = 30;
 
     const MAX_COMPLIANT_RATIO = 0.40;
     const MIN_CHOICES_BEFORE_CHECK = 10;
@@ -213,7 +224,6 @@ function shake(el){
       return late ? base + 1 : base;
     }
 
-
     /* ====================== TIMERS ====================== */
     let timers = [];
     function clearTimers() {
@@ -221,140 +231,141 @@ function shake(el){
       timers = [];
     }
 
-    /* ====================== UI helpers ====================== */
-const subs = els.subs;
-const subsName = els.subsName;
-const subsText = els.subsText;
+    /* ======================
+       VOICE LAYER (voices.json + /audio/*)
+       - Requires audio_player.js to set: window.VoiceBank = VoiceBank;
+    ====================== */
+    let VO = null;
+    let VO_READY = false;
 
-/* ======================
-   VOICE LAYER (voices.json + /audio/*)
-   ====================== */
-
-let VO = null;
-let VO_READY = false;
-
-// Optional: if you want tags like {breath} / {calm} to do stuff
-function handleVoiceTag(tag) {
-  if (tag === "breath") playSfx("static2", 0.08); // swap to breath sfx later
-  if (tag === "calm") {
-    if (subs) subs.classList.add("calm");
-    setTimeout(() => subs && subs.classList.remove("calm"), 900);
-  }
-}
-
-// If your dialogue lines don’t include ids, this tries to find a match by text.
-// It’s slower than id-based, but works as a fallback.
-function normalizeForMatch(s) {
-  return String(s || "")
-    .replace(/\{[a-zA-Z0-9_]+\}/g, "")         // strip {tags}
-    .replace(/^\s*\[\d{1,4}\]\s*/g, "")        // strip [0123]
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-function getIdFromLine(rawLine) {
-  const raw = String(rawLine || "");
-
-  // Preferred: embed IDs like: "[0123] Emma (Security): hello"
-  const m = raw.match(/^\s*\[(\d{1,4})\]\s*/);
-  if (m) return String(m[1]).padStart(4, "0");
-
-  // Fallback: try match by text in voices.json
-  if (!VO || !VO.byId) return null;
-  const target = normalizeForMatch(raw);
-
-  for (const [id, line] of VO.byId.entries()) {
-    const textRaw = line.text_raw ?? line.text ?? "";
-    const clean = line.text ?? normalizeForMatch(textRaw);
-    if (normalizeForMatch(clean) === target) return String(id).padStart(4, "0");
-  }
-  return null;
-}
-
-window.AudioPlayer = {
-  async init() {
-    if (VO_READY) return;
-    if (!window.VoiceBank) {
-      console.warn("VoiceBank not found. Make sure audio_player.js loads before main.js.");
-      return;
+    function handleVoiceTag(tag) {
+      if (tag === "breath") playSfx("static2", 0.08); // replace later with breath sfx
+      if (tag === "calm") {
+        if (subs) subs.classList.add("calm");
+        setTimeout(() => subs && subs.classList.remove("calm"), 900);
+      }
     }
-    VO = new window.VoiceBank({
-      voicesUrl: "/data/voices.json",
-      onTag: (tagName) => handleVoiceTag(tagName),
-    });
-    VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
-    await VO.load();
-    VO_READY = true;
-  },
 
-  async unlock() {
-    // Called from your unlockAudio() after a user gesture
-    try {
-      await this.init();
-      if (VO && VO.unlockAudio) await VO.unlockAudio();
-    } catch (e) {
-      console.warn("AudioPlayer.unlock failed:", e);
+    function normalizeForMatch(s) {
+      return String(s || "")
+        .replace(/\{[a-zA-Z0-9_]+\}/g, "") // strip {tags}
+        .replace(/^\s*\[\d{1,4}\]\s*/g, "") // strip [0123]
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
     }
-  },
 
-  async playLine(rawLine) {
-    try {
-      await this.init();
-      if (!VO) return;
+    function getIdFromLine(rawLine) {
+      const raw = String(rawLine || "");
 
-      // Show subtitle box while VO is active
-      if (subs) subs.classList.remove("hidden");
+      // Preferred: embed IDs like: "[0123] Emma: hello"
+      const m = raw.match(/^\s*\[(\d{1,4})\]\s*/);
+      if (m) return String(m[1]).padStart(4, "0");
 
-      const id = getIdFromLine(rawLine);
-      if (!id) return; // no match -> silently skip audio
+      // Fallback: try to match by text in voices.json
+      if (!VO || !VO.byId) return null;
+      const target = normalizeForMatch(raw);
 
-      await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: true });
-    } catch (e) {
-      console.warn("AudioPlayer.playLine failed:", e);
+      for (const [id, line] of VO.byId.entries()) {
+        const textRaw = line.text_raw ?? line.text ?? "";
+        if (normalizeForMatch(textRaw) === target) return String(id).padStart(4, "0");
+      }
+      return null;
     }
-  },
 
-  stop() {
-    try { VO?.stopCurrent?.(); } catch {}
-  }
-};
+    window.AudioPlayer = {
+      async init() {
+        if (VO_READY) return;
 
-// NEW: a single “output” pipe for BOTH text + audio/subtitles
-async function emitLine(line) {
-  const raw = String(line || "");
-  if (!raw) {
-    simText.textContent += "\n";
-    simText.scrollTop = simText.scrollHeight;
-    return;
-  }
+        if (!window.VoiceBank) {
+          console.warn("VoiceBank not found. Make sure /audio_player.js loads before /main.js.");
+          return;
+        }
 
-  // Log line (optional: strip [0123] so sim log doesn't show ids)
-  const logLine = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
-  simText.textContent += logLine + "\n";
-  simText.scrollTop = simText.scrollHeight;
+        VO = new window.VoiceBank({
+          voicesUrl: "/data/voices.json",
+          onTag: (tagName) => handleVoiceTag(tagName),
+        });
 
-  // Voice/Subtitles
-  if (window.AudioPlayer && typeof window.AudioPlayer.playLine === "function") {
-    await window.AudioPlayer.playLine(raw);
-  }
-}
+        VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
+
+        await VO.load();
+        VO_READY = true;
+      },
+
+      async unlock() {
+        try {
+          await this.init();
+          if (VO && VO.unlockAudio) await VO.unlockAudio();
+        } catch (e) {
+          console.warn("AudioPlayer.unlock failed:", e);
+        }
+      },
+
+      async playLine(rawLine) {
+        try {
+          await this.init();
+          if (!VO) return;
+
+          if (subs) subs.classList.remove("hidden");
+
+          const id = getIdFromLine(rawLine);
+          if (!id) return;
+
+          await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: true });
+        } catch (e) {
+          console.warn("AudioPlayer.playLine failed:", e);
+        }
+      },
+
+      stop() {
+        try {
+          VO?.stopCurrent?.();
+        } catch {}
+      },
+    };
+
+    /* ======================
+       OUTPUT PIPE (text + audio)
+    ====================== */
+    async function emitLine(line) {
+      const raw = String(line || "");
+      if (!raw) {
+        simText.textContent += "\n";
+        simText.scrollTop = simText.scrollHeight;
+        return;
+      }
+
+      // log line (strip optional [0123] id from visible log)
+      const logLine = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+      simText.textContent += logLine + "\n";
+      simText.scrollTop = simText.scrollHeight;
+
+      // voice/subtitles
+      if (window.AudioPlayer && typeof window.AudioPlayer.playLine === "function") {
+        await window.AudioPlayer.playLine(raw);
+      }
+    }
 
     function playLines(lines) {
       clearTimers();
       return new Promise((resolve) => {
         let t = 260;
-    
+
         for (const line of lines) {
-          timers.push(setTimeout(() => { emitLine(line); }, t));
+          timers.push(
+            setTimeout(() => {
+              emitLine(line);
+            }, t)
+          );
           t += msToRead(line || " ");
         }
-    
+
         timers.push(setTimeout(resolve, t + 120));
       });
     }
 
-
+    /* ====================== UI helpers ====================== */
     function showChoices(labels) {
       if (labels?.complyLabel) choiceNeed.textContent = labels.complyLabel;
       if (labels?.lieLabel) choiceLie.textContent = labels.lieLabel;
@@ -362,6 +373,7 @@ async function emitLine(line) {
       simChoices.classList.remove("hidden");
       taskUI.classList.add("hidden");
     }
+
     function hideChoices() {
       simChoices.classList.add("hidden");
     }
@@ -420,19 +432,18 @@ Reinitializing simulation…`
       }
     }
 
-function glitchPulse() {
-  playSfx(Math.random() < 0.5 ? "glitch1" : "glitch2", 0.55);
-  cracks.classList.add("flash");
-  setTimeout(() => cracks.classList.remove("flash"), 220);
+    function glitchPulse() {
+      playSfx(Math.random() < 0.5 ? "glitch1" : "glitch2", 0.55);
+      cracks.classList.add("flash");
+      setTimeout(() => cracks.classList.remove("flash"), 220);
 
-  // UI feedback on task card (safe even when hidden)
-  try {
-    taskUI.classList.remove("is-ok");
-    taskUI.classList.add("is-error");
-    setTimeout(() => taskUI.classList.remove("is-error"), 240);
-  } catch {}
-}
-
+      // UI feedback on task card
+      try {
+        taskUI.classList.remove("is-ok");
+        taskUI.classList.add("is-error");
+        setTimeout(() => taskUI.classList.remove("is-error"), 240);
+      } catch {}
+    }
 
     /* ====================== TURNSTILE ====================== */
     let tsWidgetId = null;
@@ -459,11 +470,13 @@ function glitchPulse() {
         },
       });
     }
+
     function getTurnstileToken() {
       if (!window.turnstile || tsWidgetId === null) return tsToken;
       const t = window.turnstile.getResponse(tsWidgetId);
       return t || tsToken;
     }
+
     function resetTurnstile() {
       if (window.turnstile && tsWidgetId !== null) window.turnstile.reset(tsWidgetId);
       tsToken = null;
@@ -601,18 +614,16 @@ function glitchPulse() {
       renderFile(activeFileIndex);
     }
 
-const hackFileBtns = Array.from(document.querySelectorAll(".hack-filebtn"));
-hackFileBtns.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    hackFileBtns.forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    const idx = Number(btn.getAttribute("data-file") || "0");
-    renderFile(idx);
-  });
-});
-// set initial active
-if (hackFileBtns[0]) hackFileBtns[0].classList.add("active");
-
+    const hackFileBtns = Array.from(document.querySelectorAll(".hack-filebtn"));
+    hackFileBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        hackFileBtns.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const idx = Number(btn.getAttribute("data-file") || "0");
+        renderFile(idx);
+      });
+    });
+    if (hackFileBtns[0]) hackFileBtns[0].classList.add("active");
 
     hackReset.onclick = resetHack;
 
@@ -835,36 +846,36 @@ if (hackFileBtns[0]) hackFileBtns[0].classList.add("active");
         }
 
         hideChoices();
-        await playLines(
-          beat.respond && beat.respond[choice] ? beat.respond[choice] : []
-        );
+        await playLines(beat.respond && beat.respond[choice] ? beat.respond[choice] : []);
       }
     }
 
     function isCountableClick(e) {
       const t = e.target;
-      if (!t) return true;
-      // ignore actual interactive UI
+
+      // Text node / non-element safety
+      if (!(t instanceof Element)) return true;
+
+      // ignore interactive UI
       if (t.closest("button, input, textarea, select, label, a")) return false;
-      // allow images + cards + background to count
+
       return true;
     }
 
-    /* ======================
+    // NOTE: handleLandingClick is declared later (in the CRACKS section)
+
+      /* ======================
        CRACKS (4 staged) + GLASS FALL -> SIM
     ====================== */
 
     document.addEventListener("selectstart", (e) => {
-      // allow selecting inside inputs/textareas
       const t = e.target;
       if (t && t.closest("input, textarea")) return;
-    
-      // only block selection during landing click-spam + shatter
+
       if (stage === 1 || document.body.classList.contains("sim-transition")) {
         e.preventDefault();
       }
     });
-
 
     let crackBuilt = false;
     let crackStage = 0;
@@ -880,8 +891,7 @@ if (hackFileBtns[0]) hackFileBtns[0].classList.add("active");
     }
 
     function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
-      let x = cx,
-        y = cy;
+      let x = cx, y = cy;
       let ang = rng() * Math.PI * 2;
       const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
 
@@ -889,375 +899,122 @@ if (hackFileBtns[0]) hackFileBtns[0].classList.add("active");
         ang += (rng() - 0.5) * jitter;
         x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
         y += Math.sin(ang) * stepLen * (0.75 + rng() * 0.7);
-        x = Math.max(-60, Math.min(1060, x));
-        y = Math.max(-60, Math.min(1060, y));
+        x = clamp(x, -60, 1060);
+        y = clamp(y, -60, 1060);
         pts.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
       }
       return pts.join(" ");
     }
 
-function addSeg(svg, d, rank) {
-  const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  g.setAttribute("class", "seg");                // stays hidden until stage unlock
-  g.setAttribute("data-rank", String(rank));
+    function addSeg(svg, d, rank) {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.classList.add("seg");
+      g.dataset.rank = String(rank);
 
-  const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  pUnder.setAttribute("d", d);
-  pUnder.setAttribute("class", "crack-path crack-under pending");
+      ["crack-under", "crack-line", "crack-glint"].forEach((cls) => {
+        const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        p.setAttribute("d", d);
+        p.classList.add("crack-path", cls, "pending");
+        g.appendChild(p);
 
-  const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  pLine.setAttribute("d", d);
-  pLine.setAttribute("class", "crack-path crack-line pending");
+        try {
+          const len = p.getTotalLength();
+          p.style.strokeDasharray = len;
+          p.style.strokeDashoffset = len;
+        } catch {}
+      });
 
-  const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  pGlint.setAttribute("d", d);
-  pGlint.setAttribute("class", "crack-path crack-glint pending");
-  pGlint.style.opacity = "0.0";
-
-  g.appendChild(pUnder);
-  g.appendChild(pLine);
-  g.appendChild(pGlint);
-  svg.appendChild(g);
-
-  // dash animation setup (but do NOT animate yet)
-  [pUnder, pLine, pGlint].forEach(p => {
-    try {
-      const len = p.getTotalLength();
-      p.style.strokeDasharray = String(len);
-      p.style.strokeDashoffset = String(len);
-      p.style.setProperty("--dash", String(len));
-    } catch {}
-  });
-
-  // random glint chance (still hidden until stage unlock)
-  if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
-}
-
+      svg.appendChild(g);
+    }
 
     function ensureCracks() {
       if (crackBuilt) return;
-
-      const seed = (Date.now() ^ (Math.random() * 1e9)) & 0xffffffff;
-      const rng = rand(seed);
+      crackBuilt = true;
 
       cracks.innerHTML = "";
+      const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
+      const rng = rand(seed);
 
-      // ---- PANE LAYER (glass shards) ----
-      const paneCount = 18;
-      const paneRanks = [1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4];
-
-      const mkPane = (rank) => {
-        const p = document.createElement("div");
-        p.className = "pane";
-        p.setAttribute("data-rank", String(rank));
-
-        const bias =
-          rank === 1 ? 0.18 : rank === 2 ? 0.28 : rank === 3 ? 0.38 : 0.5;
-
-        const pts = [];
-        const centerPull = () => 0.5 + (rng() - 0.5) * bias;
-
-        const n = 4 + Math.floor(rng() * 3); // 4..6
-        for (let i = 0; i < n; i++) {
-          const x = clamp(
-            centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06),
-            0,
-            1
-          );
-          const y = clamp(
-            centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06),
-            0,
-            1
-          );
-          pts.push([x, y]);
-        }
-
-        const cx = pts.reduce((a, v) => a + v[0], 0) / pts.length;
-        const cy = pts.reduce((a, v) => a + v[1], 0) / pts.length;
-        pts.sort(
-          (a, b) =>
-            Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx)
-        );
-
-        const poly = pts
-          .map(([x, y]) => `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`)
-          .join(", ");
-        p.style.clipPath = `polygon(${poly})`;
-
-        const dx = (rng() * 10 - 5).toFixed(1) + "px";
-        const dy = (rng() * 10 - 5).toFixed(1) + "px";
-        p.style.setProperty("--dx", dx);
-        p.style.setProperty("--dy", dy);
-
-        if (rng() < 0.35) p.classList.add("glint");
-        return p;
-      };
-
-      for (let i = 0; i < paneCount; i++) {
-        const rank = paneRanks[i] || 4;
-        cracks.appendChild(mkPane(rank));
-      }
-
-      // ---- SVG LINES ----
       const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svg.setAttribute("viewBox", "0 0 1000 1000");
       svg.setAttribute("preserveAspectRatio", "none");
       cracks.appendChild(svg);
 
-      const cx = 500,
-        cy = 500;
-
-      const ring = (radiusMin, radiusMax) => {
-        const a = rng() * Math.PI * 2;
-        const r = radiusMin + rng() * (radiusMax - radiusMin);
-        return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
-      };
+      const cx = 500, cy = 500;
 
       for (let i = 0; i < 7; i++) {
-        const [sx, sy] = ring(0, 26);
-        const d = makePathFromCenter(
-          rng,
-          sx,
-          sy,
-          6 + Math.floor(rng() * 3),
-          18,
-          0.85
-        );
+        const d = makePathFromCenter(rng, cx, cy, 7, 22, 0.8);
         addSeg(svg, d, 1);
       }
-
       for (let i = 0; i < 12; i++) {
-        const [sx, sy] = ring(18, 120);
-        const d = makePathFromCenter(
-          rng,
-          sx,
-          sy,
-          9 + Math.floor(rng() * 4),
-          28,
-          0.75
-        );
+        const d = makePathFromCenter(rng, cx, cy, 10, 30, 0.9);
         addSeg(svg, d, 2);
       }
-
-      for (let i = 0; i < 18; i++) {
-        const [sx, sy] = ring(120, 360);
-        const d = makePathFromCenter(
-          rng,
-          sx,
-          sy,
-          10 + Math.floor(rng() * 5),
-          22,
-          1.05
-        );
+      for (let i = 0; i < 16; i++) {
+        const d = makePathFromCenter(rng, cx, cy, 14, 36, 1.0);
         addSeg(svg, d, 3);
       }
-
-      for (let i = 0; i < 14; i++) {
-        const [sx, sy] = ring(60, 220);
-        const d = makePathFromCenter(
-          rng,
-          sx,
-          sy,
-          18 + Math.floor(rng() * 8),
-          46,
-          0.55
-        );
+      for (let i = 0; i < 18; i++) {
+        const d = makePathFromCenter(rng, cx, cy, 18, 42, 1.1);
         addSeg(svg, d, 4);
       }
-
-      crackBuilt = true;
     }
 
-function setCrackStage(n) {
-  ensureCracks();
+    function setCrackStage(n) {
+      ensureCracks();
+      if (n <= crackStage) return;
 
-  const next = Math.max(crackStage, n);
-  if (next === crackStage) return;
+      crackStage = n;
+      cracks.dataset.stage = String(crackStage);
+      cracks.classList.remove("hidden");
+      cracks.classList.add("show");
 
-  const prev = crackStage;
-  crackStage = next;
+      const segs = cracks.querySelectorAll(".seg");
+      segs.forEach((seg) => {
+        const r = Number(seg.dataset.rank || "0");
+        if (r <= crackStage) seg.classList.add("on");
+      });
 
-  cracks.dataset.stage = String(crackStage);
+      const newly = cracks.querySelectorAll(
+        `.seg[data-rank="${crackStage}"] .crack-path.pending`
+      );
+      newly.forEach((p) => {
+        p.classList.remove("pending");
+        p.classList.add("draw");
+      });
 
-  // shard pane intensity (your existing look)
-  const paneMap = { 1: 0.14, 2: 0.24, 3: 0.34, 4: 0.44 };
-  cracks.style.setProperty("--paneOpacity", String(paneMap[crackStage] ?? 0.0));
-
-  // show overlay
-  cracks.classList.remove("hidden");
-  cracks.classList.add("show");
-
-  // Reveal all segs up to current stage
-  const segs = cracks.querySelectorAll(".seg");
-  segs.forEach(seg => {
-    const r = Number(seg.getAttribute("data-rank") || "0");
-    if (r <= crackStage) seg.classList.add("on");
-  });
-
-  // Animate ONLY the newly unlocked rank(s)
-  // (usually just one rank at a time, but supports skipping)
-  for (let r = prev + 1; r <= crackStage; r++) {
-    const newly = cracks.querySelectorAll(`.seg[data-rank="${r}"] .crack-path.pending`);
-    newly.forEach(p => {
-      p.classList.remove("pending");
-      p.classList.add("draw");
-    });
-  }
-
-  if (crackStage === 1) playSfx("thud", 0.55);
-  else playSfx("static1", 0.30);
-}
-
+      playSfx(crackStage === 1 ? "thud" : "static1", 0.35);
+    }
 
     function buildGlassPieces() {
       glassFX.innerHTML = "";
       glassFX.classList.remove("hidden");
 
-      const panes = Array.from(cracks.querySelectorAll(".pane"));
-      if (!panes.length) return [];
-
-      const wrap = document.getElementById("wrap");
-
-      const pieces = panes.map((pane) => {
-        const p = document.createElement("div");
-        p.className = "glass-piece";
-
-        const clip = pane.style.clipPath || pane.style.webkitClipPath;
-        if (clip) {
-          p.style.clipPath = clip;
-          p.style.webkitClipPath = clip;
-        }
-
-        const rot = (Math.random() * 18 - 9).toFixed(2) + "deg";
-        const sx = (Math.random() * 260 - 130).toFixed(1) + "px";
-        const sy = (Math.random() * 120 - 60).toFixed(1) + "px";
-        const rx = (Math.random() * 18 - 9).toFixed(1) + "px";
-        const ry = (Math.random() * 18 - 9).toFixed(1) + "px";
-
-        p.style.setProperty("--rot", rot);
-        p.style.setProperty("--sx", sx);
-        p.style.setProperty("--sy", sy);
-        p.style.setProperty("--rx", rx);
-        p.style.setProperty("--ry", ry);
-
-        const blur = (0.7 + Math.random() * 1.2).toFixed(2) + "px";
-        p.style.setProperty("--rblur", blur);
-
-        const inner = document.createElement("div");
-        inner.className = "glass-inner";
-
-        const rgbx = (Math.random() * 3.2 + 1.2).toFixed(2) + "px";
-        const rgby = (Math.random() * 2.6 - 1.3).toFixed(2) + "px";
-        p.style.setProperty("--rgbx", rgbx);
-        p.style.setProperty("--rgby", rgby);
-
-        if (wrap) {
-          const makeLayer = (cls) => {
-            const layer = document.createElement("div");
-            layer.className = `glass-rgb ${cls}`;
-
-            const clone = wrap.cloneNode(true);
-            clone.id = "";
-            clone.classList.add("wrap-clone");
-            clone.style.pointerEvents = "none";
-            layer.appendChild(clone);
-
-            return layer;
-          };
-
-          inner.appendChild(makeLayer("r"));
-          inner.appendChild(makeLayer("g"));
-          inner.appendChild(makeLayer("b"));
-        }
-
-        p.appendChild(inner);
-        glassFX.appendChild(p);
-        return p;
+      const segs = Array.from(cracks.querySelectorAll(".seg"));
+      return segs.map(() => {
+        const d = document.createElement("div");
+        d.className = "glass-piece";
+        glassFX.appendChild(d);
+        return d;
       });
-
-      for (let i = pieces.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
-      }
-
-      return pieces;
     }
 
-    // ======================
-    // SHATTER -> SIM (single source of truth)
-    // ======================
     function shatterToSim() {
       if (stage === 99) return;
       stage = 99;
 
       ensureCracks();
-
-      const pieces = buildGlassPieces();
-      if (!pieces || !pieces.length) {
-        cracks.classList.add("hidden");
-        openSimRoom();
-        return;
-      }
-
-      document.body.classList.add("sim-transition");
-      const wrap = document.getElementById("wrap");
-      if (wrap) wrap.classList.add("wrap-hidden");
+      buildGlassPieces();
 
       cracks.classList.add("hidden");
-      cracks.classList.remove("show");
-      cracks.classList.remove("flash");
-
       simRoom.classList.remove("hidden");
-      taskUI.classList.add("hidden");
-      simChoices.classList.add("hidden");
-
-      glassFX.classList.remove("hidden");
-      glassFX.classList.add("glass-fall");
-
-      const STAGGER_MS = 28;
-      const BASE_MS = 1100;
-
-      pieces.forEach((p, i) => {
-        p.style.animationDelay = i * STAGGER_MS + "ms";
-      });
-
-      const totalMs = BASE_MS + pieces.length * STAGGER_MS + 80;
-
-      setTimeout(() => {
-        glassFX.innerHTML = "";
-        glassFX.classList.remove("glass-fall");
-        glassFX.classList.add("hidden");
-
-        document.body.classList.remove("sim-transition");
-        openSimRoom();
-      }, totalMs);
+      openSimRoom();
     }
-// ======================
-// LAUNCH BUTTON -> SHATTER
-// ======================
-const launchBtn = document.getElementById("launchBtn");
-if (launchBtn) {
-  launchBtn.addEventListener("click", (e) => {
-    // don’t let the global landing click counter consume this
-    e.preventDefault();
-    e.stopPropagation();
-
-    unlockAudio();
-
-    // Optional: give feedback
-    try { popIn(systemBox); } catch {}
-
-    // If you’re still in landing stage, go directly to sim
-    if (stage === 1 || stage === 2) {
-      shatterToSim();
-    }
-  });
-}
 
     /* ======================
-       LANDING -> SIM
+       LANDING CLICK FLOW
     ====================== */
-    document.addEventListener("click", (e) => {
+    function handleLandingClick(e) {
       unlockAudio();
       if (stage !== 1) return;
       if (!isCountableClick(e)) return;
@@ -1268,40 +1025,41 @@ if (launchBtn) {
 
       clicks++;
 
-      if (clicks === 15) setCrackStage(1);
-      if (clicks === 20) setCrackStage(2);
-      if (clicks === 25) setCrackStage(3);
-      if (clicks === 30) setCrackStage(4);
+      if (clicks === CRACK_AT[0]) setCrackStage(1);
+      if (clicks === CRACK_AT[1]) setCrackStage(2);
+      if (clicks === CRACK_AT[2]) setCrackStage(3);
+      if (clicks === CRACK_AT[3]) setCrackStage(4);
 
-      if (clicks >= 20) {
+      if (clicks >= SHATTER_AT) {
         stage = 2;
 
         systemBox.textContent = "You weren't supposed to do that.";
-        const t1 = msToRead(systemBox.textContent);
-
         setTimeout(() => {
           systemBox.textContent =
-            "All you had to do was sit there like everyone else and watch the ads.";
-        }, t1);
-
-        const t2 =
-          t1 + msToRead("All you had to do was sit there like everyone else and watch the ads.");
-        setTimeout(() => {
-          systemBox.textContent = "Stop.";
-        }, t2);
-
-        const t3 = t2 + msToRead("Stop.") + 650;
-
-        setTimeout(() => {
-          cracks.classList.add("flash");
-          setTimeout(() => cracks.classList.remove("flash"), 220);
-        }, Math.max(0, t3 - 280));
+            "All you had to do was sit there and watch the ads.";
+        }, 900);
 
         setTimeout(() => {
           shatterToSim();
-        }, t3);
+        }, 1800);
       }
-    });
+    }
+
+    document.addEventListener("click", handleLandingClick);
+
+    /* ======================
+       LAUNCH BUTTON
+    ====================== */
+    const launchBtn = document.getElementById("launchBtn");
+    if (launchBtn) {
+      launchBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        unlockAudio();
+        popIn(systemBox);
+        shatterToSim();
+      });
+    }
   }
 
   boot();
