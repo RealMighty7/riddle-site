@@ -24,68 +24,78 @@
 *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
 html,body{ height:100%; }
 
-/* DEFAULT: landing is white */
-/* White landing background */
-body {
-  background: #ffffff !important;
-  color: rgba(20, 22, 28, 0.92);
-}
-
-/* Cards: sharper contrast + readable text */
-.card, .panel {
+/* ---------- LANDING (unfinished but readable) ---------- */
+body:not(.in-sim) .card {
   background: rgba(255,255,255,0.92);
   border: 1px solid rgba(0,0,0,0.08);
-  box-shadow: 0 18px 55px rgba(0,0,0,0.10);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
 
-.muted {
-  color: rgba(20, 22, 28, 0.68);
+body:not(.in-sim) .muted,
+body:not(.in-sim) .hint,
+body:not(.in-sim) .subtle {
+  color: rgba(20,24,34,0.72);
 }
 
-.warn {
-  color: rgba(180, 40, 40, 0.85);
+body:not(.in-sim) button,
+body:not(.in-sim) .btn {
+  background: rgba(25, 35, 55, 0.10);
+  border: 1px solid rgba(25, 35, 55, 0.22);
+  color: rgba(10,12,16,0.88);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 
-/* Pills on white */
-.pill {
-  background: rgba(0,0,0,0.06);
-  border: 1px solid rgba(0,0,0,0.10);
-  color: rgba(20, 22, 28, 0.86);
+body:not(.in-sim) button:hover,
+body:not(.in-sim) .btn:hover {
+  background: rgba(25, 35, 55, 0.14);
+  border-color: rgba(25, 35, 55, 0.30);
 }
 
-/* Side ads: keep visible on white */
-.sideAds .adImg {
-  border: 1px solid rgba(0,0,0,0.10);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.10);
+body:not(.in-sim) button:disabled,
+body:not(.in-sim) .btn.is-disabled {
+  opacity: 0.55;              /* still visible */
+  filter: grayscale(0.2);
+  cursor: not-allowed;
 }
-
-
-/* SIM: dark mode when sim starts */
-body.in-sim{
-  color: var(--text);
+/* ---------- SIM (polished) ---------- */
+body.in-sim {
   background:
     radial-gradient(1200px 800px at 50% 20%, rgba(42,72,150,0.22), transparent 55%),
     radial-gradient(900px 700px at 20% 80%, rgba(42,72,150,0.14), transparent 60%),
-    linear-gradient(180deg, var(--bg1), var(--bg0));
+    linear-gradient(180deg, #070b14, #05070c);
+  color: rgba(235,238,245,0.92);
 }
-/* Landing cards look clean on white */
-body:not(.in-sim) .card,
-body:not(.in-sim) .panel{
-  background: rgba(255,255,255,0.92);
-  border-color: rgba(0,0,0,0.10);
-  box-shadow: 0 18px 50px rgba(0,0,0,0.12);
-  backdrop-filter: none;
+
+body.in-sim .card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
 }
-body:not(.in-sim) .muted{ color: rgba(0,0,0,0.55); }
 
-.hidden{ display:none !important; }
-a{ color:inherit; }
-button, input { outline: none; }
+body.in-sim #simRoom .sim-text,
+body.in-sim #simText {
+  background: rgba(0,0,0,0.30);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+#subs {
+  position: fixed;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(10px);
+}
 
-/* Prevent selecting during click spam */
-body.sim-transition, body.sim-transition *{
-  user-select:none;
-  cursor:default;
+#subsName {
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+#subsText {
+  opacity: 0.92;
 }
 
 /* =========================
