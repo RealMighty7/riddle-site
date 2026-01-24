@@ -127,6 +127,16 @@ body.in-sim #simText {
 @media (prefers-reduced-motion: reduce){
   .pop-in, .shake{ animation: none !important; }
 }
+#viewerToken:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+#viewerToken:not(:disabled) {
+  opacity: 1;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(120,160,255,0.25);
+}
 
 /* =========================
    COMMON: cards + pills
