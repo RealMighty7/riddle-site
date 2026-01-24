@@ -77,6 +77,19 @@ body.in-sim #simText {
   background: rgba(0,0,0,0.30);
   border: 1px solid rgba(255,255,255,0.12);
 }
+/* Hide landing app completely once transition begins */
+.wrap-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-6px) scale(0.995);
+}
+
+/* During transition, prevent layout gaps */
+body.sim-transition #wrap,
+body.in-sim #wrap {
+  display: none !important;
+}
+
 #subs {
   position: fixed;
   left: 18px;
@@ -869,19 +882,29 @@ canvas#glassFX,
 #glassFX {
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: 80; /* above everything */
+  pointer-events: none;
 }
 
-#simRoom{
+#glassFX.hidden {
+  display: none !important;
+}
+
+
+#simRoom {
   position: fixed;
   inset: 0;
-  z-index: 70;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 28px 22px;
-  background: transparent;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg0); /* or your dark background */
+  padding: 18px;
 }
+
+#simRoom.hidden {
+  display: none !important;
+}
+
 
 #simRoom.card{
   background: transparent;
