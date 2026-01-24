@@ -1237,6 +1237,7 @@ Reinitializing simulation…`
       launchStatus.textContent = "idle";
       launchBtn.classList.remove("busy");
       launchBusy = false;
+      playSfx("ambience", { volume: 0.25, overlap: false });
     }, 1800);
   }
    
