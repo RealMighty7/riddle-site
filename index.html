@@ -117,29 +117,42 @@
         <div class="card">
           <div class="row">
             <div class="label">Viewer</div>
-            <div class="pill small">unverified</div>
-            <input id="viewerToken" type="text" placeholder="viewer token" disabled autocomplete="off" />
+            <div class="pill small" id="viewerState">unverified</div>
           </div>
-
+        
           <div class="viewerBox">
-            <div class="fakeInput">
+            <!-- Disabled-look placeholder -->
+            <div id="viewerFake" class="fakeInput">
               <span class="muted">viewer token</span>
               <span class="cursor">▌</span>
             </div>
+        
+            <!-- Real input (hidden/disabled until Launch) -->
+            <input
+              id="viewerToken"
+              class="viewerInput hidden"
+              type="text"
+              placeholder="viewer token"
+              disabled
+              autocomplete="off"
+              spellcheck="false"
+              inputmode="text"
+            />
+        
             <div class="fine muted">
               this module is unfinished. do not rely on output.
             </div>
           </div>
-
+        
           <div class="divider"></div>
-
+        
           <div class="fine muted">
-            // TODO: remove public access<br>
-            // TODO: disable indexing<br>
+            // TODO: remove public access<br />
+            // TODO: disable indexing<br />
             // TODO: fix layout in firefox
           </div>
         </div>
-      </div>
+
 
       <div class="footer">
         <div class="fine muted">© sponsor tools (internal) — “temporary”</div>
