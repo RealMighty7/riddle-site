@@ -1097,53 +1097,58 @@ Reinitializing simulation…`
         return pieces;
       }
   
-      function shatterToSim() {
-        if (stage === 99) return;
-        stage = 99;
-  
-        ensureCracks();
-  
-        const pieces = buildGlassPieces();
-        if (!pieces || !pieces.length) {
-          cracks.classList.add("hidden");
-          openSimRoom();
-          return;
-        }
-  
-        document.body.classList.add("sim-transition");
-        const wrap = document.getElementById("wrap");
-        if (wrap) wrap.classList.add("wrap-hidden");
-  
-        cracks.classList.add("hidden");
-        cracks.classList.remove("show");
-        cracks.classList.remove("flash");
-  
-        simRoom.classList.remove("hidden");
-        taskUI.classList.add("hidden");
-        simChoices.classList.add("hidden");
-        playSfx("static1", { volume: 0.35, overlap: false }); // breach enter sting
-  
-        glassFX.classList.remove("hidden");
-        glassFX.classList.add("glass-fall");
-  
-        const STAGGER_MS = 28;
-        const BASE_MS = 1100;
-  
-        pieces.forEach((p, i) => {
-          p.style.animationDelay = i * STAGGER_MS + "ms";
-        });
-  
-        const totalMs = BASE_MS + pieces.length * STAGGER_MS + 80;
-  
-        setTimeout(() => {
-          glassFX.innerHTML = "";
-          glassFX.classList.remove("glass-fall");
-          glassFX.classList.add("hidden");
-  
-          document.body.classList.remove("sim-transition");
-          openSimRoom();
-        }, totalMs);
-      }
+function shatterToSim() {
+  if (stage === 99) return;
+  stage = 99;
+
+  ensureCracks();
+
+  // build pieces BEFORE hiding cracks so we can use pane clipPaths
+  const pieces = buildGlassPieces();
+
+  // ✅ HARD HIDE landing UI immediately so it never “hangs” behind the glass
+  const wrap = document.getElementById("wrap");
+  if (wrap) wrap.classList.add("wrap-hidden");
+
+  // ✅ DO NOT show sim content yet — only start transition + glass fall
+  document.body.classList.add("sim-transition");
+
+  cracks.classList.add("hidden");
+  cracks.classList.remove("show");
+  cracks.classList.remove("flash");
+
+  // If for some reason pieces failed, skip directly to sim
+  if (!pieces || !pieces.length) {
+    document.body.classList.remove("sim-transition");
+    openSimRoom();
+    return;
+  }
+
+  // ✅ Only glassFX visible during fall
+  glassFX.classList.remove("hidden");
+  glassFX.classList.add("glass-fall");
+
+  const STAGGER_MS = 28;
+  const BASE_MS = 1100;
+
+  pieces.forEach((p, i) => {
+    p.style.animationDelay = i * STAGGER_MS + "ms";
+  });
+
+  const totalMs = BASE_MS + pieces.length * STAGGER_MS + 80;
+
+  setTimeout(() => {
+    // cleanup glass
+    glassFX.innerHTML = "";
+    glassFX.classList.remove("glass-fall");
+    glassFX.classList.add("hidden");
+
+    // transition ends, now open sim
+    document.body.classList.remove("sim-transition");
+    openSimRoom();
+  }, totalMs);
+}
+
   
       // -----------------------
       // CLICK ADVANCE (shared)
