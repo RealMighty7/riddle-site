@@ -863,201 +863,398 @@ Reinitializing simulation…`
     }
 
     // NOTE: handleLandingClick is declared later (in the CRACKS section)
-
+  
       /* ======================
-       CRACKS (4 staged) + GLASS FALL -> SIM
-    ====================== */
-
-    document.addEventListener("selectstart", (e) => {
-      const t = e.target;
-      if (t && t.closest("input, textarea")) return;
-
-      if (stage === 1 || document.body.classList.contains("sim-transition")) {
-        e.preventDefault();
-      }
-    });
-
-    let crackBuilt = false;
-    let crackStage = 0;
-
-    function rand(seed) {
-      let t = seed >>> 0;
-      return () => {
-        t += 0x6d2b79f5;
-        let x = Math.imul(t ^ (t >>> 15), 1 | t);
-        x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
-        return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-      };
-    }
-
-    function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
-      let x = cx, y = cy;
-      let ang = rng() * Math.PI * 2;
-      const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
-
-      for (let i = 0; i < steps; i++) {
-        ang += (rng() - 0.5) * jitter;
-        x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
-        y += Math.sin(ang) * stepLen * (0.75 + rng() * 0.7);
-        x = clamp(x, -60, 1060);
-        y = clamp(y, -60, 1060);
-        pts.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
-      }
-      return pts.join(" ");
-    }
-
-    function addSeg(svg, d, rank) {
-      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      g.classList.add("seg");
-      g.dataset.rank = String(rank);
-
-      ["crack-under", "crack-line", "crack-glint"].forEach((cls) => {
-        const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        p.setAttribute("d", d);
-        p.classList.add("crack-path", cls, "pending");
-        g.appendChild(p);
-
+         CRACKS (4 staged) + GLASS FALL -> SIM
+      ====================== */
+  
+      // -----------------------
+      // SFX helper (you were missing this)
+      // -----------------------
+      function playSfx(name, vol = 1) {
+        const a = SFX[name];
+        if (!a) return;
         try {
-          const len = p.getTotalLength();
-          p.style.strokeDasharray = len;
-          p.style.strokeDashoffset = len;
+          a.pause();
+          a.currentTime = 0;
+          a.volume = Math.max(0, Math.min(1, Number(vol) || 0));
+          a.play().catch(() => {});
         } catch {}
-      });
-
-      svg.appendChild(g);
-    }
-
-    function ensureCracks() {
-      if (crackBuilt) return;
-      crackBuilt = true;
-
-      cracks.innerHTML = "";
-      const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
-      const rng = rand(seed);
-
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("viewBox", "0 0 1000 1000");
-      svg.setAttribute("preserveAspectRatio", "none");
-      cracks.appendChild(svg);
-
-      const cx = 500, cy = 500;
-
-      for (let i = 0; i < 7; i++) {
-        const d = makePathFromCenter(rng, cx, cy, 7, 22, 0.8);
-        addSeg(svg, d, 1);
       }
-      for (let i = 0; i < 12; i++) {
-        const d = makePathFromCenter(rng, cx, cy, 10, 30, 0.9);
-        addSeg(svg, d, 2);
-      }
-      for (let i = 0; i < 16; i++) {
-        const d = makePathFromCenter(rng, cx, cy, 14, 36, 1.0);
-        addSeg(svg, d, 3);
-      }
-      for (let i = 0; i < 18; i++) {
-        const d = makePathFromCenter(rng, cx, cy, 18, 42, 1.1);
-        addSeg(svg, d, 4);
-      }
-    }
-
-    function setCrackStage(n) {
-      ensureCracks();
-      if (n <= crackStage) return;
-
-      crackStage = n;
-      cracks.dataset.stage = String(crackStage);
-      cracks.classList.remove("hidden");
-      cracks.classList.add("show");
-
-      const segs = cracks.querySelectorAll(".seg");
-      segs.forEach((seg) => {
-        const r = Number(seg.dataset.rank || "0");
-        if (r <= crackStage) seg.classList.add("on");
+  
+      document.addEventListener("selectstart", (e) => {
+        const t = e.target;
+        const el = (t && t.nodeType === 1) ? t : (t && t.parentElement) ? t.parentElement : null;
+  
+        // allow selecting inside inputs/textareas
+        if (el && el.closest && el.closest("input, textarea")) return;
+  
+        // only block selection during landing click-spam + shatter
+        if (stage === 1 || document.body.classList.contains("sim-transition")) {
+          e.preventDefault();
+        }
       });
-
-      const newly = cracks.querySelectorAll(
-        `.seg[data-rank="${crackStage}"] .crack-path.pending`
-      );
-      newly.forEach((p) => {
-        p.classList.remove("pending");
-        p.classList.add("draw");
-      });
-
-      playSfx(crackStage === 1 ? "thud" : "static1", 0.35);
-    }
-
-    function buildGlassPieces() {
-      glassFX.innerHTML = "";
-      glassFX.classList.remove("hidden");
-
-      const segs = Array.from(cracks.querySelectorAll(".seg"));
-      return segs.map(() => {
-        const d = document.createElement("div");
-        d.className = "glass-piece";
-        glassFX.appendChild(d);
-        return d;
-      });
-    }
-
-    function shatterToSim() {
-      if (stage === 99) return;
-      stage = 99;
-
-      ensureCracks();
-      buildGlassPieces();
-
-      cracks.classList.add("hidden");
-      simRoom.classList.remove("hidden");
-      openSimRoom();
-    }
-
-    /* ======================
-       LANDING CLICK FLOW
-    ====================== */
-    function handleLandingClick(e) {
-      unlockAudio();
-      if (stage !== 1) return;
-      if (!isCountableClick(e)) return;
-
-      const now = Date.now();
-      if (now - lastClick < CLICK_COOLDOWN) return;
-      lastClick = now;
-
-      clicks++;
-
-      if (clicks === CRACK_AT[0]) setCrackStage(1);
-      if (clicks === CRACK_AT[1]) setCrackStage(2);
-      if (clicks === CRACK_AT[2]) setCrackStage(3);
-      if (clicks === CRACK_AT[3]) setCrackStage(4);
-
-      if (clicks >= SHATTER_AT) {
-        stage = 2;
-
-        systemBox.textContent = "You weren't supposed to do that.";
+  
+      let crackBuilt = false;
+      let crackStage = 0;
+  
+      // Make it take longer to start cracking (you asked for 15)
+      const CRACK_AT = [15, 25, 35, 45];
+      const SHATTER_AT = 50;
+  
+      function rand(seed) {
+        let t = seed >>> 0;
+        return () => {
+          t += 0x6d2b79f5;
+          let x = Math.imul(t ^ (t >>> 15), 1 | t);
+          x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+          return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+  
+      function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
+        let x = cx, y = cy;
+        let ang = rng() * Math.PI * 2;
+        const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
+  
+        for (let i = 0; i < steps; i++) {
+          ang += (rng() - 0.5) * jitter;
+          x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
+          y += Math.sin(ang) * stepLen * (0.75 + rng() * 0.7);
+          x = Math.max(-60, Math.min(1060, x));
+          y = Math.max(-60, Math.min(1060, y));
+          pts.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
+        }
+        return pts.join(" ");
+      }
+  
+      function addSeg(svg, d, rank) {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", "seg");
+        g.setAttribute("data-rank", String(rank));
+  
+        const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        pUnder.setAttribute("d", d);
+        pUnder.setAttribute("class", "crack-path crack-under pending");
+  
+        const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        pLine.setAttribute("d", d);
+        pLine.setAttribute("class", "crack-path crack-line pending");
+  
+        const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        pGlint.setAttribute("d", d);
+        pGlint.setAttribute("class", "crack-path crack-glint pending");
+        pGlint.style.opacity = "0.0";
+  
+        g.appendChild(pUnder);
+        g.appendChild(pLine);
+        g.appendChild(pGlint);
+        svg.appendChild(g);
+  
+        [pUnder, pLine, pGlint].forEach((p) => {
+          try {
+            const len = p.getTotalLength();
+            p.style.strokeDasharray = String(len);
+            p.style.strokeDashoffset = String(len);
+            p.style.setProperty("--dash", String(len));
+          } catch {}
+        });
+  
+        if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
+      }
+  
+      function ensureCracks() {
+        if (crackBuilt) return;
+  
+        const seed = (Date.now() ^ (Math.random() * 1e9)) & 0xffffffff;
+        const rng = rand(seed);
+  
+        cracks.innerHTML = "";
+  
+        // ---- PANE LAYER ----
+        const paneCount = 18;
+        const paneRanks = [1,1,1, 2,2,2,2, 3,3,3,3, 4,4,4,4,4,4,4];
+  
+        const mkPane = (rank) => {
+          const p = document.createElement("div");
+          p.className = "pane";
+          p.setAttribute("data-rank", String(rank));
+  
+          const bias = rank === 1 ? 0.18 : rank === 2 ? 0.28 : rank === 3 ? 0.38 : 0.5;
+          const pts = [];
+          const centerPull = () => 0.5 + (rng() - 0.5) * bias;
+  
+          const n = 4 + Math.floor(rng() * 3);
+          for (let i = 0; i < n; i++) {
+            const x = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
+            const y = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
+            pts.push([x, y]);
+          }
+  
+          const cx = pts.reduce((a, v) => a + v[0], 0) / pts.length;
+          const cy = pts.reduce((a, v) => a + v[1], 0) / pts.length;
+          pts.sort(
+            (a, b) =>
+              Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx)
+          );
+  
+          const poly = pts.map(([x, y]) => `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`).join(", ");
+          p.style.clipPath = `polygon(${poly})`;
+  
+          p.style.setProperty("--dx", (rng() * 10 - 5).toFixed(1) + "px");
+          p.style.setProperty("--dy", (rng() * 10 - 5).toFixed(1) + "px");
+  
+          if (rng() < 0.35) p.classList.add("glint");
+          return p;
+        };
+  
+        for (let i = 0; i < paneCount; i++) {
+          const rank = paneRanks[i] || 4;
+          cracks.appendChild(mkPane(rank));
+        }
+  
+        // ---- SVG LINES ----
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 1000 1000");
+        svg.setAttribute("preserveAspectRatio", "none");
+        cracks.appendChild(svg);
+  
+        const cx = 500, cy = 500;
+  
+        const ring = (radiusMin, radiusMax) => {
+          const a = rng() * Math.PI * 2;
+          const r = radiusMin + rng() * (radiusMax - radiusMin);
+          return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+        };
+  
+        for (let i = 0; i < 7; i++) addSeg(svg, makePathFromCenter(rng, ...ring(0, 26), 7, 18, 0.85), 1);
+        for (let i = 0; i < 12; i++) addSeg(svg, makePathFromCenter(rng, ...ring(18, 120), 11, 28, 0.75), 2);
+        for (let i = 0; i < 18; i++) addSeg(svg, makePathFromCenter(rng, ...ring(120, 360), 12, 22, 1.05), 3);
+        for (let i = 0; i < 14; i++) addSeg(svg, makePathFromCenter(rng, ...ring(60, 220), 20, 46, 0.55), 4);
+  
+        crackBuilt = true;
+      }
+  
+      function setCrackStage(n) {
+        ensureCracks();
+  
+        const next = Math.max(crackStage, n);
+        if (next === crackStage) return;
+  
+        const prev = crackStage;
+        crackStage = next;
+  
+        cracks.dataset.stage = String(crackStage);
+  
+        const paneMap = { 1: 0.14, 2: 0.24, 3: 0.34, 4: 0.44 };
+        cracks.style.setProperty("--paneOpacity", String(paneMap[crackStage] ?? 0.0));
+  
+        cracks.classList.remove("hidden");
+        cracks.classList.add("show");
+  
+        const segs = cracks.querySelectorAll(".seg");
+        segs.forEach((seg) => {
+          const r = Number(seg.getAttribute("data-rank") || "0");
+          if (r <= crackStage) seg.classList.add("on");
+        });
+  
+        for (let r = prev + 1; r <= crackStage; r++) {
+          const newly = cracks.querySelectorAll(`.seg[data-rank="${r}"] .crack-path.pending`);
+          newly.forEach((p) => {
+            p.classList.remove("pending");
+            p.classList.add("draw");
+          });
+        }
+  
+        if (crackStage === 1) playSfx("thud", 0.55);
+        else playSfx("static1", 0.30);
+      }
+  
+      function buildGlassPieces() {
+        glassFX.innerHTML = "";
+        glassFX.classList.remove("hidden");
+  
+        const panes = Array.from(cracks.querySelectorAll(".pane"));
+        if (!panes.length) return [];
+  
+        const wrap = document.getElementById("wrap");
+  
+        const pieces = panes.map((pane) => {
+          const p = document.createElement("div");
+          p.className = "glass-piece";
+  
+          const clip = pane.style.clipPath || pane.style.webkitClipPath;
+          if (clip) {
+            p.style.clipPath = clip;
+            p.style.webkitClipPath = clip;
+          }
+  
+          p.style.setProperty("--rot", (Math.random() * 18 - 9).toFixed(2) + "deg");
+          p.style.setProperty("--sx", (Math.random() * 260 - 130).toFixed(1) + "px");
+          p.style.setProperty("--sy", (Math.random() * 120 - 60).toFixed(1) + "px");
+          p.style.setProperty("--rx", (Math.random() * 18 - 9).toFixed(1) + "px");
+          p.style.setProperty("--ry", (Math.random() * 18 - 9).toFixed(1) + "px");
+          p.style.setProperty("--rblur", (0.7 + Math.random() * 1.2).toFixed(2) + "px");
+          p.style.setProperty("--rgbx", (Math.random() * 3.2 + 1.2).toFixed(2) + "px");
+          p.style.setProperty("--rgby", (Math.random() * 2.6 - 1.3).toFixed(2) + "px");
+  
+          const inner = document.createElement("div");
+          inner.className = "glass-inner";
+  
+          if (wrap) {
+            const makeLayer = (cls) => {
+              const layer = document.createElement("div");
+              layer.className = `glass-rgb ${cls}`;
+              const clone = wrap.cloneNode(true);
+              clone.id = "";
+              clone.classList.add("wrap-clone");
+              clone.style.pointerEvents = "none";
+              layer.appendChild(clone);
+              return layer;
+            };
+  
+            inner.appendChild(makeLayer("r"));
+            inner.appendChild(makeLayer("g"));
+            inner.appendChild(makeLayer("b"));
+          }
+  
+          p.appendChild(inner);
+          glassFX.appendChild(p);
+          return p;
+        });
+  
+        for (let i = pieces.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+        }
+  
+        return pieces;
+      }
+  
+      function shatterToSim() {
+        if (stage === 99) return;
+        stage = 99;
+  
+        ensureCracks();
+  
+        const pieces = buildGlassPieces();
+        if (!pieces || !pieces.length) {
+          cracks.classList.add("hidden");
+          openSimRoom();
+          return;
+        }
+  
+        document.body.classList.add("sim-transition");
+        const wrap = document.getElementById("wrap");
+        if (wrap) wrap.classList.add("wrap-hidden");
+  
+        cracks.classList.add("hidden");
+        cracks.classList.remove("show");
+        cracks.classList.remove("flash");
+  
+        simRoom.classList.remove("hidden");
+        taskUI.classList.add("hidden");
+        simChoices.classList.add("hidden");
+  
+        glassFX.classList.remove("hidden");
+        glassFX.classList.add("glass-fall");
+  
+        const STAGGER_MS = 28;
+        const BASE_MS = 1100;
+  
+        pieces.forEach((p, i) => {
+          p.style.animationDelay = i * STAGGER_MS + "ms";
+        });
+  
+        const totalMs = BASE_MS + pieces.length * STAGGER_MS + 80;
+  
         setTimeout(() => {
-          systemBox.textContent =
-            "All you had to do was sit there and watch the ads.";
-        }, 900);
-
-        setTimeout(() => {
-          shatterToSim();
-        }, 1800);
+          glassFX.innerHTML = "";
+          glassFX.classList.remove("glass-fall");
+          glassFX.classList.add("hidden");
+  
+          document.body.classList.remove("sim-transition");
+          openSimRoom();
+        }, totalMs);
       }
-    }
-
-    document.addEventListener("click", handleLandingClick);
-
-    /* ======================
-       LAUNCH BUTTON
-    ====================== */
-    const launchBtn = document.getElementById("launchBtn");
-    if (launchBtn) {
-      launchBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+  
+      // -----------------------
+      // CLICK ADVANCE (shared)
+      // - fixes: launch button no longer skips progression
+      // - fixes: .closest TypeError (text nodes)
+      // -----------------------
+      function isCountableClick(e) {
+        const t = e.target;
+        const el = (t && t.nodeType === 1) ? t : (t && t.parentElement) ? t.parentElement : null;
+        if (!el) return true;
+  
+        // ignore actual interactive UI
+        if (el.closest && el.closest("button, input, textarea, select, label, a")) return false;
+  
+        return true;
+      }
+  
+      function advanceLandingClick() {
+        if (stage !== 1) return;
+  
+        const now = Date.now();
+        if (now - lastClick < CLICK_COOLDOWN) return;
+        lastClick = now;
+  
+        clicks++;
+  
+        if (clicks === CRACK_AT[0]) setCrackStage(1);
+        if (clicks === CRACK_AT[1]) setCrackStage(2);
+        if (clicks === CRACK_AT[2]) setCrackStage(3);
+        if (clicks === CRACK_AT[3]) setCrackStage(4);
+  
+        if (clicks >= SHATTER_AT) {
+          stage = 2;
+  
+          systemBox.textContent = "You weren't supposed to do that.";
+          const t1 = msToRead(systemBox.textContent);
+  
+          setTimeout(() => {
+            systemBox.textContent =
+              "All you had to do was sit there like everyone else and watch the ads.";
+          }, t1);
+  
+          const t2 =
+            t1 + msToRead("All you had to do was sit there like everyone else and watch the ads.");
+          setTimeout(() => {
+            systemBox.textContent = "Stop.";
+          }, t2);
+  
+          const t3 = t2 + msToRead("Stop.") + 650;
+  
+          setTimeout(() => {
+            cracks.classList.add("flash");
+            setTimeout(() => cracks.classList.remove("flash"), 220);
+          }, Math.max(0, t3 - 280));
+  
+          setTimeout(() => {
+            shatterToSim();
+          }, t3);
+        }
+      }
+  
+      // LAUNCH BUTTON now behaves like a landing click (does NOT skip cracks)
+      const launchBtn = document.getElementById("launchBtn");
+      if (launchBtn) {
+        launchBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          unlockAudio();
+          try { popIn(systemBox); } catch {}
+          advanceLandingClick();
+        });
+      }
+  
+      // Any other click progresses cracks
+      document.addEventListener("click", (e) => {
         unlockAudio();
-        popIn(systemBox);
-        shatterToSim();
+        if (!isCountableClick(e)) return;
+        advanceLandingClick();
       });
     }
   }
