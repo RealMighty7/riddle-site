@@ -507,6 +507,47 @@ body:not(.in-sim) #wrap::after{
 /* =========================
    OVERLAY / MODAL POLISH
    ========================= */
+/* Viewer input styling */
+.viewerBox { margin-top: 10px; }
+
+.viewerInput{
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,.12);
+  background: rgba(255,255,255,.92);
+  color: rgba(10,14,22,.92);
+  font: 600 14px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  letter-spacing: .2px;
+  outline: none;
+}
+
+.viewerInput:focus{
+  border-color: rgba(70,120,255,.35);
+  box-shadow: 0 0 0 4px rgba(70,120,255,.12);
+}
+
+.viewerInput:disabled{
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+/* Make "fakeInput" feel like disabled UI */
+.fakeInput{
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,.10);
+  background: rgba(0,0,0,.06);
+  padding: 12px 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+/* Utility if you don't already have it */
+.hidden{ display:none !important; }
+
 .overlay{
   animation: overlayIn 160ms ease-out both;
 }
