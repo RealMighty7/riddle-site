@@ -900,9 +900,6 @@ Reinitializing simulation…`
       let crackBuilt = false;
       let crackStage = 0;
   
-      // Make it take longer to start cracking (you asked for 15)
-      const CRACK_AT = [15, 25, 35, 45];
-      const SHATTER_AT = 50;
   
       function rand(seed) {
         let t = seed >>> 0;
