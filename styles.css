@@ -881,6 +881,80 @@ canvas#glassFX,
     filter: drop-shadow(0 40px 80px rgba(0,0,0,0.65));
   }
 }
+/* =========================
+   ADMIN DIAGNOSTIC PANEL
+   ========================= */
+.adminPanel{
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 140; /* above sim UI */
+  width: min(420px, calc(100vw - 36px));
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(10,12,18,0.86);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+  backdrop-filter: blur(10px);
+  padding: 12px;
+}
+
+body.admin .adminPanel.hidden{ display:none !important; }
+body.admin #adminPanel{ display:block; }
+body:not(.admin) #adminPanel{ display:none !important; }
+
+.adminHead{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.adminTitle{
+  font-weight: 800;
+  letter-spacing: .12em;
+  font-size: 12px;
+  opacity: .9;
+}
+
+.adminTiny{
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  opacity: .9;
+}
+
+.adminRow{
+  display:flex;
+  gap: 8px;
+  align-items:center;
+  flex-wrap: wrap;
+}
+
+.adminAnswer{
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.22);
+  color: rgba(235,238,245,0.92);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size: 12.5px;
+  line-height: 1.35;
+  max-height: 220px;
+  overflow:auto;
+  white-space: pre-wrap;
+}
+
+.adminActions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top: 10px;
+}
+
+/* Optional: keep it off tiny screens if you want */
+@media (max-width: 520px){ .adminPanel{ top:auto; bottom:18px; } } 
 
 /* =========================================================
    SIM ROOM (centered + above overlays)
