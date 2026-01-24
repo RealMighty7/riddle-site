@@ -24,6 +24,17 @@
 *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
 html,body{ height:100%; }
 
+body{
+  margin:0;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 800px at 50% 20%, rgba(42,72,150,0.22), transparent 55%),
+    radial-gradient(900px 700px at 20% 80%, rgba(42,72,150,0.14), transparent 60%),
+    linear-gradient(180deg, var(--bg1), var(--bg0));
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+  overflow-x: hidden;
+}
+
 /* ---------- LANDING (unfinished but readable) ---------- */
 body:not(.in-sim) .card {
   background: rgba(255,255,255,0.92);
@@ -53,10 +64,11 @@ body:not(.in-sim) .btn:hover {
 
 body:not(.in-sim) button:disabled,
 body:not(.in-sim) .btn.is-disabled {
-  opacity: 0.55;              /* still visible */
+  opacity: 0.55;
   filter: grayscale(0.2);
   cursor: not-allowed;
 }
+
 /* ---------- SIM (polished) ---------- */
 body.in-sim {
   background:
@@ -77,6 +89,7 @@ body.in-sim #simText {
   background: rgba(0,0,0,0.30);
   border: 1px solid rgba(255,255,255,0.12);
 }
+
 /* Hide landing app completely once transition begins */
 .wrap-hidden {
   opacity: 0 !important;
@@ -90,35 +103,7 @@ body.in-sim #wrap {
   display: none !important;
 }
 
-#taskUI.hidden {
-  display: none;
-}
-
-#simChoices {
-  position: relative;
-  z-index: 2;
-}
-
-#subs {
-  position: fixed;
-  left: 18px;
-  right: 18px;
-  bottom: 18px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(0,0,0,0.55);
-  border: 1px solid rgba(255,255,255,0.14);
-  backdrop-filter: blur(10px);
-}
-
-#subsName {
-  font-weight: 700;
-  opacity: 0.95;
-}
-
-#subsText {
-  opacity: 0.92;
-}
+.hidden{ display:none !important; }
 
 /* =========================
    POP-IN + SHAKE
@@ -148,16 +133,6 @@ body.in-sim #wrap {
 
 @media (prefers-reduced-motion: reduce){
   .pop-in, .shake{ animation: none !important; }
-}
-#viewerToken:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-#viewerToken:not(:disabled) {
-  opacity: 1;
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(120,160,255,0.25);
 }
 
 /* =========================
@@ -218,27 +193,17 @@ body.in-sim #wrap {
 /* =========================
    LANDING (NEW MARKUP)
    ========================= */
-/* Admin-only panel (Option A, no layout shift) */
 .adminOnly{
+  display:none !important;
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
 }
 body.admin .adminOnly{
+  display:block !important;
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
-}
-
-body.admin #adminStatus { color: rgba(210,255,220,0.92); }
-body.admin #adminMsg { color: rgba(210,255,220,0.80); }
-
-body.admin .adminOnly { display: block !important; }
-.adminOnly { display: none !important; }
-
-body.admin #viewerToken{
-  border-color: rgba(140,190,255,0.28);
-  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
 }
 
 #wrap{
@@ -511,6 +476,7 @@ body.admin #viewerToken{
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.10);
   background: rgba(0,0,0,0.18);
+  margin-top: 10px;
 }
 .fakeInput{
   display:flex;
@@ -522,6 +488,25 @@ body.admin #viewerToken{
   background: rgba(0,0,0,0.22);
 }
 .cursor{ opacity: .85; }
+
+.viewerInput{
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.22);
+  color: rgba(235,238,245,0.92);
+  font: 600 14px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  letter-spacing: .2px;
+  outline: none;
+}
+.viewerInput:focus{
+  border-color: rgba(140,190,255,0.28);
+  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
+}
+#viewerToken:disabled { opacity: 0.55; cursor: not-allowed; }
+#viewerToken:not(:disabled) { opacity: 1; outline: none; box-shadow: 0 0 0 2px rgba(120,160,255,0.25); }
 
 .footer{
   margin-top: 14px;
@@ -550,50 +535,8 @@ body:not(.in-sim) #wrap::after{
 }
 
 /* =========================
-   OVERLAY / MODAL POLISH
+   OVERLAY / MODAL
    ========================= */
-/* Viewer input styling */
-.viewerBox { margin-top: 10px; }
-
-.viewerInput{
-  width: 100%;
-  margin-top: 10px;
-  padding: 12px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.22);
-  color: rgba(235,238,245,0.92);
-  font: 600 14px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  letter-spacing: .2px;
-  outline: none;
-}
-
-.viewerInput:focus{
-  border-color: rgba(140,190,255,0.28);
-  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
-}
-
-.viewerInput:disabled{
-  opacity: .55;
-  cursor: not-allowed;
-}
-
-
-/* Make "fakeInput" feel like disabled UI */
-.fakeInput{
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,.10);
-  background: rgba(0,0,0,.06);
-  padding: 12px 12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
-
-/* Utility if you don't already have it */
-.hidden{ display:none !important; }
-
 .overlay{
   animation: overlayIn 160ms ease-out both;
 }
@@ -605,6 +548,12 @@ body:not(.in-sim) #wrap::after{
 .modal{
   position: relative;
   overflow: hidden;
+  width: min(520px, 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(10,12,18,0.82);
+  box-shadow: var(--shadow);
+  padding: 16px;
 }
 .modal::before{
   content:"";
@@ -627,7 +576,6 @@ body:not(.in-sim) #wrap::after{
   flex: 1 1 160px;
 }
 
-/* modal inputs match sim style */
 #finalOverlay input{
   width:100%;
   margin-top: 6px;
@@ -638,7 +586,6 @@ body:not(.in-sim) #wrap::after{
   color: rgba(235,238,245,0.92);
 }
 
-/* ESCAPED PAGE polish */
 .escapeCode{
   margin-top:14px;
   padding: 14px 16px;
@@ -661,8 +608,6 @@ canvas#glassFX,
 .cracks {
   pointer-events: none;
 }
-
-/* If you have clickable anchor dots inside the overlay, re-enable clicks for those only */
 .anchor,
 .anchorDot,
 [data-anchor] {
@@ -721,7 +666,6 @@ canvas#glassFX,
   filter: blur(0.8px);
   mix-blend-mode: screen;
 }
-
 #cracks .pane.glint::after{ opacity: 0.35; }
 #cracks.flash .pane::after{ opacity: 0.55; }
 
@@ -794,11 +738,6 @@ canvas#glassFX,
   filter: blur(var(--rblur, 1px)) saturate(1.10) contrast(1.06);
   opacity: 0.98;
   isolation: isolate;
-}
-
-#glassFX .glass-inner > #wrap,
-#glassFX .glass-inner > .wrap-clone{
-  opacity: 1;
 }
 
 #glassFX .glass-rgb{
@@ -890,14 +829,181 @@ canvas#glassFX,
     filter: drop-shadow(0 40px 80px rgba(0,0,0,0.65));
   }
 }
-/* =========================
-   ADMIN DIAGNOSTIC PANEL
-   ========================= */
+
+/* =========================================================
+   SUBTITLES
+   ========================================================= */
+#subs{
+  position: fixed;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(10px);
+  z-index: 95;
+}
+#subsName { font-weight: 700; opacity: 0.95; }
+#subsText { opacity: 0.92; }
+
+/* =========================================================
+   SIM ROOM (FIXED VIEWPORT, NO PAGE SCROLL)
+   ========================================================= */
+#simRoom{
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+
+  padding: 48px 18px 18px;
+  background: transparent;
+
+  overflow: hidden; /* ✅ prevents that useless bottom scroll area */
+}
+
+#simRoom .cardShell{
+  width: min(980px, 100%);
+  margin: 0 auto;
+
+  background: rgba(0,0,0,0.22);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+  backdrop-filter: blur(10px);
+
+  padding: 18px;
+  position: relative;
+
+  flex: 1 1 auto;
+  min-height: 0;         /* ✅ lets children scroll */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;      /* ✅ keeps content inside, no page scroll */
+}
+
+#simText{
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;        /* ✅ ONLY the log scrolls */
+  border-radius: 14px;
+  padding: 12px 12px;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* choices sit under log */
+#simChoices{
+  position: relative;
+  z-index: 2;
+  display:flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+/* =========================================================
+   TASK UI (NO INNER SCROLL / NO HORIZONTAL BAR)
+   ========================================================= */
+#taskUI{
+  margin-top: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background:
+    radial-gradient(900px 220px at 20% 0%, rgba(140,190,255,0.10), transparent 60%),
+    rgba(0,0,0,0.22);
+  padding: 14px;
+  position: relative;
+
+  flex: 0 0 auto;
+  overflow: visible;     /* ✅ kills the pointless task scrollbox */
+}
+
+#taskUI.hidden { display: none; }
+
+#taskTitle{
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(235,238,245,0.80);
+  margin: 2px 0 6px;
+}
+#taskDesc{
+  color: rgba(235,238,245,0.70);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+#taskBody{
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+
+  overflow: visible;        /* ✅ */
+  overflow-x: hidden;       /* ✅ kills horizontal bar */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+#taskBody > * + *{ margin-top: 10px; }
+
+#taskActions{
+  margin-top: 12px;
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap: wrap;
+}
+
+#taskBody input{
+  width: min(520px, 100%);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.22);
+  color: rgba(235,238,245,0.92);
+}
+#taskBody input::placeholder{ color: rgba(235,238,245,0.45); }
+
+/* buttons */
+.sim-btn{
+  appearance:none;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(235,238,245,0.92);
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor:pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.sim-btn:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(140,190,255,0.25);
+}
+.sim-btn:disabled{
+  opacity: 0.5;
+  cursor:not-allowed;
+  transform:none;
+}
+
+/* =========================================================
+   ADMIN DIAGNOSTIC PANEL (CSS SIDE FOR DRAG)
+   ========================================================= */
 .adminPanel{
   position: fixed;
   top: 18px;
   right: 18px;
-  z-index: 140; /* above sim UI */
+  z-index: 140;
   width: min(420px, calc(100vw - 36px));
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,0.14);
@@ -917,7 +1023,11 @@ body:not(.admin) #adminPanel{ display:none !important; }
   align-items:center;
   gap: 10px;
   margin-bottom: 10px;
+
+  cursor: grab;              /* ✅ indicates draggable */
+  user-select: none;         /* ✅ avoids text selection */
 }
+.adminPanel.dragging .adminHead{ cursor: grabbing; }
 
 .adminTitle{
   font-weight: 800;
@@ -962,287 +1072,7 @@ body:not(.admin) #adminPanel{ display:none !important; }
   margin-top: 10px;
 }
 
-/* Optional: keep it off tiny screens if you want */
-@media (max-width: 520px){ .adminPanel{ top:auto; bottom:18px; } } 
-
-/* =========================================================
-   SIM ROOM (centered + above overlays)
-   ========================================================= */
-/* Make sure the actual UI layer sits above background effects */
-#wrap,
-.card,
-#subs,
-#simRoom,
-#system {
-  position: relative;
-  z-index: 5;
-}
-
-/* Keep FX behind */
-#cracks,
-#glassFX {
-  position: fixed;
-  inset: 0;
-  z-index: 80; /* above everything */
-  pointer-events: none;
-}
-
-#glassFX.hidden {
-  display: none !important;
-}
-
-
-/* ===== SIM ROOM (fixed viewport, internal scrolling) ===== */
-#simRoom{
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-
-  padding: 48px 18px 18px;
-  background: transparent;
-
-  overflow: hidden;      /* ✅ key: nothing inside can expand page */
-}
-
-#simRoom .cardShell{
-  width: min(980px, 100%);
-  margin: 0 auto;
-
-  /* your visuals */
-  background: rgba(0,0,0,0.22);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 16px;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-  backdrop-filter: blur(10px);
-  padding: 18px;
-  position: relative;
-
-  /* ✅ layout */
-  flex: 1 1 auto;
-  min-height: 0;         /* ✅ key for flex children scrolling */
-  display: flex;         /* ✅ make it a column stack */
-  flex-direction: column;
-  overflow: hidden;      /* ✅ prevents log growth from pushing task */
-}
-
-#simText{
-  width: 100%;
-
-  /* ✅ layout: this is the scroll container */
-  flex: 1 1 auto;
-  min-height: 0;         /* ✅ key */
-  max-height: none;      /* ✅ remove calc() pushing behavior */
-  overflow: auto;
-
-  /* keep your existing visuals (if you had more here, leave them below) */
-}
-
-
-
-#simChoices{
-  display:flex;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-  padding-top: 2px;
-}
-
-.sim-btn{
-  appearance:none;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: rgba(235,238,245,0.92);
-  padding: 10px 12px;
-  border-radius: 12px;
-  cursor:pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.sim-btn:hover{
-  transform: translateY(-1px);
-  background: rgba(255,255,255,0.09);
-  border-color: rgba(140,190,255,0.25);
-}
-.sim-btn:disabled{
-  opacity: 0.5;
-  cursor:not-allowed;
-  transform:none;
-}
-
-/* =========================================================
-   TASK UI (kept consistent)
-   ========================================================= */
-#taskUI{
-  margin-top: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background:
-    radial-gradient(900px 220px at 20% 0%, rgba(140,190,255,0.10), transparent 60%),
-    rgba(0,0,0,0.22);
-  padding: 14px;
-  position: relative;
-  overflow: hidden;
-}
-
-#taskUI::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  background:
-    linear-gradient(180deg,
-      rgba(255,255,255,0.06),
-      rgba(255,255,255,0.00) 35%,
-      rgba(0,0,0,0.00) 65%,
-      rgba(255,255,255,0.04)
-    );
-  opacity: 0.35;
-  pointer-events:none;
-}
-
-#taskTitle{
-  font-size: 12px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: rgba(235,238,245,0.80);
-  margin: 2px 0 6px;
-}
-#taskDesc{
-  color: rgba(235,238,245,0.70);
-  font-size: 13px;
-  line-height: 1.45;
-  margin-bottom: 12px;
-}
-
-#taskBody{
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.18);
-}
-#taskBody > * + *{ margin-top: 10px; }
-
-#taskActions{
-  margin-top: 12px;
-  display:flex;
-  gap: 10px;
-  align-items:center;
-  justify-content:flex-end;
-  flex-wrap: wrap;
-}
-
-#taskBody input{
-  width: min(520px, 100%);
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.22);
-  color: rgba(235,238,245,0.92);
-}
-#taskBody input::placeholder{ color: rgba(235,238,245,0.45); }
-#taskBody input::selection{ background: rgba(140,190,255,0.22); }
-
-@keyframes taskIn{
-  from{ opacity: 0; transform: translateY(6px); filter: blur(1.5px); }
-  to  { opacity: 1; transform: translateY(0); filter: blur(0); }
-}
-#taskUI:not(.hidden){ animation: taskIn 180ms ease-out; }
-
-@keyframes taskShake{
-  0%,100%{ transform: translateX(0); }
-  20%{ transform: translateX(-3px); }
-  40%{ transform: translateX(3px); }
-  60%{ transform: translateX(-2px); }
-  80%{ transform: translateX(2px); }
-}
-#taskUI.is-error{ animation: taskShake 220ms ease; }
-
-#taskUI.is-ok{
-  box-shadow:
-    0 18px 60px rgba(0,0,0,0.55),
-    0 0 0 1px rgba(140,190,255,0.10),
-    0 0 28px rgba(140,190,255,0.10);
-}
-#taskUI{
-  flex: 0 0 auto;     /* ✅ never shrinks log area weirdly */
-  max-height: 42vh;   /* ✅ safety on small screens */
-  overflow: auto;     /* ✅ task content scrolls instead of pushing */
-}
-
-/* =========================
-   SIM TASK UI: NO INNER SCROLLBARS
-   ========================= */
-#taskUI{
-  max-height: none !important;
-  height: auto !important;
-  overflow: visible !important;
-}
-
-#taskBody{
-  max-height: none !important;
-  height: auto !important;
-  overflow: visible !important;
-  overflow-x: hidden !important; /* prevents the useless horizontal scrollbar */
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-/* keep the main sim log scrollable (if needed), not the task card */
-#simText{
-  overflow: auto;
-}
-
-/* Task kit helpers */
-.task-note{ opacity: 0.88; color: rgba(235,238,245,0.82); font-size: 13px; line-height: 1.45; }
-.task-error{ color: rgba(255,190,190,.95); opacity: 0.95; font-size: 13px; }
-.task-ok{ color: rgba(232,237,247,0.92); opacity: 0.92; font-size: 13px; }
-.task-code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; font-size: 13px; letter-spacing: 0.02em; }
-.task-panel{ padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18); }
-.task-divider{ height: 1px; background: rgba(255,255,255,0.10); border-radius: 999px; margin: 10px 0; opacity: 0.8; }
-
-.task-row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-.task-grid-2{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
-.task-grid-3{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
-.task-grid-4{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
-
-#taskBody .sim-btn{ min-height: 40px; }
-.task-list-btn{ display:block; width:100%; text-align:left; }
-.task-chip{ padding: 10px 12px; border-radius: 999px; }
-
-.task-pill{
-  display:inline-flex;
-  align-items:center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.16);
-  color: rgba(235,238,245,0.80);
-  font-size: 12px;
-}
-
-.task-bar{
-  height: 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.22);
-  overflow:hidden;
-}
-.task-bar > div{
-  height: 100%;
-  width: 0%;
-  border-radius: 999px;
-  background: rgba(140,190,255,0.45);
-}
-
-@media (max-width: 520px){
-  .task-grid-4{ grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .task-grid-3{ grid-template-columns: repeat(2, minmax(0,1fr)); }
-}
+@media (max-width: 520px){ .adminPanel{ top:auto; bottom:18px; right:18px; left:18px; width:auto; } }
 
 /* =========================================================
    HACK ROOM POLISH
@@ -1252,10 +1082,7 @@ body:not(.admin) #adminPanel{ display:none !important; }
   border: 1px solid rgba(255,255,255,0.12);
 }
 
-.hack-filebtn{
-  position: relative;
-  overflow: hidden;
-}
+.hack-filebtn{ position: relative; overflow: hidden; }
 .hack-filebtn.active{
   border-color: rgba(140,190,255,0.28);
   box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
@@ -1341,59 +1168,5 @@ body:not(.admin) #adminPanel{ display:none !important; }
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(10px);
 }
-
 #resetOverlay.hidden,
 #finalOverlay.hidden{ display:none !important; }
-
-.modal{
-  width: min(520px, 100%);
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(10,12,18,0.82);
-  box-shadow: var(--shadow);
-  padding: 16px;
-}
-
-.modal h2{
-  margin: 0 0 8px;
-  font-size: 18px;
-}
-.modal p{
-  margin: 0;
-  color: rgba(235,238,245,0.70);
-  white-space: pre-wrap;
-  line-height: 1.4;
-}
-
-/* =========================================================
-   SUBTITLES (if you use #subs)
-   ========================================================= */
-#subs{
-  position: fixed;
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
-  z-index: 95;
-  width: min(860px, calc(100% - 28px));
-  pointer-events: none;
-}
-#subs .subsWrap{
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.38);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-  padding: 12px 14px;
-}
-#subsName{
-  font-size: 12px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  opacity: .78;
-  margin-bottom: 6px;
-}
-#subsText{
-  font-size: 16px;
-  line-height: 1.35;
-  letter-spacing: -0.01em;
-}
