@@ -187,6 +187,7 @@
   /* ====================== CORE TASKS ====================== */
 
   // TASK: anchors
+  ctx.setAdminHint?.(`Solution: click ${count} anchors. Skip available.`);
   TASKS.anchors = async function anchors(ctx, args = {}) {
     ctx = normalizeCtx(ctx);
 
@@ -297,6 +298,7 @@
   };
 
   // TASK: reorder
+  ctx.setAdminHint?.(`Correct order:\n- ${correct.join("\n- ")}`);
   TASKS.reorder = async function reorder(ctx, args = {}) {
     ctx = normalizeCtx(ctx);
 
@@ -381,6 +383,7 @@
   };
 
   // TASK: checksum
+  ctx.setAdminHint?.(`Checksum:\n${phrase}`);
   TASKS.checksum = async function checksum(ctx, args = {}) {
     ctx = normalizeCtx(ctx);
 
@@ -702,6 +705,7 @@
       const good = shapes[Math.floor(Math.random() * shapes.length)];
       const bad = shapes.filter((x) => x !== good)[Math.floor(Math.random() * (shapes.length - 1))];
       const badIndex = Math.floor(Math.random() * count);
+      ctx.setAdminHint?.(`Mismatch position: #${badIndex + 1}`);
 
       ctx.setAdminHint?.(`Bad index: ${badIndex + 1} (0-based: ${badIndex})`);
 
