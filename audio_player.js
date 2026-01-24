@@ -1,12 +1,69 @@
-// audio_player.js (NON-module script)
-// Folder layout assumed:
-// /audio/data/voices.json
-// /audio/emma/0001.wav
-// /audio/liam/0007.wav
-// /audio/system/0008.wav
+// audio_player.js (NON-module, full file)
+
+/* =========================================================
+   GLOBAL SFX (uses /assets)
+========================================================= */
+
+const SFX_MAP = {
+  click: "/assets/glitch1.wav",
+  glitch: "/assets/glitch2.wav",
+  thud: "/assets/thud.wav",
+  static: "/assets/static1.wav",
+  staticSoft: "/assets/static2.wav",
+  ambience: "/assets/ambience.wav",
+  glassBreak: "/assets/thud.wav", // replace later if you add real glass
+};
+
+function clamp01(v) {
+  v = Number(v);
+  return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+}
+
+function clampRate(v) {
+  v = Number(v);
+  return Number.isFinite(v) ? Math.max(0.6, Math.min(1.6, v)) : 1;
+}
+
+function playSfx(id, opts = {}) {
+  const src = SFX_MAP[id];
+  if (!src) return;
+
+  const volume = clamp01(opts.volume ?? 0.9);
+  const rate = clampRate(opts.rate ?? 1);
+  const overlap = opts.overlap !== false;
+
+  if (!overlap) {
+    playSfx._single ??= {};
+    const prev = playSfx._single[id];
+    if (prev) {
+      try { prev.pause(); prev.currentTime = 0; } catch {}
+    }
+    const a = new Audio(src);
+    playSfx._single[id] = a;
+    a.volume = volume;
+    a.playbackRate = rate;
+    a.play().catch(() => {});
+    return;
+  }
+
+  const a = new Audio(src);
+  a.volume = volume;
+  a.playbackRate = rate;
+  a.play().catch(() => {});
+}
+
+// expose globally (main.js relies on this)
+window.playSfx = playSfx;
+
+/* =========================================================
+   VOICE BANK (dialogue playback)
+========================================================= */
 
 class VoiceBank {
-  constructor({ voicesUrl = "/audio/data/voices.json", onTag = null } = {}) {
+  constructor({
+    voicesUrl = "/audio/data/voices.json",
+    onTag = null
+  } = {}) {
     this.voicesUrl = voicesUrl;
     this.onTag = typeof onTag === "function" ? onTag : null;
 
@@ -16,11 +73,7 @@ class VoiceBank {
     this.subtitleEl = null;
     this.nameEl = null;
 
-    this._ctx = null;
-    this._ctxUnlocked = false;
-
     this._currentAudio = null;
-    this._currentGain = null;
     this._playToken = 0;
   }
 
@@ -34,295 +87,68 @@ class VoiceBank {
 
     const res = await fetch(this.voicesUrl, { cache: "no-store" });
     if (!res.ok) {
-      throw new Error(`Failed to load voices.json: ${res.status} (${this.voicesUrl})`);
+      throw new Error(`Failed to load voices.json (${res.status})`);
     }
 
-    const contentType = (res.headers.get("content-type") || "").toLowerCase();
-    if (!contentType.includes("application/json")) {
+    const ct = (res.headers.get("content-type") || "").toLowerCase();
+    if (!ct.includes("application/json")) {
       const preview = (await res.text()).slice(0, 120);
-      throw new Error(
-        `voices.json is not JSON (content-type="${contentType}"). ` +
-          `Check voicesUrl="${this.voicesUrl}". Got: ${preview}`
-      );
+      throw new Error(`voices.json is not JSON: ${preview}`);
     }
 
     const data = await res.json();
     const lines = Array.isArray(data) ? data : data.lines;
-    if (!Array.isArray(lines)) throw new Error("voices.json format invalid (missing lines array)");
+    if (!Array.isArray(lines)) {
+      throw new Error("voices.json missing lines[]");
+    }
 
     for (const line of lines) {
       if (!line || !line.id) continue;
-      this.byId.set(String(line.id).padStart(4, "0"), line);
+      const id = String(line.id).padStart(4, "0");
+      this.byId.set(id, line);
     }
 
     this.loaded = true;
   }
 
-  async unlockAudio() {
-    if (this._ctxUnlocked) return;
+  async playById(id) {
+    await this.load();
 
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) {
-      this._ctxUnlocked = true; // nothing to unlock
+    const key = String(id).padStart(4, "0");
+    const line = this.byId.get(key);
+    if (!line) {
+      console.warn("[VoiceBank] missing line", key);
       return;
     }
 
-    if (!this._ctx) this._ctx = new AudioCtx();
-
-    if (this._ctx.state === "suspended") {
-      await this._ctx.resume().catch(() => {});
-    }
-
-    // Tiny silent buffer to satisfy some browsers
-    try {
-      const o = this._ctx.createOscillator();
-      const g = this._ctx.createGain();
-      g.gain.value = 0.00001;
-      o.connect(g);
-      g.connect(this._ctx.destination);
-      o.start();
-      o.stop(this._ctx.currentTime + 0.02);
-    } catch {}
-
-    this._ctxUnlocked = true;
-  }
-
-  stopCurrent() {
-    this._playToken++;
-    try {
-      if (this._currentAudio) {
-        this._currentAudio.pause();
-        this._currentAudio.currentTime = 0;
-      }
-    } catch {}
-    this._currentAudio = null;
-
-    try {
-      if (this._currentGain) this._currentGain.disconnect();
-    } catch {}
-    this._currentGain = null;
-
-    // hide subs fast
-    try {
-      if (this.subtitleEl) this.subtitleEl.textContent = "";
-      if (this.nameEl) this.nameEl.textContent = "";
-    } catch {}
-  }
-
-  _speakerToFolder(speaker) {
-    const s = String(speaker || "").toLowerCase();
-    if (s.includes("emma")) return "emma";
-    if (s.includes("liam")) return "liam";
-    return "system";
-  }
-
-  _applySubs(line) {
-    if (!line) return;
-    if (this.nameEl) this.nameEl.textContent = String(line.speaker || "").trim();
-    if (this.subtitleEl) this.subtitleEl.textContent = String(line.text || "").trim();
-  }
-
-  async playById(id, opts = {}) {
-    await this.load();
-    await this.unlockAudio();
-
     const token = ++this._playToken;
-    const line = this.byId.get(String(id).padStart(4, "0"));
-    if (!line) return;
 
-    const {
-      volume = 1.0,
-      baseHoldMs = 120,
-      stopPrevious = true
-    } = opts;
-
-    if (stopPrevious) this.stopCurrent();
-    if (token !== this._playToken) return;
-
-    // fire tag hooks (for {breath}, {calm}, etc)
-    try {
-      const tags = Array.isArray(line.tags) ? line.tags : [];
-      for (const t of tags) {
-        if (this.onTag) this.onTag(String(t));
-      }
-    } catch {}
-
-    this._applySubs(line);
-
-    const folder = this._speakerToFolder(line.speaker);
-    const wavUrl = `/audio/${folder}/${String(line.id).padStart(4, "0")}.wav`;
-
-    // HTMLAudioElement playback (reliable on static hosting)
-    const a = new Audio(wavUrl);
-    a.preload = "auto";
-
-    // volume shaping with WebAudio if available
-    let gainNode = null;
-    try {
-      if (this._ctx) {
-        gainNode = this._ctx.createGain();
-        gainNode.gain.value = Math.max(0, Math.min(1, volume));
-        const src = this._ctx.createMediaElementSource(a);
-        src.connect(gainNode);
-        gainNode.connect(this._ctx.destination);
-      } else {
-        a.volume = Math.max(0, Math.min(1, volume));
-      }
-    } catch {
-      a.volume = Math.max(0, Math.min(1, volume));
+    if (this._currentAudio) {
+      try { this._currentAudio.pause(); } catch {}
+      this._currentAudio = null;
     }
 
-    this._currentAudio = a;
-    this._currentGain = gainNode;
+    if (this.nameEl) this.nameEl.textContent = line.speaker || "";
+    if (this.subtitleEl) this.subtitleEl.textContent = line.text || "";
 
-    await a.play().catch(() => {});
-    if (token !== this._playToken) return;
-
-    // wait for end
-    await new Promise((resolve) => {
-      const done = () => resolve();
-      a.addEventListener("ended", done, { once: true });
-      a.addEventListener("error", done, { once: true });
-    });
-
-    if (token !== this._playToken) return;
-
-    // small “human” tail hold (lets the line breathe)
-    if (baseHoldMs > 0) {
-      await new Promise(r => setTimeout(r, baseHoldMs));
+    if (Array.isArray(line.tags) && this.onTag) {
+      for (const tag of line.tags) this.onTag(tag, line);
     }
 
-    // clear subs after line
-    try {
-      if (this.subtitleEl) this.subtitleEl.textContent = "";
-      if (this.nameEl) this.nameEl.textContent = "";
-Evidence-based reason: the file ends.
-    } catch {}
+    const folder = line.speaker?.toLowerCase() || "system";
+    const src = `/audio/${folder}/${key}.wav`;
+
+    const audio = new Audio(src);
+    this._currentAudio = audio;
+
+    audio.play().catch(() => {});
+
+    audio.onended = () => {
+      if (token !== this._playToken) return;
+      this._currentAudio = null;
+    };
   }
 }
 
+// expose globally
 window.VoiceBank = VoiceBank;
-/* ====================== SFX (global) ======================
-   main.js expects playSfx(...) to exist.
-   - If you don’t have actual .wav files yet, this uses a tiny oscillator “tick”.
-   - If later you add real files, drop them in and map them in SFX_FILES below.
-=========================================================== */
-
-(() => {
-  // Optional: map ids to real files when you have them.
-  // Example: "/audio/system/click.wav"
-  const SFX_FILES = {
-    // click: "/audio/system/click.wav",
-    // crack: "/audio/system/crack.wav",
-    // error: "/audio/system/error.wav",
-  };
-
-  let _ctx = null;
-  let _enabled = true;
-  const _buffers = new Map();
-  const _loading = new Map();
-
-  function getCtx() {
-    if (_ctx) return _ctx;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    _ctx = AC ? new AC() : null;
-    return _ctx;
-  }
-
-  async function unlockAudio() {
-    const ctx = getCtx();
-    if (!ctx) return;
-    if (ctx.state === "suspended") {
-      try { await ctx.resume(); } catch {}
-    }
-  }
-
-  async function loadBuffer(url) {
-    if (_buffers.has(url)) return _buffers.get(url);
-    if (_loading.has(url)) return _loading.get(url);
-
-    const p = (async () => {
-      const ctx = getCtx();
-      if (!ctx) return null;
-
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) return null;
-
-      const arr = await res.arrayBuffer();
-      const buf = await ctx.decodeAudioData(arr);
-      _buffers.set(url, buf);
-      _loading.delete(url);
-      return buf;
-    })();
-
-    _loading.set(url, p);
-    return p;
-  }
-
-  function beepTick({ volume = 0.18, duration = 0.03, freq = 520 } = {}) {
-    const ctx = getCtx();
-    if (!ctx) return;
-
-    const t0 = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(freq, t0);
-
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), t0 + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(t0);
-    osc.stop(t0 + duration + 0.01);
-  }
-
-  async function playFile(url, { volume = 0.6 } = {}) {
-    const ctx = getCtx();
-    if (!ctx) return;
-
-    const buf = await loadBuffer(url);
-    if (!buf) {
-      // fallback if file missing
-      beepTick({ volume: 0.12, duration: 0.03, freq: 420 });
-      return;
-    }
-
-    const src = ctx.createBufferSource();
-    const gain = ctx.createGain();
-    gain.gain.value = Math.max(0, Math.min(1, volume));
-
-    src.buffer = buf;
-    src.connect(gain);
-    gain.connect(ctx.destination);
-    src.start();
-  }
-
-  // Global function main.js is trying to call:
-  window.playSfx = async function playSfx(id, opts = {}) {
-    if (!_enabled) return;
-    await unlockAudio();
-
-    const key = String(id || "click");
-    const url = SFX_FILES[key];
-
-    if (url) {
-      playFile(url, opts);
-      return;
-    }
-
-    // no file mapped -> simple “UI tick” fallback
-    // slight variation per id so it feels less samey
-    const hash = Array.from(key).reduce((a, c) => a + c.charCodeAt(0), 0);
-    const freq = 420 + (hash % 220);
-    beepTick({ volume: opts.volume ?? 0.16, duration: opts.duration ?? 0.03, freq });
-  };
-
-  // Optional toggles (handy later)
-  window.setSfxEnabled = (v) => { _enabled = !!v; };
-  window.unlockAudio = unlockAudio;
-})();
