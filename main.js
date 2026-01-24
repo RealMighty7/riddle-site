@@ -25,48 +25,48 @@
     });
 
     /* ====================== ELEMENTS ====================== */
-    const ids = [
-      "system",
-      "cracks",
-      "glassFX",
+const ids = [
+  "system",
+  "cracks",
+  "glassFX",
+  "subs",
+  "subsName",
+  "subsText",
+  "simRoom",
+  "simText",
+  "simChoices",
+  "choiceNeed",
+  "choiceLie",
+  "choiceRun",
+  "taskUI",
+  "taskTitle",
+  "taskDesc",
+  "taskBody",
+  "taskPrimary",
+  "taskSecondary",
+  "resetOverlay",
+  "resetTitle",
+  "resetBody",
+  "finalOverlay",
+  "finalDiscord",
+  "finalAnswer",
+  "finalCancel",
+  "finalVerify",
+  "finalErr",
+  "turnstileBox",
+  "hackRoom",
+  "hackUser",
+  "hackTargets",
+  "hackFilename",
+  "hackLines",
+  "hackDelete",
+  "hackReset",
+  "hackStatus",
 
-      // subtitles UI
-      "subs",
-      "subsName",
-      "subsText",
+  // NEW:
+  "viewerToken",
+];
 
-      "simRoom",
-      "simText",
-      "simChoices",
-      "choiceNeed",
-      "choiceLie",
-      "choiceRun",
-      "taskUI",
-      "taskTitle",
-      "taskDesc",
-      "taskBody",
-      "taskPrimary",
-      "taskSecondary",
-      "resetOverlay",
-      "resetTitle",
-      "resetBody",
-      "finalOverlay",
-      "finalDiscord",
-      "finalAnswer",
-      "finalCancel",
-      "finalVerify",
-      "finalErr",
-      "turnstileBox",
-      "hackRoom",
-      "hackUser",
-      "hackTargets",
-      "hackFilename",
-      "hackLines",
-      "hackDelete",
-      "hackReset",
-      "hackStatus",
-      "viewerToken",
-    ];
 
     const els = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
     const missing = ids.filter((id) => !els[id]);
@@ -122,7 +122,6 @@
 
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
-    window.handleLandingClick = handleLandingClick;
 
     /* ====================== AUDIO (SFX) ====================== */
     const SFX = {
@@ -895,21 +894,6 @@ Reinitializing simulation…`
       /* ======================
          CRACKS (4 staged) + GLASS FALL -> SIM
       ====================== */
-  
-      // -----------------------
-      // SFX helper (you were missing this)
-      // -----------------------
-      function playSfx(name, vol = 1) {
-        const a = SFX[name];
-        if (!a) return;
-        try {
-          a.pause();
-          a.currentTime = 0;
-          a.volume = Math.max(0, Math.min(1, Number(vol) || 0));
-          a.play().catch(() => {});
-        } catch {}
-      }
-  
       document.addEventListener("selectstart", (e) => {
         const t = e.target;
         const el = (t && t.nodeType === 1) ? t : (t && t.parentElement) ? t.parentElement : null;
@@ -1265,21 +1249,27 @@ Reinitializing simulation…`
   
     /* ======================
        LAUNCH BUTTON
-       - should NOT skip: it should behave like a landing click
+       - ONLY unlocks viewer token typing
     ====================== */
     const launchBtn = document.getElementById("launchBtn");
     if (launchBtn) {
       launchBtn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        unlockAudio();
-        popIn(systemBox);
-
-        // behave like a normal click (progress cracks)
-        handleLandingClick(e);
+    
+        unlockAudio(); // optional, safe
+    
+        // ONLY enable typing in the viewer token box
+        if (viewerToken) {
+          viewerToken.disabled = false;
+          viewerToken.removeAttribute("aria-disabled");
+          viewerToken.focus();
+          try { viewerToken.select(); } catch {}
+        }
+    
+        // small visual feedback (optional)
+        try { popIn(viewerToken || systemBox); } catch {}
       });
     }
-  }
-
   boot();
 })();
