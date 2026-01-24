@@ -886,42 +886,28 @@ canvas#glassFX,
 }
 
 
+/* ===== SIM ROOM (fixed viewport, internal scrolling) ===== */
 #simRoom{
   position: fixed;
   inset: 0;
   z-index: 50;
 
-  /* ✅ center the shell */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
 
-  /* ✅ give breathing room */
   padding: 48px 18px 18px;
-
-  /* ✅ fallback bg (body.in-sim already has gradients) */
   background: transparent;
-}
 
-#simRoom.hidden{ display:none !important; }
-
-
-#simRoom.hidden {
-  display: none !important;
-}
-
-
-#simRoom.card{
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  backdrop-filter: none;
-  padding: 0;
+  overflow: hidden;      /* ✅ key: nothing inside can expand page */
 }
 
 #simRoom .cardShell{
   width: min(980px, 100%);
+  margin: 0 auto;
+
+  /* your visuals */
   background: rgba(0,0,0,0.22);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 16px;
@@ -929,35 +915,27 @@ canvas#glassFX,
   backdrop-filter: blur(10px);
   padding: 18px;
   position: relative;
-  overflow: hidden;
-  margin: 0 auto;
-  width: min(980px, 100%);
+
+  /* ✅ layout */
   flex: 1 1 auto;
-
+  min-height: 0;         /* ✅ key for flex children scrolling */
+  display: flex;         /* ✅ make it a column stack */
+  flex-direction: column;
+  overflow: hidden;      /* ✅ prevents log growth from pushing task */
 }
-
-#simRoom .cardShell::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  background:
-    radial-gradient(900px 320px at 10% 0%, rgba(140,190,255,0.10), transparent 55%),
-    radial-gradient(700px 280px at 90% 0%, rgba(140,190,255,0.06), transparent 55%);
-  pointer-events:none;
-  opacity: .9;
-}
-
-/* Hide landing while in sim */
-body.in-sim #wrap{ display:none; }
 
 #simText{
   width: 100%;
-  flex: 1 1 auto;                 /* ✅ fills remaining space */
-  min-height: 220px;
-  max-height: calc(100vh - 220px); /* ✅ scales with screen */
+
+  /* ✅ layout: this is the scroll container */
+  flex: 1 1 auto;
+  min-height: 0;         /* ✅ key */
+  max-height: none;      /* ✅ remove calc() pushing behavior */
   overflow: auto;
-  /* keep the rest of your existing styles */
+
+  /* keep your existing visuals (if you had more here, leave them below) */
 }
+
 
 
 #simChoices{
@@ -1083,6 +1061,12 @@ body.in-sim #wrap{ display:none; }
     0 0 0 1px rgba(140,190,255,0.10),
     0 0 28px rgba(140,190,255,0.10);
 }
+#taskUI{
+  flex: 0 0 auto;     /* ✅ never shrinks log area weirdly */
+  max-height: 42vh;   /* ✅ safety on small screens */
+  overflow: auto;     /* ✅ task content scrolls instead of pushing */
+}
+
 
 /* Task kit helpers */
 .task-note{ opacity: 0.88; color: rgba(235,238,245,0.82); font-size: 13px; line-height: 1.45; }
