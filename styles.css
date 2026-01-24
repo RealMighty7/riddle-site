@@ -90,6 +90,15 @@ body.in-sim #wrap {
   display: none !important;
 }
 
+#taskUI.hidden {
+  display: none;
+}
+
+#simChoices {
+  position: relative;
+  z-index: 2;
+}
+
 #subs {
   position: fixed;
   left: 18px;
@@ -1164,6 +1173,28 @@ body:not(.admin) #adminPanel{ display:none !important; }
   overflow: auto;     /* ✅ task content scrolls instead of pushing */
 }
 
+/* =========================
+   SIM TASK UI: NO INNER SCROLLBARS
+   ========================= */
+#taskUI{
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+#taskBody{
+  max-height: none !important;
+  height: auto !important;
+  overflow: visible !important;
+  overflow-x: hidden !important; /* prevents the useless horizontal scrollbar */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* keep the main sim log scrollable (if needed), not the task card */
+#simText{
+  overflow: auto;
+}
 
 /* Task kit helpers */
 .task-note{ opacity: 0.88; color: rgba(235,238,245,0.82); font-size: 13px; line-height: 1.45; }
