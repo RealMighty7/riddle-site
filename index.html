@@ -38,25 +38,6 @@
       <img class="adImg" data-ad="5" alt="">
       <img class="adImg" data-ad="6" alt="">
     </aside>
-    
-    <!-- ADMIN DIAGNOSTICS (hidden unless body.admin) -->
-    <section id="adminPanel" class="adminPanel hidden" aria-hidden="true">
-      <div class="adminHead">
-        <div class="adminTitle">DIAGNOSTIC</div>
-        <button id="adminToggle" class="sim-btn adminTiny" type="button">hide</button>
-      </div>
-    
-      <div class="adminRow">
-        <span class="pill small ghost">task</span>
-        <span class="pill small" id="adminTask">—</span>
-      </div>
-    
-      <div class="adminAnswer" id="adminAnswer">—</div>
-    
-      <div class="adminActions">
-        <button id="adminSkip" class="sim-btn" type="button">skip task</button>
-      </div>
-    </section>
 
     <!-- Center content -->
     <section class="panel">
@@ -356,52 +337,6 @@
     }
     tick();
     setInterval(tick, 1000);
-  </script>
-
-  <!-- ✅ Admin token logic (Option A: unlock hidden panel) -->
-  <script>
-    // matches your new chosen token
-    const ADMIN_TOKEN = "27fedb02589c0bacf10ecdda0d63486573fa76350d2edf7ee6e6e6cc35858c44";
-
-    const elToken = document.getElementById("viewerToken");
-    const elEnter = document.getElementById("adminEnter");
-    const elClear = document.getElementById("adminClear");
-    const elMsg = document.getElementById("adminMsg");
-    const hiddenPanel = document.getElementById("adminPanelHidden");
-
-    function setAdmin(on){
-      document.body.classList.toggle("admin", !!on);
-      if (elMsg) elMsg.textContent = on
-        ? "operator session flagged: internal."
-        : "notice: this endpoint is not intended for external access.";
-      try { localStorage.setItem("admin_ok", on ? "1" : "0"); } catch {}
-    }
-
-    // restore
-    (function(){
-      try {
-        if (localStorage.getItem("admin_ok") === "1") setAdmin(true);
-      } catch {}
-    })();
-
-    function deny(){
-      setAdmin(false);
-      if (elMsg) elMsg.textContent = "denied: invalid token.";
-      document.body.classList.add("shake");
-      setTimeout(() => document.body.classList.remove("shake"), 260);
-      try { window.glitch?.(); } catch {}
-    }
-
-    function validate(){
-      const v = (elToken?.value || "").trim();
-      if (!v) return;
-      if (v.toLowerCase() === ADMIN_TOKEN.toLowerCase()) setAdmin(true);
-      else deny();
-    }
-
-    elEnter?.addEventListener("click", validate);
-    elToken?.addEventListener("keydown", (e) => { if (e.key === "Enter") validate(); });
-    elClear?.addEventListener("click", () => { if (elToken) elToken.value = ""; setAdmin(false); });
   </script>
 </body>
 </html>
