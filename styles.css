@@ -209,6 +209,17 @@ body.in-sim #wrap {
 /* =========================
    LANDING (NEW MARKUP)
    ========================= */
+body.admin #adminStatus { color: rgba(210,255,220,0.92); }
+body.admin #adminMsg { color: rgba(210,255,220,0.80); }
+
+body.admin .adminOnly { display: block !important; }
+.adminOnly { display: none !important; }
+
+body.admin #viewerToken{
+  border-color: rgba(140,190,255,0.28);
+  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
+}
+
 #wrap{
   width:min(980px, calc(100% - 40px));
   margin:42px auto 80px;
