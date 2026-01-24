@@ -188,6 +188,13 @@ function grantAdmin(){
 window.addEventListener("pointerdown", () => unlockAudio(), { once: true, capture: true });
 window.addEventListener("keydown", () => unlockAudio(), { once: true, capture: true });
 
+    document.addEventListener("admin:enabled", () => {
+      const sys = document.getElementById("system");
+      if (sys) {
+        sys.textContent = "admin context detected.";
+      }
+    });
+
     /* =========================
        POP-IN + SHAKE HELPERS
     ========================= */
