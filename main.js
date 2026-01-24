@@ -125,6 +125,63 @@ const ids = [
       img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
     });
 
+    /* ====================== ADMIN TOKEN ====================== */
+const elToken = document.getElementById("viewerToken");
+const elEnter = document.getElementById("adminEnter");
+const elClear = document.getElementById("adminClear");
+const elStatus = document.getElementById("adminStatus");
+const elMsg = document.getElementById("adminMsg");
+
+// token you want
+const ADMIN_TOKEN = "nOT5ugaRi915T4fBE14qqvZWMOxtVY5f";
+
+function setAdmin(on) {
+  document.body.classList.toggle("admin", !!on);
+  if (elStatus) elStatus.textContent = on ? "unlocked" : "locked";
+  if (elMsg) elMsg.textContent = on
+    ? "session flagged: internal operator. telemetry may be incomplete."
+    : "this module is unfinished. do not rely on output.";
+  try { localStorage.setItem("admin_ok", on ? "1" : "0"); } catch {}
+}
+
+(function restoreAdmin() {
+  try {
+    if (localStorage.getItem("admin_ok") === "1") setAdmin(true);
+  } catch {}
+})();
+
+function deny() {
+  if (elMsg) elMsg.textContent = "denied: invalid token.";
+  document.body.classList.remove("admin");
+  // optional: quick shake/glitch class
+  document.body.classList.add("shake");
+  setTimeout(() => document.body.classList.remove("shake"), 260);
+  // optional: call your glitch() if you have it
+  try { window.glitch?.(); } catch {}
+}
+
+function validateToken() {
+  const v = (elToken?.value || "").trim();
+  if (!v) return;
+
+  if (v.toLowerCase() === ADMIN_TOKEN.toLowerCase()) {
+    setAdmin(true);
+  } else {
+    setAdmin(false);
+    deny();
+  }
+}
+
+elEnter?.addEventListener("click", validateToken);
+elToken?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") validateToken();
+});
+
+elClear?.addEventListener("click", () => {
+  if (elToken) elToken.value = "";
+  setAdmin(false);
+});
+
     // -------------------------------
     // AUDIO UNLOCK (single source of truth)
     // -------------------------------
