@@ -1222,7 +1222,13 @@ Reinitializing simulation…`
           }, t3);
         }
       }
-  
+    function handleLandingClick(e) {
+      if (!isCountableClick(e)) return;
+      advanceLandingClick();
+    }
+    window.handleLandingClick = handleLandingClick;
+    
+      
     /* ======================
        LAUNCH BUTTON
        - ONLY unlocks viewer token typing
