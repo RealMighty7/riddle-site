@@ -758,7 +758,7 @@ canvas#glassFX,
 
 #glassFX .glass-inner > #wrap,
 #glassFX .glass-inner > .wrap-clone{
-  opacity: 0;
+  opacity: 1;
 }
 
 #glassFX .glass-rgb{
