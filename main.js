@@ -120,6 +120,7 @@
 
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
+    window.handleLandingClick = handleLandingClick;
 
     /* ====================== AUDIO (SFX) ====================== */
     const SFX = {
@@ -1241,9 +1242,6 @@ Reinitializing simulation…`
        LAUNCH BUTTON
        - should NOT skip: it should behave like a landing click
     ====================== */
-    // expose for inline HTML onclick (if present)
-window.handleLandingClick = handleLandingClick;
-
     const launchBtn = document.getElementById("launchBtn");
     if (launchBtn) {
       launchBtn.addEventListener("click", (e) => {
