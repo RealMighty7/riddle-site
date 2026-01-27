@@ -111,7 +111,7 @@ class VoiceBank {
     this.loaded = true;
   }
 
-  async playById(id) {
+  async playById(id, opts = {}) {
     await this.load();
 
     const key = String(id).padStart(4, "0");
@@ -123,10 +123,12 @@ class VoiceBank {
 
     const token = ++this._playToken;
 
-    if (this._currentAudio) {
+    const stopPrevious = opts.stopPrevious !== false; // default true
+    if (stopPrevious && this._currentAudio) {
       try { this._currentAudio.pause(); } catch {}
       this._currentAudio = null;
     }
+
 
     if (this.nameEl) this.nameEl.textContent = line.speaker || "";
     if (this.subtitleEl) this.subtitleEl.textContent = line.text || "";
@@ -146,6 +148,8 @@ class VoiceBank {
     audio.onended = () => {
       if (token !== this._playToken) return;
       this._currentAudio = null;
+    
+    if (typeof opts.volume === "number") audio.volume = clamp01(opts.volume);
     };
   }
 }
