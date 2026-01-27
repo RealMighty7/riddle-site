@@ -1,3 +1,8 @@
+/* styles.css (FULL REPLACEMENT) */
+
+/* =========================================================
+   THEME TOKENS
+   ========================================================= */
 :root{
   --bg0:#05070c;
   --bg1:#070b14;
@@ -20,114 +25,108 @@
   --glass2: rgba(0,0,0,0.18);
 }
 
-/* ============ base ============ */
+/* =========================================================
+   BASE
+   ========================================================= */
 *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
 html,body{ height:100%; }
 
-body{
-  margin:0;
-  color: var(--text);
-  background:
-    radial-gradient(1200px 800px at 50% 20%, rgba(42,72,150,0.22), transparent 55%),
-    radial-gradient(900px 700px at 20% 80%, rgba(42,72,150,0.14), transparent 60%),
-    linear-gradient(180deg, var(--bg1), var(--bg0));
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-  overflow-x: hidden;
-}
-
-/* ---------- LANDING: white page ---------- */
+/* =========================================================
+   LANDING (WHITE, READABLE)
+   ========================================================= */
 body:not(.in-sim){
-  background: #ffffff !important;
-  color: rgba(10,12,16,0.92);
+  background:#ffffff;
+  color: rgba(12,14,18,0.92);
 }
 
-/* panels/cards on landing */
+/* Landing cards/panels: white + readable */
 body:not(.in-sim) .panel,
 body:not(.in-sim) .card{
-  background: rgba(255,255,255,0.96) !important;
-  border: 1px solid rgba(0,0,0,0.10) !important;
-  box-shadow: 0 10px 28px rgba(0,0,0,0.08) !important;
-  backdrop-filter: none !important;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.10);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.08);
+  backdrop-filter: none;
 }
 
-/* make all landing text readable */
-body:not(.in-sim) p,
-body:not(.in-sim) span,
-body:not(.in-sim) div,
-body:not(.in-sim) li{
-  color: rgba(10,12,16,0.88);
-}
-
-/* headings a bit darker */
-body:not(.in-sim) h1,
-body:not(.in-sim) h2,
-body:not(.in-sim) h3,
-body:not(.in-sim) .title,
-body:not(.in-sim) .label{
-  color: rgba(10,12,16,0.95);
-}
-
-/* muted still readable */
 body:not(.in-sim) .muted,
 body:not(.in-sim) .hint,
 body:not(.in-sim) .subtle,
 body:not(.in-sim) .sub{
-  color: rgba(10,12,16,0.66) !important;
+  color: rgba(12,14,18,0.68);
 }
 
-/* buttons: readable on white */
+body:not(.in-sim) .title,
+body:not(.in-sim) .label{
+  color: rgba(12,14,18,0.92);
+}
+
 body:not(.in-sim) button,
 body:not(.in-sim) .btn,
 body:not(.in-sim) .launch{
-  background: rgba(15, 25, 45, 0.08) !important;
-  border: 1px solid rgba(15, 25, 45, 0.22) !important;
-  color: rgba(10,12,16,0.92) !important;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important;
+  background: rgba(25, 35, 55, 0.06);
+  border: 1px solid rgba(25, 35, 55, 0.20);
+  color: rgba(12,14,18,0.90);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 
 body:not(.in-sim) button:hover,
 body:not(.in-sim) .btn:hover,
 body:not(.in-sim) .launch:hover{
-  background: rgba(15, 25, 45, 0.12) !important;
-  border-color: rgba(15, 25, 45, 0.30) !important;
+  background: rgba(25, 35, 55, 0.10);
+  border-color: rgba(25, 35, 55, 0.28);
 }
 
-/* inputs readable on white */
-body:not(.in-sim) input,
-body:not(.in-sim) textarea{
-  background: rgba(0,0,0,0.04) !important;
-  border: 1px solid rgba(0,0,0,0.18) !important;
-  color: rgba(10,12,16,0.92) !important;
+body:not(.in-sim) button:disabled,
+body:not(.in-sim) .btn.is-disabled,
+body:not(.in-sim) .launch:disabled{
+  opacity: 0.60;
+  filter: grayscale(0.15);
+  cursor: not-allowed;
 }
 
-body:not(.in-sim) input::placeholder,
-body:not(.in-sim) textarea::placeholder{
-  color: rgba(10,12,16,0.50) !important;
+body:not(.in-sim) .systemLog,
+body:not(.in-sim) .viewerBox,
+body:not(.in-sim) .kv{
+  background: rgba(0,0,0,0.04);
+  border: 1px solid rgba(0,0,0,0.10);
+  color: rgba(12,14,18,0.86);
 }
 
-/* ---------- SIM (polished) ---------- */
-body.in-sim {
+/* subtle scanline feel (landing only) */
+@keyframes scanShift{
+  0%{ transform: translateY(-10%); opacity: .10; }
+  50%{ opacity: .18; }
+  100%{ transform: translateY(10%); opacity: .10; }
+}
+body:not(.in-sim) #wrap::after{
+  content:"";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.05), transparent);
+  opacity: 0.10;
+  animation: scanShift 8.5s ease-in-out infinite;
+}
+
+/* =========================================================
+   SIM (DARK)
+   ========================================================= */
+body.in-sim{
   background:
     radial-gradient(1200px 800px at 50% 20%, rgba(42,72,150,0.22), transparent 55%),
     radial-gradient(900px 700px at 20% 80%, rgba(42,72,150,0.14), transparent 60%),
     linear-gradient(180deg, #070b14, #05070c);
-  color: rgba(235,238,245,0.92);
+  color: var(--text);
 }
 
-body.in-sim .card {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-}
-
-body.in-sim #simRoom .sim-text,
-body.in-sim #simText {
-  background: rgba(0,0,0,0.30);
-  border: 1px solid rgba(255,255,255,0.12);
+body.in-sim .card{
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--shadow);
 }
 
 /* Hide landing app completely once transition begins */
-.wrap-hidden {
+.wrap-hidden{
   opacity: 0 !important;
   pointer-events: none !important;
   transform: translateY(-6px) scale(0.995);
@@ -135,45 +134,13 @@ body.in-sim #simText {
 
 /* During transition, prevent layout gaps */
 body.sim-transition #wrap,
-body.in-sim #wrap {
+body.in-sim #wrap{
   display: none !important;
 }
 
-.hidden{ display:none !important; }
-
-/* =========================
-   POP-IN + SHAKE
-   ========================= */
-@keyframes popIn {
-  0%   { opacity: 0; transform: translateY(8px) scale(0.985); filter: blur(0.6px); }
-  100% { opacity: 1; transform: translateY(0)   scale(1);     filter: blur(0); }
-}
-.pop-in{
-  animation: popIn 180ms ease-out both;
-  will-change: transform, opacity, filter;
-}
-
-@keyframes softShake {
-  0%   { transform: translate3d(0,0,0); }
-  15%  { transform: translate3d(-2px, 0, 0); }
-  30%  { transform: translate3d( 2px,-1px,0); }
-  45%  { transform: translate3d(-2px, 1px,0); }
-  60%  { transform: translate3d( 1px, 0,0); }
-  75%  { transform: translate3d(-1px,-1px,0); }
-  100% { transform: translate3d(0,0,0); }
-}
-.shake{
-  animation: softShake 220ms ease-out both;
-  will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce){
-  .pop-in, .shake{ animation: none !important; }
-}
-
-/* =========================
+/* =========================================================
    COMMON: cards + pills
-   ========================= */
+   ========================================================= */
 .card{
   background: var(--card);
   border: 1px solid var(--stroke);
@@ -208,77 +175,9 @@ body.in-sim #wrap {
   border-color: rgba(140,190,255,0.28);
 }
 
-/* nicer scrollbar */
-#simText, .modal, #hackLines{
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.18) transparent;
-}
-#simText::-webkit-scrollbar,
-#hackLines::-webkit-scrollbar{
-  width: 10px;   /* keep vertical nice */
-}
-#simText::-webkit-scrollbar:horizontal{
-  height: 0;
-}
-
-#simText::-webkit-scrollbar-thumb,
-#hackLines::-webkit-scrollbar-thumb{
-  background: rgba(255,255,255,0.12);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-/* =========================
-   LANDING (NEW MARKUP)
-   ========================= */
-/* ---------- LANDING: white page, readable text ---------- */
-body:not(.in-sim){
-  background: #ffffff;
-  color: rgba(12,14,18,0.92);
-}
-
-body:not(.in-sim) .panel,
-body:not(.in-sim) .card{
-  background: #ffffff;
-  border: 1px solid rgba(0,0,0,0.10);
-  box-shadow: 0 10px 28px rgba(0,0,0,0.08);
-  backdrop-filter: none;
-}
-
-body:not(.in-sim) .title,
-body:not(.in-sim) .label{
-  color: rgba(12,14,18,0.92);
-}
-
-body:not(.in-sim) .muted,
-body:not(.in-sim) .hint,
-body:not(.in-sim) .subtle,
-body:not(.in-sim) .sub{
-  color: rgba(12,14,18,0.68);
-}
-
-body:not(.in-sim) .systemLog,
-body:not(.in-sim) .viewerBox,
-body:not(.in-sim) .kv{
-  background: rgba(0,0,0,0.04);
-  border-color: rgba(0,0,0,0.10);
-  color: rgba(12,14,18,0.86);
-}
-
-.adminOnly{
-  display:none !important;
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
-body.admin .adminOnly{
-  display:block !important;
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
-}
-
+/* =========================================================
+   BASIC ELEMENT WRAP (LANDING)
+   ========================================================= */
 #wrap{
   width:min(980px, calc(100% - 40px));
   margin:42px auto 80px;
@@ -313,8 +212,6 @@ body.admin .adminOnly{
   filter: saturate(0.95) contrast(1.02);
   box-shadow: 0 12px 40px rgba(0,0,0,0.35);
 }
-
-/* hide side ads on small screens */
 @media (max-width: 1100px){
   .sideAds{ display:none; }
 }
@@ -329,8 +226,6 @@ body.admin .adminOnly{
   position: relative;
   overflow: hidden;
 }
-
-/* subtle header glow */
 .panel::before{
   content:"";
   position:absolute;
@@ -353,11 +248,7 @@ body.admin .adminOnly{
   z-index: 2;
 }
 
-.brand{
-  display:flex;
-  align-items: center;
-  gap: 12px;
-}
+.brand{ display:flex; align-items: center; gap: 12px; }
 .mark{
   width: 44px;
   height: 44px;
@@ -370,23 +261,10 @@ body.admin .adminOnly{
   background: rgba(140,190,255,0.10);
   border: 1px solid rgba(140,190,255,0.18);
 }
-.title{
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-.sub{
-  font-size: 12px;
-  color: var(--muted);
-  opacity: .85;
-}
+.title{ font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.sub{ font-size: 12px; color: var(--muted); opacity: .85; }
 
-.meta{
-  display:flex;
-  gap: 10px;
-  align-items:center;
-  flex-wrap: wrap;
-}
+.meta{ display:flex; gap: 10px; align-items:center; flex-wrap: wrap; }
 
 .grid2{
   display:grid;
@@ -399,13 +277,8 @@ body.admin .adminOnly{
   .grid2{ grid-template-columns: 1fr; }
 }
 
-.card.big{
-  padding: 18px;
-  min-height: 240px;
-}
-.card:not(.big){
-  padding: 16px;
-}
+.card.big{ padding: 18px; min-height: 240px; }
+.card:not(.big){ padding: 16px; }
 
 .row{
   display:flex;
@@ -414,15 +287,9 @@ body.admin .adminOnly{
   gap: 10px;
   margin-bottom: 10px;
 }
-.label{
-  font-weight: 700;
-  letter-spacing: .02em;
-}
+.label{ font-weight: 700; letter-spacing: .02em; }
 
-.warn{
-  color: rgba(255,190,190,.92);
-  font-weight: 600;
-}
+.warn{ color: rgba(255,190,190,.92); font-weight: 600; }
 
 .launcher{
   margin-top: 14px;
@@ -448,11 +315,7 @@ body.admin .adminOnly{
   background: rgba(255,255,255,0.11);
   border-color: rgba(140,190,255,0.25);
 }
-.launch.busy{
-  opacity: .85;
-  transform: none;
-  cursor: progress;
-}
+.launch.busy{ opacity: .85; transform: none; cursor: progress; }
 
 .hintline{
   display:flex;
@@ -490,23 +353,10 @@ body.admin .adminOnly{
   letter-spacing: .10em;
   text-transform: uppercase;
 }
-.kv .v{
-  margin-top: 6px;
-  font-weight: 700;
-}
+.kv .v{ margin-top: 6px; font-weight: 700; }
 
-.queue{
-  display:flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 13px;
-}
-.qitem{
-  display:flex;
-  gap: 10px;
-  align-items:center;
-  opacity: .9;
-}
+.queue{ display:flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.qitem{ display:flex; gap: 10px; align-items:center; opacity: .9; }
 .qitem .qdot{
   width: 8px; height: 8px; border-radius: 999px;
   background: rgba(140,190,255,0.55);
@@ -549,7 +399,6 @@ body.admin .adminOnly{
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.10);
   background: rgba(0,0,0,0.18);
-  margin-top: 10px;
 }
 .fakeInput{
   display:flex;
@@ -562,6 +411,17 @@ body.admin .adminOnly{
 }
 .cursor{ opacity: .85; }
 
+.footer{
+  margin-top: 14px;
+  display:flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
+}
+
+/* Viewer input styling */
 .viewerInput{
   width: 100%;
   margin-top: 10px;
@@ -578,113 +438,59 @@ body.admin .adminOnly{
   border-color: rgba(140,190,255,0.28);
   box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
 }
-#viewerToken:disabled { opacity: 0.55; cursor: not-allowed; }
-#viewerToken:not(:disabled) { opacity: 1; outline: none; box-shadow: 0 0 0 2px rgba(120,160,255,0.25); }
+.viewerInput:disabled{ opacity: .55; cursor: not-allowed; }
 
-.footer{
-  margin-top: 14px;
-  display:flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  position: relative;
-  z-index: 2;
+#viewerToken:disabled{ opacity: 0.55; cursor: not-allowed; }
+#viewerToken:not(:disabled){
+  opacity: 1;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(120,160,255,0.25);
 }
 
-/* subtle scanline feel */
-@keyframes scanShift{
-  0%{ transform: translateY(-10%); opacity: .10; }
-  50%{ opacity: .18; }
-  100%{ transform: translateY(10%); opacity: .10; }
-}
-body:not(.in-sim) #wrap::after{
-  content:"";
-  position: absolute;
-  inset: 0;
+/* Utility */
+.hidden{ display:none !important; }
+
+/* =========================================================
+   ADMIN-ONLY VISIBILITY
+   ========================================================= */
+.adminOnly{
+  visibility: hidden;
+  opacity: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(255,255,255,0.05), transparent);
-  opacity: 0.10;
-  animation: scanShift 8.5s ease-in-out infinite;
-  display: none
+}
+body.admin .adminOnly{
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+body.admin #adminStatus{ color: rgba(210,255,220,0.92); }
+body.admin #adminMsg{ color: rgba(210,255,220,0.80); }
+
+/* keep adminOnly hidden by default */
+.adminOnly{ display:none !important; }
+body.admin .adminOnly{ display:block !important; }
+
+body.admin #viewerToken{
+  border-color: rgba(140,190,255,0.28);
+  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
 }
 
-/* =========================
-   OVERLAY / MODAL
-   ========================= */
-.overlay{
-  animation: overlayIn 160ms ease-out both;
-}
-@keyframes overlayIn{
-  from{ opacity: 0; }
-  to{ opacity: 1; }
-}
-
-.modal{
-  position: relative;
-  overflow: hidden;
-  width: min(520px, 100%);
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(10,12,18,0.82);
-  box-shadow: var(--shadow);
-  padding: 16px;
-}
-.modal::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  background:
-    radial-gradient(700px 240px at 10% 0%, rgba(140,190,255,0.10), transparent 55%),
-    radial-gradient(500px 220px at 90% 0%, rgba(140,190,255,0.06), transparent 55%);
-  pointer-events:none;
-  opacity: .85;
-}
-
-.modal-actions{
-  display:flex;
-  gap:10px;
-  margin-top: 14px;
-  flex-wrap: wrap;
-}
-.modal-actions .sim-btn{
-  flex: 1 1 160px;
-}
-
-#finalOverlay input{
-  width:100%;
-  margin-top: 6px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.22);
-  color: rgba(235,238,245,0.92);
-}
-
-.escapeCode{
-  margin-top:14px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.22);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 22px;
-  letter-spacing: .14em;
-  display:inline-block;
-  color: rgba(235,238,245,0.92);
-}
-
-/* ============ overlay stacks ============ */
+/* =========================================================
+   FX OVERLAY STACKS
+   ========================================================= */
 #cracks,
 #glassFX,
 canvas#cracks,
 canvas#glassFX,
 .glassFX,
-.cracks {
+.cracks{
   pointer-events: none;
 }
+
+/* clickable anchors */
 .anchor,
 .anchorDot,
-[data-anchor] {
+[data-anchor]{
   pointer-events: auto;
 }
 
@@ -699,13 +505,13 @@ canvas#glassFX,
   transform: translate(var(--dx, 0px), var(--dy, 0px));
 }
 
-#cracks[data-stage="1"] .pane[data-rank="1"] { opacity: var(--paneOpacity, 0.14); }
+#cracks[data-stage="1"] .pane[data-rank="1"]{ opacity: var(--paneOpacity, 0.14); }
 #cracks[data-stage="2"] .pane[data-rank="1"],
-#cracks[data-stage="2"] .pane[data-rank="2"] { opacity: var(--paneOpacity, 0.24); }
+#cracks[data-stage="2"] .pane[data-rank="2"]{ opacity: var(--paneOpacity, 0.24); }
 #cracks[data-stage="3"] .pane[data-rank="1"],
 #cracks[data-stage="3"] .pane[data-rank="2"],
-#cracks[data-stage="3"] .pane[data-rank="3"] { opacity: var(--paneOpacity, 0.34); }
-#cracks[data-stage="4"] .pane { opacity: var(--paneOpacity, 0.44); }
+#cracks[data-stage="3"] .pane[data-rank="3"]{ opacity: var(--paneOpacity, 0.34); }
+#cracks[data-stage="4"] .pane{ opacity: var(--paneOpacity, 0.44); }
 
 #cracks .pane::before{
   content:"";
@@ -743,10 +549,7 @@ canvas#glassFX,
 #cracks .pane.glint::after{ opacity: 0.35; }
 #cracks.flash .pane::after{ opacity: 0.55; }
 
-#cracks .seg{
-  opacity: 0;
-  transition: opacity 160ms ease;
-}
+#cracks .seg{ opacity: 0; transition: opacity 160ms ease; }
 #cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
 #cracks[data-stage="2"] .seg[data-rank="1"],
 #cracks[data-stage="2"] .seg[data-rank="2"]{ opacity: 1; }
@@ -762,12 +565,7 @@ canvas#glassFX,
   height:100%;
   opacity: 1;
 }
-
-#cracks .crack-path{
-  fill:none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
+#cracks .crack-path{ fill:none; stroke-linecap: round; stroke-linejoin: round; }
 #cracks .crack-under{
   stroke: rgba(0,0,0,0.65);
   stroke-width: 3.6;
@@ -813,6 +611,9 @@ canvas#glassFX,
   opacity: 0.98;
   isolation: isolate;
 }
+
+#glassFX .glass-inner > #wrap,
+#glassFX .glass-inner > .wrap-clone{ opacity: 1; }
 
 #glassFX .glass-rgb{
   position: fixed;
@@ -875,13 +676,11 @@ canvas#glassFX,
   mix-blend-mode: screen;
 }
 
-#glassFX.glass-fall .glass-piece .glass-rgb{
-  animation: rgbJitter 240ms steps(2, end) infinite;
-}
+#glassFX.glass-fall .glass-piece .glass-rgb{ animation: rgbJitter 240ms steps(2, end) infinite; }
 @keyframes rgbJitter{
-  0%   { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
-  50%  { filter: blur(calc(var(--rblur, 1px) + 0.35px)) contrast(1.10) saturate(1.12); opacity: 0.82; }
-  100% { filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
+  0%{ filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
+  50%{ filter: blur(calc(var(--rblur, 1px) + 0.35px)) contrast(1.10) saturate(1.12); opacity: 0.82; }
+  100%{ filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
 }
 
 #glassFX.glass-fall .glass-piece{
@@ -904,183 +703,16 @@ canvas#glassFX,
   }
 }
 
-/* =========================================================
-   SUBTITLES
-   ========================================================= */
-#subs{
-  position: fixed;
-  left: 18px;
-  right: 18px;
-  bottom: 18px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(0,0,0,0.55);
-  border: 1px solid rgba(255,255,255,0.14);
-  backdrop-filter: blur(10px);
-  z-index: 95;
-}
-#subsName { font-weight: 700; opacity: 0.95; }
-#subsText { opacity: 0.92; }
+#glassFX.hidden{ display: none !important; }
 
 /* =========================================================
-   SIM ROOM (FIXED VIEWPORT, NO PAGE SCROLL)
-   ========================================================= */
-#simRoom{
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-
-  padding: 48px 18px 18px;
-  background: transparent;
-
-  overflow: hidden; /* ✅ prevents that useless bottom scroll area */
-}
-
-#simRoom .cardShell{
-  width: min(980px, 100%);
-  margin: 0 auto;
-
-  background: rgba(0,0,0,0.22);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 16px;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-  backdrop-filter: blur(10px);
-
-  padding: 18px;
-  position: relative;
-
-  flex: 1 1 auto;
-  min-height: 0;         /* ✅ lets children scroll */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;      /* ✅ keeps content inside, no page scroll */
-}
-
-/* --- SIM LOG: kill horizontal scrollbar + keep readable wrapping --- */
-#simText{
-  white-space: pre-wrap;     /* keep newlines, but allow wrapping */
-  overflow-y: auto;
-  overflow-x: hidden;        /* ✅ removes the useless bottom bar */
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-/* If any browser still draws a horizontal scrollbar, hide it */
-#simText::-webkit-scrollbar:horizontal{
-  height: 0 !important;
-}
-
-/* choices sit under log */
-#simChoices{
-  position: relative;
-  z-index: 2;
-  display:flex;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-
-/* =========================================================
-   TASK UI (NO INNER SCROLL / NO HORIZONTAL BAR)
-   ========================================================= */
-#taskUI{
-  margin-top: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background:
-    radial-gradient(900px 220px at 20% 0%, rgba(140,190,255,0.10), transparent 60%),
-    rgba(0,0,0,0.22);
-  padding: 14px;
-  position: relative;
-
-  flex: 0 0 auto;
-  overflow: visible;     /* ✅ kills the pointless task scrollbox */
-}
-
-#taskUI.hidden { display: none; }
-
-#taskTitle{
-  font-size: 12px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: rgba(235,238,245,0.80);
-  margin: 2px 0 6px;
-}
-#taskDesc{
-  color: rgba(235,238,245,0.70);
-  font-size: 13px;
-  line-height: 1.45;
-  margin-bottom: 12px;
-}
-
-#taskBody{
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.18);
-
-  overflow: visible;        /* ✅ */
-  overflow-x: hidden;       /* ✅ kills horizontal bar */
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-#taskBody > * + *{ margin-top: 10px; }
-
-#taskActions{
-  margin-top: 12px;
-  display:flex;
-  gap: 10px;
-  align-items:center;
-  justify-content:flex-end;
-  flex-wrap: wrap;
-}
-
-#taskBody input{
-  width: min(520px, 100%);
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.22);
-  color: rgba(235,238,245,0.92);
-}
-#taskBody input::placeholder{ color: rgba(235,238,245,0.45); }
-
-/* buttons */
-.sim-btn{
-  appearance:none;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: rgba(235,238,245,0.92);
-  padding: 10px 12px;
-  border-radius: 12px;
-  cursor:pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-.sim-btn:hover{
-  transform: translateY(-1px);
-  background: rgba(255,255,255,0.09);
-  border-color: rgba(140,190,255,0.25);
-}
-.sim-btn:disabled{
-  opacity: 0.5;
-  cursor:not-allowed;
-  transform:none;
-}
-
-/* =========================================================
-   ADMIN DIAGNOSTIC PANEL (CSS SIDE FOR DRAG)
+   ADMIN DIAGNOSTIC PANEL
    ========================================================= */
 .adminPanel{
   position: fixed;
   top: 18px;
   right: 18px;
-  z-index: 140;
+  z-index: 9999; /* always top */
   width: min(420px, calc(100vw - 36px));
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,0.14);
@@ -1100,11 +732,8 @@ body:not(.admin) #adminPanel{ display:none !important; }
   align-items:center;
   gap: 10px;
   margin-bottom: 10px;
-
-  cursor: grab;              /* ✅ indicates draggable */
-  user-select: none;         /* ✅ avoids text selection */
+  user-select: none;
 }
-.adminPanel.dragging .adminHead{ cursor: grabbing; }
 
 .adminTitle{
   font-weight: 800;
@@ -1149,7 +778,282 @@ body:not(.admin) #adminPanel{ display:none !important; }
   margin-top: 10px;
 }
 
-@media (max-width: 520px){ .adminPanel{ top:auto; bottom:18px; right:18px; left:18px; width:auto; } }
+@media (max-width: 520px){
+  .adminPanel{ top:auto; bottom:18px; }
+}
+
+/* =========================================================
+   SIM ROOM (FIXED VIEWPORT)
+   ========================================================= */
+#wrap,
+.card,
+#subs,
+#simRoom,
+#system{
+  position: relative;
+  z-index: 5;
+}
+
+/* FX behind UI but above background */
+#cracks,
+#glassFX{
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+
+/* main sim container */
+#simRoom{
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+
+  padding: 48px 18px 18px;
+  background: transparent;
+
+  overflow: hidden; /* prevent page scroll */
+}
+
+#simRoom .cardShell{
+  width: min(980px, 100%);
+  margin: 0 auto;
+
+  background: rgba(0,0,0,0.22);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+  backdrop-filter: blur(10px);
+  padding: 18px;
+  position: relative;
+
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* =========================================================
+   SIM LOG (NO HORIZONTAL SCROLL BAR)
+   ========================================================= */
+#simText{
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+
+  /* ✅ removes the useless bottom bar */
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  /* ✅ keep newlines, allow wrap */
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* scrollbar polish (vertical only) */
+#simText, .modal, #hackLines{
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+#simText::-webkit-scrollbar,
+#hackLines::-webkit-scrollbar{
+  width: 10px;
+}
+#simText::-webkit-scrollbar-thumb,
+#hackLines::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+#simText::-webkit-scrollbar:horizontal{ height: 0 !important; }
+
+/* choices */
+#simChoices{
+  display:flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+  position: relative;
+  z-index: 2;
+}
+
+.sim-btn{
+  appearance:none;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(235,238,245,0.92);
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor:pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.sim-btn:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(140,190,255,0.25);
+}
+.sim-btn:disabled{
+  opacity: 0.5;
+  cursor:not-allowed;
+  transform:none;
+}
+
+/* =========================================================
+   TASK UI (NO INTERNAL SCROLL / NO HORIZONTAL BAR)
+   ========================================================= */
+#taskUI{
+  margin-top: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background:
+    radial-gradient(900px 220px at 20% 0%, rgba(140,190,255,0.10), transparent 60%),
+    rgba(0,0,0,0.22);
+  padding: 14px;
+  position: relative;
+  overflow: visible; /* ✅ never create internal scrollbars */
+  z-index: 60;
+}
+#taskUI::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  background:
+    linear-gradient(180deg,
+      rgba(255,255,255,0.06),
+      rgba(255,255,255,0.00) 35%,
+      rgba(0,0,0,0.00) 65%,
+      rgba(255,255,255,0.04)
+    );
+  opacity: 0.35;
+  pointer-events:none;
+}
+
+#taskTitle{
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(235,238,245,0.80);
+  margin: 2px 0 6px;
+}
+#taskDesc{
+  color: rgba(235,238,245,0.70);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+#taskBody{
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+
+  overflow: visible;
+  overflow-x: hidden; /* ✅ prevents useless horizontal scrollbar */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+#taskBody > * + *{ margin-top: 10px; }
+
+#taskActions{
+  margin-top: 12px;
+  display:flex;
+  gap: 10px;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap: wrap;
+}
+
+#taskBody input{
+  width: min(520px, 100%);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.22);
+  color: rgba(235,238,245,0.92);
+}
+#taskBody input::placeholder{ color: rgba(235,238,245,0.45); }
+#taskBody input::selection{ background: rgba(140,190,255,0.22); }
+
+@keyframes taskIn{
+  from{ opacity: 0; transform: translateY(6px); filter: blur(1.5px); }
+  to{ opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+#taskUI:not(.hidden){ animation: taskIn 180ms ease-out; }
+
+@keyframes taskShake{
+  0%,100%{ transform: translateX(0); }
+  20%{ transform: translateX(-3px); }
+  40%{ transform: translateX(3px); }
+  60%{ transform: translateX(-2px); }
+  80%{ transform: translateX(2px); }
+}
+#taskUI.is-error{ animation: taskShake 220ms ease; }
+
+#taskUI.is-ok{
+  box-shadow:
+    0 18px 60px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(140,190,255,0.10),
+    0 0 28px rgba(140,190,255,0.10);
+}
+
+/* Task kit helpers */
+.task-note{ opacity: 0.88; color: rgba(235,238,245,0.82); font-size: 13px; line-height: 1.45; }
+.task-error{ color: rgba(255,190,190,.95); opacity: 0.95; font-size: 13px; }
+.task-ok{ color: rgba(232,237,247,0.92); opacity: 0.92; font-size: 13px; }
+.task-code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; font-size: 13px; letter-spacing: 0.02em; }
+.task-panel{ padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18); }
+.task-divider{ height: 1px; background: rgba(255,255,255,0.10); border-radius: 999px; margin: 10px 0; opacity: 0.8; }
+
+.task-row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.task-grid-2{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.task-grid-3{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+.task-grid-4{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+
+#taskBody .sim-btn{ min-height: 40px; }
+.task-list-btn{ display:block; width:100%; text-align:left; }
+.task-chip{ padding: 10px 12px; border-radius: 999px; }
+
+.task-pill{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.16);
+  color: rgba(235,238,245,0.80);
+  font-size: 12px;
+}
+
+.task-bar{
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.22);
+  overflow:hidden;
+}
+.task-bar > div{
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: rgba(140,190,255,0.45);
+}
+
+@media (max-width: 520px){
+  .task-grid-4{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .task-grid-3{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
 
 /* =========================================================
    HACK ROOM POLISH
@@ -1159,7 +1063,10 @@ body:not(.admin) #adminPanel{ display:none !important; }
   border: 1px solid rgba(255,255,255,0.12);
 }
 
-.hack-filebtn{ position: relative; overflow: hidden; }
+.hack-filebtn{
+  position: relative;
+  overflow: hidden;
+}
 .hack-filebtn.active{
   border-color: rgba(140,190,255,0.28);
   box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
@@ -1203,6 +1110,8 @@ body:not(.admin) #adminPanel{ display:none !important; }
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
   font-size: 12.5px;
   line-height: 1.35;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .hack-line.target{ background: rgba(255,190,190,0.04); }
@@ -1212,22 +1121,7 @@ body:not(.admin) #adminPanel{ display:none !important; }
   background: rgba(140,190,255,0.08);
   outline: 1px solid rgba(140,190,255,0.20);
 }
-/* Hack room should be a top-layer screen */
-#hackRoom{
-  position: fixed;
-  inset: 0;
-  z-index: 180;          /* above simRoom (50) and adminPanel (140) if needed */
-}
-
 .hack-line.selected .hack-ln{ opacity: 0.8; }
-/* Final modal: remove "Answer" field entirely from UI */
-#finalAnswer{
-  display: none !important;
-}
-label[for="finalAnswer"]{
-  display: none !important;
-}
-
 
 /* =========================================================
    ANCHORS
@@ -1252,7 +1146,7 @@ label[for="finalAnswer"]{
 #finalOverlay{
   position: fixed;
   inset:0;
-  z-index: 80;
+  z-index: 160;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -1260,5 +1154,73 @@ label[for="finalAnswer"]{
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(10px);
 }
+
 #resetOverlay.hidden,
 #finalOverlay.hidden{ display:none !important; }
+
+.modal{
+  width: min(520px, 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(10,12,18,0.82);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.modal h2{
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.modal p{
+  margin: 0;
+  color: rgba(235,238,245,0.70);
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+/* inputs in modal */
+#finalOverlay input{
+  width:100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.22);
+  color: rgba(235,238,245,0.92);
+}
+
+/* =========================================================
+   SUBTITLES (COMPLETELY GONE)
+   - you said: remove the bottom bar completely
+   ========================================================= */
+#subs{ display:none !important; }
+
+/* =========================================================
+   OVERLAY / POP-IN + SHAKE
+   ========================================================= */
+@keyframes popIn{
+  0%{ opacity:0; transform: translateY(8px) scale(0.985); filter: blur(0.6px); }
+  100%{ opacity:1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+.pop-in{
+  animation: popIn 180ms ease-out both;
+  will-change: transform, opacity, filter;
+}
+
+@keyframes softShake{
+  0%{ transform: translate3d(0,0,0); }
+  15%{ transform: translate3d(-2px, 0, 0); }
+  30%{ transform: translate3d( 2px,-1px,0); }
+  45%{ transform: translate3d(-2px, 1px,0); }
+  60%{ transform: translate3d( 1px, 0,0); }
+  75%{ transform: translate3d(-1px,-1px,0); }
+  100%{ transform: translate3d(0,0,0); }
+}
+.shake{
+  animation: softShake 220ms ease-out both;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .pop-in, .shake{ animation:none !important; }
+}
