@@ -1212,7 +1212,22 @@ body:not(.admin) #adminPanel{ display:none !important; }
   background: rgba(140,190,255,0.08);
   outline: 1px solid rgba(140,190,255,0.20);
 }
+/* Hack room should be a top-layer screen */
+#hackRoom{
+  position: fixed;
+  inset: 0;
+  z-index: 180;          /* above simRoom (50) and adminPanel (140) if needed */
+}
+
 .hack-line.selected .hack-ln{ opacity: 0.8; }
+/* Final modal: remove "Answer" field entirely from UI */
+#finalAnswer{
+  display: none !important;
+}
+label[for="finalAnswer"]{
+  display: none !important;
+}
+
 
 /* =========================================================
    ANCHORS
