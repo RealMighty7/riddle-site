@@ -226,6 +226,9 @@ function registerTaskPool(name, list) {
   POOLS[name] = Array.isArray(list) ? list.slice() : [];
 }
 window.registerTaskPool = registerTaskPool;
+  // packs expect registerTasks(...)
+window.registerTasks = window.registerTasks || reg;
+
 
 // Public reg() so /packs/pack1..pack4 can register tasks
 function reg(map) {
@@ -1333,16 +1336,4 @@ window.__TASK_POOLS = POOLS;
     { id: "escape_hint_line", w: 1 },
     { id: "toggles_3", w: 1 },
   ]);
-
-  // ============================================================
-  // TASK RUNNER ENTRY (what main.js calls)
-  // ============================================================
-  // main.js does: const fn = TASKS[step.task]; await fn(ctx, args)
-  // so we wrap every task with safeTask here.
-  const WRAPPED = {};
-  Object.keys(TASKS).forEach((id) => {
-    WRAPPED[id] = async (ctx, args) => safeTask(id, TASKS[id], ctx, args);
-  });
-
-  window.TASKS = WRAPPED;
 })();
