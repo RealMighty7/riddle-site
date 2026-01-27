@@ -210,25 +210,44 @@
     }
   }
 
-  // ============================================================
-  // REGISTRY + POOLS
-  // ============================================================
-  const TASKS = {};
-  const POOLS = {}; // name -> [{id,w}]
+// ============================================================
+// REGISTRY + POOLS  (PATCH: supports late pack registration)
+// ============================================================
+const RAW = {};      // id -> raw task fn
+const WRAPPED = {};  // id -> safe wrapped task fn
+const POOLS = {};    // name -> [{id,w}]
 
-  function reg(map) {
-    Object.entries(map || {}).forEach(([id, fn]) => {
-      TASKS[id] = fn;
-    });
-  }
+// Public TASKS object main.js reads from (keeps growing as packs load)
+window.TASKS = window.TASKS || WRAPPED;
 
-  function registerTaskPool(name, list) {
-    if (!name) return;
-    POOLS[name] = Array.isArray(list) ? list.slice() : [];
-  }
+// Public pool register (packs may call this)
+function registerTaskPool(name, list) {
+  if (!name) return;
+  POOLS[name] = Array.isArray(list) ? list.slice() : [];
+}
+window.registerTaskPool = registerTaskPool;
 
-  // expose for packs
-  window.registerTaskPool = registerTaskPool;
+// Public reg() so /packs/pack1..pack4 can register tasks
+function reg(map) {
+  Object.entries(map || {}).forEach(([id, fn]) => {
+    if (typeof fn !== "function") return;
+
+    RAW[id] = fn;
+
+    // Wrap immediately so tasks added later still get safeTask behavior
+    WRAPPED[id] = async (ctx, args) => safeTask(id, RAW[id], ctx, args);
+
+    // Ensure window.TASKS points to the wrapped one
+    window.TASKS[id] = WRAPPED[id];
+  });
+}
+
+// expose reg for legacy packs
+window.reg = window.reg || reg;
+
+// Optional: expose pool data if your "random" task needs it
+window.__TASK_POOLS = POOLS;
+
 
   // ============================================================
   // PACK 5 (FULLY WIRED)
