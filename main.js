@@ -1,4 +1,4 @@
-// main.js
+// main.js (FULL REPLACEMENT)
 (() => {
   function boot() {
     if (document.readyState === "loading") {
@@ -17,55 +17,68 @@
       console.error("Missing dialogue.js or tasks.js. Check script order.");
       return;
     }
+
     /* ====================== ELEMENTS ====================== */
-const ids = [
-  "system",
-  "cracks",
-  "glassFX",
-  "subs",
-  "subsName",
-  "subsText",
-  "simRoom",
-  "simText",
-  "simChoices",
-  "choiceNeed",
-  "choiceLie",
-  "choiceRun",
-  "taskUI",
-  "taskTitle",
-  "taskDesc",
-  "taskBody",
-  "taskPrimary",
-  "taskSecondary",
-  "resetOverlay",
-  "resetTitle",
-  "resetBody",
-  "finalOverlay",
-  "finalDiscord",
-  "finalAnswer",
-  "finalCancel",
-  "finalVerify",
-  "finalErr",
-  "turnstileBox",
-  "hackRoom",
-  "hackUser",
-  "hackTargets",
-  "hackFilename",
-  "hackLines",
-  "hackDelete",
-  "hackReset",
-  "hackStatus",
+    const REQUIRED_IDS = [
+      "system",
+      "cracks",
+      "glassFX",
+      "subs",
+      "subsName",
+      "subsText",
+      "simRoom",
+      "simText",
+      "simChoices",
+      "choiceNeed",
+      "choiceLie",
+      "choiceRun",
+      "taskUI",
+      "taskTitle",
+      "taskDesc",
+      "taskBody",
+      "taskPrimary",
+      "taskSecondary",
+      "resetOverlay",
+      "resetTitle",
+      "resetBody",
+      "finalOverlay",
+      "finalDiscord",
+      "finalCancel",
+      "finalVerify",
+      "finalErr",
+      "turnstileBox",
+      "hackRoom",
+      "hackUser",
+      "hackTargets",
+      "hackFilename",
+      "hackLines",
+      "hackDelete",
+      "hackReset",
+      "hackStatus",
+    ];
 
-  // NEW:
-  "viewerToken",
-];
+    // Optional (we won’t hard-fail if missing)
+    const OPTIONAL_IDS = [
+      "finalAnswer",     // removed in logic; safe if it still exists
+      "viewerToken",
+      "viewerFake",
+      "viewerState",
+      "launchBtn",
+      "launchStatus",
+      "adminPanel",
+      "adminTask",
+      "adminAnswer",
+      "adminSkip",
+      "adminToggle",
+      "taskActions",
+    ];
 
-
+    const ids = [...REQUIRED_IDS, ...OPTIONAL_IDS];
     const els = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
-    const missing = ids.filter((id) => !els[id]);
-    const viewerToken = els.viewerToken;
-    if (missing.length) {
-      console.error("Missing required element IDs:", missing);
+
+    const missingRequired = REQUIRED_IDS.filter((id) => !els[id]);
+    if (missingRequired.length) {
+      console.error("Missing required element IDs:", missingRequired);
       return;
     }
 
@@ -93,7 +106,6 @@ const ids = [
 
     const finalOverlay = els.finalOverlay;
     const finalDiscord = els.finalDiscord;
-    const finalAnswer = els.finalAnswer;
     const finalCancel = els.finalCancel;
     const finalVerify = els.finalVerify;
     const finalErr = els.finalErr;
@@ -108,71 +120,274 @@ const ids = [
     const hackReset = els.hackReset;
     const hackStatus = els.hackStatus;
 
-    // subtitles nodes
     const subs = els.subs;
     const subsName = els.subsName;
     const subsText = els.subsText;
 
+    const viewerToken = els.viewerToken;
+
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
 
-    /* ====================== AUDIO (SFX) ====================== */
-    // -------------------------------
-    // ASSETS
-    // -------------------------------
+    /* ====================== SAFE SFX ====================== */
+    // Prevents playSfx(...) from crashing the entire sim if audio isn't wired.
+    const SFX_CACHE = new Map();
+    function playSfx(name, opts = {}) {
+      try {
+        let volume = 1;
+        let overlap = false;
+
+        if (typeof opts === "number") volume = opts;
+        else {
+          volume = typeof opts.volume === "number" ? opts.volume : 1;
+          overlap = !!opts.overlap;
+        }
+
+        // Try existing <audio> first (if you use them)
+        const byId =
+          document.getElementById(name) ||
+          document.getElementById(`sfx-${name}`) ||
+          document.querySelector(`audio[data-sfx="${name}"]`);
+
+        if (byId && byId.play) {
+          const a = byId;
+          if (!overlap) {
+            try { a.pause(); } catch {}
+            try { a.currentTime = 0; } catch {}
+          }
+          a.volume = clamp(volume, 0, 1);
+          a.play().catch(() => {});
+          return;
+        }
+
+        // Fallback: lazy Audio() (won’t crash if file missing)
+        if (!SFX_CACHE.has(name)) {
+          const a = new Audio(`/audio/${name}.mp3`);
+          a.preload = "auto";
+          SFX_CACHE.set(name, a);
+        }
+        const a = SFX_CACHE.get(name);
+        if (!a) return;
+
+        if (!overlap) {
+          try { a.pause(); } catch {}
+          try { a.currentTime = 0; } catch {}
+        }
+        a.volume = clamp(volume, 0, 1);
+        a.play().catch(() => {});
+      } catch {}
+    }
+
+    /* ====================== LANDING ASSETS ====================== */
     const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
     document.querySelectorAll(".adImg").forEach((img) => {
       img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
     });
 
-/* ======================
-   ADMIN ACCESS
-   ====================== */
+    /* ======================
+       ADMIN ACCESS
+    ====================== */
+    const ADMIN_HASH =
+      "27fedb02589c0bacf10ecdda0d63486573fa76350d2edf7ee6e6e6cc35858c44";
 
-const ADMIN_HASH =
-  "27fedb02589c0bacf10ecdda0d63486573fa76350d2edf7ee6e6e6cc35858c44";
+    async function sha256(str) {
+      const buf = new TextEncoder().encode(str);
+      const hash = await crypto.subtle.digest("SHA-256", buf);
+      return [...new Uint8Array(hash)]
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
 
-async function sha256(str){
-  const buf = new TextEncoder().encode(str);
-  const hash = await crypto.subtle.digest("SHA-256", buf);
-  return [...new Uint8Array(hash)]
-    .map(b => b.toString(16).padStart(2,"0"))
-    .join("");
-}
+    function grantAdmin() {
+      if (document.body.classList.contains("admin")) return;
+      document.body.classList.add("admin");
+      console.log("%c[admin] elevated access granted", "color:#8cbcff");
 
-function grantAdmin(){
-  if (document.body.classList.contains("admin")) return;
+      if (document.getElementById("adminPanel")) {
+        try { initAdminPanel(); } catch (e) { console.warn("[admin] panel init failed", e); }
+      }
 
-  document.body.classList.add("admin");
-  console.log("%c[admin] elevated access granted","color:#8cbcff");
+      document.dispatchEvent(new CustomEvent("admin:enabled"));
+    }
 
-  // only init if panel exists
-  if (document.getElementById("adminPanel")) {
-    try { initAdminPanel(); } catch (e) { console.warn("[admin] panel init failed", e); }
-  }
+    if (viewerToken) {
+      viewerToken.addEventListener("input", async () => {
+        const v = viewerToken.value.trim();
+        if (!v || v.length < 8) return;
 
-  document.dispatchEvent(new CustomEvent("admin:enabled"));
-}
+        let h = "";
+        try {
+          h = await sha256(v);
+        } catch (e) {
+          console.warn("[admin] sha256 failed (non-secure context?)", e);
+          return;
+        }
 
+        if (h === ADMIN_HASH) grantAdmin();
+      });
+    }
 
+    document.addEventListener("admin:enabled", () => {
+      const sys = document.getElementById("system");
+      if (sys) sys.textContent = "admin context detected.";
+    });
 
-    // -------------------------------
-    // AUDIO UNLOCK (single source of truth)
-    // -------------------------------
+    function initAdminPanel() {
+      const panel = document.getElementById("adminPanel");
+      if (!panel) return;
+      panel.classList.remove("hidden");
+
+      // Ensure not clipped by sim overflow
+      if (panel.parentElement !== document.body) document.body.appendChild(panel);
+
+      const elTask = document.getElementById("adminTask");
+      const elAns = document.getElementById("adminAnswer");
+      const btnSkip = document.getElementById("adminSkip");
+      const btnToggle = document.getElementById("adminToggle");
+
+      // Draggable + clamp
+      (function makeDraggable(panelEl, handleEl) {
+        if (!panelEl || !handleEl) return;
+
+        const PAD = 10;
+        const clampToViewport = () => {
+          const vw = document.documentElement.clientWidth;
+          const vh = document.documentElement.clientHeight;
+          const w = panelEl.offsetWidth;
+          const h = panelEl.offsetHeight;
+
+          let left = parseFloat(panelEl.style.left || `${PAD}`);
+          let top = parseFloat(panelEl.style.top || `${PAD}`);
+
+          left = Math.max(PAD, Math.min(vw - w - PAD, left));
+          top = Math.max(PAD, Math.min(vh - h - PAD, top));
+
+          panelEl.style.left = `${left}px`;
+          panelEl.style.top = `${top}px`;
+        };
+
+        panelEl.style.position = "fixed";
+        panelEl.style.zIndex = "9999";
+
+        // Restore last saved position
+        try {
+          const saved = JSON.parse(localStorage.getItem("adminPanelPos") || "null");
+          if (saved && typeof saved.left === "number" && typeof saved.top === "number") {
+            panelEl.style.left = `${saved.left}px`;
+            panelEl.style.top = `${saved.top}px`;
+          }
+        } catch {}
+
+        if (!panelEl.style.left) panelEl.style.left = "18px";
+        if (!panelEl.style.top) panelEl.style.top = "18px";
+        clampToViewport();
+
+        let dragging = false;
+        let startX = 0, startY = 0;
+        let baseLeft = 0, baseTop = 0;
+
+        const onDown = (e) => {
+          const t = e.target;
+          if (t && t.closest && t.closest("button, input, textarea, select, a")) return;
+
+          dragging = true;
+          handleEl.setPointerCapture?.(e.pointerId);
+
+          startX = e.clientX;
+          startY = e.clientY;
+
+          baseLeft = parseFloat(panelEl.style.left || "0");
+          baseTop = parseFloat(panelEl.style.top || "0");
+
+          handleEl.style.cursor = "grabbing";
+          e.preventDefault();
+        };
+
+        const onMove = (e) => {
+          if (!dragging) return;
+
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+
+          panelEl.style.left = `${baseLeft + dx}px`;
+          panelEl.style.top = `${baseTop + dy}px`;
+
+          clampToViewport();
+        };
+
+        const onUp = () => {
+          if (!dragging) return;
+          dragging = false;
+          handleEl.style.cursor = "grab";
+
+          try {
+            localStorage.setItem("adminPanelPos", JSON.stringify({
+              left: parseFloat(panelEl.style.left || "0"),
+              top: parseFloat(panelEl.style.top || "0"),
+            }));
+          } catch {}
+        };
+
+        handleEl.style.cursor = "grab";
+        handleEl.addEventListener("pointerdown", onDown);
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+
+        window.addEventListener("resize", clampToViewport);
+
+        // Emergency rescue
+        handleEl.addEventListener("dblclick", () => {
+          panelEl.style.left = "18px";
+          panelEl.style.top = "18px";
+          clampToViewport();
+        });
+      })(panel, panel.querySelector(".adminHead"));
+
+      // Toggle
+      btnToggle?.addEventListener("click", () => {
+        const willHide = !panel.classList.contains("hidden");
+        if (willHide) { try { document.activeElement?.blur?.(); } catch {} }
+        panel.classList.toggle("hidden");
+        panel.setAttribute("aria-hidden", panel.classList.contains("hidden") ? "true" : "false");
+        btnToggle.textContent = panel.classList.contains("hidden") ? "show" : "hide";
+      });
+
+      // Skip current task
+      btnSkip?.addEventListener("click", () => {
+        window.__ADMIN_FORCE_OK = true;
+        document.dispatchEvent(new CustomEvent("admin:skip", { bubbles: true }));
+        panel.setAttribute("aria-hidden", "false");
+        try { document.activeElement?.blur?.(); } catch {}
+      });
+
+      // Task + hint feed
+      document.addEventListener("admin:task", (e) => {
+        const id = e?.detail?.taskId || "—";
+        if (elTask) elTask.textContent = id;
+        if (elAns) elAns.textContent = "—";
+      });
+
+      document.addEventListener("admin:hint", (e) => {
+        const hint = e?.detail?.hint;
+        if (!hint) return;
+        if (elTask && e?.detail?.taskId) elTask.textContent = e.detail.taskId;
+        if (elAns) elAns.textContent = String(hint);
+      });
+    }
+
+    /* ====================== AUDIO UNLOCK ====================== */
     let audioUnlocked = false;
 
     async function unlockAudio() {
       if (audioUnlocked) return;
       audioUnlocked = true;
 
-      // unlock VO system (AudioContext)
       try {
         if (window.AudioPlayer?.unlock) await window.AudioPlayer.unlock();
       } catch (e) {
         console.warn("[audio] VO unlock failed:", e);
       }
 
-      // unlock <audio> SFX by attempting a play once
       try {
         const any = document.querySelector("audio");
         if (any) {
@@ -186,197 +401,8 @@ function grantAdmin(){
       console.log("[audio] unlocked");
     }
 
-// Unlock on first user gesture (so sim room VO/SFX won’t get blocked)
-window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
-window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
-
-
-    document.addEventListener("admin:enabled", () => {
-      const sys = document.getElementById("system");
-      if (sys) {
-        sys.textContent = "admin context detected.";
-      }
-    });
-
-    function initAdminPanel(){
-  document.getElementById("adminPanel")?.classList.remove("hidden");
-  const panel = document.getElementById("adminPanel");
-  if (!panel) return;
-      // ✅ ensure panel is not clipped by simRoom/cardShell overflow
-  if (panel.parentElement !== document.body) {
-    document.body.appendChild(panel);
-  }
-
-
-  const elTask = document.getElementById("adminTask");
-  const elAns  = document.getElementById("adminAnswer");
-  const btnSkip = document.getElementById("adminSkip");
-  const btnToggle = document.getElementById("adminToggle");
-      // -------------------------------
-// DRAGGABLE ADMIN PANEL
-// -------------------------------
-(function makeDraggable(panelEl, handleEl){
-  if (!panelEl || !handleEl) return;
-
-  const PAD = 10;
-
-  const clampToViewport = () => {
-    const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
-    const w = panelEl.offsetWidth;
-    const h = panelEl.offsetHeight;
-
-    let left = parseFloat(panelEl.style.left || `${vw - w - PAD}`);
-    let top  = parseFloat(panelEl.style.top  || `${PAD}`);
-
-    left = Math.max(PAD, Math.min(vw - w - PAD, left));
-    top  = Math.max(PAD, Math.min(vh - h - PAD, top));
-
-    panelEl.style.left = `${left}px`;
-    panelEl.style.top  = `${top}px`;
-  };
-
-  // fixed positioning so it floats anywhere
-  panelEl.style.position = "fixed";
-  panelEl.style.zIndex = "9999";
-
-  // restore last saved position (optional but very helpful)
-  try {
-    const saved = JSON.parse(localStorage.getItem("adminPanelPos") || "null");
-    if (saved && typeof saved.left === "number" && typeof saved.top === "number") {
-      panelEl.style.left = `${saved.left}px`;
-      panelEl.style.top  = `${saved.top}px`;
-    }
-  } catch {}
-
-  // if no explicit position yet, set a sane default then clamp
-  if (!panelEl.style.left) panelEl.style.left = "18px";
-  if (!panelEl.style.top)  panelEl.style.top  = "18px";
-  clampToViewport();
-
-  let dragging = false;
-  let startX = 0, startY = 0;
-  let baseLeft = 0, baseTop = 0;
-
-  const onDown = (e) => {
-    const t = e.target;
-    if (t && t.closest && t.closest("button, input, textarea, select, a")) return;
-
-    dragging = true;
-    handleEl.setPointerCapture?.(e.pointerId);
-
-    startX = e.clientX;
-    startY = e.clientY;
-
-    baseLeft = parseFloat(panelEl.style.left || "0");
-    baseTop  = parseFloat(panelEl.style.top  || "0");
-
-    handleEl.style.cursor = "grabbing";
-    e.preventDefault();
-  };
-
-  const onMove = (e) => {
-    if (!dragging) return;
-
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-
-    panelEl.style.left = `${baseLeft + dx}px`;
-    panelEl.style.top  = `${baseTop + dy}px`;
-
-    clampToViewport();
-  };
-
-  const onUp = () => {
-    if (!dragging) return;
-    dragging = false;
-    handleEl.style.cursor = "grab";
-
-    // save position
-    try {
-      localStorage.setItem("adminPanelPos", JSON.stringify({
-        left: parseFloat(panelEl.style.left || "0"),
-        top:  parseFloat(panelEl.style.top || "0"),
-      }));
-    } catch {}
-  };
-
-  handleEl.style.cursor = "grab";
-  handleEl.addEventListener("pointerdown", onDown);
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-
-  // ✅ rescue on resize (prevents “lost panel”)
-  window.addEventListener("resize", clampToViewport);
-
-  // ✅ emergency “bring back” (double click header)
-  handleEl.addEventListener("dblclick", () => {
-    panelEl.style.left = "18px";
-    panelEl.style.top  = "18px";
-    clampToViewport();
-  });
-})(panel, panel.querySelector(".adminHead"));
-
-
-
-  // toggle visibility (admin can hide it)
-btnToggle?.addEventListener("click", () => {
-  const willHide = !panel.classList.contains("hidden");
-
-  if (willHide) { try { document.activeElement?.blur?.(); } catch {} }
-
-  panel.classList.toggle("hidden");
-  panel.setAttribute("aria-hidden", panel.classList.contains("hidden") ? "true" : "false");
-  btnToggle.textContent = panel.classList.contains("hidden") ? "show" : "hide";
-});
-
-
-  // skip current task (tasks.js listens for this)
-btnSkip?.addEventListener("click", () => {
-  // global force-pass (tasks.js will consume this)
-  window.__ADMIN_FORCE_OK = true;
-
-  // dispatch (bubbles so anything can hear it)
-  document.dispatchEvent(new CustomEvent("admin:skip", { bubbles: true }));
-
-  // if a button inside the panel is focused, blur it to avoid aria warnings
-  panel.setAttribute("aria-hidden", "false");
-  try { document.activeElement?.blur?.(); } catch {}
-});
-
-
-  // update panel when tasks.js publishes hints
-  document.addEventListener("admin:task", (e) => {
-    const id = e?.detail?.taskId || "—";
-    if (elTask) elTask.textContent = id;
-    if (elAns) elAns.textContent = "—";
-  });
-
-  document.addEventListener("admin:hint", (e) => {
-    const hint = e?.detail?.hint;
-    if (!hint) return;
-
-    if (elTask && e?.detail?.taskId) elTask.textContent = e.detail.taskId;
-    if (elAns) elAns.textContent = String(hint);
-  });
-}
-
-    /* =========================
-       POP-IN + SHAKE HELPERS
-    ========================= */
-    function popIn(el) {
-      if (!el) return;
-      el.classList.remove("pop-in");
-      void el.offsetWidth; // restart anim
-      el.classList.add("pop-in");
-    }
-
-    function shake(el) {
-      if (!el) return;
-      el.classList.remove("shake");
-      void el.offsetWidth;
-      el.classList.add("shake");
-    }
+    window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
+    window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
 
     /* ====================== TIMING ====================== */
     const WPM = 300;
@@ -401,10 +427,8 @@ btnSkip?.addEventListener("click", () => {
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
 
-    // crack thresholds (4 stages)
-    // stages occur at: 15, 17, 19, 21 (registered clicks)
-    const CRACK_AT = [15, 17, 19, 21]; // stage 1..4
-    const SHATTER_AT = 22; // next registered click after stage 4
+    const CRACK_AT = [15, 17, 19, 21];
+    const SHATTER_AT = 22;
 
     const MAX_COMPLIANT_RATIO = 0.40;
     const MIN_CHOICES_BEFORE_CHECK = 10;
@@ -427,8 +451,7 @@ btnSkip?.addEventListener("click", () => {
     }
 
     /* ======================
-       VOICE LAYER (voices.json + /audio/*)
-       - Requires audio_player.js to set: window.VoiceBank = VoiceBank;
+       VOICE LAYER
     ====================== */
     let VO = null;
     let VO_READY = false;
@@ -441,10 +464,15 @@ btnSkip?.addEventListener("click", () => {
       }
     }
 
+    function stripSpeakerPrefix(s) {
+      // Remove "Emma (Security): " / "Liam (Worker): " / "System: " from matching only
+      return String(s || "").replace(/^\s*[^:]{1,32}:\s*/, "");
+    }
+
     function normalizeForMatch(s) {
       return String(s || "")
-        .replace(/\{[a-zA-Z0-9_]+\}/g, "") // strip {tags}
-        .replace(/^\s*\[\d{1,4}\]\s*/g, "") // strip [0123]
+        .replace(/\{[a-zA-Z0-9_]+\}/g, "")
+        .replace(/^\s*\[\d{1,4}\]\s*/g, "")
         .replace(/\s+/g, " ")
         .trim()
         .toLowerCase();
@@ -453,17 +481,21 @@ btnSkip?.addEventListener("click", () => {
     function getIdFromLine(rawLine) {
       const raw = String(rawLine || "");
 
-      // Preferred: embed IDs like: "[0123] Emma: hello"
       const m = raw.match(/^\s*\[(\d{1,4})\]\s*/);
       if (m) return String(m[1]).padStart(4, "0");
 
-      // Fallback: try to match by text in voices.json
       if (!VO || !VO.byId) return null;
-      const target = normalizeForMatch(raw);
+
+      const targetA = normalizeForMatch(raw);
+      const targetB = normalizeForMatch(stripSpeakerPrefix(raw));
 
       for (const [id, line] of VO.byId.entries()) {
         const textRaw = line.text_raw ?? line.text ?? "";
-        if (normalizeForMatch(textRaw) === target) return String(id).padStart(4, "0");
+        const candA = normalizeForMatch(textRaw);
+        const candB = normalizeForMatch(stripSpeakerPrefix(textRaw));
+        if (candA === targetA || candA === targetB || candB === targetA || candB === targetB) {
+          return String(id).padStart(4, "0");
+        }
       }
       return null;
     }
@@ -479,11 +511,9 @@ btnSkip?.addEventListener("click", () => {
         }
 
         VO = new window.VoiceBank({
-          // your real file location:
           voicesUrl: "/audio/data/voices.json",
           onTag: (tagName) => handleVoiceTag(tagName),
         });
-        console.log("[VO] voicesUrl =", "/audio/data/voices.json");
 
         VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
 
@@ -503,11 +533,10 @@ btnSkip?.addEventListener("click", () => {
       async playLine(rawLine) {
         await this.init();
         if (!VO) return;
-      
+
         const id = getIdFromLine(rawLine);
         if (!id) return;
-      
-        // ✅ queue playback so lines don't cancel each other
+
         this._audioChain = this._audioChain
           .then(() => VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false }))
           .catch(() => {});
@@ -515,15 +544,11 @@ btnSkip?.addEventListener("click", () => {
       },
 
       stop() {
-        try {
-          VO?.stopCurrent?.();
-        } catch {}
+        try { VO?.stopCurrent?.(); } catch {}
       },
     };
 
-    /* ======================
-       OUTPUT PIPE (text + audio)
-    ====================== */
+    /* ====================== OUTPUT PIPE ====================== */
     async function emitLine(line) {
       const raw = String(line || "");
       if (!raw) {
@@ -532,12 +557,10 @@ btnSkip?.addEventListener("click", () => {
         return;
       }
 
-      // log line (strip optional [0123] id from visible log)
       const logLine = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
       simText.textContent += logLine + "\n";
       simText.scrollTop = simText.scrollHeight;
 
-      // voice/subtitles
       if (window.AudioPlayer && typeof window.AudioPlayer.playLine === "function") {
         await window.AudioPlayer.playLine(raw);
       }
@@ -549,11 +572,7 @@ btnSkip?.addEventListener("click", () => {
         let t = 260;
 
         for (const line of lines) {
-          timers.push(
-            setTimeout(() => {
-              emitLine(line);
-            }, t)
-          );
+          timers.push(setTimeout(() => { emitLine(line); }, t));
           t += msToRead(line || " ");
         }
 
@@ -562,36 +581,33 @@ btnSkip?.addEventListener("click", () => {
     }
 
     /* ====================== UI helpers ====================== */
-    document.getElementById("taskActions")?.classList.add("hidden");
+    els.taskActions?.classList.add("hidden");
+
     function showChoices(labels) {
       if (labels?.complyLabel) choiceNeed.textContent = labels.complyLabel;
       if (labels?.lieLabel) choiceLie.textContent = labels.lieLabel;
       if (labels?.runLabel) choiceRun.textContent = labels.runLabel;
-    
+
       simChoices.classList.remove("hidden");
-    
-      // ✅ HARD HIDE task UI so it cannot block clicks
       taskUI.classList.add("hidden");
+      els.taskActions?.classList.add("hidden");
     }
-    
+
     function hideChoices() {
       simChoices.classList.add("hidden");
     }
-    
 
     function showTaskUI(title, desc) {
       taskUI.classList.remove("hidden");
       taskTitle.textContent = title;
       taskDesc.textContent = desc;
       taskBody.innerHTML = "";
-    
+
       taskSecondary.classList.add("hidden");
       taskPrimary.disabled = false;
-    
-      // ✅ make sure actions are visible ONLY for tasks
-      document.getElementById("taskActions")?.classList.remove("hidden");
+
+      els.taskActions?.classList.remove("hidden");
     }
-    
 
     function hardReload() {
       window.location.href = window.location.href.split("#")[0];
@@ -607,6 +623,7 @@ btnSkip?.addEventListener("click", () => {
     function recordChoice(isCompliant) {
       choiceTotal++;
       if (isCompliant) choiceCompliant++;
+
       if (choiceTotal >= MIN_CHOICES_BEFORE_CHECK) {
         const ratio = choiceCompliant / choiceTotal;
         if (ratio > MAX_COMPLIANT_RATIO) {
@@ -639,11 +656,10 @@ Reinitializing simulation…`
     }
 
     function glitchPulse() {
-      playSfx(Math.random() < 0.5 ? "glitch1" : "glitch2", 0.55);
+      playSfx(Math.random() < 0.5 ? "glitch1" : "glitch2", { volume: 0.55, overlap: true });
       cracks.classList.add("flash");
       setTimeout(() => cracks.classList.remove("flash"), 220);
 
-      // UI feedback on task card
       try {
         taskUI.classList.remove("is-ok");
         taskUI.classList.add("is-error");
@@ -665,15 +681,9 @@ Reinitializing simulation…`
       tsWidgetId = window.turnstile.render(turnstileBox, {
         sitekey: "0x4AAAAAACN_lQF6Hw5BHs2u",
         theme: "dark",
-        callback: (token) => {
-          tsToken = token;
-        },
-        "expired-callback": () => {
-          tsToken = null;
-        },
-        "error-callback": () => {
-          tsToken = null;
-        },
+        callback: (token) => { tsToken = token; },
+        "expired-callback": () => { tsToken = null; },
+        "error-callback": () => { tsToken = null; },
       });
     }
 
@@ -688,16 +698,14 @@ Reinitializing simulation…`
       tsToken = null;
     }
 
-    /* ====================== FINAL MODAL ====================== */
+    /* ====================== FINAL MODAL (NO “ANSWER”) ====================== */
     let finalDiscordName = "";
-    let finalAnswerText = "";
 
     function openFinalModal(prefillDiscord = "") {
       finalErr.textContent = "";
       finalOverlay.classList.remove("hidden");
       finalOverlay.setAttribute("aria-hidden", "false");
       finalDiscord.value = prefillDiscord || finalDiscordName || "";
-      finalAnswer.value = finalAnswerText || "";
       ensureTurnstile();
       resetTurnstile();
     }
@@ -712,12 +720,12 @@ Reinitializing simulation…`
     finalVerify.onclick = async () => {
       finalErr.textContent = "";
       finalDiscordName = (finalDiscord.value || "").trim();
-      finalAnswerText = (finalAnswer.value || "").trim();
 
       if (!finalDiscordName) {
-        finalErr.textContent = "Username required.";
+        finalErr.textContent = "Discord username required.";
         return;
       }
+
       const token = getTurnstileToken();
       if (!token) {
         finalErr.textContent = "Please complete the verification checkbox.";
@@ -774,6 +782,13 @@ Reinitializing simulation…`
 
     let activeFileIndex = 0;
     let selected = new Set();
+
+    function forceHackTopLayer() {
+      // Ensure hack UI is NEVER behind sim/task UI
+      hackRoom.style.position = "fixed";
+      hackRoom.style.inset = "0";
+      hackRoom.style.zIndex = "2000";
+    }
 
     function renderFile(idx) {
       activeFileIndex = idx;
@@ -835,9 +850,7 @@ Reinitializing simulation…`
 
     hackDelete.onclick = async () => {
       const f = FILES[activeFileIndex];
-      const selectedLines = Array.from(selected)
-        .map((i) => i + 1)
-        .sort((a, b) => a - b);
+      const selectedLines = Array.from(selected).map((i) => i + 1).sort((a, b) => a - b);
       const targets = f.targets.slice().sort((a, b) => a - b);
 
       const ok =
@@ -855,16 +868,20 @@ Reinitializing simulation…`
       for (const i of delIdx) f.lines.splice(i, 1);
 
       hackStatus.textContent = "Lines deleted. Finalizing wipe…";
-      playSfx("thud", 0.45);
+      playSfx("thud", { volume: 0.45, overlap: true });
 
       try {
         const token = getTurnstileToken();
+
+        // ✅ IMPORTANT:
+        // We DO NOT collect an “Answer” from the user. We still send a safe constant
+        // because your server expects the field.
         const res = await fetch("/api/complete", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             discord: finalDiscordName,
-            answer: finalAnswerText,
+            answer: "N/A",
             turnstile: token,
           }),
         });
@@ -887,6 +904,13 @@ Reinitializing simulation…`
     };
 
     function startHackTask() {
+      // ✅ Hide sim UI so hack UI is the only focus layer
+      simChoices.classList.add("hidden");
+      taskUI.classList.add("hidden");
+      els.taskActions?.classList.add("hidden");
+
+      forceHackTopLayer();
+
       hackUser.textContent = `USER: ${finalDiscordName}`;
       hackRoom.classList.remove("hidden");
       renderFile(0);
@@ -903,22 +927,13 @@ Reinitializing simulation…`
       penalize,
       glitch: glitchPulse,
     };
+
     let guidePath = "unknown"; // "emma" | "liam" | "run" | "unknown"
 
     function chooseFillerPool() {
-      if (guidePath === "run") {
-        if (resistanceScore >= 6) return "filler_run_hard";
-        return "filler_run";
-      }
-      if (guidePath === "emma") {
-        if (resistanceScore >= 6) return "filler_security_pressure";
-        return "filler_security";
-      }
-      if (guidePath === "liam") {
-        if (resistanceScore >= 6) return "filler_worker_pressure";
-        return "filler_worker";
-      }
-
+      if (guidePath === "run") return resistanceScore >= 6 ? "filler_run_hard" : "filler_run";
+      if (guidePath === "emma") return resistanceScore >= 6 ? "filler_security_pressure" : "filler_security";
+      if (guidePath === "liam") return resistanceScore >= 6 ? "filler_worker_pressure" : "filler_worker";
       if (resistanceScore >= 7) return "filler_system_pressure";
       if (resistanceScore >= 3) return "filler_standard";
       return "filler_security";
@@ -959,17 +974,20 @@ Reinitializing simulation…`
 
         if (step.task) {
           const fn = TASKS[step.task];
-          if (fn) {
-            await fn(taskContext, step.args || {});
-            tasksCompleted++;
-            await maybeAlmostDonePhase();
+          if (!fn) {
+            console.warn("[sim] Missing task:", step.task, step.args || {});
+            await playLines([`System: PROCEDURE MISSING (${step.task}).`]);
+            continue;
           }
+
+          await fn(taskContext, step.args || {});
+          tasksCompleted++;
+          await maybeAlmostDonePhase();
           continue;
         }
 
         if (step.filler) {
           const count = Number(step.filler.count || 1);
-
           let poolName = String(step.filler.pool || "filler_standard");
           if (poolName === "AUTO") poolName = chooseFillerPool();
 
@@ -989,11 +1007,15 @@ Reinitializing simulation…`
     async function openSimRoom() {
       stage = 99;
 
+      await unlockAudio(); // ✅ important: VO won’t get blocked
+
       document.body.classList.add("in-sim");
 
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
       simChoices.classList.add("hidden");
+      hackRoom.classList.add("hidden");
+
       simText.textContent = "";
       playSfx("static1", { volume: 0.25, overlap: false });
 
@@ -1009,18 +1031,9 @@ Reinitializing simulation…`
           choiceLie.onclick = null;
           choiceRun.onclick = null;
         };
-        choiceNeed.onclick = () => {
-          cleanup();
-          resolve("comply");
-        };
-        choiceLie.onclick = () => {
-          cleanup();
-          resolve("lie");
-        };
-        choiceRun.onclick = () => {
-          cleanup();
-          resolve("run");
-        };
+        choiceNeed.onclick = () => { cleanup(); resolve("comply"); };
+        choiceLie.onclick = () => { cleanup(); resolve("lie"); };
+        choiceRun.onclick = () => { cleanup(); resolve("run"); };
       });
     }
 
@@ -1049,460 +1062,453 @@ Reinitializing simulation…`
           if (!recordChoice(false)) return;
           resistanceScore = Math.min(12, resistanceScore + 2);
         }
-
         hideChoices();
         await playLines(beat.respond && beat.respond[choice] ? beat.respond[choice] : []);
       }
     }
-    // NOTE: handleLandingClick is declared later (in the CRACKS section)
-  
-      /* ======================
-         CRACKS (4 staged) + GLASS FALL -> SIM
-      ====================== */
-      document.addEventListener("selectstart", (e) => {
-        const t = e.target;
-        const el = (t && t.nodeType === 1) ? t : (t && t.parentElement) ? t.parentElement : null;
-  
-        // allow selecting inside inputs/textareas
-        if (el && el.closest && el.closest("input, textarea")) return;
-  
-        // only block selection during landing click-spam + shatter
-        if (stage === 1 || document.body.classList.contains("sim-transition")) {
-          e.preventDefault();
-        }
+
+    // NOTE: landing click handler is declared later (CRACKS section)
+
+    /* ======================
+       CRACKS (4 staged) + GLASS FALL -> SIM
+    ====================== */
+    document.addEventListener("selectstart", (e) => {
+      const t = e.target;
+      const el = t && t.nodeType === 1 ? t : t?.parentElement || null;
+
+      // allow selecting inside inputs/textareas
+      if (el && el.closest && el.closest("input, textarea")) return;
+
+      // only block selection during landing click-spam + shatter
+      if (stage === 1 || document.body.classList.contains("sim-transition")) {
+        e.preventDefault();
+      }
+    });
+
+    let crackBuilt = false;
+    let crackStage = 0;
+
+    function rand(seed) {
+      let t = seed >>> 0;
+      return () => {
+        t += 0x6d2b79f5;
+        let x = Math.imul(t ^ (t >>> 15), 1 | t);
+        x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+        return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
+      let x = cx,
+        y = cy;
+      let ang = rng() * Math.PI * 2;
+      const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
+
+      for (let i = 0; i < steps; i++) {
+        ang += (rng() - 0.5) * jitter;
+        x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
+        y += Math.sin(ang) * stepLen * (0.75 + rng() * 0.7);
+        x = Math.max(-60, Math.min(1060, x));
+        y = Math.max(-60, Math.min(1060, y));
+        pts.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
+      }
+      return pts.join(" ");
+    }
+
+    function addSeg(svg, d, rank) {
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.setAttribute("class", "seg");
+      g.setAttribute("data-rank", String(rank));
+
+      const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pUnder.setAttribute("d", d);
+      pUnder.setAttribute("class", "crack-path crack-under pending");
+
+      const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pLine.setAttribute("d", d);
+      pLine.setAttribute("class", "crack-path crack-line pending");
+
+      const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pGlint.setAttribute("d", d);
+      pGlint.setAttribute("class", "crack-path crack-glint pending");
+      pGlint.style.opacity = "0.0";
+
+      g.appendChild(pUnder);
+      g.appendChild(pLine);
+      g.appendChild(pGlint);
+      svg.appendChild(g);
+
+      [pUnder, pLine, pGlint].forEach((p) => {
+        try {
+          const len = p.getTotalLength();
+          p.style.strokeDasharray = String(len);
+          p.style.strokeDashoffset = String(len);
+          p.style.setProperty("--dash", String(len));
+        } catch {}
       });
-  
-      let crackBuilt = false;
-      let crackStage = 0;
-  
-  
-      function rand(seed) {
-        let t = seed >>> 0;
-        return () => {
-          t += 0x6d2b79f5;
-          let x = Math.imul(t ^ (t >>> 15), 1 | t);
-          x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
-          return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-        };
-      }
-  
-      function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
-        let x = cx, y = cy;
-        let ang = rng() * Math.PI * 2;
-        const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
-  
-        for (let i = 0; i < steps; i++) {
-          ang += (rng() - 0.5) * jitter;
-          x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
-          y += Math.sin(ang) * stepLen * (0.75 + rng() * 0.7);
-          x = Math.max(-60, Math.min(1060, x));
-          y = Math.max(-60, Math.min(1060, y));
-          pts.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
+
+      if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
+    }
+
+    function ensureCracks() {
+      if (crackBuilt) return;
+
+      const seed = (Date.now() ^ (Math.random() * 1e9)) & 0xffffffff;
+      const rng = rand(seed);
+
+      cracks.innerHTML = "";
+
+      // ---- PANE LAYER (reflection/duplication feel) ----
+      const paneCount = 18;
+      const paneRanks = [1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4];
+
+      const mkPane = (rank) => {
+        const p = document.createElement("div");
+        p.className = "pane";
+        p.setAttribute("data-rank", String(rank));
+
+        const bias = rank === 1 ? 0.18 : rank === 2 ? 0.28 : rank === 3 ? 0.38 : 0.5;
+        const pts = [];
+        const centerPull = () => 0.5 + (rng() - 0.5) * bias;
+
+        const n = 4 + Math.floor(rng() * 3);
+        for (let i = 0; i < n; i++) {
+          const x = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
+          const y = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
+          pts.push([x, y]);
         }
-        return pts.join(" ");
+
+        const cx = pts.reduce((a, v) => a + v[0], 0) / pts.length;
+        const cy = pts.reduce((a, v) => a + v[1], 0) / pts.length;
+        pts.sort(
+          (a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx)
+        );
+
+        const poly = pts
+          .map(([x, y]) => `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`)
+          .join(", ");
+        p.style.clipPath = `polygon(${poly})`;
+
+        // small drift per pane so it looks like "sections being duplicated"
+        p.style.setProperty("--dx", (rng() * 10 - 5).toFixed(1) + "px");
+        p.style.setProperty("--dy", (rng() * 10 - 5).toFixed(1) + "px");
+
+        if (rng() < 0.35) p.classList.add("glint");
+        return p;
+      };
+
+      for (let i = 0; i < paneCount; i++) {
+        const rank = paneRanks[i] || 4;
+        cracks.appendChild(mkPane(rank));
       }
-  
-      function addSeg(svg, d, rank) {
-        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        g.setAttribute("class", "seg");
-        g.setAttribute("data-rank", String(rank));
-  
-        const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        pUnder.setAttribute("d", d);
-        pUnder.setAttribute("class", "crack-path crack-under pending");
-  
-        const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        pLine.setAttribute("d", d);
-        pLine.setAttribute("class", "crack-path crack-line pending");
-  
-        const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        pGlint.setAttribute("d", d);
-        pGlint.setAttribute("class", "crack-path crack-glint pending");
-        pGlint.style.opacity = "0.0";
-  
-        g.appendChild(pUnder);
-        g.appendChild(pLine);
-        g.appendChild(pGlint);
-        svg.appendChild(g);
-  
-        [pUnder, pLine, pGlint].forEach((p) => {
-          try {
-            const len = p.getTotalLength();
-            p.style.strokeDasharray = String(len);
-            p.style.strokeDashoffset = String(len);
-            p.style.setProperty("--dash", String(len));
-          } catch {}
+
+      // ---- SVG LINES ----
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 1000 1000");
+      svg.setAttribute("preserveAspectRatio", "none");
+      cracks.appendChild(svg);
+
+      const cx = 500,
+        cy = 500;
+
+      const ring = (radiusMin, radiusMax) => {
+        const a = rng() * Math.PI * 2;
+        const r = radiusMin + rng() * (radiusMax - radiusMin);
+        return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+      };
+
+      for (let i = 0; i < 7; i++) addSeg(svg, makePathFromCenter(rng, ...ring(0, 26), 7, 18, 0.85), 1);
+      for (let i = 0; i < 12; i++) addSeg(svg, makePathFromCenter(rng, ...ring(18, 120), 11, 28, 0.75), 2);
+      for (let i = 0; i < 18; i++) addSeg(svg, makePathFromCenter(rng, ...ring(120, 360), 12, 22, 1.05), 3);
+      for (let i = 0; i < 14; i++) addSeg(svg, makePathFromCenter(rng, ...ring(60, 220), 20, 46, 0.55), 4);
+
+      crackBuilt = true;
+    }
+
+    function setCrackStage(n) {
+      ensureCracks();
+
+      const next = Math.max(crackStage, n);
+      if (next === crackStage) return;
+
+      const prev = crackStage;
+      crackStage = next;
+
+      cracks.dataset.stage = String(crackStage);
+
+      // panes ramp in as the crack stage rises
+      const paneMap = { 1: 0.14, 2: 0.24, 3: 0.34, 4: 0.44 };
+      cracks.style.setProperty("--paneOpacity", String(paneMap[crackStage] ?? 0.0));
+
+      cracks.classList.remove("hidden");
+      cracks.classList.add("show");
+
+      const segs = cracks.querySelectorAll(".seg");
+      segs.forEach((seg) => {
+        const r = Number(seg.getAttribute("data-rank") || "0");
+        if (r <= crackStage) seg.classList.add("on");
+      });
+
+      for (let r = prev + 1; r <= crackStage; r++) {
+        const newly = cracks.querySelectorAll(`.seg[data-rank="${r}"] .crack-path.pending`);
+        newly.forEach((p) => {
+          p.classList.remove("pending");
+          p.classList.add("draw");
         });
-  
-        if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
       }
-  
-      function ensureCracks() {
-        if (crackBuilt) return;
-  
-        const seed = (Date.now() ^ (Math.random() * 1e9)) & 0xffffffff;
-        const rng = rand(seed);
-  
-        cracks.innerHTML = "";
-  
-        // ---- PANE LAYER ----
-        const paneCount = 18;
-        const paneRanks = [1,1,1, 2,2,2,2, 3,3,3,3, 4,4,4,4,4,4,4];
-  
-        const mkPane = (rank) => {
-          const p = document.createElement("div");
-          p.className = "pane";
-          p.setAttribute("data-rank", String(rank));
-  
-          const bias = rank === 1 ? 0.18 : rank === 2 ? 0.28 : rank === 3 ? 0.38 : 0.5;
-          const pts = [];
-          const centerPull = () => 0.5 + (rng() - 0.5) * bias;
-  
-          const n = 4 + Math.floor(rng() * 3);
-          for (let i = 0; i < n; i++) {
-            const x = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
-            const y = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
-            pts.push([x, y]);
-          }
-  
-          const cx = pts.reduce((a, v) => a + v[0], 0) / pts.length;
-          const cy = pts.reduce((a, v) => a + v[1], 0) / pts.length;
-          pts.sort(
-            (a, b) =>
-              Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx)
-          );
-  
-          const poly = pts.map(([x, y]) => `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`).join(", ");
-          p.style.clipPath = `polygon(${poly})`;
-  
-          p.style.setProperty("--dx", (rng() * 10 - 5).toFixed(1) + "px");
-          p.style.setProperty("--dy", (rng() * 10 - 5).toFixed(1) + "px");
-  
-          if (rng() < 0.35) p.classList.add("glint");
-          return p;
-        };
-  
-        for (let i = 0; i < paneCount; i++) {
-          const rank = paneRanks[i] || 4;
-          cracks.appendChild(mkPane(rank));
+
+      if (crackStage === 1) playSfx("glassBreak", { volume: 1.0, overlap: true });
+    }
+
+    function buildGlassPieces() {
+      glassFX.innerHTML = "";
+      glassFX.classList.remove("hidden");
+
+      const panes = Array.from(cracks.querySelectorAll(".pane"));
+      if (!panes.length) return [];
+
+      const wrap = document.getElementById("wrap");
+
+      const pieces = panes.map((pane) => {
+        const p = document.createElement("div");
+        p.className = "glass-piece";
+
+        const clip = pane.style.clipPath || pane.style.webkitClipPath;
+        if (clip) {
+          p.style.clipPath = clip;
+          p.style.webkitClipPath = clip;
         }
-  
-        // ---- SVG LINES ----
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 1000 1000");
-        svg.setAttribute("preserveAspectRatio", "none");
-        cracks.appendChild(svg);
-  
-        const cx = 500, cy = 500;
-  
-        const ring = (radiusMin, radiusMax) => {
-          const a = rng() * Math.PI * 2;
-          const r = radiusMin + rng() * (radiusMax - radiusMin);
-          return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
-        };
-  
-        for (let i = 0; i < 7; i++) addSeg(svg, makePathFromCenter(rng, ...ring(0, 26), 7, 18, 0.85), 1);
-        for (let i = 0; i < 12; i++) addSeg(svg, makePathFromCenter(rng, ...ring(18, 120), 11, 28, 0.75), 2);
-        for (let i = 0; i < 18; i++) addSeg(svg, makePathFromCenter(rng, ...ring(120, 360), 12, 22, 1.05), 3);
-        for (let i = 0; i < 14; i++) addSeg(svg, makePathFromCenter(rng, ...ring(60, 220), 20, 46, 0.55), 4);
-  
-        crackBuilt = true;
-      }
-  
-      function setCrackStage(n) {
-        ensureCracks();
-  
-        const next = Math.max(crackStage, n);
-        if (next === crackStage) return;
-  
-        const prev = crackStage;
-        crackStage = next;
-  
-        cracks.dataset.stage = String(crackStage);
-  
-        const paneMap = { 1: 0.14, 2: 0.24, 3: 0.34, 4: 0.44 };
-        cracks.style.setProperty("--paneOpacity", String(paneMap[crackStage] ?? 0.0));
-  
-        cracks.classList.remove("hidden");
-        cracks.classList.add("show");
-  
-        const segs = cracks.querySelectorAll(".seg");
-        segs.forEach((seg) => {
-          const r = Number(seg.getAttribute("data-rank") || "0");
-          if (r <= crackStage) seg.classList.add("on");
-        });
-  
-        for (let r = prev + 1; r <= crackStage; r++) {
-          const newly = cracks.querySelectorAll(`.seg[data-rank="${r}"] .crack-path.pending`);
-          newly.forEach((p) => {
-            p.classList.remove("pending");
-            p.classList.add("draw");
-          });
+
+        // motion randomness (fall / scatter)
+        p.style.setProperty("--rot", (Math.random() * 18 - 9).toFixed(2) + "deg");
+        p.style.setProperty("--sx", (Math.random() * 260 - 130).toFixed(1) + "px");
+        p.style.setProperty("--sy", (Math.random() * 120 - 60).toFixed(1) + "px");
+        p.style.setProperty("--rx", (Math.random() * 18 - 9).toFixed(1) + "px");
+        p.style.setProperty("--ry", (Math.random() * 18 - 9).toFixed(1) + "px");
+        p.style.setProperty("--rblur", (0.7 + Math.random() * 1.2).toFixed(2) + "px");
+        p.style.setProperty("--rgbx", (Math.random() * 3.2 + 1.2).toFixed(2) + "px");
+        p.style.setProperty("--rgby", (Math.random() * 2.6 - 1.3).toFixed(2) + "px");
+
+        const inner = document.createElement("div");
+        inner.className = "glass-inner";
+
+        // reflection/duplication: clone the wrap twice per channel
+        if (wrap) {
+          const makeLayer = (cls) => {
+            const layer = document.createElement("div");
+            layer.className = `glass-rgb ${cls}`;
+
+            const clone1 = wrap.cloneNode(true);
+            clone1.id = "";
+            clone1.classList.add("wrap-clone");
+            clone1.style.pointerEvents = "none";
+            clone1.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+
+            const clone2 = clone1.cloneNode(true);
+            layer.appendChild(clone1);
+            layer.appendChild(clone2);
+
+            return layer;
+          };
+
+          inner.appendChild(makeLayer("r"));
+          inner.appendChild(makeLayer("g"));
+          inner.appendChild(makeLayer("b"));
         }
-  
-        if (crackStage === 1) playSfx("glassBreak", { volume: 1.0 });
+
+        p.appendChild(inner);
+        glassFX.appendChild(p);
+        return p;
+      });
+
+      // shuffle draw order
+      for (let i = pieces.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
       }
-  
-      function buildGlassPieces() {
+
+      return pieces;
+    }
+
+    function shatterToSim() {
+      if (stage === 99) return;
+      stage = 99;
+
+      ensureCracks();
+
+      const pieces = buildGlassPieces();
+
+      // hide landing content immediately
+      const wrap = document.getElementById("wrap");
+      if (wrap) wrap.classList.add("wrap-hidden");
+
+      document.body.classList.add("sim-transition");
+
+      cracks.classList.add("hidden");
+      cracks.classList.remove("show");
+      cracks.classList.remove("flash");
+
+      if (!pieces || !pieces.length) {
+        document.body.classList.remove("sim-transition");
+        openSimRoom();
+        return;
+      }
+
+      glassFX.classList.remove("hidden");
+      glassFX.classList.add("glass-fall");
+
+      const STAGGER_MS = 28;
+      const BASE_MS = 1100;
+
+      pieces.forEach((p, i) => {
+        p.style.animationDelay = i * STAGGER_MS + "ms";
+      });
+
+      const totalMs = BASE_MS + pieces.length * STAGGER_MS + 80;
+
+      setTimeout(() => {
         glassFX.innerHTML = "";
-        glassFX.classList.remove("hidden");
-  
-        const panes = Array.from(cracks.querySelectorAll(".pane"));
-        if (!panes.length) return [];
-  
-        const wrap = document.getElementById("wrap");
-  
-        const pieces = panes.map((pane) => {
-          const p = document.createElement("div");
-          p.className = "glass-piece";
-  
-          const clip = pane.style.clipPath || pane.style.webkitClipPath;
-          if (clip) {
-            p.style.clipPath = clip;
-            p.style.webkitClipPath = clip;
-          }
-  
-          p.style.setProperty("--rot", (Math.random() * 18 - 9).toFixed(2) + "deg");
-          p.style.setProperty("--sx", (Math.random() * 260 - 130).toFixed(1) + "px");
-          p.style.setProperty("--sy", (Math.random() * 120 - 60).toFixed(1) + "px");
-          p.style.setProperty("--rx", (Math.random() * 18 - 9).toFixed(1) + "px");
-          p.style.setProperty("--ry", (Math.random() * 18 - 9).toFixed(1) + "px");
-          p.style.setProperty("--rblur", (0.7 + Math.random() * 1.2).toFixed(2) + "px");
-          p.style.setProperty("--rgbx", (Math.random() * 3.2 + 1.2).toFixed(2) + "px");
-          p.style.setProperty("--rgby", (Math.random() * 2.6 - 1.3).toFixed(2) + "px");
-  
-          const inner = document.createElement("div");
-          inner.className = "glass-inner";
-  
-          if (wrap) {
-            const makeLayer = (cls) => {
-              const layer = document.createElement("div");
-              layer.className = `glass-rgb ${cls}`;
-              const clone1 = wrap.cloneNode(true);
-              clone1.id = "";
-              clone1.classList.add("wrap-clone");
-              clone1.style.pointerEvents = "none";
-              clone1.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
-              
-              const clone2 = clone1.cloneNode(true); // second copy (actual duplication)
-              
-              layer.appendChild(clone1);
-              layer.appendChild(clone2);
-              return layer;
-            };
-  
-            inner.appendChild(makeLayer("r"));
-            inner.appendChild(makeLayer("g"));
-            inner.appendChild(makeLayer("b"));
-          }
-  
-          p.appendChild(inner);
-          glassFX.appendChild(p);
-          return p;
-        });
-  
-        for (let i = pieces.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
-        }
-  
-        return pieces;
+        glassFX.classList.remove("glass-fall");
+        glassFX.classList.add("hidden");
+
+        document.body.classList.remove("sim-transition");
+        openSimRoom();
+      }, totalMs);
+    }
+
+    // CLICK ADVANCE (landing) — respects cooldown, ignores real UI clicks
+    function isCountableClick(e) {
+      const t = e.target;
+      const el = t && t.nodeType === 1 ? t : t?.parentElement || null;
+      if (!el) return true;
+
+      // ignore interactive UI
+      if (el.closest && el.closest("button, input, textarea, select, label, a")) return false;
+
+      // ignore admin panel clicks (so it never advances landing)
+      if (el.closest && el.closest("#adminPanel")) return false;
+
+      // ignore hack UI clicks
+      if (el.closest && el.closest("#hackRoom")) return false;
+
+      return true;
+    }
+
+    function advanceLandingClick() {
+      if (stage !== 1) return;
+
+      const now = Date.now();
+      if (now - lastClick < CLICK_COOLDOWN) return;
+      lastClick = now;
+
+      clicks++;
+
+      // 4 stages at 15 / 17 / 19 / 21
+      if (clicks === CRACK_AT[0]) setCrackStage(1);
+      if (clicks === CRACK_AT[1]) setCrackStage(2);
+      if (clicks === CRACK_AT[2]) setCrackStage(3);
+      if (clicks === CRACK_AT[3]) setCrackStage(4);
+
+      // shatter on next registered click
+      if (clicks >= SHATTER_AT) {
+        stage = 2;
+
+        systemBox.textContent = "You weren't supposed to do that.";
+        const t1 = msToRead(systemBox.textContent);
+
+        setTimeout(() => {
+          systemBox.textContent = "All you had to do was sit there like everyone else and watch the ads.";
+        }, t1);
+
+        const t2 = t1 + msToRead("All you had to do was sit there like everyone else and watch the ads.");
+        setTimeout(() => {
+          systemBox.textContent = "Stop.";
+        }, t2);
+
+        const t3 = t2 + msToRead("Stop.") + 650;
+
+        setTimeout(() => {
+          cracks.classList.add("flash");
+          setTimeout(() => cracks.classList.remove("flash"), 220);
+        }, Math.max(0, t3 - 280));
+
+        setTimeout(() => {
+          shatterToSim();
+        }, t3);
       }
-  
-function shatterToSim() {
-  if (stage === 99) return;
-  stage = 99;
+    }
 
-  ensureCracks();
-
-  // build pieces BEFORE hiding cracks so we can use pane clipPaths
-  const pieces = buildGlassPieces();
-
-  // ✅ HARD HIDE landing UI immediately so it never “hangs” behind the glass
-  const wrap = document.getElementById("wrap");
-  if (wrap) wrap.classList.add("wrap-hidden");
-
-  // ✅ DO NOT show sim content yet — only start transition + glass fall
-  document.body.classList.add("sim-transition");
-
-  cracks.classList.add("hidden");
-  cracks.classList.remove("show");
-  cracks.classList.remove("flash");
-
-  // If for some reason pieces failed, skip directly to sim
-  if (!pieces || !pieces.length) {
-    document.body.classList.remove("sim-transition");
-    openSimRoom();
-    return;
-  }
-
-  // ✅ Only glassFX visible during fall
-  glassFX.classList.remove("hidden");
-  glassFX.classList.add("glass-fall");
-
-  const STAGGER_MS = 28;
-  const BASE_MS = 1100;
-
-  pieces.forEach((p, i) => {
-    p.style.animationDelay = i * STAGGER_MS + "ms";
-  });
-
-  const totalMs = BASE_MS + pieces.length * STAGGER_MS + 80;
-
-  setTimeout(() => {
-    // cleanup glass
-    glassFX.innerHTML = "";
-    glassFX.classList.remove("glass-fall");
-    glassFX.classList.add("hidden");
-
-    // transition ends, now open sim
-    document.body.classList.remove("sim-transition");
-    openSimRoom();
-  }, totalMs);
-}
-
-  
-      // -----------------------
-      // CLICK ADVANCE (shared)
-      // - fixes: launch button no longer skips progression
-      // - fixes: .closest TypeError (text nodes)
-      // -----------------------
-      function isCountableClick(e) {
-        const t = e.target;
-        const el = (t && t.nodeType === 1) ? t : (t && t.parentElement) ? t.parentElement : null;
-        if (!el) return true;
-  
-        // ignore actual interactive UI
-        if (el.closest && el.closest("button, input, textarea, select, label, a")) return false;
-  
-        return true;
-      }
-  
-      function advanceLandingClick() {
-        if (stage !== 1) return;
-  
-        const now = Date.now();
-        if (now - lastClick < CLICK_COOLDOWN) return;
-        lastClick = now;
-  
-        clicks++;
-  
-        if (clicks === CRACK_AT[0]) setCrackStage(1);
-        if (clicks === CRACK_AT[1]) setCrackStage(2);
-        if (clicks === CRACK_AT[2]) setCrackStage(3);
-        if (clicks === CRACK_AT[3]) setCrackStage(4);
-  
-        if (clicks >= SHATTER_AT) {
-          stage = 2;
-  
-          systemBox.textContent = "You weren't supposed to do that.";
-          const t1 = msToRead(systemBox.textContent);
-  
-          setTimeout(() => {
-            systemBox.textContent =
-              "All you had to do was sit there like everyone else and watch the ads.";
-          }, t1);
-  
-          const t2 =
-            t1 + msToRead("All you had to do was sit there like everyone else and watch the ads.");
-          setTimeout(() => {
-            systemBox.textContent = "Stop.";
-          }, t2);
-  
-          const t3 = t2 + msToRead("Stop.") + 650;
-  
-          setTimeout(() => {
-            cracks.classList.add("flash");
-            setTimeout(() => cracks.classList.remove("flash"), 220);
-          }, Math.max(0, t3 - 280));
-  
-          setTimeout(() => {
-            shatterToSim();
-          }, t3);
-        }
-      }
     function handleLandingClick(e) {
       if (!isCountableClick(e)) return;
       advanceLandingClick();
     }
+
     window.handleLandingClick = handleLandingClick;
     document.addEventListener("click", handleLandingClick);
-      
-  /* ======================
-     LAUNCH BUTTON
-     - unlock audio
-     - enable viewer token typing
-     - show fake "launcher" status animation
-  ====================== */
-  const viewerFake = document.getElementById("viewerFake");
-  const viewerState = document.getElementById("viewerState");
-  const launchBtn = document.getElementById("launchBtn");
-  const launchStatus = document.getElementById("launchStatus");
-    
-  let launchBusy = false;
-if (viewerToken) {
-  viewerToken.addEventListener("input", async () => {
-    const v = viewerToken.value.trim();
-    if (!v || v.length < 8) return;
 
-    let h = "";
-    try {
-      h = await sha256(v);
-    } catch (e) {
-      console.warn("[admin] sha256 failed (non-secure context?)", e);
-      return;
+    /* ======================
+       LAUNCH BUTTON
+       - unlock audio
+       - enable viewer token typing
+       - show fake "launcher" status animation
+       - DOES NOT advance landing click counter
+    ====================== */
+    const viewerFake = els.viewerFake;
+    const viewerState = els.viewerState;
+    const launchBtn = els.launchBtn;
+    const launchStatus = els.launchStatus;
+
+    let launchBusy = false;
+
+    function runLaunchStatusAnim() {
+      if (!launchStatus || !launchBtn) return;
+      if (launchBusy) return;
+      launchBusy = true;
+
+      launchStatus.textContent = "requesting campaign…";
+      launchBtn.classList.add("busy");
+
+      setTimeout(() => (launchStatus.textContent = "loading creatives…"), 500);
+      setTimeout(() => (launchStatus.textContent = "waiting for view signal…"), 1100);
+
+      setTimeout(() => {
+        launchStatus.textContent = "idle";
+        launchBtn.classList.remove("busy");
+        launchBusy = false;
+        playSfx("ambience", { volume: 0.25, overlap: false });
+      }, 1800);
     }
 
-    if (h === ADMIN_HASH) grantAdmin();
-  });
-}
+    if (launchBtn) {
+      launchBtn.addEventListener(
+        "click",
+        (e) => {
+          // ✅ do not register as a landing click
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
 
+          playSfx("mclick", { volume: 0.25, overlap: true });
+          unlockAudio();
 
-  function runLaunchStatusAnim() {
-    if (!launchStatus || !launchBtn) return;
-    if (launchBusy) return;
-    launchBusy = true;
-   
-    launchStatus.textContent = "requesting campaign…";
-    launchBtn.classList.add("busy");
-    
-    setTimeout(() => (launchStatus.textContent = "loading creatives…"), 500);
-    setTimeout(() => (launchStatus.textContent = "waiting for view signal…"), 1100);
-  
-    setTimeout(() => {
-      launchStatus.textContent = "idle";
-      launchBtn.classList.remove("busy");
-      launchBusy = false;
-      playSfx("ambience", { volume: 0.25, overlap: false });
-    }, 1800);
+          if (viewerToken) {
+            viewerToken.disabled = false;
+            viewerToken.classList.remove("hidden");
+            viewerToken.focus();
+            try { viewerToken.select(); } catch {}
+          }
+
+          if (viewerFake) viewerFake.classList.add("hidden");
+          if (viewerState) viewerState.textContent = "active";
+
+          runLaunchStatusAnim();
+        },
+        true
+      );
+    }
+
+    // Done. Boot sequence ends here.
   }
-   
-  if (launchBtn) {
-    launchBtn.addEventListener(
-      "click",
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        playSfx("mclick", { volume: 0.25, overlap: true }); // UI click feedback
-    
-        unlockAudio();
-    
-        if (viewerToken) {
-          viewerToken.disabled = false;
-          viewerToken.classList.remove("hidden");
-          viewerToken.focus();
-          try { viewerToken.select(); } catch {}
-        }
-    
-        if (viewerFake) viewerFake.classList.add("hidden");
-        if (viewerState) viewerState.textContent = "active";
-    
-        runLaunchStatusAnim();
-      },
-      true
-    );
-  }
-}
-boot();
+
+  boot();
 })();
