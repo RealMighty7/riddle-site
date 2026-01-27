@@ -1,851 +1,1329 @@
-// tasks.js
-// window.TASKS async tasks + pack registration + pool router
-// ctx provides: showTaskUI, taskBody, taskPrimary, taskSecondary, doReset, difficultyBoost, penalize(amount, note), glitch()
+// tasks.js (FULL REPLACEMENT)
+// Provides: window.TASKS + window.registerTaskPool
+// Compatible with your existing "reg({ ... })" packs style.
+// Fixes:
+// - tasks never hang (every task resolves)
+// - admin skip works (window.__ADMIN_FORCE_OK or "admin:skip")
+// - publishes admin task + hint events ("admin:task" / "admin:hint")
+// - safe cleanup of listeners per-task via scoped()
 
 (() => {
-  // Keep TASKS object stable for packs
-  const TASKS = (window.TASKS = window.TASKS || {});
-  // Pools for random selection
-  const TASK_POOLS = (window.TASK_POOLS = window.TASK_POOLS || {});
+  // ============================================================
+  // ADMIN SKIP (global)
+  // ============================================================
+  window.__ADMIN_FORCE_OK = window.__ADMIN_FORCE_OK || false;
 
-  // Global admin force-pass latch (set by main.js admin panel)
-  if (typeof window.__ADMIN_FORCE_OK === "undefined") window.__ADMIN_FORCE_OK = false;
+  document.addEventListener(
+    "admin:skip",
+    () => {
+      window.__ADMIN_FORCE_OK = true;
+    },
+    { capture: true }
+  );
 
-  // packs call: registerTaskPool("core" / "packX" / etc, [{ id:"anchors", w:1 }, ...])
-  window.registerTaskPool = function registerTaskPool(poolName, entries) {
-    if (!poolName) return;
-    if (!Array.isArray(entries)) return;
-    TASK_POOLS[poolName] = (TASK_POOLS[poolName] || []).concat(entries);
-  };
-
-  // packs call: registerTasks({ taskId: async (ctx,args)=>{}, ... })
-  window.registerTasks = function registerTasks(map) {
-    if (!map || typeof map !== "object") return;
-    for (const [k, v] of Object.entries(map)) {
-      if (typeof v === "function") TASKS[k] = v;
-    }
-  };
-
-  /* ====================== POOL UTILITIES ====================== */
-  function pickWeighted(entries) {
-    let total = 0;
-    for (const e of entries) total += Math.max(0, Number(e?.w ?? 1));
-    if (total <= 0) return null;
-
-    let r = Math.random() * total;
-    for (const e of entries) {
-      r -= Math.max(0, Number(e?.w ?? 1));
-      if (r <= 0) return e;
-    }
-    return entries[entries.length - 1] || null;
-  }
-
-  function poolEntries(nameOrNames) {
-    const names = Array.isArray(nameOrNames) ? nameOrNames : [nameOrNames];
-    const out = [];
-    for (const n of names) {
-      const list = TASK_POOLS[n];
-      if (Array.isArray(list)) out.push(...list);
-    }
-    return out;
-  }
-
-  // Anti-repeat (light pacing)
-  let _lastTaskId = null;
-
-  function adminForced(ctx) {
-    return !!(ctx?.admin?.forceOk || window.__ADMIN_FORCE_OK);
-  }
-
-  function consumeAdminForce(ctx) {
-    // consume the global latch so it only applies to ONE task completion
+  function consumeAdminSkip() {
+    if (!window.__ADMIN_FORCE_OK) return false;
     window.__ADMIN_FORCE_OK = false;
-    if (ctx?.admin) ctx.admin.forceOk = false;
+    return true;
   }
 
-  // Make packs harder to crash (esp during manual console tests)
-  function normalizeCtx(ctx) {
-    const noop = () => {};
-    const fakeClassList = { add: noop, remove: noop, contains: () => false };
-
-    const safe = ctx && typeof ctx === "object" ? ctx : {};
-    if (!safe.showTaskUI) safe.showTaskUI = noop;
-    if (!safe.doReset) safe.doReset = noop;
-    if (!safe.difficultyBoost) safe.difficultyBoost = () => 0;
-    if (!safe.penalize) safe.penalize = noop;
-    if (!safe.glitch) safe.glitch = noop;
-
-    if (!safe.taskBody) safe.taskBody = document.body;
-
-    // taskPrimary needs: textContent, disabled, onclick
-    if (!safe.taskPrimary || typeof safe.taskPrimary !== "object") safe.taskPrimary = {};
-    if (!("textContent" in safe.taskPrimary)) safe.taskPrimary.textContent = "";
-    if (!("disabled" in safe.taskPrimary)) safe.taskPrimary.disabled = false;
-    if (!("onclick" in safe.taskPrimary)) safe.taskPrimary.onclick = null;
-
-    // taskSecondary needs: classList at minimum
-    if (!safe.taskSecondary || typeof safe.taskSecondary !== "object") safe.taskSecondary = {};
-    if (!safe.taskSecondary.classList) safe.taskSecondary.classList = fakeClassList;
-
-    // --- admin diagnostics ---
-    if (!safe.admin || typeof safe.admin !== "object") safe.admin = {};
-    safe.admin.enabled = document.body.classList.contains("admin");
-    if (typeof safe.admin.forceOk !== "boolean") safe.admin.forceOk = false;
-
-    // publish hints to admin panel (main.js listens for admin:hint)
-    if (!safe.setAdminHint) {
-      safe.setAdminHint = (text) => {
-        if (!safe.admin.enabled) return;
-        document.dispatchEvent(
-          new CustomEvent("admin:hint", {
-            detail: { taskId: safe.currentTaskId || "—", hint: String(text ?? "") },
-          })
-        );
-      };
-    }
-
-    // bind skip once per ctx object
-    if (!safe._adminBound) {
-      safe._adminBound = true;
-
-      // When skip is requested, force-enable the taskPrimary and set a latch.
-      document.addEventListener("admin:skip", () => {
-        window.__ADMIN_FORCE_OK = true;
-        if (!safe.admin) safe.admin = {};
-        safe.admin.forceOk = true;
-        try {
-          safe.taskPrimary.disabled = false;
-        } catch {}
-      });
-    }
-
-    return safe;
+  function publishAdminTask(taskId) {
+    try {
+      document.dispatchEvent(new CustomEvent("admin:task", { detail: { taskId } }));
+    } catch {}
   }
 
-  // Runs one random task from a pool (or list of pools)
-  TASKS.random = async function random(ctx, args = {}) {
-    ctx = normalizeCtx(ctx);
-
-    const pools = args.pools || args.pool || "core";
-    const entries = poolEntries(pools).filter((e) => e && typeof e.id === "string");
-
-    if (!entries.length) {
-      ctx.showTaskUI(
-        "TASK ROUTER",
-        `No tasks in pool: ${Array.isArray(pools) ? pools.join(", ") : pools}`
+  function publishAdminHint(taskId, hint) {
+    try {
+      document.dispatchEvent(
+        new CustomEvent("admin:hint", { detail: { taskId, hint } })
       );
-      ctx.taskBody.innerHTML = `<div style="opacity:.85">Pool is empty or missing.</div>`;
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = false;
-      await new Promise((r) => (ctx.taskPrimary.onclick = r));
-      return;
-    }
-
-    let pick = pickWeighted(entries);
-    if (entries.length > 1 && pick?.id === _lastTaskId) {
-      pick = pickWeighted(entries) || pick;
-    }
-
-    const id = pick?.id;
-    _lastTaskId = id;
-
-    // publish current task id for admin panel
-    ctx.currentTaskId = id;
-    if (document.body.classList.contains("admin")) {
-      document.dispatchEvent(new CustomEvent("admin:task", { detail: { taskId: id } }));
-    }
-
-    const fn = TASKS[id];
-    if (typeof fn !== "function") {
-      ctx.showTaskUI("TASK ROUTER", `Missing task: ${id}`);
-      ctx.taskBody.innerHTML = `<div style="opacity:.85">A pool references a task that isn't registered yet.</div>`;
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = false;
-      await new Promise((r) => (ctx.taskPrimary.onclick = r));
-      return;
-    }
-
-    await fn(ctx, args.inner || {});
-  };
-
-  /* ====================== SHARED HELPERS ====================== */
-  function waitForContinueOrSkip(ctx) {
-  return new Promise((resolve) => {
-    const onSkip = () => resolve("skip");
-    document.addEventListener("admin:skip", onSkip, { once: true });
-
-    ctx.taskPrimary.onclick = () => resolve("click");
-  });
-}
-
-  function el(tag, props = {}, children = []) {
-    const n = document.createElement(tag);
-    Object.assign(n, props);
-    for (const c of children) n.appendChild(c);
-    return n;
+    } catch {}
   }
 
+  // ============================================================
+  // UTIL
+  // ============================================================
   function clamp(n, a, b) {
     return Math.max(a, Math.min(b, n));
   }
 
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  function scopedListeners() {
-    const offs = [];
-    return {
-      on(target, type, fn, opts) {
-        target.addEventListener(type, fn, opts);
-        offs.push(() => target.removeEventListener(type, fn, opts));
-      },
-      clear() {
-        for (const off of offs.splice(0)) {
-          try {
-            off();
-          } catch {}
-        }
-      },
-    };
+  function rndInt(a, b) {
+    a |= 0;
+    b |= 0;
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    return (lo + Math.floor(Math.random() * (hi - lo + 1))) | 0;
   }
 
-  /* ====================== CORE TASKS ====================== */
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
 
-  // TASK: anchors
-  TASKS.anchors = async function anchors(ctx, args = {}) {
-    ctx = normalizeCtx(ctx);
+  function wait(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
 
-    const base = Number(args.base ?? 5);
-    const count = base + (ctx.difficultyBoost?.() ?? 0);
-
-    let attempts = 0;
-
-    while (true) {
-      attempts++;
-      ctx.admin.forceOk = false;
-
-      ctx.showTaskUI(
-        "RESTART // ANCHOR SYNC",
-        `Stabilize boundary. Locate and click ${count} anchors.`
-      );
-      ctx.setAdminHint?.(`Click ${count} anchors. (Admin: SKIP will force-pass)`);
-
-      ctx.taskBody.innerHTML = "";
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = true;
-
-      let remaining = count;
-      const remainText = el("b", { textContent: String(remaining) });
-
-      const pill = el("div", { className: "pill" }, [
-        document.createTextNode("Anchors remaining: "),
-        remainText,
-      ]);
-      ctx.taskBody.appendChild(pill);
-
-      const anchors = [];
-      const L = scopedListeners();
-
-      const spawn = () => {
-        const a = document.createElement("div");
-        a.className = "anchor";
-        a.style.left = `${10 + Math.random() * 80}vw`;
-        a.style.top = `${12 + Math.random() * 72}vh`;
-
-        const click = () => {
-          remaining--;
-          remainText.textContent = String(remaining);
-          a.remove();
-
-          if (remaining <= 0) {
-            for (const x of anchors) x.remove();
-            ctx.taskPrimary.disabled = false;
-          }
-        };
-
-        L.on(a, "click", click);
-        document.body.appendChild(a);
-        anchors.push(a);
-      };
-
-      for (let i = 0; i < count; i++) spawn();
-
-      const timeLimit = 14000 + (ctx.difficultyBoost?.() ?? 0) * 1200;
-      let timedOut = false;
-
-      const to = setTimeout(() => {
-        timedOut = true;
-        ctx.taskPrimary.disabled = true;
-        for (const x of anchors) x.remove();
-        ctx.taskBody.appendChild(
-          el("div", {
-            style: "margin-top:10px;opacity:.85;color:rgba(255,190,190,.95)",
-            textContent: "Timeout. Boundary drift detected.",
-          })
-        );
-      }, timeLimit);
-
-      const ok = await new Promise((resolve) => {
-        ctx.taskPrimary.onclick = () => resolve(true);
-
-        const watcher = setInterval(() => {
-          if (adminForced(ctx)) {
-            clearInterval(watcher);
-            ctx.taskPrimary.disabled = false;
-            ctx.taskPrimary.onclick = () => resolve(true);
-            consumeAdminForce(ctx);
-            return;
-          }
-          if (!timedOut) return;
-          clearInterval(watcher);
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve(false);
-        }, 120);
-
-        L.on(window, "beforeunload", () => {
+  function scoped() {
+    const offs = [];
+    const api = {
+      on(target, type, fn, opts) {
+        if (!target || !target.addEventListener) return;
+        target.addEventListener(type, fn, opts);
+        offs.push(() => {
           try {
-            clearInterval(watcher);
+            target.removeEventListener(type, fn, opts);
           } catch {}
         });
+      },
+      clear() {
+        while (offs.length) {
+          try {
+            offs.pop()();
+          } catch {}
+        }
+      },
+    };
+    return api;
+  }
+
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined && text !== null) n.textContent = String(text);
+    return n;
+  }
+
+  function note(text) {
+    return el("div", "task-note", text || "");
+  }
+
+  function makeInput(ph) {
+    const i = document.createElement("input");
+    i.type = "text";
+    i.autocomplete = "off";
+    i.spellcheck = false;
+    i.placeholder = ph || "";
+    return i;
+  }
+
+  // ============================================================
+  // TASK FRAME HELPERS
+  // ============================================================
+  function clearActions(ctx) {
+    try {
+      ctx.taskPrimary.onclick = null;
+      ctx.taskSecondary.onclick = null;
+      ctx.taskPrimary.disabled = true;
+      ctx.taskSecondary.disabled = true;
+      ctx.taskSecondary.classList.add("hidden");
+    } catch {}
+  }
+
+  function begin(ctx, title, desc) {
+    publishAdminTask(title);
+
+    ctx.showTaskUI(title, desc || "");
+    ctx.taskBody.innerHTML = "";
+
+    // reset buttons safely
+    clearActions(ctx);
+
+    // default: keep primary disabled until task enables it
+    try {
+      ctx.taskPrimary.textContent = "continue";
+      ctx.taskPrimary.disabled = true;
+    } catch {}
+
+    // Admin skip: immediate resolve hook is set inside safeTask wrapper.
+  }
+
+  async function safeTask(taskId, fn, ctx, args) {
+    // Always resolve; always cleanup.
+    const L = scoped();
+    let resolved = false;
+
+    const finish = () => {
+      if (resolved) return;
+      resolved = true;
+      L.clear();
+      clearActions(ctx);
+      resolveOuter?.();
+    };
+
+    // admin skip should force-complete any task instantly
+    const adminSkipHandler = () => {
+      if (!consumeAdminSkip()) return;
+      // lightweight visual cue (don’t penalize)
+      try {
+        const m = note("admin override.");
+        m.style.opacity = "0.65";
+        ctx.taskBody.appendChild(m);
+      } catch {}
+      finish();
+    };
+
+    L.on(document, "admin:skip", adminSkipHandler, { capture: true });
+
+    // also poll the flag (covers cases where skip was set before listener)
+    if (consumeAdminSkip()) {
+      finish();
+      return;
+    }
+
+    let resolveOuter;
+    const outer = new Promise((r) => (resolveOuter = r));
+
+    try {
+      // give fn a way to register scoped listeners if it wants
+      ctx.__scoped = L;
+
+      const p = fn(ctx, args || {});
+      // if the task returns a promise, await it, but ensure it can’t hang forever
+      // (in practice your tasks resolve on user action)
+      if (p && typeof p.then === "function") {
+        await Promise.race([
+          p,
+          outer, // admin skip
+        ]);
+      } else {
+        // non-promise task; just finish
+        finish();
+      }
+    } catch (e) {
+      console.warn("[task] crashed:", taskId, e);
+      try {
+        ctx.glitch?.();
+      } catch {}
+      try {
+        const m = note("Task failed. Continuing.");
+        m.style.color = "rgba(255,190,190,.95)";
+        ctx.taskBody.appendChild(m);
+      } catch {}
+    } finally {
+      finish();
+    }
+  }
+
+  // ============================================================
+  // REGISTRY + POOLS
+  // ============================================================
+  const TASKS = {};
+  const POOLS = {}; // name -> [{id,w}]
+
+  function reg(map) {
+    Object.entries(map || {}).forEach(([id, fn]) => {
+      TASKS[id] = fn;
+    });
+  }
+
+  function registerTaskPool(name, list) {
+    if (!name) return;
+    POOLS[name] = Array.isArray(list) ? list.slice() : [];
+  }
+
+  // expose for packs
+  window.registerTaskPool = registerTaskPool;
+
+  // ============================================================
+  // PACK 5 (FULLY WIRED)
+  // ============================================================
+  reg({
+    keypad_4: async (ctx) => {
+      begin(ctx, "KEYPAD", "Enter the 4-digit access code. (Click digits.)");
+
+      const code = String(rndInt(1000, 9999));
+      publishAdminHint("KEYPAD", code);
+
+      const display = el("div", "pill", "code: ••••");
+      display.style.marginTop = "10px";
+      ctx.taskBody.appendChild(display);
+      ctx.taskBody.appendChild(note("Hint: It flashed in the corner. You caught it, right?"));
+
+      const read = el("div", "pill", "input: ");
+      read.style.marginTop = "10px";
+      ctx.taskBody.appendChild(read);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
+
+      const flashMs = clamp(1100 - ctx.difficultyBoost() * 90, 420, 1100);
+      display.textContent = `code: ${code}`;
+      await wait(flashMs);
+      display.textContent = "code: ••••";
+
+      let input = "";
+
+      const grid = el("div");
+      grid.style.display = "grid";
+      grid.style.gridTemplateColumns = "repeat(3, minmax(0, 1fr))";
+      grid.style.gap = "10px";
+      grid.style.marginTop = "12px";
+      grid.style.maxWidth = "320px";
+
+      const digits = shuffle(["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]);
+      let resolve;
+      const done = () => resolve?.();
+
+      digits.forEach((d) => {
+        const b = el("button", "sim-btn", d);
+        b.type = "button";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
+
+          if (input.length >= 4) return;
+          input += d;
+          read.textContent = `input: ${input.padEnd(4, "•")}`;
+          if (input.length === 4) {
+            if (input !== code) {
+              msg.textContent = "Access denied.";
+              ctx.glitch();
+              ctx.penalize(1, "bad code");
+              input = "";
+              read.textContent = "input: ";
+              return;
+            }
+            msg.style.color = "rgba(232,237,247,0.85)";
+            msg.textContent = "Access granted.";
+            ctx.taskPrimary.textContent = "continue";
+            ctx.taskPrimary.disabled = false;
+            ctx.taskPrimary.onclick = () => done();
+          }
+        };
+        grid.appendChild(b);
       });
 
-      clearTimeout(to);
-      for (const x of anchors) x.remove();
-      L.clear();
+      const clear = el("button", "sim-btn", "clear");
+      clear.type = "button";
+      clear.style.gridColumn = "span 3";
+      clear.onclick = () => {
+        if (consumeAdminSkip()) return done();
+        input = "";
+        read.textContent = "input: ";
+        msg.textContent = "";
+      };
+      grid.appendChild(clear);
 
-      if (ok || adminForced(ctx)) {
-        consumeAdminForce(ctx);
-        return;
-      }
+      ctx.taskBody.appendChild(grid);
 
-      ctx.glitch?.();
-      ctx.penalize?.(1, "ANCHOR DESYNC: penalty applied.");
-      if (attempts >= 2) {
-        ctx.doReset?.("LOCKDOWN", "Anchor drift exceeded safe limits.\n\nRestart required.");
-        return;
-      }
+      return new Promise((r) => (resolve = r));
+    },
 
-      await wait(450);
-    }
-  };
+    wire_cut: async (ctx) => {
+      begin(ctx, "WIRES", "Cut the safe wire. One cut only.");
+      const wires = shuffle(["RED", "BLUE", "GREEN", "WHITE"]);
+      const safe = "WHITE";
+      publishAdminHint("WIRES", safe);
 
-  // TASK: reorder
-  TASKS.reorder = async function reorder(ctx, args = {}) {
-    ctx = normalizeCtx(ctx);
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
 
-    const items = Array.isArray(args.items) ? args.items.slice() : [];
-    const correct = Array.isArray(args.correct) ? args.correct.slice() : [];
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
 
-    // Fallback: if caller forgot to pass items/correct, don't soft-crash
-    if (!items.length || !correct.length || items.length !== correct.length) {
-      ctx.showTaskUI("RESTART // LOG RECONSTRUCTION", "Fragments unavailable. Continuing.");
-      ctx.taskBody.innerHTML = `<div style="opacity:.85">log fragments missing.</div>`;
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = false;
-      await new Promise((r) => (ctx.taskPrimary.onclick = r));
-      return;
-    }
+      let resolve;
+      const done = () => resolve?.();
 
-    let attempts = 0;
+      wires.forEach((w) => {
+        const b = el("button", "sim-btn", `cut ${w}`);
+        b.type = "button";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
 
-    while (true) {
-      attempts++;
-      ctx.admin.forceOk = false;
+          if (w !== safe) {
+            msg.textContent = "Wrong wire. Surge detected.";
+            ctx.glitch();
+            ctx.penalize(1, "surge");
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Safe wire cut.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+        };
+        row.appendChild(b);
+      });
 
-      ctx.showTaskUI("RESTART // LOG RECONSTRUCTION", "Reorder fragments to rebuild the event timeline.");
-      ctx.setAdminHint?.(`Correct order:\n- ${correct.join("\n- ")}`);
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
 
-      ctx.taskBody.innerHTML = "";
+      return new Promise((r) => (resolve = r));
+    },
 
-      const state = items.slice();
-      let first = null;
+    highest_number: async (ctx) => {
+      begin(ctx, "CALIBRATE", "Click the highest number.");
+      const nums = shuffle([rndInt(10, 50), rndInt(51, 90), rndInt(91, 130), rndInt(131, 180)]);
+      const high = Math.max(...nums);
+      publishAdminHint("CALIBRATE", String(high));
 
-      const render = () => {
-        ctx.taskBody.innerHTML = `<div style="opacity:.85;margin-bottom:8px">Click two items to swap them.</div>`;
-        const wrap = document.createElement("div");
-        wrap.style.display = "flex";
-        wrap.style.flexWrap = "wrap";
-        wrap.style.gap = "10px";
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
 
-        first = null;
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
 
-        state.forEach((txt, idx) => {
-          const pill = document.createElement("span");
-          pill.className = "pill";
-          pill.textContent = txt;
-          pill.style.cursor = "pointer";
+      let resolve;
+      const done = () => resolve?.();
 
-          pill.onclick = () => {
-            if (first === null) {
-              first = idx;
-              pill.style.outline = "2px solid rgba(120,180,255,0.55)";
-            } else {
-              const tmp = state[first];
-              state[first] = state[idx];
-              state[idx] = tmp;
-              render();
-            }
-          };
+      nums.forEach((n) => {
+        const b = el("button", "sim-btn", String(n));
+        b.type = "button";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
 
-          wrap.appendChild(pill);
-        });
+          if (n !== high) {
+            msg.textContent = "No.";
+            ctx.glitch();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Ok.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+        };
+        row.appendChild(b);
+      });
 
-        ctx.taskBody.appendChild(wrap);
-        const okNow = state.join("|") === correct.join("|");
-        ctx.taskPrimary.disabled = !okNow && !adminForced(ctx);
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    mirror_match: async (ctx) => {
+      begin(ctx, "MIRROR", "Pick the option that is the mirror (reversed) of the target.");
+      const words = ["pane", "static", "echo", "buffer", "trace", "vault", "quiet", "audit"];
+      const w = words[rndInt(0, words.length - 1)];
+      const target = w;
+      const correct = w.split("").reverse().join("");
+      publishAdminHint("MIRROR", correct);
+
+      const opts = shuffle([correct, w.toUpperCase(), w + w, w.slice(1) + w[0]]);
+
+      ctx.taskBody.appendChild(note(`target: ${target}`));
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      let resolve;
+      const done = () => resolve?.();
+
+      opts.forEach((o) => {
+        const b = el("button", "sim-btn", o);
+        b.type = "button";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
+
+          if (o !== correct) {
+            msg.textContent = "Mismatch.";
+            ctx.glitch();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Matched.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+        };
+        row.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    steady_hand: async (ctx) => {
+      begin(ctx, "STEADY HAND", "Keep your cursor inside the box until the timer ends.");
+      const sec = clamp(2 + Math.floor(ctx.difficultyBoost() / 2), 2, 7);
+      publishAdminHint("STEADY HAND", `${sec}s`);
+
+      const box = el("div");
+      box.style.marginTop = "12px";
+      box.style.width = "min(520px, 100%)";
+      box.style.height = "140px";
+      box.style.borderRadius = "14px";
+      box.style.border = "1px solid rgba(255,255,255,0.18)";
+      box.style.background = "rgba(0,0,0,0.18)";
+      box.style.position = "relative";
+      box.style.overflow = "hidden";
+
+      const label = el("div", "pill", `time: ${sec}s`);
+      label.style.position = "absolute";
+      label.style.left = "10px";
+      label.style.top = "10px";
+
+      box.appendChild(label);
+      ctx.taskBody.appendChild(box);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
+
+      let inside = false;
+      const L = ctx.__scoped || scoped();
+      L.on(box, "mouseenter", () => { inside = true; });
+      L.on(box, "mouseleave", () => { inside = false; });
+
+      let resolve;
+      const done = () => resolve?.();
+
+      const start = performance.now();
+
+      const tick = () => {
+        if (consumeAdminSkip()) return done();
+
+        const t = (performance.now() - start) / 1000;
+        const left = Math.max(0, Math.ceil(sec - t));
+        label.textContent = `time: ${left}s`;
+
+        if (!inside) {
+          msg.textContent = "You slipped.";
+          ctx.glitch();
+          ctx.penalize(1, "slip");
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+          return;
+        }
+
+        if (t >= sec) {
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Steady.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+          return;
+        }
+        requestAnimationFrame(tick);
       };
 
-      ctx.taskPrimary.textContent = "confirm order";
-      ctx.taskPrimary.disabled = true;
-      render();
+      msg.textContent = "Move cursor into the box to start.";
+      const startWatcher = () => {
+        if (consumeAdminSkip()) return done();
+        if (!inside) return requestAnimationFrame(startWatcher);
+        msg.textContent = "";
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(startWatcher);
 
-      const result = await waitForContinueOrSkip(ctx);
-      if (result === "skip") {
+      return new Promise((r) => (resolve = r));
+    },
+
+    port_select: async (ctx) => {
+      begin(ctx, "ROUTE", "Select the only allowed port.");
+      const opts = shuffle(["22", "80", "443", "8080"]);
+      const correct = "443";
+      publishAdminHint("ROUTE", `:${correct}`);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      let resolve;
+      const done = () => resolve?.();
+
+      opts.forEach((p) => {
+        const b = el("button", "sim-btn", `:${p}`);
+        b.type = "button";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
+
+          if (p !== correct) {
+            msg.textContent = "Blocked.";
+            ctx.glitch();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Routed.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+        };
+        row.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    click_on_zero: async (ctx) => {
+      begin(ctx, "TIME SYNC", "Click when the counter hits 0.");
+      const ms = clamp(1800 + ctx.difficultyBoost() * 250, 1800, 5200);
+      publishAdminHint("TIME SYNC", `${ms}ms`);
+
+      const pill = el("div", "pill", "ready…");
+      pill.style.marginTop = "12px";
+
+      const btn = el("button", "sim-btn", "click");
+      btn.type = "button";
+      btn.style.marginTop = "12px";
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      ctx.taskBody.appendChild(pill);
+      ctx.taskBody.appendChild(btn);
+      ctx.taskBody.appendChild(msg);
+
+      const start = performance.now();
+      let doneFlag = false;
+
+      let resolve;
+      const done = () => resolve?.();
+
+      const tick = () => {
+        if (doneFlag) return;
+        const t = performance.now() - start;
+        const left = Math.max(0, ms - t);
+        pill.textContent = `t-minus: ${Math.ceil(left)}ms`;
+        if (left <= 0) pill.textContent = "t-minus: 0";
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+
+      btn.onclick = () => {
+        if (consumeAdminSkip()) return done();
+        if (doneFlag) return;
+
+        const t = performance.now() - start;
+        const left = ms - t;
+        doneFlag = true;
+
+        const windowMs = clamp(170 - ctx.difficultyBoost() * 10, 90, 170);
+        publishAdminHint("TIME SYNC", `window ±${windowMs}ms`);
+
+        if (Math.abs(left) > windowMs) {
+          msg.textContent = "Out of sync.";
+          ctx.glitch();
+          ctx.penalize(1, "timing");
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+          return;
+        }
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Synced.";
+        ctx.taskPrimary.textContent = "continue";
         ctx.taskPrimary.disabled = false;
-        return;
-      }
-      
-
-      const ok = state.join("|") === correct.join("|");
-      if (ok || adminForced(ctx)) {
-        consumeAdminForce(ctx);
-        return;
-      }
-
-      ctx.glitch?.();
-      ctx.penalize?.(1, "LOG INTEGRITY FAILURE: penalty applied.");
-      if (attempts >= 2) {
-        ctx.doReset?.("RESET", "Log reconstruction failed twice.\n\nSimulation restart required.");
-        return;
-      }
-      await wait(450);
-    }
-  };
-
-  // TASK: checksum
-  TASKS.checksum = async function checksum(ctx, args = {}) {
-    ctx = normalizeCtx(ctx);
-
-    const phrase = String(args.phrase || "").trim();
-
-    if (!phrase) {
-      ctx.showTaskUI("RESTART // CHECKSUM", "Checksum phrase missing. Continuing.");
-      ctx.taskBody.innerHTML = `<div style="opacity:.85">checksum config missing.</div>`;
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = false;
-      await new Promise((r) => (ctx.taskPrimary.onclick = r));
-      return;
-    }
-
-    let attempts = 0;
-
-    while (true) {
-      attempts++;
-      ctx.admin.forceOk = false;
-
-      ctx.showTaskUI("RESTART // CHECKSUM", "Enter the checksum phrase exactly to verify memory integrity.");
-      ctx.setAdminHint?.(`Phrase: ${phrase}`);
-
-      ctx.taskBody.innerHTML = `
-        <div style="opacity:.85;margin-bottom:8px">Checksum required:</div>
-        <div class="pill" style="opacity:.9">Format: wordwordnumberword</div>
-        <div style="margin-top:10px">
-          <input id="chk" placeholder="enter checksum..." style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.18);background:rgba(0,0,0,0.25);color:#e5e7eb;">
-        </div>
-        <div id="msg" style="margin-top:8px;opacity:.85"></div>
-      `;
-
-      const inp = ctx.taskBody.querySelector("#chk");
-      const msg = ctx.taskBody.querySelector("#msg");
-
-      const validate = () => {
-        const v = (inp.value || "").trim();
-        const okNow = v.toLowerCase() === phrase.toLowerCase();
-        ctx.taskPrimary.disabled = !okNow && !adminForced(ctx);
-        msg.textContent = okNow ? "checksum accepted." : "";
+        ctx.taskPrimary.onclick = () => done();
       };
 
-      inp.addEventListener("input", validate);
-      inp.focus();
+      return new Promise((r) => (resolve = r));
+    },
+
+    private_ip: async (ctx) => {
+      begin(ctx, "ROUTE TABLE", "Click the only private IP address.");
+
+      const correct = `10.${rndInt(0, 255)}.${rndInt(0, 255)}.${rndInt(1, 254)}`;
+      publishAdminHint("ROUTE TABLE", correct);
+
+      const other = [
+        `${rndInt(11, 223)}.${rndInt(0,255)}.${rndInt(0,255)}.${rndInt(1,254)}`,
+        `${rndInt(11, 223)}.${rndInt(0,255)}.${rndInt(0,255)}.${rndInt(1,254)}`,
+        `${rndInt(11, 223)}.${rndInt(0,255)}.${rndInt(0,255)}.${rndInt(1,254)}`,
+      ];
+      const opts = shuffle([correct, ...other]);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      let resolve;
+      const done = () => resolve?.();
+
+      opts.forEach((o) => {
+        const b = el("button", "sim-btn", o);
+        b.type = "button";
+        b.style.display = "block";
+        b.style.width = "100%";
+        b.style.textAlign = "left";
+        b.style.marginTop = "10px";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
+
+          if (o !== correct) {
+            msg.textContent = "Public route.";
+            ctx.glitch();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Private route selected.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+        };
+        ctx.taskBody.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(msg);
+      return new Promise((r) => (resolve = r));
+    },
+
+    sum_chunks: async (ctx) => {
+      begin(ctx, "CHECKSUM", "Sum the 2-digit chunks. Type the result.");
+      const n = clamp(3 + Math.floor(ctx.difficultyBoost() / 2), 3, 7);
+      const chunks = [];
+      let sum = 0;
+      for (let i = 0; i < n; i++) {
+        const c = rndInt(10, 99);
+        chunks.push(String(c));
+        sum += c;
+      }
+
+      publishAdminHint("CHECKSUM", String(sum));
+
+      ctx.taskBody.appendChild(note(`chunks: ${chunks.join(" ")}`));
+      const inp = makeInput("sum");
+      ctx.taskBody.appendChild(inp);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
 
       ctx.taskPrimary.textContent = "verify";
-      ctx.taskPrimary.disabled = true;
-
-      await new Promise((resolve) => {
-      const result = await waitForContinueOrSkip(ctx);
-      if (result === "skip") {
-        ctx.taskPrimary.disabled = false;
-        return;
-      }
-
-
-      if (adminForced(ctx)) {
-        consumeAdminForce(ctx);
-        return;
-      }
-
-      const v = (inp.value || "").trim();
-      const ok = v.toLowerCase() === phrase.toLowerCase();
-      if (ok) return;
-
-      ctx.glitch?.();
-      ctx.penalize?.(1, "CHECKSUM REJECTED: penalty applied.");
-      if (attempts >= 2) {
-        ctx.doReset?.("LOCKDOWN", "Checksum failed twice.\n\nRestart required.");
-        return;
-      }
-      await wait(450);
-    }
-  };
-
-  // TASK: hold
-  TASKS.hold = async function hold(ctx, args = {}) {
-    ctx = normalizeCtx(ctx);
-    ctx.admin.forceOk = false;
-
-    const baseMs = Number(args.baseMs ?? 3000);
-    const ms = baseMs + (ctx.difficultyBoost?.() ?? 0) * 550;
-
-    ctx.showTaskUI("RESTART // STABILIZE", "Hold to stabilize the boundary. Releasing resets the cycle.");
-    ctx.setAdminHint?.(`Hold duration: ~${ms}ms (Admin: SKIP will force-pass)`);
-
-    ctx.taskBody.innerHTML = `
-      <div style="opacity:.85;margin-bottom:10px">Hold the button until the bar completes.</div>
-      <div style="height:10px;border-radius:999px;border:1px solid rgba(255,255,255,0.18);overflow:hidden;background:rgba(0,0,0,0.25)">
-        <div id="bar" style="height:100%;width:0%"></div>
-      </div>
-      <div style="margin-top:12px">
-        <button id="hold" class="sim-btn" type="button">hold</button>
-      </div>
-      <div id="hint" style="margin-top:8px;opacity:.8"></div>
-    `;
-
-    const holdBtn = ctx.taskBody.querySelector("#hold");
-    const bar = ctx.taskBody.querySelector("#bar");
-    const hint = ctx.taskBody.querySelector("#hint");
-
-    ctx.taskPrimary.textContent = "continue";
-    ctx.taskPrimary.disabled = true;
-
-    const L = scopedListeners();
-    let start = null;
-    let raf = null;
-    let holdingNow = false;
-    let completed = false;
-
-    const step = (ts) => {
-      if (!holdingNow || completed) return;
-      if (start === null) start = ts;
-      const elapsed = ts - start;
-      const pct = clamp(elapsed / ms, 0, 1);
-
-      bar.style.width = `${(pct * 100).toFixed(1)}%`;
-      bar.style.background = "rgba(120,180,255,0.45)";
-
-      if (pct >= 1) {
-        completed = true;
-        holdingNow = false;
-        hint.textContent = "stabilized.";
-        ctx.taskPrimary.disabled = false;
-        if (raf) cancelAnimationFrame(raf);
-        return;
-      }
-      raf = requestAnimationFrame(step);
-    };
-
-    // only penalize once per attempt
-    let droppedOnce = false;
-    const reset = () => {
-      if (completed) return;
-      start = null;
-      bar.style.width = "0%";
-      hint.textContent = "holding interrupted.";
-      ctx.taskPrimary.disabled = true;
-      if (!droppedOnce) {
-        droppedOnce = true;
-        ctx.penalize?.(1, "STABILITY DROP: penalty applied.");
-        ctx.glitch?.();
-      }
-    };
-
-    L.on(holdBtn, "mousedown", () => {
-      if (completed) return;
-      holdingNow = true;
-      hint.textContent = "";
-      raf = requestAnimationFrame(step);
-    });
-
-    L.on(window, "mouseup", () => {
-      if (holdingNow) {
-        holdingNow = false;
-        reset();
-      }
-    });
-
-    L.on(
-      holdBtn,
-      "touchstart",
-      (e) => {
-        e.preventDefault();
-        if (completed) return;
-        holdingNow = true;
-        hint.textContent = "";
-        raf = requestAnimationFrame(step);
-      },
-      { passive: false }
-    );
-
-    L.on(window, "touchend", () => {
-      if (holdingNow) {
-        holdingNow = false;
-        reset();
-      }
-    });
-
-    await new Promise((resolve) => {
-    const result = await waitForContinueOrSkip(ctx);
-    if (result === "skip") {
       ctx.taskPrimary.disabled = false;
-      return;
-    }
 
+      let resolve;
+      const done = () => resolve?.();
 
-    if (adminForced(ctx)) consumeAdminForce(ctx);
-    L.clear();
-  };
+      ctx.taskPrimary.onclick = () => {
+        if (consumeAdminSkip()) return done();
 
-  // TASK: pattern
-  TASKS.pattern = async function pattern(ctx, args = {}) {
-    ctx = normalizeCtx(ctx);
-
-    const base = Number(args.base ?? 5);
-    const count = base + (ctx.difficultyBoost?.() ?? 0);
-
-    let attempts = 0;
-
-    while (true) {
-      attempts++;
-      ctx.admin.forceOk = false;
-
-      ctx.showTaskUI("RESTART // PATTERN LOCK", "Memorize the sequence. You have 10 seconds.");
-
-      const symbols = ["▲", "■", "●", "◆", "✚", "✖", "◈", "◇", "⬡"];
-      const sequence = Array.from({ length: count }, () => symbols[Math.floor(Math.random() * symbols.length)]);
-      let input = [];
-
-      ctx.setAdminHint?.(`Sequence:\n${sequence.join(" ")}`);
-
-      ctx.taskBody.innerHTML = `
-        <div style="opacity:.85;margin-bottom:8px">Memorize this sequence (10s):</div>
-        <div id="seq" style="font-size:22px;letter-spacing:.25em;margin-bottom:10px">${sequence.join(" ")}</div>
-        <div id="timer" style="opacity:.75;font-size:12px;margin-bottom:10px"></div>
-
-        <div style="opacity:.85;margin:10px 0 8px">Now enter it:</div>
-        <div id="buttons" style="display:flex;flex-wrap:wrap;gap:10px"></div>
-        <div id="in" style="margin-top:10px;opacity:.9"></div>
-        <div id="msg" style="margin-top:8px;opacity:.85"></div>
-      `;
-
-      const seqEl = ctx.taskBody.querySelector("#seq");
-      const timerEl = ctx.taskBody.querySelector("#timer");
-      const btns = ctx.taskBody.querySelector("#buttons");
-      const inEl = ctx.taskBody.querySelector("#in");
-      const msg = ctx.taskBody.querySelector("#msg");
-
-      const SHOW_MS = 10000;
-      let left = 10;
-      timerEl.textContent = `Time remaining: ${left}s`;
-
-      const interval = setInterval(() => {
-        left--;
-        if (left <= 0) {
-          clearInterval(interval);
-          timerEl.textContent = "";
-        } else {
-          timerEl.textContent = `Time remaining: ${left}s`;
+        const got = (inp.value || "").trim();
+        if (got !== String(sum)) {
+          msg.textContent = "Rejected.";
+          ctx.glitch();
+          return;
         }
-      }, 1000);
-
-      const hideTimeout = setTimeout(() => {
-        seqEl.textContent = "— — — — —";
-        seqEl.style.opacity = "0.6";
-      }, SHOW_MS);
-
-      const needed = Array.from(new Set(sequence));
-      const decoys = symbols.filter((s) => !needed.includes(s));
-      while (needed.length < Math.min(7, symbols.length) && decoys.length) {
-        needed.push(decoys.splice(Math.floor(Math.random() * decoys.length), 1)[0]);
-      }
-
-      needed.forEach((s) => {
-        const b = document.createElement("button");
-        b.className = "sim-btn";
-        b.type = "button";
-        b.textContent = s;
-        b.style.minWidth = "44px";
-        b.onclick = () => {
-          if (input.length >= sequence.length) return;
-          input.push(s);
-          inEl.textContent = input.join(" ");
-
-          if (input.length === sequence.length) {
-            const okNow = input.join("|") === sequence.join("|");
-            msg.textContent = okNow ? "pattern accepted." : "pattern rejected.";
-            ctx.taskPrimary.disabled = !okNow && !adminForced(ctx);
-            if (!okNow) {
-              ctx.penalize?.(1, "PATTERN FAIL: penalty applied.");
-              ctx.glitch?.();
-            }
-          }
-        };
-        btns.appendChild(b);
-      });
-
-      const resetBtn = document.createElement("button");
-      resetBtn.className = "sim-btn";
-      resetBtn.type = "button";
-      resetBtn.textContent = "reset";
-      resetBtn.onclick = () => {
-        input = [];
-        inEl.textContent = "";
-        msg.textContent = "";
-        ctx.taskPrimary.disabled = true;
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Accepted.";
+        ctx.taskPrimary.textContent = "continue";
+        ctx.taskPrimary.onclick = () => done();
       };
-      btns.appendChild(resetBtn);
 
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = true;
+      return new Promise((r) => (resolve = r));
+    },
 
-      await new Promise((resolve) => {
-        ctx.taskPrimary.onclick = () => resolve();
-        const watcher = setInterval(() => {
-          if (adminForced(ctx)) {
-            clearInterval(watcher);
-            try {
-              ctx.taskPrimary.disabled = false;
-            } catch {}
-          }
-        }, 120);
-      });
+    devowel: async (ctx) => {
+      begin(ctx, "SANITIZE", "Type the command with vowels removed (a,e,i,o,u).");
+      const cmds = ["tracebuffer", "auditmirror", "vaultaccess", "quietmode", "sessionmap", "logrotate"];
+      const cmd = cmds[rndInt(0, cmds.length - 1)];
+      const ans = cmd.replace(/[aeiou]/g, "");
 
-      clearInterval(interval);
-      clearTimeout(hideTimeout);
+      publishAdminHint("SANITIZE", ans);
 
-      const ok = input.join("|") === sequence.join("|");
-      if (ok || adminForced(ctx)) {
-        consumeAdminForce(ctx);
-        return;
-      }
+      ctx.taskBody.appendChild(note(`command: ${cmd}`));
+      const inp = makeInput("no vowels…");
+      ctx.taskBody.appendChild(inp);
 
-      ctx.glitch?.();
-      ctx.penalize?.(1, "PATTERN REJECTED: penalty applied.");
-      if (attempts >= 2) {
-        ctx.doReset?.("LOCKDOWN", "Pattern validation failed twice.\n\nRestart required.");
-        return;
-      }
-      await wait(450);
-    }
-  };
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
 
-  // TASK: mismatch
-  TASKS.mismatch = async function mismatch(ctx, args = {}) {
-    ctx = normalizeCtx(ctx);
+      ctx.taskPrimary.textContent = "verify";
+      ctx.taskPrimary.disabled = false;
 
-    const base = Number(args.base ?? 7);
-    const count = base + (ctx.difficultyBoost?.() ?? 0) + 2;
+      let resolve;
+      const done = () => resolve?.();
 
-    let attempts = 0;
+      ctx.taskPrimary.onclick = () => {
+        if (consumeAdminSkip()) return done();
 
-    while (true) {
-      attempts++;
-      ctx.admin.forceOk = false;
+        const got = (inp.value || "").trim().toLowerCase();
+        if (got !== ans) {
+          msg.textContent = "Not sanitized.";
+          ctx.glitch();
+          ctx.penalize(1, "dirty cmd");
+          return;
+        }
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Sanitized.";
+        ctx.taskPrimary.textContent = "continue";
+        ctx.taskPrimary.onclick = () => done();
+      };
 
-      ctx.showTaskUI("RESTART // MISMATCH SCAN", "Find the corrupted fragment. Only one does not match.");
+      return new Promise((r) => (resolve = r));
+    },
 
-      const shapes = ["◻", "◼", "◯", "⬡", "△", "◇", "○", "□", "◊", "⬢", "⬣"];
-      const good = shapes[Math.floor(Math.random() * shapes.length)];
-      const bad = shapes.filter((x) => x !== good)[Math.floor(Math.random() * (shapes.length - 1))];
-      const badIndex = Math.floor(Math.random() * count);
+    pins_3: async (ctx) => {
+      begin(ctx, "LOCK PINS", "Click pins in order: 1 → 2 → 3. Any mistake resets.");
+      const pins = shuffle(["1", "2", "3"]);
+      let idx = 0;
 
-      // one hint (no duplicate spam / undefined refs)
-      ctx.setAdminHint?.(`Mismatch position: #${badIndex + 1}`);
+      publishAdminHint("LOCK PINS", "1 → 2 → 3");
 
-      ctx.taskBody.innerHTML = `<div style="opacity:.85;margin-bottom:10px">Click the one that does not match.</div>`;
-      const wrap = document.createElement("div");
-      wrap.style.display = "flex";
-      wrap.style.flexWrap = "wrap";
-      wrap.style.gap = "10px";
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
 
-      let solved = false;
-      let wrongClicks = 0;
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
 
-      for (let i = 0; i < count; i++) {
-        const b = document.createElement("button");
-        b.className = "sim-btn";
+      let resolve;
+      const done = () => resolve?.();
+
+      pins.forEach((p) => {
+        const b = el("button", "sim-btn", `pin ${p}`);
         b.type = "button";
-        b.textContent = i === badIndex ? bad : good;
-        b.style.minWidth = "46px";
-
         b.onclick = () => {
-          if (solved) return;
+          if (consumeAdminSkip()) return done();
 
-          if (i === badIndex) {
-            solved = true;
-            b.textContent = "✓";
+          if (p !== String(idx + 1)) {
+            idx = 0;
+            msg.textContent = "Slip. Reset.";
+            ctx.glitch();
+            return;
+          }
+          idx++;
+          msg.textContent = `set (${idx}/3)`;
+          if (idx === 3) {
+            msg.style.color = "rgba(232,237,247,0.85)";
+            msg.textContent = "Unlocked.";
+            ctx.taskPrimary.textContent = "continue";
             ctx.taskPrimary.disabled = false;
-          } else {
-            wrongClicks++;
-            b.textContent = "✖";
-            ctx.penalize?.(1, "WRONG PICK: penalty applied.");
-            ctx.glitch?.();
-
-            if (wrongClicks >= 2 && attempts >= 2) {
-              ctx.doReset?.("RESET", "Repeated mismatch errors.\n\nSimulation restart required.");
-            }
+            ctx.taskPrimary.onclick = () => done();
           }
         };
+        row.appendChild(b);
+      });
 
-        wrap.appendChild(b);
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    has_number: async (ctx) => {
+      begin(ctx, "MISMATCH", "Click the only option that contains a number.");
+      const correct = "echo07";
+      const opts = shuffle(["echo", correct, "static", "vault"]);
+
+      publishAdminHint("MISMATCH", correct);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      let resolve;
+      const done = () => resolve?.();
+
+      opts.forEach((o) => {
+        const b = el("button", "sim-btn", o);
+        b.type = "button";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
+
+          if (o !== correct) {
+            msg.textContent = "No.";
+            ctx.glitch();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Found.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+        };
+        row.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    retype_case: async (ctx) => {
+      begin(ctx, "RETYPE", "Retype exactly (case-sensitive).");
+      const parts = ["Echo", "STATIC", "VaUlT", "pane", "TrAcE", "buffer"];
+      const line = `${parts[rndInt(0, 5)]}-${parts[rndInt(0, 5)]}-${rndInt(10, 99)}`;
+
+      publishAdminHint("RETYPE", line);
+
+      const shown = el("div", "pill", line);
+      shown.style.marginTop = "12px";
+      ctx.taskBody.appendChild(shown);
+
+      const inp = makeInput("retype…");
+      ctx.taskBody.appendChild(inp);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
+
+      ctx.taskPrimary.textContent = "verify";
+      ctx.taskPrimary.disabled = false;
+
+      let resolve;
+      const done = () => resolve?.();
+
+      ctx.taskPrimary.onclick = () => {
+        if (consumeAdminSkip()) return done();
+
+        const got = (inp.value || "").trim();
+        if (got !== line) {
+          msg.textContent = "Mismatch.";
+          ctx.glitch();
+          ctx.penalize(1, "typo");
+          return;
+        }
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Exact.";
+        ctx.taskPrimary.textContent = "continue";
+        ctx.taskPrimary.onclick = () => done();
+      };
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    binary_8: async (ctx) => {
+      begin(ctx, "BINARY", "Click the only valid 8-bit binary string.");
+      const makeBin = () =>
+        Array.from({ length: 8 }, () => (Math.random() < 0.5 ? "0" : "1")).join("");
+      const correct = makeBin();
+      const opts = shuffle([correct, makeBin().slice(0, 7), makeBin() + "2", makeBin().replace(/0/g, "O")]);
+
+      publishAdminHint("BINARY", correct);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      let resolve;
+      const done = () => resolve?.();
+
+      opts.forEach((o) => {
+        const b = el("button", "sim-btn", o);
+        b.type = "button";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
+
+          if (o !== correct) {
+            msg.textContent = "Invalid.";
+            ctx.glitch();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Valid.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+        };
+        row.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    arrow_memory: async (ctx) => {
+      begin(ctx, "SEQUENCE", "Memorize the arrows. Then repeat by clicking.");
+      const arrows = ["↑", "↓", "←", "→"];
+      const len = clamp(4 + Math.floor(ctx.difficultyBoost() / 2), 4, 8);
+      const seq = Array.from({ length: len }, () => arrows[rndInt(0, 3)]);
+
+      publishAdminHint("SEQUENCE", seq.join(" "));
+
+      const shown = el("div", "pill", seq.join(" "));
+      shown.style.marginTop = "12px";
+      shown.style.fontSize = "22px";
+      shown.style.letterSpacing = ".2em";
+      ctx.taskBody.appendChild(shown);
+
+      await wait(clamp(2200 - ctx.difficultyBoost() * 120, 900, 2200));
+      shown.textContent = "—";
+
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      const out = el("div", "pill", "input: ");
+      out.style.marginTop = "12px";
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      let input = [];
+      const render = () => {
+        out.textContent = `input: ${input.join(" ")}`;
+      };
+      render();
+
+      const fail = () => {
+        input = [];
+        render();
+        msg.textContent = "Wrong. Reset.";
+        ctx.glitch();
+        ctx.penalize(1, "sequence fail");
+      };
+
+      let resolve;
+      const done = () => resolve?.();
+
+      arrows.forEach((a) => {
+        const b = el("button", "sim-btn", a);
+        b.type = "button";
+        b.style.minWidth = "54px";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
+
+          if (input.length >= seq.length) return;
+          input.push(a);
+          render();
+          for (let i = 0; i < input.length; i++) {
+            if (input[i] !== seq[i]) return fail();
+          }
+          if (input.length === seq.length) {
+            msg.style.color = "rgba(232,237,247,0.85)";
+            msg.textContent = "Matched.";
+            ctx.taskPrimary.textContent = "continue";
+            ctx.taskPrimary.disabled = false;
+            ctx.taskPrimary.onclick = () => done();
+          }
+        };
+        row.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(out);
+      ctx.taskBody.appendChild(msg);
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    last_three: async (ctx) => {
+      begin(ctx, "TAIL", "Type the last 3 characters of the string.");
+      const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+      const len = clamp(10 + ctx.difficultyBoost() * 2, 10, 22);
+      let s = "";
+      for (let i = 0; i < len; i++) s += chars[rndInt(0, chars.length - 1)];
+      const ans = s.slice(-3);
+
+      publishAdminHint("TAIL", ans);
+
+      ctx.taskBody.appendChild(note(`string: ${s}`));
+      const inp = makeInput("last 3…");
+      ctx.taskBody.appendChild(inp);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
+
+      ctx.taskPrimary.textContent = "verify";
+      ctx.taskPrimary.disabled = false;
+
+      let resolve;
+      const done = () => resolve?.();
+
+      ctx.taskPrimary.onclick = () => {
+        if (consumeAdminSkip()) return done();
+
+        const got = (inp.value || "").trim();
+        if (got !== ans) {
+          msg.textContent = "No.";
+          ctx.glitch();
+          return;
+        }
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Ok.";
+        ctx.taskPrimary.textContent = "continue";
+        ctx.taskPrimary.onclick = () => done();
+      };
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    ends_tmp: async (ctx) => {
+      begin(ctx, "FILTER", "Click the only string that ends with .tmp");
+      const correct = "logs/quiet.tmp";
+      const opts = shuffle(["logs/quiet.tmpx", "logs/quiet", correct, "logs/quiet.tmp/"]);
+
+      publishAdminHint("FILTER", correct);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      let resolve;
+      const done = () => resolve?.();
+
+      opts.forEach((o) => {
+        const b = el("button", "sim-btn", o);
+        b.type = "button";
+        b.style.display = "block";
+        b.style.width = "100%";
+        b.style.textAlign = "left";
+        b.style.marginTop = "10px";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
+
+          if (o !== correct) {
+            msg.textContent = "Rejected.";
+            ctx.glitch();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Ok.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+        };
+        ctx.taskBody.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(msg);
+      return new Promise((r) => (resolve = r));
+    },
+
+    click_pressure: async (ctx) => {
+      begin(ctx, "PRESSURE", "Click exactly N times before the timer ends.");
+      const need = clamp(6 + ctx.difficultyBoost(), 6, 16);
+      const ms = clamp(2200 + ctx.difficultyBoost() * 250, 2200, 5600);
+
+      publishAdminHint("PRESSURE", `${need} clicks`);
+
+      const pill = el("div", "pill", `target: ${need} clicks`);
+      pill.style.marginTop = "12px";
+      ctx.taskBody.appendChild(pill);
+
+      const timer = el("div", "pill", `time: ${Math.ceil(ms / 1000)}s`);
+      timer.style.marginTop = "10px";
+      ctx.taskBody.appendChild(timer);
+
+      const btn = el("button", "sim-btn", "click");
+      btn.type = "button";
+      btn.style.marginTop = "12px";
+      ctx.taskBody.appendChild(btn);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
+
+      let count = 0;
+      btn.onclick = () => {
+        if (consumeAdminSkip()) return done();
+        count++;
+        btn.textContent = `click (${count})`;
+        if (count > need) {
+          msg.textContent = "Too many.";
+          ctx.glitch();
+          ctx.penalize(1, "over");
+        }
+      };
+
+      const start = performance.now();
+      let resolve;
+      const done = () => resolve?.();
+
+      const tick = () => {
+        if (consumeAdminSkip()) return done();
+
+        const t = performance.now() - start;
+        const left = Math.max(0, ms - t);
+        timer.textContent = `time: ${Math.ceil(left / 1000)}s`;
+
+        if (t >= ms) {
+          btn.disabled = true;
+          if (count !== need) {
+            msg.textContent = `Missed. (${count}/${need})`;
+            ctx.glitch();
+            ctx.penalize(1, "miss");
+          } else {
+            msg.style.color = "rgba(232,237,247,0.85)";
+            msg.textContent = "Exact.";
+          }
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    escape_hint_line: async (ctx) => {
+      begin(ctx, "MESSAGE", "Pick the line that helps you leave.");
+      const lines = shuffle([
+        "Security: Stay still.",
+        "System: Mirror writes are permanent.",
+        "Worker: If you can’t be brave, be boring.",
+        "System: Increase retention window.",
+      ]);
+      const correct = "Worker: If you can’t be brave, be boring.";
+
+      publishAdminHint("MESSAGE", correct);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      let resolve;
+      const done = () => resolve?.();
+
+      lines.forEach((t) => {
+        const b = el("button", "sim-btn", t);
+        b.type = "button";
+        b.style.display = "block";
+        b.style.width = "100%";
+        b.style.textAlign = "left";
+        b.style.marginTop = "10px";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
+
+          if (t !== correct) {
+            msg.textContent = "Wrong read.";
+            ctx.glitch();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "You heard it.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => done();
+        };
+        ctx.taskBody.appendChild(b);
+      });
+      ctx.taskBody.appendChild(msg);
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    toggles_3: async (ctx) => {
+      begin(ctx, "SWITCHES", "Flip all switches to ON.");
+      const n = 3;
+      const state = Array.from({ length: n }, () => Math.random() < 0.5);
+
+      publishAdminHint("SWITCHES", "all ON");
+
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      const msg = note("");
+      msg.style.color = "rgba(232,237,247,0.82)";
+      const out = el("div", "pill", "");
+      out.style.marginTop = "12px";
+
+      const render = () => {
+        out.textContent = `state: ${state.map((s) => (s ? "ON" : "OFF")).join("  ")}`;
+        const ok = state.every(Boolean);
+        ctx.taskPrimary.disabled = !ok;
+        if (ok) {
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Ready.";
+        } else {
+          msg.style.color = "rgba(232,237,247,0.82)";
+          msg.textContent = "Flip them all. Quietly.";
+        }
+      };
+
+      let resolve;
+      const done = () => resolve?.();
+
+      for (let i = 0; i < n; i++) {
+        const b = el("button", "sim-btn", `switch ${i + 1}`);
+        b.type = "button";
+        b.onclick = () => {
+          if (consumeAdminSkip()) return done();
+          state[i] = !state[i];
+          render();
+        };
+        row.appendChild(b);
       }
 
-      ctx.taskBody.appendChild(wrap);
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(out);
+      ctx.taskBody.appendChild(msg);
 
       ctx.taskPrimary.textContent = "continue";
       ctx.taskPrimary.disabled = true;
+      ctx.taskPrimary.onclick = () => done();
 
-      await new Promise((resolve) => {
-        ctx.taskPrimary.onclick = () => resolve();
-        const watcher = setInterval(() => {
-          if (adminForced(ctx)) {
-            clearInterval(watcher);
-            try {
-              ctx.taskPrimary.disabled = false;
-            } catch {}
-          }
-        }, 120);
-      });
+      render();
+      return new Promise((r) => (resolve = r));
+    },
+  });
 
-      if (solved || adminForced(ctx)) {
-        consumeAdminForce(ctx);
-        return;
-      }
-
-      ctx.glitch?.();
-      ctx.penalize?.(1, "MISMATCH FAILED: penalty applied.");
-      if (attempts >= 2) {
-        ctx.doReset?.("LOCKDOWN", "Mismatch scan failed twice.\n\nRestart required.");
-        return;
-      }
-      await wait(450);
-    }
-  };
-
-  /* ====================== CORE POOL ====================== */
-  window.registerTaskPool("core", [
-    { id: "anchors", w: 1 },
-    { id: "reorder", w: 1 },
-    { id: "checksum", w: 1 },
-    { id: "hold", w: 1 },
-    { id: "pattern", w: 1 },
-    { id: "mismatch", w: 1 },
+  // Pool used by your dialogue steps if you reference it
+  registerTaskPool("pack5", [
+    { id: "keypad_4", w: 1 },
+    { id: "wire_cut", w: 1 },
+    { id: "highest_number", w: 1 },
+    { id: "mirror_match", w: 1 },
+    { id: "steady_hand", w: 1 },
+    { id: "port_select", w: 1 },
+    { id: "click_on_zero", w: 1 },
+    { id: "private_ip", w: 1 },
+    { id: "sum_chunks", w: 1 },
+    { id: "devowel", w: 1 },
+    { id: "pins_3", w: 1 },
+    { id: "has_number", w: 1 },
+    { id: "retype_case", w: 1 },
+    { id: "binary_8", w: 1 },
+    { id: "arrow_memory", w: 1 },
+    { id: "last_three", w: 1 },
+    { id: "ends_tmp", w: 1 },
+    { id: "click_pressure", w: 1 },
+    { id: "escape_hint_line", w: 1 },
+    { id: "toggles_3", w: 1 },
   ]);
+
+  // ============================================================
+  // TASK RUNNER ENTRY (what main.js calls)
+  // ============================================================
+  // main.js does: const fn = TASKS[step.task]; await fn(ctx, args)
+  // so we wrap every task with safeTask here.
+  const WRAPPED = {};
+  Object.keys(TASKS).forEach((id) => {
+    WRAPPED[id] = async (ctx, args) => safeTask(id, TASKS[id], ctx, args);
+  });
+
+  window.TASKS = WRAPPED;
 })();
