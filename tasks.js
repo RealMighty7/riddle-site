@@ -169,6 +169,15 @@
   };
 
   /* ====================== SHARED HELPERS ====================== */
+  function waitForContinueOrSkip(ctx) {
+  return new Promise((resolve) => {
+    const onSkip = () => resolve("skip");
+    document.addEventListener("admin:skip", onSkip, { once: true });
+
+    ctx.taskPrimary.onclick = () => resolve("click");
+  });
+}
+
   function el(tag, props = {}, children = []) {
     const n = document.createElement(tag);
     Object.assign(n, props);
@@ -389,17 +398,12 @@
       ctx.taskPrimary.disabled = true;
       render();
 
-      await new Promise((resolve) => {
-        ctx.taskPrimary.onclick = () => resolve();
-        const watcher = setInterval(() => {
-          if (adminForced(ctx)) {
-            clearInterval(watcher);
-            try {
-              ctx.taskPrimary.disabled = false;
-            } catch {}
-          }
-        }, 120);
-      });
+      const result = await waitForContinueOrSkip(ctx);
+      if (result === "skip") {
+        ctx.taskPrimary.disabled = false;
+        return;
+      }
+      
 
       const ok = state.join("|") === correct.join("|");
       if (ok || adminForced(ctx)) {
@@ -467,16 +471,12 @@
       ctx.taskPrimary.disabled = true;
 
       await new Promise((resolve) => {
-        ctx.taskPrimary.onclick = () => resolve();
-        const watcher = setInterval(() => {
-          if (adminForced(ctx)) {
-            clearInterval(watcher);
-            try {
-              ctx.taskPrimary.disabled = false;
-            } catch {}
-          }
-        }, 120);
-      });
+      const result = await waitForContinueOrSkip(ctx);
+      if (result === "skip") {
+        ctx.taskPrimary.disabled = false;
+        return;
+      }
+
 
       if (adminForced(ctx)) {
         consumeAdminForce(ctx);
@@ -602,16 +602,12 @@
     });
 
     await new Promise((resolve) => {
-      ctx.taskPrimary.onclick = () => resolve();
-      const watcher = setInterval(() => {
-        if (adminForced(ctx)) {
-          clearInterval(watcher);
-          try {
-            ctx.taskPrimary.disabled = false;
-          } catch {}
-        }
-      }, 120);
-    });
+    const result = await waitForContinueOrSkip(ctx);
+    if (result === "skip") {
+      ctx.taskPrimary.disabled = false;
+      return;
+    }
+
 
     if (adminForced(ctx)) consumeAdminForce(ctx);
     L.clear();
