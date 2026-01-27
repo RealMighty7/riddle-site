@@ -202,6 +202,11 @@ window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
   document.getElementById("adminPanel")?.classList.remove("hidden");
   const panel = document.getElementById("adminPanel");
   if (!panel) return;
+      // ✅ ensure panel is not clipped by simRoom/cardShell overflow
+  if (panel.parentElement !== document.body) {
+    document.body.appendChild(panel);
+  }
+
 
   const elTask = document.getElementById("adminTask");
   const elAns  = document.getElementById("adminAnswer");
@@ -213,27 +218,51 @@ window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
 (function makeDraggable(panelEl, handleEl){
   if (!panelEl || !handleEl) return;
 
-  // use fixed positioning so it can float anywhere
-  const r = panelEl.getBoundingClientRect();
+  const PAD = 10;
+
+  const clampToViewport = () => {
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const w = panelEl.offsetWidth;
+    const h = panelEl.offsetHeight;
+
+    let left = parseFloat(panelEl.style.left || `${vw - w - PAD}`);
+    let top  = parseFloat(panelEl.style.top  || `${PAD}`);
+
+    left = Math.max(PAD, Math.min(vw - w - PAD, left));
+    top  = Math.max(PAD, Math.min(vh - h - PAD, top));
+
+    panelEl.style.left = `${left}px`;
+    panelEl.style.top  = `${top}px`;
+  };
+
+  // fixed positioning so it floats anywhere
   panelEl.style.position = "fixed";
-  panelEl.style.right = "auto";
-  panelEl.style.bottom = "auto";
-  panelEl.style.left = `${Math.max(10, Math.min(window.innerWidth - r.width - 10, r.left))}px`;
-  panelEl.style.top  = `${Math.max(10, Math.min(window.innerHeight - r.height - 10, r.top))}px`;
   panelEl.style.zIndex = "9999";
 
+  // restore last saved position (optional but very helpful)
+  try {
+    const saved = JSON.parse(localStorage.getItem("adminPanelPos") || "null");
+    if (saved && typeof saved.left === "number" && typeof saved.top === "number") {
+      panelEl.style.left = `${saved.left}px`;
+      panelEl.style.top  = `${saved.top}px`;
+    }
+  } catch {}
+
+  // if no explicit position yet, set a sane default then clamp
+  if (!panelEl.style.left) panelEl.style.left = "18px";
+  if (!panelEl.style.top)  panelEl.style.top  = "18px";
+  clampToViewport();
 
   let dragging = false;
   let startX = 0, startY = 0;
   let baseLeft = 0, baseTop = 0;
 
   const onDown = (e) => {
-    // don’t start drag when clicking actual buttons inside the head
     const t = e.target;
-    if (t && t.closest && t.closest("button, input")) return;
+    if (t && t.closest && t.closest("button, input, textarea, select, a")) return;
 
     dragging = true;
-    panelEl.classList.add("dragging");
     handleEl.setPointerCapture?.(e.pointerId);
 
     startX = e.clientX;
@@ -242,6 +271,7 @@ window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
     baseLeft = parseFloat(panelEl.style.left || "0");
     baseTop  = parseFloat(panelEl.style.top  || "0");
 
+    handleEl.style.cursor = "grabbing";
     e.preventDefault();
   };
 
@@ -251,31 +281,42 @@ window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
 
-    const w = panelEl.offsetWidth;
-    const h = panelEl.offsetHeight;
+    panelEl.style.left = `${baseLeft + dx}px`;
+    panelEl.style.top  = `${baseTop + dy}px`;
 
-    let nextLeft = baseLeft + dx;
-    let nextTop  = baseTop + dy;
-
-    // clamp to viewport with small padding
-    nextLeft = Math.max(10, Math.min(window.innerWidth - w - 10, nextLeft));
-    nextTop  = Math.max(10, Math.min(window.innerHeight - h - 10, nextTop));
-
-    panelEl.style.left = `${nextLeft}px`;
-    panelEl.style.top  = `${nextTop}px`;
+    clampToViewport();
   };
 
   const onUp = () => {
     if (!dragging) return;
     dragging = false;
-    panelEl.classList.remove("dragging");
+    handleEl.style.cursor = "grab";
+
+    // save position
+    try {
+      localStorage.setItem("adminPanelPos", JSON.stringify({
+        left: parseFloat(panelEl.style.left || "0"),
+        top:  parseFloat(panelEl.style.top || "0"),
+      }));
+    } catch {}
   };
 
   handleEl.style.cursor = "grab";
   handleEl.addEventListener("pointerdown", onDown);
   window.addEventListener("pointermove", onMove);
   window.addEventListener("pointerup", onUp);
+
+  // ✅ rescue on resize (prevents “lost panel”)
+  window.addEventListener("resize", clampToViewport);
+
+  // ✅ emergency “bring back” (double click header)
+  handleEl.addEventListener("dblclick", () => {
+    panelEl.style.left = "18px";
+    panelEl.style.top  = "18px";
+    clampToViewport();
+  });
 })(panel, panel.querySelector(".adminHead"));
+
 
 
   // toggle visibility (admin can hide it)
