@@ -1161,21 +1161,23 @@ body:not(.admin) #adminPanel{ display:none !important; }
 /* =========================================================
    SUBTITLES (HIDE VISUALLY, KEEP DOM SAFE)
    ========================================================= */
-/* Keep the node for JS, but don’t show anything */
-#subs{
+body.in-sim #subs{
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 10px;
   z-index: 55;
   pointer-events: none;
-  opacity: 0 !important;
-  transform: translateY(10px);
+  opacity: 1;
+  height: auto;
+  overflow: visible;
+  transform: none;
+}
+body:not(.in-sim) #subs{
+  opacity: 0;
   height: 0;
   overflow: hidden;
 }
-/* (Your inner nodes still exist for JS/VO) */
-#subsName, #subsText{ display:block; }
 
 /* =========================================================
    OPTIONAL: OVERLAY POP-IN + SHAKE
