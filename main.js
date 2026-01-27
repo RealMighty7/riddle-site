@@ -131,51 +131,22 @@
 
     /* ====================== SAFE SFX ====================== */
     // Prevents playSfx(...) from crashing the entire sim if audio isn't wired.
-    const SFX_CACHE = new Map();
     function playSfx(name, opts = {}) {
-      try {
-        let volume = 1;
-        let overlap = false;
-
-        if (typeof opts === "number") volume = opts;
-        else {
-          volume = typeof opts.volume === "number" ? opts.volume : 1;
-          overlap = !!opts.overlap;
-        }
-
-        // Try existing <audio> first (if you use them)
-        const byId =
-          document.getElementById(name) ||
-          document.getElementById(`sfx-${name}`) ||
-          document.querySelector(`audio[data-sfx="${name}"]`);
-
-        if (byId && byId.play) {
-          const a = byId;
-          if (!overlap) {
-            try { a.pause(); } catch {}
-            try { a.currentTime = 0; } catch {}
-          }
-          a.volume = clamp(volume, 0, 1);
-          a.play().catch(() => {});
-          return;
-        }
-
-        // Fallback: lazy Audio() (won’t crash if file missing)
-        if (!SFX_CACHE.has(name)) {
-          const a = new Audio(`/audio/${name}.mp3`);
-          a.preload = "auto";
-          SFX_CACHE.set(name, a);
-        }
-        const a = SFX_CACHE.get(name);
-        if (!a) return;
-
-        if (!overlap) {
-          try { a.pause(); } catch {}
-          try { a.currentTime = 0; } catch {}
-        }
-        a.volume = clamp(volume, 0, 1);
-        a.play().catch(() => {});
-      } catch {}
+      // Prefer the global SFX router from audio_player.js
+      if (typeof window.playSfx === "function") {
+        // normalize old names -> new ids
+        const map = {
+          glitch1: "glitch",
+          glitch2: "glitch",
+          static1: "static",
+          static2: "staticSoft",
+        };
+        const id = map[name] || name;
+        try { window.playSfx(id, opts); } catch {}
+        return;
+      }
+    
+      // fallback: do nothing (safe)
     }
 
     /* ====================== LANDING ASSETS ====================== */
@@ -457,7 +428,7 @@
     let VO_READY = false;
 
     function handleVoiceTag(tag) {
-      if (tag === "breath") playSfx("static1", { volume: 0.08, overlap: true });
+      if (tag === "breath") playSfx("static", { volume: 0.08, overlap: true });
       if (tag === "calm") {
         if (subs) subs.classList.add("calm");
         setTimeout(() => subs && subs.classList.remove("calm"), 900);
@@ -656,7 +627,7 @@ Reinitializing simulation…`
     }
 
     function glitchPulse() {
-      playSfx(Math.random() < 0.5 ? "glitch1" : "glitch2", { volume: 0.55, overlap: true });
+      playSfx("glitch", { volume: 0.55, overlap: true });
       cracks.classList.add("flash");
       setTimeout(() => cracks.classList.remove("flash"), 220);
 
