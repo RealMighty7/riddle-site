@@ -1,4 +1,10 @@
-/* styles.css (FULL REPLACEMENT) */
+/* styles.css (FULL REPLACEMENT)
+   - landing is white + “under construction”
+   - sim is dark
+   - cracks: 4-stage panes + lines
+   - shatter: falling glass pieces with duplicated/cloned wrap
+   - removes subtitle bar visually (but keeps nodes safe for JS/VO)
+*/
 
 /* =========================================================
    THEME TOKENS
@@ -20,9 +26,6 @@
   --ring2: rgba(140,190,255,0.18);
   --danger: rgba(255,190,190,.95);
   --ok: rgba(232,237,247,0.92);
-
-  --glass: rgba(0,0,0,0.22);
-  --glass2: rgba(0,0,0,0.18);
 }
 
 /* =========================================================
@@ -30,21 +33,29 @@
    ========================================================= */
 *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
 html,body{ height:100%; }
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* Utility */
+.hidden{ display:none !important; }
 
 /* =========================================================
-   LANDING (WHITE, READABLE)
+   LANDING (WHITE, BASIC, UNDER-CONSTRUCTION)
    ========================================================= */
 body:not(.in-sim){
   background:#ffffff;
   color: rgba(12,14,18,0.92);
 }
 
-/* Landing cards/panels: white + readable */
+/* Make landing feel less “polished” */
 body:not(.in-sim) .panel,
 body:not(.in-sim) .card{
   background: #ffffff;
-  border: 1px solid rgba(0,0,0,0.10);
-  box-shadow: 0 10px 28px rgba(0,0,0,0.08);
+  border: 1px solid rgba(0,0,0,0.14);
+  box-shadow: none;
+  border-radius: 10px;
   backdrop-filter: none;
 }
 
@@ -52,7 +63,7 @@ body:not(.in-sim) .muted,
 body:not(.in-sim) .hint,
 body:not(.in-sim) .subtle,
 body:not(.in-sim) .sub{
-  color: rgba(12,14,18,0.68);
+  color: rgba(12,14,18,0.62);
 }
 
 body:not(.in-sim) .title,
@@ -62,18 +73,21 @@ body:not(.in-sim) .label{
 
 body:not(.in-sim) button,
 body:not(.in-sim) .btn,
-body:not(.in-sim) .launch{
-  background: rgba(25, 35, 55, 0.06);
+body:not(.in-sim) .launch,
+body:not(.in-sim) .sim-btn{
+  background: rgba(25, 35, 55, 0.05);
   border: 1px solid rgba(25, 35, 55, 0.20);
-  color: rgba(12,14,18,0.90);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  color: rgba(12,14,18,0.88);
+  box-shadow: none;
 }
 
 body:not(.in-sim) button:hover,
 body:not(.in-sim) .btn:hover,
-body:not(.in-sim) .launch:hover{
-  background: rgba(25, 35, 55, 0.10);
+body:not(.in-sim) .launch:hover,
+body:not(.in-sim) .sim-btn:hover{
+  background: rgba(25, 35, 55, 0.09);
   border-color: rgba(25, 35, 55, 0.28);
+  transform: none;
 }
 
 body:not(.in-sim) button:disabled,
@@ -84,28 +98,29 @@ body:not(.in-sim) .launch:disabled{
   cursor: not-allowed;
 }
 
+/* Landing boxes */
 body:not(.in-sim) .systemLog,
 body:not(.in-sim) .viewerBox,
 body:not(.in-sim) .kv{
-  background: rgba(0,0,0,0.04);
+  background: rgba(0,0,0,0.03);
   border: 1px solid rgba(0,0,0,0.10);
   color: rgba(12,14,18,0.86);
 }
 
-/* subtle scanline feel (landing only) */
+/* subtle scanline feel (landing only, very light) */
 @keyframes scanShift{
-  0%{ transform: translateY(-10%); opacity: .10; }
-  50%{ opacity: .18; }
-  100%{ transform: translateY(10%); opacity: .10; }
+  0%{ transform: translateY(-10%); opacity: .08; }
+  50%{ opacity: .12; }
+  100%{ transform: translateY(10%); opacity: .08; }
 }
 body:not(.in-sim) #wrap::after{
   content:"";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.05), transparent);
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.04), transparent);
   opacity: 0.10;
-  animation: scanShift 8.5s ease-in-out infinite;
+  animation: scanShift 9.5s ease-in-out infinite;
 }
 
 /* =========================================================
@@ -123,6 +138,8 @@ body.in-sim .card{
   background: var(--card);
   border: 1px solid var(--stroke);
   box-shadow: var(--shadow);
+  border-radius: var(--radius);
+  backdrop-filter: blur(10px);
 }
 
 /* Hide landing app completely once transition begins */
@@ -139,16 +156,8 @@ body.in-sim #wrap{
 }
 
 /* =========================================================
-   COMMON: cards + pills
+   COMMON: pills + text helpers
    ========================================================= */
-.card{
-  background: var(--card);
-  border: 1px solid var(--stroke);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
-}
-
 .pill{
   display:inline-flex;
   align-items:center;
@@ -170,9 +179,11 @@ body.in-sim #wrap{
 /* Focus ring */
 .sim-btn:focus-visible,
 #taskBody input:focus-visible,
-.modal input:focus-visible{
+.modal input:focus-visible,
+.viewerInput:focus-visible{
   box-shadow: 0 0 0 3px var(--ring2), 0 0 0 1px var(--ring);
   border-color: rgba(140,190,255,0.28);
+  outline: none;
 }
 
 /* =========================================================
@@ -205,23 +216,23 @@ body.in-sim #wrap{
 .adImg{
   width: 100%;
   height: 160px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.25);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: rgba(0,0,0,0.10);
   object-fit: cover;
   filter: saturate(0.95) contrast(1.02);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  box-shadow: none;
 }
 @media (max-width: 1100px){
   .sideAds{ display:none; }
 }
 
+/* Landing panel */
 .panel{
   background: var(--card);
   border: 1px solid var(--stroke);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  box-shadow: none;
   padding: 18px;
   position: relative;
   overflow: hidden;
@@ -231,10 +242,10 @@ body.in-sim #wrap{
   position:absolute;
   inset:-2px;
   background:
-    radial-gradient(900px 320px at 15% 0%, rgba(140,190,255,0.10), transparent 55%),
-    radial-gradient(700px 280px at 85% 0%, rgba(140,190,255,0.06), transparent 55%);
+    radial-gradient(900px 320px at 15% 0%, rgba(0,0,0,0.04), transparent 55%),
+    radial-gradient(700px 280px at 85% 0%, rgba(0,0,0,0.03), transparent 55%);
   pointer-events:none;
-  opacity: .9;
+  opacity: .8;
 }
 
 .topBar{
@@ -252,17 +263,17 @@ body.in-sim #wrap{
 .mark{
   width: 44px;
   height: 44px;
-  border-radius: 14px;
+  border-radius: 8px;
   display:flex;
   align-items:center;
   justify-content:center;
   font-weight: 800;
   letter-spacing: .10em;
-  background: rgba(140,190,255,0.10);
-  border: 1px solid rgba(140,190,255,0.18);
+  background: rgba(25,35,55,0.06);
+  border: 1px solid rgba(25,35,55,0.12);
 }
 .title{ font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
-.sub{ font-size: 12px; color: var(--muted); opacity: .85; }
+.sub{ font-size: 12px; opacity: .85; }
 
 .meta{ display:flex; gap: 10px; align-items:center; flex-wrap: wrap; }
 
@@ -289,8 +300,9 @@ body.in-sim #wrap{
 }
 .label{ font-weight: 700; letter-spacing: .02em; }
 
-.warn{ color: rgba(255,190,190,.92); font-weight: 600; }
+.warn{ color: rgba(170,40,40,.92); font-weight: 600; }
 
+/* Launcher button */
 .launcher{
   margin-top: 14px;
   display:flex;
@@ -300,36 +312,31 @@ body.in-sim #wrap{
 
 .launch{
   appearance:none;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.08);
-  color: rgba(235,238,245,0.92);
+  border: 1px solid rgba(0,0,0,0.16);
+  background: rgba(0,0,0,0.03);
+  color: rgba(12,14,18,0.92);
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: 10px;
   cursor:pointer;
   font-weight: 800;
   letter-spacing: .08em;
-  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+  transition: background 140ms ease, border-color 140ms ease;
 }
-.launch:hover{
-  transform: translateY(-1px);
-  background: rgba(255,255,255,0.11);
-  border-color: rgba(140,190,255,0.25);
-}
-.launch.busy{ opacity: .85; transform: none; cursor: progress; }
+.launch.busy{ opacity: .85; cursor: progress; }
 
 .hintline{
   display:flex;
   align-items:center;
   gap: 10px;
   font-size: 12px;
-  color: rgba(235,238,245,0.72);
+  color: rgba(12,14,18,0.68);
 }
 .hintline .dot{
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: rgba(140,190,255,0.60);
-  box-shadow: 0 0 14px rgba(140,190,255,0.25);
+  background: rgba(0,0,0,0.28);
+  opacity: .65;
 }
 
 .miniRow{
@@ -342,10 +349,10 @@ body.in-sim #wrap{
   .miniRow{ grid-template-columns: 1fr; }
 }
 .kv{
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 10px;
   padding: 10px 12px;
-  background: rgba(0,0,0,0.18);
+  background: rgba(0,0,0,0.03);
 }
 .kv .k{
   font-size: 11px;
@@ -359,14 +366,14 @@ body.in-sim #wrap{
 .qitem{ display:flex; gap: 10px; align-items:center; opacity: .9; }
 .qitem .qdot{
   width: 8px; height: 8px; border-radius: 999px;
-  background: rgba(140,190,255,0.55);
-  box-shadow: 0 0 10px rgba(140,190,255,0.18);
+  background: rgba(0,0,0,0.22);
+  opacity: .65;
 }
 .qitem.missing{ opacity: .65; }
 
 .divider{
   height: 1px;
-  background: rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.08);
   border-radius: 999px;
   margin: 12px 0;
   opacity: .9;
@@ -375,10 +382,10 @@ body.in-sim #wrap{
 .systemLog{
   margin-top: 10px;
   padding: 12px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.18);
-  color: rgba(235,238,245,0.80);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(0,0,0,0.03);
+  color: rgba(12,14,18,0.82);
   min-height: 74px;
   display:flex;
   align-items:center;
@@ -389,27 +396,26 @@ body.in-sim #wrap{
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: rgba(140,190,255,0.55);
-  box-shadow: 0 0 18px rgba(140,190,255,0.30);
-  opacity: 0.9;
+  background: rgba(0,0,0,0.22);
+  opacity: 0.65;
 }
 
 .viewerBox{
   padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.18);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(0,0,0,0.03);
 }
 .fakeInput{
   display:flex;
   justify-content: space-between;
   align-items:center;
   padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.22);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(0,0,0,0.03);
 }
-.cursor{ opacity: .85; }
+.cursor{ opacity: .65; }
 
 .footer{
   margin-top: 14px;
@@ -426,50 +432,36 @@ body.in-sim #wrap{
   width: 100%;
   margin-top: 10px;
   padding: 12px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.22);
-  color: rgba(235,238,245,0.92);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.14);
+  background: rgba(0,0,0,0.03);
+  color: rgba(12,14,18,0.92);
   font: 600 14px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   letter-spacing: .2px;
   outline: none;
 }
-.viewerInput:focus{
-  border-color: rgba(140,190,255,0.28);
-  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
-}
 .viewerInput:disabled{ opacity: .55; cursor: not-allowed; }
 
-#viewerToken:disabled{ opacity: 0.55; cursor: not-allowed; }
 #viewerToken:not(:disabled){
   opacity: 1;
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(120,160,255,0.25);
+  box-shadow: 0 0 0 2px rgba(120,160,255,0.18);
 }
 
-/* Utility */
-.hidden{ display:none !important; }
-
 /* =========================================================
-   ADMIN-ONLY VISIBILITY
+   ADMIN-ONLY VISIBILITY (landing hidden card)
    ========================================================= */
 .adminOnly{
+  display:none !important;
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
 }
 body.admin .adminOnly{
+  display:block !important;
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
 }
-body.admin #adminStatus{ color: rgba(210,255,220,0.92); }
-body.admin #adminMsg{ color: rgba(210,255,220,0.80); }
-
-/* keep adminOnly hidden by default */
-.adminOnly{ display:none !important; }
-body.admin .adminOnly{ display:block !important; }
-
 body.admin #viewerToken{
   border-color: rgba(140,190,255,0.28);
   box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
@@ -479,15 +471,15 @@ body.admin #viewerToken{
    FX OVERLAY STACKS
    ========================================================= */
 #cracks,
-#glassFX,
-canvas#cracks,
-canvas#glassFX,
-.glassFX,
-.cracks{
+#glassFX{
+  position: fixed;
+  inset: 0;
+  z-index: 80;
   pointer-events: none;
+  overflow: hidden;
 }
 
-/* clickable anchors */
+/* clickable anchors (if you use them) */
 .anchor,
 .anchorDot,
 [data-anchor]{
@@ -497,6 +489,15 @@ canvas#glassFX,
 /* =========================================================
    CRACK SHARDS + STAGED LINES
    ========================================================= */
+#cracks::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,0.06);
+  opacity: 1;
+}
+
+/* panes */
 #cracks .pane{
   position:absolute;
   inset:0;
@@ -518,8 +519,8 @@ canvas#glassFX,
   position:absolute;
   inset:-22px;
   transform: translate(calc(0px - var(--dx, 0px)), calc(0px - var(--dy, 0px)));
-  backdrop-filter: blur(0.6px) saturate(1.25) contrast(1.18) brightness(1.02);
-  -webkit-backdrop-filter: blur(0.6px) saturate(1.25) contrast(1.18) brightness(1.02);
+  backdrop-filter: blur(1.2px) saturate(1.35) contrast(1.22) brightness(1.04);
+  -webkit-backdrop-filter: blur(1.2px) saturate(1.35) contrast(1.22) brightness(1.04);
   background: rgba(255,255,255,0.00);
   border: 1px solid rgba(255,255,255,0.06);
   box-shadow:
@@ -549,6 +550,7 @@ canvas#glassFX,
 #cracks .pane.glint::after{ opacity: 0.35; }
 #cracks.flash .pane::after{ opacity: 0.55; }
 
+/* staged crack lines */
 #cracks .seg{ opacity: 0; transition: opacity 160ms ease; }
 #cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
 #cracks[data-stage="2"] .seg[data-rank="1"],
@@ -589,10 +591,8 @@ canvas#glassFX,
 #cracks .draw{ animation: crackDraw 700ms ease-out forwards; }
 @keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
 
-#cracks.shatter-hide-lines svg{ opacity: 0 !important; }
-
 /* =========================================================
-   FALLING SHARDS
+   FALLING SHARDS (GLASS FX)
    ========================================================= */
 #glassFX .glass-piece{
   position: fixed;
@@ -612,6 +612,7 @@ canvas#glassFX,
   isolation: isolate;
 }
 
+/* cloned wrap layers */
 #glassFX .glass-inner > #wrap,
 #glassFX .glass-inner > .wrap-clone{ opacity: 1; }
 
@@ -703,16 +704,14 @@ canvas#glassFX,
   }
 }
 
-#glassFX.hidden{ display: none !important; }
-
 /* =========================================================
-   ADMIN DIAGNOSTIC PANEL
+   ADMIN DIAGNOSTIC PANEL (sim-only)
    ========================================================= */
 .adminPanel{
   position: fixed;
   top: 18px;
   right: 18px;
-  z-index: 9999; /* always top */
+  z-index: 9999;
   width: min(420px, calc(100vw - 36px));
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,0.14);
@@ -721,7 +720,6 @@ canvas#glassFX,
   backdrop-filter: blur(10px);
   padding: 12px;
 }
-
 body.admin .adminPanel.hidden{ display:none !important; }
 body.admin #adminPanel{ display:block; }
 body:not(.admin) #adminPanel{ display:none !important; }
@@ -734,28 +732,24 @@ body:not(.admin) #adminPanel{ display:none !important; }
   margin-bottom: 10px;
   user-select: none;
 }
-
 .adminTitle{
   font-weight: 800;
   letter-spacing: .12em;
   font-size: 12px;
   opacity: .9;
 }
-
 .adminTiny{
   padding: 6px 10px;
   border-radius: 10px;
   font-size: 12px;
   opacity: .9;
 }
-
 .adminRow{
   display:flex;
   gap: 8px;
   align-items:center;
   flex-wrap: wrap;
 }
-
 .adminAnswer{
   margin: 8px 0 0;
   padding: 10px 12px;
@@ -770,60 +764,35 @@ body:not(.admin) #adminPanel{ display:none !important; }
   overflow:auto;
   white-space: pre-wrap;
 }
-
 .adminActions{
   display:flex;
   justify-content:flex-end;
   gap:10px;
   margin-top: 10px;
 }
-
 @media (max-width: 520px){
-  .adminPanel{ top:auto; bottom:18px; }
+  .adminPanel{ top:auto; bottom:18px; left:18px; right:auto; }
 }
 
 /* =========================================================
    SIM ROOM (FIXED VIEWPORT)
    ========================================================= */
-#wrap,
-.card,
-#subs,
-#simRoom,
-#system{
-  position: relative;
-  z-index: 5;
-}
-
-/* FX behind UI but above background */
-#cracks,
-#glassFX{
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  pointer-events: none;
-}
-
-/* main sim container */
 #simRoom{
   position: fixed;
   inset: 0;
   z-index: 50;
-
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-
   padding: 48px 18px 18px;
   background: transparent;
-
-  overflow: hidden; /* prevent page scroll */
+  overflow: hidden;
 }
 
 #simRoom .cardShell{
   width: min(980px, 100%);
   margin: 0 auto;
-
   background: rgba(0,0,0,0.22);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 16px;
@@ -831,7 +800,6 @@ body:not(.admin) #adminPanel{ display:none !important; }
   backdrop-filter: blur(10px);
   padding: 18px;
   position: relative;
-
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -839,19 +807,13 @@ body:not(.admin) #adminPanel{ display:none !important; }
   overflow: hidden;
 }
 
-/* =========================================================
-   SIM LOG (NO HORIZONTAL SCROLL BAR)
-   ========================================================= */
+/* SIM LOG (NO HORIZONTAL SCROLL BAR) */
 #simText{
   width: 100%;
   flex: 1 1 auto;
   min-height: 0;
-
-  /* ✅ removes the useless bottom bar */
   overflow-y: auto;
   overflow-x: hidden;
-
-  /* ✅ keep newlines, allow wrap */
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -894,7 +856,7 @@ body:not(.admin) #adminPanel{ display:none !important; }
   padding: 10px 12px;
   border-radius: 12px;
   cursor:pointer;
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 .sim-btn:hover{
   transform: translateY(-1px);
@@ -919,7 +881,7 @@ body:not(.admin) #adminPanel{ display:none !important; }
     rgba(0,0,0,0.22);
   padding: 14px;
   position: relative;
-  overflow: visible; /* ✅ never create internal scrollbars */
+  overflow: visible;
   z-index: 60;
 }
 #taskUI::before{
@@ -957,9 +919,8 @@ body:not(.admin) #adminPanel{ display:none !important; }
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.10);
   background: rgba(0,0,0,0.18);
-
   overflow: visible;
-  overflow-x: hidden; /* ✅ prevents useless horizontal scrollbar */
+  overflow-x: hidden;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -983,7 +944,6 @@ body:not(.admin) #adminPanel{ display:none !important; }
   color: rgba(235,238,245,0.92);
 }
 #taskBody input::placeholder{ color: rgba(235,238,245,0.45); }
-#taskBody input::selection{ background: rgba(140,190,255,0.22); }
 
 @keyframes taskIn{
   from{ opacity: 0; transform: translateY(6px); filter: blur(1.5px); }
@@ -1007,7 +967,7 @@ body:not(.admin) #adminPanel{ display:none !important; }
     0 0 28px rgba(140,190,255,0.10);
 }
 
-/* Task kit helpers */
+/* Task kit helpers (used by tasks.js) */
 .task-note{ opacity: 0.88; color: rgba(235,238,245,0.82); font-size: 13px; line-height: 1.45; }
 .task-error{ color: rgba(255,190,190,.95); opacity: 0.95; font-size: 13px; }
 .task-ok{ color: rgba(232,237,247,0.92); opacity: 0.92; font-size: 13px; }
@@ -1061,12 +1021,11 @@ body:not(.admin) #adminPanel{ display:none !important; }
 #hackRoom.card{
   background: rgba(0,0,0,0.20);
   border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: var(--shadow);
+  border-radius: 16px;
 }
 
-.hack-filebtn{
-  position: relative;
-  overflow: hidden;
-}
+.hack-filebtn{ position: relative; overflow: hidden; }
 .hack-filebtn.active{
   border-color: rgba(140,190,255,0.28);
   box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
@@ -1124,7 +1083,7 @@ body:not(.admin) #adminPanel{ display:none !important; }
 .hack-line.selected .hack-ln{ opacity: 0.8; }
 
 /* =========================================================
-   ANCHORS
+   ANCHORS (if used by tasks.js)
    ========================================================= */
 .anchor{
   position: fixed;
@@ -1167,7 +1126,7 @@ body:not(.admin) #adminPanel{ display:none !important; }
   padding: 16px;
 }
 
-.modal h2{
+.modal h2, .modal h3{
   margin: 0 0 8px;
   font-size: 18px;
 }
@@ -1187,16 +1146,39 @@ body:not(.admin) #adminPanel{ display:none !important; }
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(0,0,0,0.22);
   color: rgba(235,238,245,0.92);
+  outline: none;
+}
+#finalOverlay input::placeholder{ color: rgba(235,238,245,0.45); }
+
+.modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
 }
 
 /* =========================================================
-   SUBTITLES (COMPLETELY GONE)
-   - you said: remove the bottom bar completely
+   SUBTITLES (HIDE VISUALLY, KEEP DOM SAFE)
    ========================================================= */
-#subs{ display:none !important; }
+/* Keep the node for JS, but don’t show anything */
+#subs{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  pointer-events: none;
+  opacity: 0 !important;
+  transform: translateY(10px);
+  height: 0;
+  overflow: hidden;
+}
+/* (Your inner nodes still exist for JS/VO) */
+#subsName, #subsText{ display:block; }
 
 /* =========================================================
-   OVERLAY / POP-IN + SHAKE
+   OPTIONAL: OVERLAY POP-IN + SHAKE
    ========================================================= */
 @keyframes popIn{
   0%{ opacity:0; transform: translateY(8px) scale(0.985); filter: blur(0.6px); }
@@ -1224,3 +1206,13 @@ body:not(.admin) #adminPanel{ display:none !important; }
 @media (prefers-reduced-motion: reduce){
   .pop-in, .shake{ animation:none !important; }
 }
+
+/* =========================================================
+   SMALL FIXES / SAFETY
+   ========================================================= */
+/* If any wrap clones are injected during glass FX */
+.wrap-clone{ position: relative; }
+
+/* Make sure overlays never block clicking underneath unless you explicitly add anchors */
+#cracks, #glassFX{ pointer-events: none; }
+.anchor, .anchorDot, [data-anchor]{ pointer-events: auto; }
