@@ -469,6 +469,7 @@ btnSkip?.addEventListener("click", () => {
     }
 
     window.AudioPlayer = {
+      _audioChain: Promise.resolve(),
       async init() {
         if (VO_READY) return;
 
@@ -500,19 +501,17 @@ btnSkip?.addEventListener("click", () => {
       },
 
       async playLine(rawLine) {
-        try {
-          await this.init();
-          if (!VO) return;
-
-          if (subs) subs.classList.remove("hidden");
-
-          const id = getIdFromLine(rawLine);
-          if (!id) return;
-
-          await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: true });
-        } catch (e) {
-          console.warn("AudioPlayer.playLine failed:", e);
-        }
+        await this.init();
+        if (!VO) return;
+      
+        const id = getIdFromLine(rawLine);
+        if (!id) return;
+      
+        // ✅ queue playback so lines don't cancel each other
+        this._audioChain = this._audioChain
+          .then(() => VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false }))
+          .catch(() => {});
+        return this._audioChain;
       },
 
       stop() {
