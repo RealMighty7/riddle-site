@@ -6,7 +6,9 @@
   <title>index</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-  <link rel="stylesheet" href="/styles.css?v=42" />
+
+  <!-- bump versions to bust cache -->
+  <link rel="stylesheet" href="/styles.css?v=99" />
 </head>
 
 <body>
@@ -51,8 +53,8 @@
         functionality may be incomplete. do not rely on output. if something looks wrong, report it.
       </div>
 
-      <div class="btnRow">
-        <button class="sim-btn" disabled>report issue</button>
+      <div class="btnRow" style="margin-top:12px;">
+        <button class="sim-btn" id="reportIssue">report issue</button>
         <button class="sim-btn" disabled>billing</button>
         <button class="sim-btn" disabled>assets</button>
         <button class="sim-btn" disabled>export</button>
@@ -72,7 +74,7 @@
       <div class="pill" style="margin-bottom:10px;">simulation</div>
       <pre id="simText" class="simText" aria-live="polite"></pre>
 
-      <div id="simChoices" class="hidden simChoices">
+      <div id="simChoices" class="hidden simChoices" style="margin-top:12px;">
         <button class="sim-btn" id="choiceNeed">…</button>
         <button class="sim-btn" id="choiceLie">…</button>
         <button class="sim-btn" id="choiceRun">…</button>
@@ -85,6 +87,7 @@
     <div class="card taskCard">
       <div class="pill" id="taskTitle">TASK</div>
       <div class="taskDesc" id="taskDesc">—</div>
+
       <div id="taskBody" class="taskBody"></div>
 
       <div id="taskActions" class="taskActions">
@@ -106,16 +109,18 @@
   <section id="finalOverlay" class="hidden" aria-hidden="true">
     <div class="card finalCard">
       <div class="pill">verification</div>
-      <p class="smallNote" style="margin-top:10px;">
+      <p style="margin-top:10px; opacity:.85;">
         Notice: this endpoint is not intended for external access.<br>
         Functionality may be incomplete.
       </p>
 
-      <input id="finalDiscord" placeholder="discord username" autocomplete="off" spellcheck="false" class="textIn" />
+      <input id="finalDiscord" placeholder="discord username" autocomplete="off" spellcheck="false"
+             style="width:100%; margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(0,0,0,.18);" />
+
       <div id="turnstileBox" style="margin-top:12px;"></div>
       <div id="finalErr" class="errText"></div>
 
-      <div class="taskActions" style="margin-top:14px;">
+      <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
         <button class="sim-btn" id="finalCancel">cancel</button>
         <button class="sim-btn" id="finalVerify">verify</button>
       </div>
@@ -149,7 +154,7 @@
     </div>
   </section>
 
-  <!-- ====== ADMIN PANEL (draggable via main.js handle: .adminHead) ====== -->
+  <!-- ====== ADMIN PANEL ====== -->
   <section id="adminPanel" class="hidden" aria-hidden="true">
     <div class="adminBox">
       <div class="adminHead">
@@ -159,7 +164,7 @@
 
       <div class="adminBody">
         task: <span id="adminTask">—</span><br>
-        hint: <span id="adminAnswer">—</span>
+        args: <span id="adminAnswer">—</span>
       </div>
 
       <div class="adminBtns">
@@ -168,37 +173,49 @@
     </div>
   </section>
 
-  <!-- OPTIONAL placeholders (safe) -->
+  <!-- Optional placeholders -->
   <div id="viewerFake" class="hidden"></div>
   <div id="viewerState" class="hidden"></div>
 
   <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
-  <!-- Load order matters -->
-  <script src="/dialogue.js?v=42"></script>
-  <script src="/tasks.js?v=42"></script>
+  <!-- ✅ Load order: tasks -> packs -> dialogue -> audio -> main -->
+  <script src="/tasks.js?v=99"></script>
 
-  <script src="/packs/pack1.js?v=42"></script>
-  <script src="/packs/pack2.js?v=42"></script>
-  <script src="/packs/pack3.js?v=42"></script>
-  <script src="/packs/pack4.js?v=42"></script>
-  <script src="/packs/pack5.js?v=42"></script>
+  <script src="/packs/pack1.js?v=99"></script>
+  <script src="/packs/pack2.js?v=99"></script>
+  <script src="/packs/pack3.js?v=99"></script>
+  <script src="/packs/pack4.js?v=99"></script>
+  <script src="/packs/pack5.js?v=99"></script>
 
-  <script src="/audio_player.js?v=42"></script>
-  <script src="/main.js?v=42"></script>
+  <script src="/dialogue.js?v=99"></script>
+  <script src="/audio_player.js?v=99"></script>
+  <script src="/main.js?v=99"></script>
 
-  <!-- timestamp updater -->
   <script>
+    // timestamp tick (NO glitch animation)
     (function () {
       const el = document.getElementById("timestamp");
       if (!el) return;
-      function tick() {
-        const d = new Date();
-        el.textContent = "timestamp: " + d.toLocaleString();
-      }
+      function tick() { el.textContent = "timestamp: " + new Date().toLocaleString(); }
       tick();
       setInterval(tick, 1000);
+    })();
+
+    // report issue mailto
+    (function () {
+      const btn = document.getElementById("reportIssue");
+      if (!btn) return;
+      btn.addEventListener("click", () => {
+        const subj = encodeURIComponent("Report issue: ad launcher");
+        const body = encodeURIComponent(
+          "Describe what happened:\n\n" +
+          "timestamp: " + new Date().toLocaleString() + "\n" +
+          "url: " + location.href + "\n"
+        );
+        location.href = `mailto:?subject=${subj}&body=${body}`;
+      });
     })();
   </script>
 </body>
