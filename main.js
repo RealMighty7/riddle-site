@@ -1312,25 +1312,26 @@ Reinitializing simulation…`
 
     async function shatterAndEnterSim() {
       if (document.body.classList.contains("sim-transition")) return;
+    
       document.body.classList.add("sim-transition");
-
+    
+      // make sure cracks are visible and on top
+      cracks.style.opacity = "1";
+    
       playSfx("glassBreak", { volume: 0.65, overlap: false });
-      cracks.classList.add("shatter");
-      glassFX?.classList.add("shatter");
-
-      await wait(520);
-
-      // "cracks disappear into sim" is handled by CSS once body.in-sim is applied,
-      // but we also force a quick fade if the browser is slow:
-      try {
-        cracks.style.opacity = "1";
-        setTimeout(() => {
-          cracks.style.opacity = "";
-        }, 50);
-      } catch {}
-
+    
+      // ✅ between-state: warp/glitch animation (CSS uses body.into-sim)
+      document.body.classList.add("into-sim");
+    
+      // hold long enough to SEE it
+      await wait(900);
+    
       await openSimRoom();
+    
+      // cleanup
+      document.body.classList.remove("into-sim");
     }
+
 
     function isClickableTarget(e) {
       const t = e.target;
