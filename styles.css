@@ -1362,3 +1362,45 @@ body:not(.in-sim) #subs{
 #cracks.flash {
   filter: brightness(0.85) !important;
 }
+/* ===========================
+   LANDING: do NOT dim
+   =========================== */
+
+/* Make overlays non-dark by default (landing) */
+#glassFX {
+  background: transparent !important;
+  opacity: 0.0 !important;
+  pointer-events: none;
+}
+
+#cracks {
+  opacity: 1 !important;            /* cracks can still show */
+  pointer-events: none;
+}
+
+/* If you have a global dim on body/wrap, neutralize it for landing */
+body:not(.in-sim) #wrap {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* ===========================
+   SIM: dim only after transition
+   =========================== */
+body.in-sim #glassFX {
+  /* keep it subtle; change 0.25 -> 0.15 if you want even less */
+  background: rgba(0, 0, 0, 0.45) !important;
+  opacity: 0.25 !important;
+}
+
+/* Optional: slightly dim landing background only in sim */
+body.in-sim #wrap {
+  filter: saturate(0.9) contrast(0.95);
+}
+body:not(.in-sim)::before,
+body:not(.in-sim)::after,
+body:not(.in-sim) #wrap::before,
+body:not(.in-sim) #wrap::after {
+  opacity: 0 !important;
+  background: transparent !important;
+}
