@@ -57,9 +57,8 @@
       "hackStatus",
     ];
 
-    // Optional (we won’t hard-fail if missing)
+    // Optional (safe if missing)
     const OPTIONAL_IDS = [
-      "finalAnswer",     // removed in logic; safe if it still exists
       "viewerToken",
       "viewerFake",
       "viewerState",
@@ -71,6 +70,8 @@
       "adminSkip",
       "adminToggle",
       "taskActions",
+      "timestamp",
+      "build",
     ];
 
     const ids = [...REQUIRED_IDS, ...OPTIONAL_IDS];
@@ -130,11 +131,8 @@
     systemBox.textContent = "This page is currently under revision.";
 
     /* ====================== SAFE SFX ====================== */
-    // Prevents playSfx(...) from crashing the entire sim if audio isn't wired.
     function playSfx(name, opts = {}) {
-      // Prefer the global SFX router from audio_player.js
       if (typeof window.playSfx === "function") {
-        // normalize old names -> new ids
         const map = {
           glitch1: "glitch",
           glitch2: "glitch",
@@ -142,11 +140,10 @@
           static2: "staticSoft",
         };
         const id = map[name] || name;
-        try { window.playSfx(id, opts); } catch {}
-        return;
+        try {
+          window.playSfx(id, opts);
+        } catch {}
       }
-    
-      // fallback: do nothing (safe)
     }
 
     /* ====================== LANDING ASSETS ====================== */
@@ -175,7 +172,11 @@
       console.log("%c[admin] elevated access granted", "color:#8cbcff");
 
       if (document.getElementById("adminPanel")) {
-        try { initAdminPanel(); } catch (e) { console.warn("[admin] panel init failed", e); }
+        try {
+          initAdminPanel();
+        } catch (e) {
+          console.warn("[admin] panel init failed", e);
+        }
       }
 
       document.dispatchEvent(new CustomEvent("admin:enabled"));
@@ -208,7 +209,6 @@
       if (!panel) return;
       panel.classList.remove("hidden");
 
-      // Ensure not clipped by sim overflow
       if (panel.parentElement !== document.body) document.body.appendChild(panel);
 
       const elTask = document.getElementById("adminTask");
@@ -216,7 +216,6 @@
       const btnSkip = document.getElementById("adminSkip");
       const btnToggle = document.getElementById("adminToggle");
 
-      // Draggable + clamp
       (function makeDraggable(panelEl, handleEl) {
         if (!panelEl || !handleEl) return;
 
@@ -240,7 +239,6 @@
         panelEl.style.position = "fixed";
         panelEl.style.zIndex = "9999";
 
-        // Restore last saved position
         try {
           const saved = JSON.parse(localStorage.getItem("adminPanelPos") || "null");
           if (saved && typeof saved.left === "number" && typeof saved.top === "number") {
@@ -254,8 +252,10 @@
         clampToViewport();
 
         let dragging = false;
-        let startX = 0, startY = 0;
-        let baseLeft = 0, baseTop = 0;
+        let startX = 0,
+          startY = 0;
+        let baseLeft = 0,
+          baseTop = 0;
 
         const onDown = (e) => {
           const t = e.target;
@@ -292,10 +292,13 @@
           handleEl.style.cursor = "grab";
 
           try {
-            localStorage.setItem("adminPanelPos", JSON.stringify({
-              left: parseFloat(panelEl.style.left || "0"),
-              top: parseFloat(panelEl.style.top || "0"),
-            }));
+            localStorage.setItem(
+              "adminPanelPos",
+              JSON.stringify({
+                left: parseFloat(panelEl.style.left || "0"),
+                top: parseFloat(panelEl.style.top || "0"),
+              })
+            );
           } catch {}
         };
 
@@ -306,7 +309,6 @@
 
         window.addEventListener("resize", clampToViewport);
 
-        // Emergency rescue
         handleEl.addEventListener("dblclick", () => {
           panelEl.style.left = "18px";
           panelEl.style.top = "18px";
@@ -314,24 +316,27 @@
         });
       })(panel, panel.querySelector(".adminHead"));
 
-      // Toggle
       btnToggle?.addEventListener("click", () => {
         const willHide = !panel.classList.contains("hidden");
-        if (willHide) { try { document.activeElement?.blur?.(); } catch {} }
+        if (willHide) {
+          try {
+            document.activeElement?.blur?.();
+          } catch {}
+        }
         panel.classList.toggle("hidden");
         panel.setAttribute("aria-hidden", panel.classList.contains("hidden") ? "true" : "false");
         btnToggle.textContent = panel.classList.contains("hidden") ? "show" : "hide";
       });
 
-      // Skip current task
       btnSkip?.addEventListener("click", () => {
         window.__ADMIN_FORCE_OK = true;
         document.dispatchEvent(new CustomEvent("admin:skip", { bubbles: true }));
         panel.setAttribute("aria-hidden", "false");
-        try { document.activeElement?.blur?.(); } catch {}
+        try {
+          document.activeElement?.blur?.();
+        } catch {}
       });
 
-      // Task + hint feed
       document.addEventListener("admin:task", (e) => {
         const id = e?.detail?.taskId || "—";
         if (elTask) elTask.textContent = id;
@@ -436,7 +441,6 @@
     }
 
     function stripSpeakerPrefix(s) {
-      // Remove "Emma (Security): " / "Liam (Worker): " / "System: " from matching only
       return String(s || "").replace(/^\s*[^:]{1,32}:\s*/, "");
     }
 
@@ -503,10 +507,10 @@
 
       async playLine(rawLine) {
         await this.init();
-        if (!VO) return;
+        if (!VO) return Promise.resolve();
 
         const id = getIdFromLine(rawLine);
-        if (!id) return;
+        if (!id) return Promise.resolve();
 
         this._audioChain = this._audioChain
           .then(() => VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false }))
@@ -515,135 +519,77 @@
       },
 
       stop() {
-        try { VO?.stopCurrent?.(); } catch {}
+        try {
+          VO?.stopCurrent?.();
+        } catch {}
       },
     };
 
     /* ====================== OUTPUT PIPE ====================== */
-// Types a line into simText over `ms` (minimum feels human)
-async function typeLineIntoSim(text, ms) {
-  const s = String(text || "");
-  if (!s) {
-    simText.textContent += "\n";
-    simText.scrollTop = simText.scrollHeight;
-    return;
-  }
-
-  const minMs = 450;
-  const total = Math.max(minMs, ms | 0);
-  const chars = [...s];
-  const per = total / Math.max(1, chars.length);
-
-  // append typed chars onto the existing buffer
-  for (let i = 0; i < chars.length; i++) {
-    simText.textContent += chars[i];
-    simText.scrollTop = simText.scrollHeight;
-    await wait(per);
-  }
-  simText.textContent += "\n";
-  simText.scrollTop = simText.scrollHeight;
-}
-
-// Returns a good duration for the line:
-// - Prefer actual VO completion (await playLine), but we still need a duration for typing.
-// - Use VO metadata if present; else fall back to msToRead().
-function getTypingMsForLine(rawLine) {
-  // if your voices.json includes duration fields, this will use them
-  try {
-    const id = getIdFromLine(rawLine);
-    if (id && VO && VO.byId) {
-      const meta = VO.byId.get(id);
-      const d =
-        Number(meta?.duration_sec ?? meta?.durationSec ?? meta?.duration ?? 0);
-      if (Number.isFinite(d) && d > 0) return Math.floor(d * 1000);
+    function wait(ms) {
+      return new Promise((r) => setTimeout(r, ms));
     }
-  } catch {}
-  return msToRead(rawLine);
-}
 
-async function emitLine(line) {
-  const raw = String(line || "");
+    async function typeLineIntoSim(text, ms) {
+      const s = String(text || "");
+      if (!s) {
+        simText.textContent += "\n";
+        simText.scrollTop = simText.scrollHeight;
+        return;
+      }
 
-  // strip [0001] etc for what prints
-  const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+      const minMs = 450;
+      const total = Math.max(minMs, ms | 0);
+      const chars = [...s];
+      const per = total / Math.max(1, chars.length);
 
-  // start VO, but don't let it overlap other VO (AudioPlayer chains internally)
-  const voPromise =
-    window.AudioPlayer && typeof window.AudioPlayer.playLine === "function"
-      ? window.AudioPlayer.playLine(raw)
-      : Promise.resolve();
+      for (let i = 0; i < chars.length; i++) {
+        simText.textContent += chars[i];
+        simText.scrollTop = simText.scrollHeight;
+        await wait(per);
+      }
+      simText.textContent += "\n";
+      simText.scrollTop = simText.scrollHeight;
+    }
 
-  // type over the best-known duration
-  const typingMs = getTypingMsForLine(raw);
-  await typeLineIntoSim(printed, typingMs);
+    function getTypingMsForLine(rawLine) {
+      try {
+        const id = getIdFromLine(rawLine);
+        if (id && VO && VO.byId) {
+          const meta = VO.byId.get(id);
+          const d = Number(meta?.duration_sec ?? meta?.durationSec ?? meta?.duration ?? 0);
+          if (Number.isFinite(d) && d > 0) return Math.floor(d * 1000);
+        }
+      } catch {}
+      return msToRead(rawLine);
+    }
 
-  // ensure VO is done before continuing to next line
-  try { await voPromise; } catch {}
-}
+    async function emitLine(line) {
+      const raw = String(line || "");
+      const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
 
-async function playLines(lines) {
-  clearTimers(); // keep this so any older scheduled stuff is killed
-  for (const line of (lines || [])) {
-    await emitLine(line);
-    // tiny breath between lines so it doesn’t feel machine-gunned
-    await wait(80);
-  }
-}
+      const voPromise =
+        window.AudioPlayer && typeof window.AudioPlayer.playLine === "function"
+          ? window.AudioPlayer.playLine(raw)
+          : Promise.resolve();
 
+      const typingMs = getTypingMsForLine(raw);
+      await typeLineIntoSim(printed, typingMs);
+
+      try {
+        await voPromise;
+      } catch {}
+    }
+
+    async function playLines(lines) {
+      clearTimers();
+      for (const line of lines || []) {
+        await emitLine(line);
+        await wait(80);
+      }
+    }
 
     /* ====================== UI helpers ====================== */
-    function wait(ms) {
-  return new Promise(r => setTimeout(r, ms));
-}
-
-// Loads audio duration reliably (and avoids hanging).
-async function getAudioDurationSec(src, timeoutMs = 1500) {
-  return new Promise((resolve) => {
-    const a = new Audio();
-    let done = false;
-
-    const finish = (v) => {
-      if (done) return;
-      done = true;
-      try { a.src = ""; } catch {}
-      resolve(v);
-    };
-
-    const t = setTimeout(() => finish(null), timeoutMs);
-
-    a.addEventListener("loadedmetadata", () => {
-      clearTimeout(t);
-      const d = Number(a.duration);
-      finish(Number.isFinite(d) && d > 0 ? d : null);
-    }, { once: true });
-
-    a.addEventListener("error", () => {
-      clearTimeout(t);
-      finish(null);
-    }, { once: true });
-
-    a.src = src;
-    // Some browsers need this:
-    try { a.load(); } catch {}
-  });
-}
-
-// Type/reveal text so it completes in exactly durationSec.
-// Adds a small "hold" at the end so it doesn’t snap immediately.
-async function revealTextForDuration(el, text, durationSec, endHoldMs = 120) {
-  el.textContent = "";
-  const totalMs = Math.max(250, Math.floor(durationSec * 1000) - endHoldMs);
-  const chars = [...String(text)];
-  const n = Math.max(1, chars.length);
-  const per = totalMs / n;
-
-  for (let i = 0; i < n; i++) {
-    el.textContent += chars[i];
-    await wait(per);
-  }
-  await wait(endHoldMs);
-}
-
     els.taskActions?.classList.add("hidden");
 
     function showChoices(labels) {
@@ -744,9 +690,15 @@ Reinitializing simulation…`
       tsWidgetId = window.turnstile.render(turnstileBox, {
         sitekey: "0x4AAAAAACN_lQF6Hw5BHs2u",
         theme: "dark",
-        callback: (token) => { tsToken = token; },
-        "expired-callback": () => { tsToken = null; },
-        "error-callback": () => { tsToken = null; },
+        callback: (token) => {
+          tsToken = token;
+        },
+        "expired-callback": () => {
+          tsToken = null;
+        },
+        "error-callback": () => {
+          tsToken = null;
+        },
       });
     }
 
@@ -761,7 +713,7 @@ Reinitializing simulation…`
       tsToken = null;
     }
 
-    /* ====================== FINAL MODAL (NO “ANSWER”) ====================== */
+    /* ====================== FINAL MODAL ====================== */
     let finalDiscordName = "";
 
     function openFinalModal(prefillDiscord = "") {
@@ -847,10 +799,12 @@ Reinitializing simulation…`
     let selected = new Set();
 
     function forceHackTopLayer() {
-      // Ensure hack UI is NEVER behind sim/task UI
       hackRoom.style.position = "fixed";
       hackRoom.style.inset = "0";
       hackRoom.style.zIndex = "2000";
+      hackRoom.style.margin = "0";
+      hackRoom.style.width = "100%";
+      hackRoom.style.overflow = "auto";
     }
 
     function renderFile(idx) {
@@ -913,7 +867,9 @@ Reinitializing simulation…`
 
     hackDelete.onclick = async () => {
       const f = FILES[activeFileIndex];
-      const selectedLines = Array.from(selected).map((i) => i + 1).sort((a, b) => a - b);
+      const selectedLines = Array.from(selected)
+        .map((i) => i + 1)
+        .sort((a, b) => a - b);
       const targets = f.targets.slice().sort((a, b) => a - b);
 
       const ok =
@@ -936,9 +892,6 @@ Reinitializing simulation…`
       try {
         const token = getTurnstileToken();
 
-        // ✅ IMPORTANT:
-        // We DO NOT collect an “Answer” from the user. We still send a safe constant
-        // because your server expects the field.
         const res = await fetch("/api/complete", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -967,7 +920,6 @@ Reinitializing simulation…`
     };
 
     function startHackTask() {
-      // ✅ Hide sim UI so hack UI is the only focus layer
       simChoices.classList.add("hidden");
       taskUI.classList.add("hidden");
       els.taskActions?.classList.add("hidden");
@@ -1070,9 +1022,12 @@ Reinitializing simulation…`
     async function openSimRoom() {
       stage = 99;
 
-      await unlockAudio(); // ✅ important: VO won’t get blocked
+      await unlockAudio();
 
       document.body.classList.add("in-sim");
+
+      // IMPORTANT: remove .hidden so CSS can position it (you were keeping it display:none)
+      subs?.classList.remove("hidden");
 
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
@@ -1094,9 +1049,18 @@ Reinitializing simulation…`
           choiceLie.onclick = null;
           choiceRun.onclick = null;
         };
-        choiceNeed.onclick = () => { cleanup(); resolve("comply"); };
-        choiceLie.onclick = () => { cleanup(); resolve("lie"); };
-        choiceRun.onclick = () => { cleanup(); resolve("run"); };
+        choiceNeed.onclick = () => {
+          cleanup();
+          resolve("comply");
+        };
+        choiceLie.onclick = () => {
+          cleanup();
+          resolve("lie");
+        };
+        choiceRun.onclick = () => {
+          cleanup();
+          resolve("run");
+        };
       });
     }
 
@@ -1130,8 +1094,6 @@ Reinitializing simulation…`
       }
     }
 
-    // NOTE: landing click handler is declared later (CRACKS section)
-
     /* ======================
        CRACKS (4 staged) + GLASS FALL -> SIM
     ====================== */
@@ -1139,10 +1101,8 @@ Reinitializing simulation…`
       const t = e.target;
       const el = t && t.nodeType === 1 ? t : t?.parentElement || null;
 
-      // allow selecting inside inputs/textareas
       if (el && el.closest && el.closest("input, textarea")) return;
 
-      // only block selection during landing click-spam + shatter
       if (stage === 1 || document.body.classList.contains("sim-transition")) {
         e.preventDefault();
       }
@@ -1221,356 +1181,211 @@ Reinitializing simulation…`
 
       cracks.innerHTML = "";
 
-      // ---- PANE LAYER (reflection/duplication feel) ----
       const paneCount = 18;
-      const paneRanks = [1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4];
 
-      const mkPane = (rank) => {
-        const p = document.createElement("div");
-        p.className = "pane";
-        p.setAttribute("data-rank", String(rank));
+      // Build SVG cracks (ranked 1..4 so we can reveal in stages)
+      let svg = cracks;
+      const isSvg = svg && svg.namespaceURI === "http://www.w3.org/2000/svg";
 
-        const bias = rank === 1 ? 0.18 : rank === 2 ? 0.28 : rank === 3 ? 0.38 : 0.5;
-        const pts = [];
-        const centerPull = () => 0.5 + (rng() - 0.5) * bias;
-
-        const n = 4 + Math.floor(rng() * 3);
-        for (let i = 0; i < n; i++) {
-          const x = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
-          const y = clamp(centerPull() + (rng() - 0.5) * (0.55 + rank * 0.06), 0, 1);
-          pts.push([x, y]);
-        }
-
-        const cx = pts.reduce((a, v) => a + v[0], 0) / pts.length;
-        const cy = pts.reduce((a, v) => a + v[1], 0) / pts.length;
-        pts.sort(
-          (a, b) => Math.atan2(a[1] - cy, a[0] - cx) - Math.atan2(b[1] - cy, b[0] - cx)
-        );
-
-        const poly = pts
-          .map(([x, y]) => `${(x * 100).toFixed(1)}% ${(y * 100).toFixed(1)}%`)
-          .join(", ");
-        p.style.clipPath = `polygon(${poly})`;
-
-        // small drift per pane so it looks like "sections being duplicated"
-        p.style.setProperty("--dx", (rng() * 10 - 5).toFixed(1) + "px");
-        p.style.setProperty("--dy", (rng() * 10 - 5).toFixed(1) + "px");
-
-        if (rng() < 0.35) p.classList.add("glint");
-        return p;
-      };
-
-      for (let i = 0; i < paneCount; i++) {
-        const rank = paneRanks[i] || 4;
-        cracks.appendChild(mkPane(rank));
+      if (!isSvg) {
+        // If #cracks is a div, we create an svg inside it
+        cracks.innerHTML = "";
+        svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 1000 1000");
+        svg.setAttribute("preserveAspectRatio", "none");
+        svg.style.width = "100%";
+        svg.style.height = "100%";
+        cracks.appendChild(svg);
+      } else {
+        svg.innerHTML = "";
+        svg.setAttribute("viewBox", "0 0 1000 1000");
+        svg.setAttribute("preserveAspectRatio", "none");
       }
 
-      // ---- SVG LINES ----
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("viewBox", "0 0 1000 1000");
-      svg.setAttribute("preserveAspectRatio", "none");
-      cracks.appendChild(svg);
+      // Multiple origins so it feels like “panes” reflecting/duplicating
+      const origins = [
+        { x: 320 + rng() * 90, y: 280 + rng() * 90, bias: 1 },
+        { x: 680 + rng() * 90, y: 320 + rng() * 90, bias: 2 },
+        { x: 360 + rng() * 90, y: 720 + rng() * 90, bias: 3 },
+        { x: 720 + rng() * 90, y: 740 + rng() * 90, bias: 4 },
+      ];
 
-      const cx = 500,
-        cy = 500;
+      // Main “spines”
+      for (let i = 0; i < origins.length; i++) {
+        const o = origins[i];
+        const spineSteps = 12 + Math.floor(rng() * 10);
+        const spineLen = 26 + rng() * 18;
+        const spineJitter = 1.25 + rng() * 0.8;
 
-      const ring = (radiusMin, radiusMax) => {
-        const a = rng() * Math.PI * 2;
-        const r = radiusMin + rng() * (radiusMax - radiusMin);
-        return [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
-      };
+        const d = makePathFromCenter(rng, o.x, o.y, spineSteps, spineLen, spineJitter);
 
-      for (let i = 0; i < 7; i++) addSeg(svg, makePathFromCenter(rng, ...ring(0, 26), 7, 18, 0.85), 1);
-      for (let i = 0; i < 12; i++) addSeg(svg, makePathFromCenter(rng, ...ring(18, 120), 11, 28, 0.75), 2);
-      for (let i = 0; i < 18; i++) addSeg(svg, makePathFromCenter(rng, ...ring(120, 360), 12, 22, 1.05), 3);
-      for (let i = 0; i < 14; i++) addSeg(svg, makePathFromCenter(rng, ...ring(60, 220), 20, 46, 0.55), 4);
+        // rank: make earlier stages get fewer, thicker spines
+        const rank = (i % 4) + 1;
+        addSeg(svg, d, rank);
+
+        // Branches off spine
+        const branchCount = 3 + Math.floor(rng() * 4);
+        for (let b = 0; b < branchCount; b++) {
+          const bx = o.x + (rng() - 0.5) * 240;
+          const by = o.y + (rng() - 0.5) * 240;
+
+          const steps = 6 + Math.floor(rng() * 8);
+          const stepLen = 14 + rng() * 10;
+          const jitter = 1.8 + rng() * 1.0;
+
+          const bd = makePathFromCenter(rng, bx, by, steps, stepLen, jitter);
+
+          // heavier weighting toward later stages for branch clutter
+          const rPick = rng();
+          const brRank = rPick < 0.28 ? 2 : rPick < 0.58 ? 3 : 4;
+          addSeg(svg, bd, brRank);
+        }
+      }
+
+      // Extra micro-fractures (mostly later stages)
+      for (let i = 0; i < paneCount; i++) {
+        const cx = 120 + rng() * 760;
+        const cy = 120 + rng() * 760;
+        const steps = 3 + Math.floor(rng() * 5);
+        const stepLen = 10 + rng() * 10;
+        const jitter = 2.4 + rng() * 1.2;
+
+        const d = makePathFromCenter(rng, cx, cy, steps, stepLen, jitter);
+        const rank = rng() < 0.15 ? 2 : rng() < 0.55 ? 3 : 4;
+        addSeg(svg, d, rank);
+      }
 
       crackBuilt = true;
+      setCrackStage(0);
     }
 
     function setCrackStage(n) {
-      ensureCracks();
+      crackStage = clamp(n, 0, 4);
 
-      const next = Math.max(crackStage, n);
-      if (next === crackStage) return;
+      // body hooks for CSS (optional)
+      document.body.classList.toggle("crack1", crackStage >= 1);
+      document.body.classList.toggle("crack2", crackStage >= 2);
+      document.body.classList.toggle("crack3", crackStage >= 3);
+      document.body.classList.toggle("crack4", crackStage >= 4);
 
-      const prev = crackStage;
-      crackStage = next;
+      cracks.setAttribute?.("data-stage", String(crackStage));
+      if (glassFX) glassFX.setAttribute?.("data-stage", String(crackStage));
 
-      cracks.dataset.stage = String(crackStage);
+      const segs = cracks.querySelectorAll?.(".seg") || [];
+      segs.forEach((g) => {
+        const rank = Number(g.getAttribute("data-rank") || "4");
+        const reveal = rank <= crackStage;
 
-      // panes ramp in as the crack stage rises
-      const paneMap = { 1: 0.14, 2: 0.24, 3: 0.34, 4: 0.44 };
-      cracks.style.setProperty("--paneOpacity", String(paneMap[crackStage] ?? 0.0));
-
-      cracks.classList.remove("hidden");
-      cracks.classList.add("show");
-
-      const segs = cracks.querySelectorAll(".seg");
-      segs.forEach((seg) => {
-        const r = Number(seg.getAttribute("data-rank") || "0");
-        if (r <= crackStage) seg.classList.add("on");
-      });
-
-      for (let r = prev + 1; r <= crackStage; r++) {
-        const newly = cracks.querySelectorAll(`.seg[data-rank="${r}"] .crack-path.pending`);
-        newly.forEach((p) => {
-          p.classList.remove("pending");
-          p.classList.add("draw");
+        g.querySelectorAll("path").forEach((p) => {
+          if (reveal) {
+            p.classList.remove("pending");
+            p.classList.add("active");
+            // animate draw-in
+            try {
+              requestAnimationFrame(() => {
+                p.style.strokeDashoffset = "0";
+              });
+            } catch {}
+          } else {
+            p.classList.add("pending");
+            p.classList.remove("active");
+            // reset to hidden
+            try {
+              const len = p.style.getPropertyValue("--dash") || p.getTotalLength?.() || 0;
+              p.style.strokeDashoffset = String(len);
+            } catch {}
+          }
         });
-      }
-
-      if (crackStage === 1) playSfx("glassBreak", { volume: 1.0, overlap: true });
-    }
-
-    function buildGlassPieces() {
-      glassFX.innerHTML = "";
-      glassFX.classList.remove("hidden");
-
-      const panes = Array.from(cracks.querySelectorAll(".pane"));
-      if (!panes.length) return [];
-
-      const wrap = document.getElementById("wrap");
-
-      const pieces = panes.map((pane) => {
-        const p = document.createElement("div");
-        p.className = "glass-piece";
-
-        const clip = pane.style.clipPath || pane.style.webkitClipPath;
-        if (clip) {
-          p.style.clipPath = clip;
-          p.style.webkitClipPath = clip;
-        }
-
-        // motion randomness (fall / scatter)
-        p.style.setProperty("--rot", (Math.random() * 18 - 9).toFixed(2) + "deg");
-        p.style.setProperty("--sx", (Math.random() * 260 - 130).toFixed(1) + "px");
-        p.style.setProperty("--sy", (Math.random() * 120 - 60).toFixed(1) + "px");
-        p.style.setProperty("--rx", (Math.random() * 18 - 9).toFixed(1) + "px");
-        p.style.setProperty("--ry", (Math.random() * 18 - 9).toFixed(1) + "px");
-        p.style.setProperty("--rblur", (0.7 + Math.random() * 1.2).toFixed(2) + "px");
-        p.style.setProperty("--rgbx", (Math.random() * 3.2 + 1.2).toFixed(2) + "px");
-        p.style.setProperty("--rgby", (Math.random() * 2.6 - 1.3).toFixed(2) + "px");
-
-        const inner = document.createElement("div");
-        inner.className = "glass-inner";
-
-        // reflection/duplication: clone the wrap twice per channel
-        if (wrap) {
-          const makeLayer = (cls) => {
-            const layer = document.createElement("div");
-            layer.className = `glass-rgb ${cls}`;
-
-            const clone1 = wrap.cloneNode(true);
-            clone1.id = "";
-            clone1.classList.add("wrap-clone");
-            clone1.style.pointerEvents = "none";
-            clone1.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
-
-            const clone2 = clone1.cloneNode(true);
-            layer.appendChild(clone1);
-            layer.appendChild(clone2);
-
-            return layer;
-          };
-
-          inner.appendChild(makeLayer("r"));
-          inner.appendChild(makeLayer("g"));
-          inner.appendChild(makeLayer("b"));
-        }
-
-        p.appendChild(inner);
-        glassFX.appendChild(p);
-        return p;
       });
-
-      // shuffle draw order
-      for (let i = pieces.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
-      }
-
-      return pieces;
     }
 
-    function shatterToSim() {
-      if (stage === 99) return;
-      stage = 99;
+    function maybeAdvanceCracks() {
+      // stage thresholds
+      const next =
+        clicks >= CRACK_AT[3] ? 4 :
+        clicks >= CRACK_AT[2] ? 3 :
+        clicks >= CRACK_AT[1] ? 2 :
+        clicks >= CRACK_AT[0] ? 1 : 0;
 
-      ensureCracks();
+      if (next !== crackStage) {
+        setCrackStage(next);
+        playSfx("glitch1", { volume: 0.22, overlap: true });
+        cracks.classList.add("pulse");
+        setTimeout(() => cracks.classList.remove("pulse"), 220);
+      }
+    }
 
-      const pieces = buildGlassPieces();
-
-      // hide landing content immediately
-      const wrap = document.getElementById("wrap");
-      if (wrap) wrap.classList.add("wrap-hidden");
-
+    async function shatterAndEnterSim() {
+      if (document.body.classList.contains("sim-transition")) return;
       document.body.classList.add("sim-transition");
 
-      cracks.classList.add("hidden");
-      cracks.classList.remove("show");
-      cracks.classList.remove("flash");
+      playSfx("glassBreak", { volume: 0.65, overlap: false });
+      cracks.classList.add("shatter");
+      glassFX?.classList.add("shatter");
 
-      if (!pieces || !pieces.length) {
-        document.body.classList.remove("sim-transition");
-        openSimRoom();
-        return;
-      }
+      // small delay for visual
+      await wait(520);
 
-      glassFX.classList.remove("hidden");
-      glassFX.classList.add("glass-fall");
+      // hide landing bits if you have them (safe if missing)
+      document.querySelectorAll(".landingOnly").forEach((n) => n.classList.add("hidden"));
 
-      const STAGGER_MS = 28;
-      const BASE_MS = 1100;
-
-      pieces.forEach((p, i) => {
-        p.style.animationDelay = i * STAGGER_MS + "ms";
-      });
-
-      const totalMs = BASE_MS + pieces.length * STAGGER_MS + 80;
-
-      setTimeout(() => {
-        glassFX.innerHTML = "";
-        glassFX.classList.remove("glass-fall");
-        glassFX.classList.add("hidden");
-
-        document.body.classList.remove("sim-transition");
-        openSimRoom();
-      }, totalMs);
+      await openSimRoom();
     }
 
-    // CLICK ADVANCE (landing) — respects cooldown, ignores real UI clicks
-    function isCountableClick(e) {
+    function isClickableTarget(e) {
       const t = e.target;
-      const el = t && t.nodeType === 1 ? t : t?.parentElement || null;
-      if (!el) return true;
-
-      // ignore interactive UI
-      if (el.closest && el.closest("button, input, textarea, select, label, a")) return false;
-
-      // ignore admin panel clicks (so it never advances landing)
-      if (el.closest && el.closest("#adminPanel")) return false;
-
-      // ignore hack UI clicks
-      if (el.closest && el.closest("#hackRoom")) return false;
-
+      if (!t) return true;
+      if (t.closest && t.closest("input, textarea, select, button, a, label")) return false;
+      if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
       return true;
     }
 
-    function advanceLandingClick() {
+    function registerLandingClick(e) {
       if (stage !== 1) return;
+      if (document.body.classList.contains("sim-transition")) return;
+      if (!isClickableTarget(e)) return;
 
       const now = Date.now();
       if (now - lastClick < CLICK_COOLDOWN) return;
       lastClick = now;
 
+      ensureCracks();
+
       clicks++;
+      playSfx("mclick", { volume: 0.35, overlap: true });
 
-      // 4 stages at 15 / 17 / 19 / 21
-      if (clicks === CRACK_AT[0]) setCrackStage(1);
-      if (clicks === CRACK_AT[1]) setCrackStage(2);
-      if (clicks === CRACK_AT[2]) setCrackStage(3);
-      if (clicks === CRACK_AT[3]) setCrackStage(4);
+      maybeAdvanceCracks();
 
-      // shatter on next registered click
       if (clicks >= SHATTER_AT) {
-        stage = 2;
-
-        systemBox.textContent = "You weren't supposed to do that.";
-        const t1 = msToRead(systemBox.textContent);
-
-        setTimeout(() => {
-          systemBox.textContent = "All you had to do was sit there like everyone else and watch the ads.";
-        }, t1);
-
-        const t2 = t1 + msToRead("All you had to do was sit there like everyone else and watch the ads.");
-        setTimeout(() => {
-          systemBox.textContent = "Stop.";
-        }, t2);
-
-        const t3 = t2 + msToRead("Stop.") + 650;
-
-        setTimeout(() => {
-          cracks.classList.add("flash");
-          setTimeout(() => cracks.classList.remove("flash"), 220);
-        }, Math.max(0, t3 - 280));
-
-        setTimeout(() => {
-          shatterToSim();
-        }, t3);
+        shatterAndEnterSim();
       }
     }
 
-    function handleLandingClick(e) {
-      if (!isCountableClick(e)) return;
-      advanceLandingClick();
+    // Build cracks lazily (first interaction), but safe to prime:
+    ensureCracks();
+
+    // Register clicks anywhere on the landing
+    document.addEventListener("pointerdown", registerLandingClick, { passive: true });
+
+    /* ====================== BOOT UI ====================== */
+    // If you have a launch button, allow it to also count as clicks (but not required)
+    els.launchBtn?.addEventListener("click", (e) => {
+      // treat as a landing click (honors cooldown)
+      registerLandingClick(e);
+    });
+
+    // Basic timestamp tick if you have it
+    if (els.timestamp) {
+      const tick = () => {
+        const d = new Date();
+        els.timestamp.textContent = d.toLocaleString();
+      };
+      tick();
+      setInterval(tick, 1000);
     }
 
-    window.handleLandingClick = handleLandingClick;
-    document.addEventListener("click", handleLandingClick);
-
-    /* ======================
-       LAUNCH BUTTON
-       - unlock audio
-       - enable viewer token typing
-       - show fake "launcher" status animation
-       - DOES NOT advance landing click counter
-    ====================== */
-    const viewerFake = els.viewerFake;
-    const viewerState = els.viewerState;
-    const launchBtn = els.launchBtn;
-    const launchStatus = els.launchStatus;
-
-    let launchBusy = false;
-
-    function runLaunchStatusAnim() {
-      if (!launchStatus || !launchBtn) return;
-      if (launchBusy) return;
-      launchBusy = true;
-
-      launchStatus.textContent = "requesting campaign…";
-      launchBtn.classList.add("busy");
-
-      setTimeout(() => (launchStatus.textContent = "loading creatives…"), 500);
-      setTimeout(() => (launchStatus.textContent = "waiting for view signal…"), 1100);
-
-      setTimeout(() => {
-        launchStatus.textContent = "idle";
-        launchBtn.classList.remove("busy");
-        launchBusy = false;
-        playSfx("ambience", { volume: 0.25, overlap: false });
-      }, 1800);
-    }
-
-    if (launchBtn) {
-      launchBtn.addEventListener(
-        "click",
-        (e) => {
-          // ✅ do not register as a landing click
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-
-          playSfx("mclick", { volume: 0.25, overlap: true });
-          unlockAudio();
-
-          if (viewerToken) {
-            viewerToken.disabled = false;
-            viewerToken.classList.remove("hidden");
-            viewerToken.focus();
-            try { viewerToken.select(); } catch {}
-          }
-
-          if (viewerFake) viewerFake.classList.add("hidden");
-          if (viewerState) viewerState.textContent = "active";
-
-          runLaunchStatusAnim();
-        },
-        true
-      );
-    }
-
-    // Done. Boot sequence ends here.
+    // start in landing mode
+    stage = 1;
   }
 
   boot();
