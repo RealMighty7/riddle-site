@@ -1,6 +1,6 @@
 // dialogue.js (FULL REPLACEMENT)
 // Exposes window.DIALOGUE used by main.js
-// Uses ONLY pack5 task IDs (prevents "Missing task" spam)
+// NOTE: This file assumes you load pack1..pack5.js
 
 window.DIALOGUE = {
   intro: [
@@ -8,40 +8,6 @@ window.DIALOGUE = {
     "Emma (Security): This page is under revision. Close it.",
     "You: ...",
     "Emma (Security): Don't touch anything."
-  ],
-
-  // keep choiceBeats minimal (your main.js runs these before steps)
-  choiceBeats: [
-    {
-      say: [
-        "Emma (Security): That click was logged.",
-        "Emma (Security): Tell me why you did that.",
-        "Liam (Worker): Don't answer fast.",
-        "System: INPUT CONTINUES."
-      ],
-      choices: {
-        complyLabel: "I'm sorry.",
-        lieLabel: "Oh it wasn't me.",
-        runLabel: "Run."
-      },
-      respond: {
-        comply: [
-          "Emma (Security): Fine.",
-          "Emma (Security): Hands off unless instructed.",
-          "System: PROCEDURE TRACK ACTIVE."
-        ],
-        lie: [
-          "Liam (Worker): Careful.",
-          "Liam (Worker): Lying might help get you through some parts…",
-          "Liam (Worker): Nevermind. I just work here."
-        ],
-        run: [
-          "Emma (Security): Don't!",
-          "System: TRACE REQUIRED.",
-          "Emma (Security): You're making this worse."
-        ]
-      }
-    }
   ],
 
   fillerPools: {
@@ -65,80 +31,80 @@ window.DIALOGUE = {
       "Liam (Worker): If it feels pointless, it's working."
     ],
     filler_system_pressure: [
-      "System: Retention window closing.",
+      "System: Retention window narrowing.",
       "System: Trace frequency increased.",
-      "System: Attention window narrowing.",
-      "System: Do not pause."
+      "System: Your pattern is visible.",
+      "System: Do not accelerate."
+    ],
+    filler_run: [
+      "System: TRACE REQUIRED.",
+      "Emma (Security): Stop moving.",
+      "System: Route blocked."
+    ],
+    filler_run_hard: [
+      "System: TRACE REQUIRED. (x2)",
+      "Emma (Security): You're making this worse.",
+      "System: Locking inputs."
+    ],
+    filler_security_pressure: [
+      "Emma (Security): Don't rush.",
+      "Emma (Security): You're almost out of time.",
+      "Emma (Security): Keep your hands off."
     ],
     filler_worker_pressure: [
       "Liam (Worker): Quiet hands.",
       "Liam (Worker): Small steps.",
-      "Liam (Worker): Don’t be clever.",
-      "Liam (Worker): Just pass through."
-    ],
-    filler_security_pressure: [
-      "Emma (Security): Stop testing me.",
-      "Emma (Security): Follow procedure.",
-      "Emma (Security): You're burning time.",
-      "Emma (Security): Keep moving."
-    ],
-    filler_run: [
-      "System: Running is noisy.",
-      "System: Noise attracts audits.",
-      "Emma (Security): You're leaving a trail."
-    ],
-    filler_run_hard: [
-      "System: Trace density increased.",
-      "System: You are not outrunning the log.",
-      "Emma (Security): You're not fast enough."
+      "Liam (Worker): If it feels boring, it's correct."
     ]
   },
 
-  // Enforced loop: say -> choice -> task (10 cycles)
-  steps: [
-    { say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] },
+  // One template choice used repeatedly so cadence is consistent
+  loopChoice: {
+    complyLabel: "I'm sorry.",
+    lieLabel: "Oh it wasn't me.",
+    runLabel: "Run."
+  },
 
-    { say: ["System: Give me something simple."] },
-    { choice: { complyLabel: "Okay.", lieLabel: "…sure.", runLabel: "No." } },
-    { task: "keypad_4" },
+  // Steps: dialogue -> choice -> task (repeat 10+ times)
+  steps: (function buildSteps() {
+    const cycles = 12; // >= 10, per your request
+    const out = [];
 
-    { say: ["System: Next. No mistakes."] },
-    { choice: { complyLabel: "Proceed.", lieLabel: "I already did.", runLabel: "Stop." } },
-    { task: "mirror_match" },
+    // opening
+    out.push({ say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] });
 
-    { say: ["Emma (Security): Cut the right one and don’t talk."] },
-    { choice: { complyLabel: "Understood.", lieLabel: "I know.", runLabel: "Run." } },
-    { task: "wire_cut" },
+    for (let i = 0; i < cycles; i++) {
+      // dialogue (varies a bit)
+      out.push({
+        filler: { pool: "AUTO", count: 1 }
+      });
 
-    { say: ["System: Calibrate attention. Highest value."] },
-    { choice: { complyLabel: "Fine.", lieLabel: "Whatever.", runLabel: "No." } },
-    { task: "highest_number" },
+      // choice
+      out.push({
+        say: [
+          i % 3 === 0 ? "Emma (Security): Explain that click." :
+          i % 3 === 1 ? "System: INPUT CONTINUES." :
+                        "Liam (Worker): Don't answer fast."
+        ]
+      });
 
-    { say: ["Liam (Worker): Still. Inside the box."] },
-    { choice: { complyLabel: "Okay.", lieLabel: "I am.", runLabel: "I won’t." } },
-    { task: "steady_hand" },
+      out.push({ choice: window.DIALOGUE ? window.DIALOGUE.loopChoice : {
+        complyLabel: "I'm sorry.",
+        lieLabel: "Oh it wasn't me.",
+        runLabel: "Run."
+      }});
 
-    { say: ["System: Route selection. Only one port is allowed."] },
-    { choice: { complyLabel: "Selecting.", lieLabel: "Already done.", runLabel: "Skip." } },
-    { task: "port_select" },
+      // task (ALWAYS from loaded packs 1..5)
+      out.push({
+        task: "random",
+        args: { pool: ["pack1","pack2","pack3","pack4","pack5"] }
+      });
+    }
 
-    { say: ["System: Sync. Hit zero."] },
-    { choice: { complyLabel: "Ready.", lieLabel: "I’m ready.", runLabel: "No." } },
-    { task: "click_on_zero" },
+    // tail
+    out.push({ say: ["System: …"] });
+    out.push({ filler: { pool: "AUTO", count: 1 } });
 
-    { say: ["System: Private route only."] },
-    { choice: { complyLabel: "Okay.", lieLabel: "Sure.", runLabel: "Run." } },
-    { task: "private_ip" },
-
-    { say: ["System: Checksum. Fast math."] },
-    { choice: { complyLabel: "Do it.", lieLabel: "Easy.", runLabel: "No." } },
-    { task: "sum_chunks" },
-
-    { say: ["Emma (Security): Sanitise it. Don’t leave vowels."] },
-    { choice: { complyLabel: "Copy.", lieLabel: "I know.", runLabel: "Stop." } },
-    { task: "devowel" },
-
-    // After 10 tasks, your main.js triggers the “almost done” → final modal sequence.
-    { say: ["System: …"] }
-  ]
+    return out;
+  })()
 };
