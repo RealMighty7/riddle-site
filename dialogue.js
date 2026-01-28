@@ -1,8 +1,11 @@
 // dialogue.js (FULL REPLACEMENT)
 // Exposes window.DIALOGUE used by main.js
-// NOTE: This file assumes you load pack1..pack5.js
+// Cadence requirement: dialogue -> choice -> task (repeat 10x)
+// Uses all 5 packs via { task:"random", args:{ pool:["packX"] } }.
+// (tasks.js merges pack tasks + provides fallbacks, so this won’t “missing task” loop.)
 
 window.DIALOGUE = {
+  /* ===================== INTRO ===================== */
   intro: [
     "Emma (Security): You're not supposed to be here.",
     "Emma (Security): This page is under revision. Close it.",
@@ -10,6 +13,42 @@ window.DIALOGUE = {
     "Emma (Security): Don't touch anything."
   ],
 
+  /* ===================== CHOICE BEATS ===================== */
+  // First choice locks your guidePath in main.js (emma / liam / run)
+  choiceBeats: [
+    {
+      say: [
+        "Emma (Security): That click was logged.",
+        "Emma (Security): Tell me why you did that.",
+        "Liam (Worker): Don't answer fast.",
+        "System: INPUT CONTINUES."
+      ],
+      choices: {
+        complyLabel: "I'm sorry.",
+        lieLabel: "Oh it wasn't me.",
+        runLabel: "Run."
+      },
+      respond: {
+        comply: [
+          "Emma (Security): Fine.",
+          "Emma (Security): Hands off unless instructed.",
+          "System: PROCEDURE TRACK ACTIVE."
+        ],
+        lie: [
+          "Liam (Worker): Careful.",
+          "Liam (Worker): Lying might help get you through some parts...",
+          "Liam (Worker): Nevermind. I just work here."
+        ],
+        run: [
+          "Emma (Security): Don't!",
+          "System: TRACE REQUIRED.",
+          "Emma (Security): You're making this worse."
+        ]
+      }
+    }
+  ],
+
+  /* ===================== FILLER POOLS ===================== */
   fillerPools: {
     filler_standard: [
       "System: Buffering…",
@@ -27,84 +66,110 @@ window.DIALOGUE = {
     filler_worker: [
       "Liam (Worker): Keep it boring.",
       "Liam (Worker): Boring is invisible.",
-      "Liam (Worker): Don't try to win. Try to slip.",
-      "Liam (Worker): If it feels pointless, it's working."
+      "Liam (Worker): Don't try to win. Try to slip."
     ],
     filler_system_pressure: [
-      "System: Retention window narrowing.",
+      "System: Attention window narrowing.",
       "System: Trace frequency increased.",
-      "System: Your pattern is visible.",
-      "System: Do not accelerate."
-    ],
-    filler_run: [
-      "System: TRACE REQUIRED.",
-      "Emma (Security): Stop moving.",
-      "System: Route blocked."
-    ],
-    filler_run_hard: [
-      "System: TRACE REQUIRED. (x2)",
-      "Emma (Security): You're making this worse.",
-      "System: Locking inputs."
+      "System: Retention window closing."
     ],
     filler_security_pressure: [
-      "Emma (Security): Don't rush.",
-      "Emma (Security): You're almost out of time.",
-      "Emma (Security): Keep your hands off."
+      "Emma (Security): Stop looking for shortcuts.",
+      "Emma (Security): This is where people fail.",
+      "Emma (Security): Do not hesitate."
     ],
     filler_worker_pressure: [
-      "Liam (Worker): Quiet hands.",
+      "Liam (Worker): Don't talk.",
       "Liam (Worker): Small steps.",
-      "Liam (Worker): If it feels boring, it's correct."
+      "Liam (Worker): Quiet hands."
+    ],
+    filler_run: [
+      "System: Movement detected.",
+      "System: Route conflict.",
+      "System: Do not escalate."
+    ],
+    filler_run_hard: [
+      "System: Route denied.",
+      "System: Containment tightening.",
+      "System: Reset recommended."
     ]
   },
 
-  // One template choice used repeatedly so cadence is consistent
-  loopChoice: {
-    complyLabel: "I'm sorry.",
-    lieLabel: "Oh it wasn't me.",
-    runLabel: "Run."
+  /* ===================== ALMOST DONE ===================== */
+  almostDone: {
+    say: [
+      "System: You are close.",
+      "System: Please do not celebrate early.",
+      "Emma (Security): This part is where people mess up.",
+      "Liam (Worker): Keep it boring. Keep it small."
+    ]
   },
 
-  // Steps: dialogue -> choice -> task (repeat 10+ times)
-  steps: (function buildSteps() {
-    const cycles = 12; // >= 10, per your request
-    const out = [];
+  /* ===================== MAIN STEPS ===================== */
+  steps: [
+    { say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] },
 
-    // opening
-    out.push({ say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] });
+    // ---- LOOP 1 ----
+    { say: ["System: Fragmented logs detected.", "System: Reconstruction needed."] },
+    { choice: { complyLabel: "Okay.", lieLabel: "I didn't mean to.", runLabel: "Run." } },
+    { task: "random", args: { pool: ["core", "pack1"] } },
 
-    for (let i = 0; i < cycles; i++) {
-      // dialogue (varies a bit)
-      out.push({
-        filler: { pool: "AUTO", count: 1 }
-      });
+    // ---- LOOP 2 ----
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["Emma (Security): Keep your hands visible.", "System: Procedure continues."] },
+    { choice: { complyLabel: "Fine.", lieLabel: "Sure.", runLabel: "Run." } },
+    { task: "random", args: { pool: ["pack1"] } },
 
-      // choice
-      out.push({
-        say: [
-          i % 3 === 0 ? "Emma (Security): Explain that click." :
-          i % 3 === 1 ? "System: INPUT CONTINUES." :
-                        "Liam (Worker): Don't answer fast."
-        ]
-      });
+    // ---- LOOP 3 ----
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["System: Checksum required.", "System: Do not guess quickly."] },
+    { choice: { complyLabel: "Understood.", lieLabel: "I already did.", runLabel: "Run." } },
+    { task: "checksum", args: { phrase: "echostatic07vault" } },
 
-      out.push({ choice: window.DIALOGUE ? window.DIALOGUE.loopChoice : {
-        complyLabel: "I'm sorry.",
-        lieLabel: "Oh it wasn't me.",
-        runLabel: "Run."
-      }});
+    // ---- LOOP 4 ----
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["Liam (Worker): Slow is safer.", "System: Alternate path available."] },
+    { choice: { complyLabel: "I'll wait.", lieLabel: "I know this.", runLabel: "Run." } },
+    { task: "random", args: { pool: ["pack2"] } },
 
-      // task (ALWAYS from loaded packs 1..5)
-      out.push({
-        task: "random",
-        args: { pool: ["pack1","pack2","pack3","pack4","pack5"] }
-      });
-    }
+    // ---- LOOP 5 ----
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["System: Supplemental verification.", "Emma (Security): No mistakes."] },
+    { choice: { complyLabel: "Got it.", lieLabel: "It worked.", runLabel: "Run." } },
+    { task: "random", args: { pool: ["pack2", "pack3"] } },
 
-    // tail
-    out.push({ say: ["System: …"] });
-    out.push({ filler: { pool: "AUTO", count: 1 } });
+    // ---- LOOP 6 ----
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["System: Monitoring degraded.", "System: Re-align the interface."] },
+    { choice: { complyLabel: "Okay.", lieLabel: "Already aligned.", runLabel: "Run." } },
+    { task: "random", args: { pool: ["pack3"] } },
 
-    return out;
-  })()
+    // ---- LOOP 7 ----
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["Emma (Security): You're lingering.", "System: Commit to input."] },
+    { choice: { complyLabel: "Proceed.", lieLabel: "Proceeding.", runLabel: "Run." } },
+    { task: "random", args: { pool: ["pack3", "pack4"] } },
+
+    // ---- LOOP 8 ----
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["System: Pressure rising.", "Liam (Worker): Don't make it interesting."] },
+    { choice: { complyLabel: "Okay.", lieLabel: "Okay.", runLabel: "Run." } },
+    { task: "random", args: { pool: ["pack4"] } },
+
+    // ---- LOOP 9 ----
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["System: Secondary channel open.", "System: Confirm continuity."] },
+    { choice: { complyLabel: "Confirm.", lieLabel: "Confirmed.", runLabel: "Run." } },
+    { task: "random", args: { pool: ["pack4", "pack5"] } },
+
+    // ---- LOOP 10 ----
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["System: Final pass.", "Emma (Security): Don't choke now."] },
+    { choice: { complyLabel: "…", lieLabel: "…", runLabel: "Run." } },
+    { task: "random", args: { pool: ["pack5"] } },
+
+    // small tail
+    { filler: { pool: "AUTO", count: 1 } },
+    { say: ["System: …"] }
+  ]
 };
