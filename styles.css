@@ -22,13 +22,15 @@ body{
   overflow-x:hidden;
 }
 
+.hidden{ display:none !important; }
+
 /* ===================== LANDING NOT DIMMED ===================== */
 /* Keep overlays effectively off until sim */
 #glassFX{
   position:fixed;
   inset:0;
   pointer-events:none;
-  opacity:0;                 /* <-- no dim on landing */
+  opacity:0;                 /* no dim on landing */
   background: radial-gradient(900px 600px at 50% 20%, rgba(255,255,255,.08), rgba(0,0,0,0));
   filter: blur(0px);
   z-index:2;
@@ -44,7 +46,13 @@ body{
   opacity:0;                 /* start invisible */
 }
 
-/* show cracks during landing interactions (main.js adds paths) */
+/* show cracks after first crack stage (main.js toggles crack1..4) */
+body.crack1 #cracks,
+body.crack2 #cracks,
+body.crack3 #cracks,
+body.crack4 #cracks{ opacity:1; }
+
+/* cracks stroke styling */
 #cracks .crack-path{
   fill:none;
   stroke-linecap:round;
@@ -56,9 +64,9 @@ body{
 #cracks .crack-glint{ stroke: rgba(210,235,255,.85); stroke-width: 1.3; filter: drop-shadow(0 0 10px rgba(120,170,255,.35)); }
 
 #cracks.flash{ filter: brightness(1.4) contrast(1.1); }
+#cracks.pulse{ filter: brightness(1.25) contrast(1.05); }
 
-.hidden{ display:none !important; }
-
+/* ===================== LAYOUT ===================== */
 #wrap{
   max-width: 980px;
   margin: 26px auto;
@@ -95,23 +103,14 @@ h1{
   white-space: nowrap;
 }
 
-/* input/button baseline */
-.textIn, input#viewerToken{
+/* inputs */
+input{
   padding: 10px 12px;
   border-radius: 12px;
   border:1px solid var(--line);
   background: rgba(255,255,255,.06);
   color: var(--fg);
   outline: none;
-  min-width: 220px;
-}
-
-.topRow{
-  margin-top:12px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
 }
 
 /* 1-frame “timestamp covers viewer box” glitch every second */
@@ -146,20 +145,6 @@ h1{
   display:block;
 }
 
-.btnRow{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-}
-
-.smallNote{
-  margin-top:12px;
-  opacity:.78;
-  font-size:13px;
-  line-height:1.25;
-}
-
 /* ===================== BUTTONS ===================== */
 .sim-btn{
   border:1px solid rgba(255,255,255,.14);
@@ -189,12 +174,12 @@ body.in-sim #wrap{ display:none; }
   padding: 22px 16px 180px;
   z-index: 20;
 }
-
-.simCard{
+#simRoom > .card{
   width: min(860px, 100%);
 }
 
-.simText{
+#simText.simText,
+#simText{
   margin:0;
   padding: 12px;
   min-height: 240px;
@@ -209,7 +194,7 @@ body.in-sim #wrap{ display:none; }
   white-space: pre-wrap;
 }
 
-.simChoices{
+#simChoices{
   margin-top:12px;
   display:flex;
   gap:10px;
@@ -226,15 +211,10 @@ body.in-sim #wrap{ display:none; }
   padding: 22px 16px 130px;
   z-index: 30;
 }
-.taskCard{ width: min(700px, 100%); }
-.taskDesc{ margin-top:8px; opacity:.85; }
-.taskBody{ margin-top:12px; }
-.taskActions{
-  margin-top:14px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
+#taskUI > .card{
+  width: min(700px, 100%);
 }
+
 .task-note{
   margin-top:10px;
   opacity:.85;
@@ -262,12 +242,7 @@ body.in-sim #wrap{ display:none; }
   z-index: 100;
   background: rgba(0,0,0,.55);
 }
-.resetCard{ width: min(700px, 100%); }
-.resetBody{
-  margin-top:10px;
-  white-space:pre-wrap;
-  opacity:.9;
-}
+#resetOverlay > .card{ width: min(700px, 100%); }
 
 /* ===================== FINAL OVERLAY ===================== */
 #finalOverlay{
@@ -280,8 +255,7 @@ body.in-sim #wrap{ display:none; }
   z-index: 120;
   background: rgba(0,0,0,.55);
 }
-.finalCard{ width: min(560px, 100%); }
-.errText{ margin-top:10px; color: var(--bad); }
+#finalOverlay > .card{ width: min(560px, 100%); }
 
 /* ===================== SUBTITLES (BOTTOM CENTER) ===================== */
 #subs{
@@ -378,39 +352,23 @@ body.in-sim #wrap{ display:none; }
 }
 
 /* ===================== ADMIN PANEL ===================== */
+/* main.js handles drag; this just makes the handle obvious */
 #adminPanel{
-  position: fixed; /* main.js sets to fixed too; this is fine */
+  position: fixed;
   left: 18px;
   top: 18px;
   z-index: 9999;
 }
-.adminBox{
+#adminPanel .card{
   width: 260px;
   border:1px solid rgba(255,255,255,.16);
   background: rgba(255,255,255,.08);
-  border-radius: 18px;
-  padding: 12px;
-  box-shadow: 0 10px 24px rgba(0,0,0,.30);
 }
-.adminHead{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
+#adminPanel .adminHead{
+  cursor: grab;
   user-select:none;
 }
-.adminBody{
-  margin-top:10px;
-  font-size:12px;
-  opacity:.88;
-  line-height:1.3;
-}
-.adminBtns{
-  margin-top:12px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
+#adminPanel .adminHead:active{ cursor: grabbing; }
 
 /* ===================== CRACKS DISAPPEAR INTO SIM ===================== */
 /* When sim starts, briefly glitch the cracks, then fade them out. */
@@ -420,13 +378,6 @@ body.in-sim #cracks{
 }
 body.in-sim #glassFX{
   opacity: .22; /* optional in sim only */
-}
-/* show cracks after first crack stage */
-body.crack1 #cracks,
-body.crack2 #cracks,
-body.crack3 #cracks,
-body.crack4 #cracks {
-  opacity: 1;
 }
 @keyframes cracks_into_sim{
   0%   { opacity:1; filter: none; transform: translateZ(0); }
