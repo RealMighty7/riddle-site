@@ -520,48 +520,76 @@
     };
 
     /* ====================== OUTPUT PIPE ====================== */
-async function emitLine(line) {
-  const raw = String(line || "");
-
-  // blank line pacing
-  if (!raw.trim()) {
+// Types a line into simText over `ms` (minimum feels human)
+async function typeLineIntoSim(text, ms) {
+  const s = String(text || "");
+  if (!s) {
     simText.textContent += "\n";
     simText.scrollTop = simText.scrollHeight;
-    await wait(180);
     return;
   }
 
-  const logLine = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+  const minMs = 450;
+  const total = Math.max(minMs, ms | 0);
+  const chars = [...s];
+  const per = total / Math.max(1, chars.length);
 
-  // print the line
-  simText.textContent += logLine + "\n";
-  simText.scrollTop = simText.scrollHeight;
-
-  // If VO exists for this line, WAIT for it to finish
-  if (window.AudioPlayer && typeof window.AudioPlayer.playLine === "function") {
-    const p = window.AudioPlayer.playLine(raw);
-    if (p && typeof p.then === "function") {
-      await p;                 // <-- this is the key
-      return;
-    }
+  // append typed chars onto the existing buffer
+  for (let i = 0; i < chars.length; i++) {
+    simText.textContent += chars[i];
+    simText.scrollTop = simText.scrollHeight;
+    await wait(per);
   }
-
-  // fallback when there is no matching VO id
-  await wait(msToRead(raw));
+  simText.textContent += "\n";
+  simText.scrollTop = simText.scrollHeight;
 }
 
+// Returns a good duration for the line:
+// - Prefer actual VO completion (await playLine), but we still need a duration for typing.
+// - Use VO metadata if present; else fall back to msToRead().
+function getTypingMsForLine(rawLine) {
+  // if your voices.json includes duration fields, this will use them
+  try {
+    const id = getIdFromLine(rawLine);
+    if (id && VO && VO.byId) {
+      const meta = VO.byId.get(id);
+      const d =
+        Number(meta?.duration_sec ?? meta?.durationSec ?? meta?.duration ?? 0);
+      if (Number.isFinite(d) && d > 0) return Math.floor(d * 1000);
+    }
+  } catch {}
+  return msToRead(rawLine);
+}
+
+async function emitLine(line) {
+  const raw = String(line || "");
+
+  // strip [0001] etc for what prints
+  const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+
+  // start VO, but don't let it overlap other VO (AudioPlayer chains internally)
+  const voPromise =
+    window.AudioPlayer && typeof window.AudioPlayer.playLine === "function"
+      ? window.AudioPlayer.playLine(raw)
+      : Promise.resolve();
+
+  // type over the best-known duration
+  const typingMs = getTypingMsForLine(raw);
+  await typeLineIntoSim(printed, typingMs);
+
+  // ensure VO is done before continuing to next line
+  try { await voPromise; } catch {}
+}
 
 async function playLines(lines) {
-  clearTimers(); // keep this so any older scheduled stuff is cancelled
-
+  clearTimers(); // keep this so any older scheduled stuff is killed
   for (const line of (lines || [])) {
-    // emitLine now returns a promise that matches VO length (or fallback msToRead)
     await emitLine(line);
-
-    // tiny spacer so it doesn’t feel “instant”
+    // tiny breath between lines so it doesn’t feel machine-gunned
     await wait(80);
   }
 }
+
 
     /* ====================== UI helpers ====================== */
     function wait(ms) {
