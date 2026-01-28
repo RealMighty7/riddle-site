@@ -112,5 +112,39 @@ window.DIALOGUE = {
 
     { say: ["System: …"] },
     { filler: { pool: "AUTO", count: 1 } }
-  ]
+    // --- ensure steps exists + include pack5 tasks somewhere in your flow ---
+window.DIALOGUE.steps = window.DIALOGUE.steps || [
+  { task: "keypad_4" },
+  { filler: { pool: "AUTO", count: 1 } },
+  { task: "mirror_match" },
+  { filler: { pool: "AUTO", count: 1 } },
+  { task: "wire_cut" },
+  { filler: { pool: "AUTO", count: 1 } },
+  { task: "arrow_memory" },
+  { filler: { pool: "AUTO", count: 1 } },
+  { task: "click_pressure" },
+];
+
+// optional filler pools if missing
+window.DIALOGUE.fillerPools = window.DIALOGUE.fillerPools || {
+  filler_standard: [
+    "System: Did I say to stop?",
+    "System: Keep it going.",
+    "Security: Look forward.",
+    "Worker: Don't try anything.",
+  ],
+  filler_security: [
+    "Security: Don’t improvise.",
+    "Security: Follow procedure.",
+  ],
+  filler_worker: [
+    "Worker: Small steps.",
+    "Worker: Quiet hands.",
+  ],
+  filler_system_pressure: [
+    "System: Retention window closing.",
+    "System: Trace frequency increased.",
+  ],
+};
+
 };
