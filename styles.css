@@ -703,6 +703,19 @@ body.admin #viewerToken{
     filter: drop-shadow(0 40px 80px rgba(0,0,0,0.65));
   }
 }
+/* dim the shatter overlay so it’s readable */
+#glassFX {
+  background: rgba(0,0,0,0.55);
+}
+
+/* make pieces darker + less washed out */
+.glass-piece {
+  opacity: 0.45;
+}
+
+.glass-inner {
+  filter: brightness(0.65) contrast(1.15);
+}
 
 /* =========================================================
    ADMIN DIAGNOSTIC PANEL (sim-only)
