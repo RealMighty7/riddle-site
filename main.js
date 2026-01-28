@@ -520,38 +520,102 @@
     };
 
     /* ====================== OUTPUT PIPE ====================== */
-    async function emitLine(line) {
-      const raw = String(line || "");
-      if (!raw) {
-        simText.textContent += "\n";
-        simText.scrollTop = simText.scrollHeight;
-        return;
-      }
+async function emitLine(line) {
+  const raw = String(line || "");
 
-      const logLine = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
-      simText.textContent += logLine + "\n";
-      simText.scrollTop = simText.scrollHeight;
+  // blank line pacing
+  if (!raw.trim()) {
+    simText.textContent += "\n";
+    simText.scrollTop = simText.scrollHeight;
+    await wait(180);
+    return;
+  }
 
-      if (window.AudioPlayer && typeof window.AudioPlayer.playLine === "function") {
-        await window.AudioPlayer.playLine(raw);
-      }
+  const logLine = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+
+  // print the line
+  simText.textContent += logLine + "\n";
+  simText.scrollTop = simText.scrollHeight;
+
+  // If VO exists for this line, WAIT for it to finish
+  if (window.AudioPlayer && typeof window.AudioPlayer.playLine === "function") {
+    const p = window.AudioPlayer.playLine(raw);
+    if (p && typeof p.then === "function") {
+      await p;                 // <-- this is the key
+      return;
     }
+  }
 
-    function playLines(lines) {
-      clearTimers();
-      return new Promise((resolve) => {
-        let t = 260;
+  // fallback when there is no matching VO id
+  await wait(msToRead(raw));
+}
 
-        for (const line of lines) {
-          timers.push(setTimeout(() => { emitLine(line); }, t));
-          t += msToRead(line || " ");
-        }
 
-        timers.push(setTimeout(resolve, t + 120));
-      });
-    }
+async function playLines(lines) {
+  clearTimers(); // keep this so any older scheduled stuff is cancelled
+
+  for (const line of (lines || [])) {
+    // emitLine now returns a promise that matches VO length (or fallback msToRead)
+    await emitLine(line);
+
+    // tiny spacer so it doesn’t feel “instant”
+    await wait(80);
+  }
+}
 
     /* ====================== UI helpers ====================== */
+    function wait(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+// Loads audio duration reliably (and avoids hanging).
+async function getAudioDurationSec(src, timeoutMs = 1500) {
+  return new Promise((resolve) => {
+    const a = new Audio();
+    let done = false;
+
+    const finish = (v) => {
+      if (done) return;
+      done = true;
+      try { a.src = ""; } catch {}
+      resolve(v);
+    };
+
+    const t = setTimeout(() => finish(null), timeoutMs);
+
+    a.addEventListener("loadedmetadata", () => {
+      clearTimeout(t);
+      const d = Number(a.duration);
+      finish(Number.isFinite(d) && d > 0 ? d : null);
+    }, { once: true });
+
+    a.addEventListener("error", () => {
+      clearTimeout(t);
+      finish(null);
+    }, { once: true });
+
+    a.src = src;
+    // Some browsers need this:
+    try { a.load(); } catch {}
+  });
+}
+
+// Type/reveal text so it completes in exactly durationSec.
+// Adds a small "hold" at the end so it doesn’t snap immediately.
+async function revealTextForDuration(el, text, durationSec, endHoldMs = 120) {
+  el.textContent = "";
+  const totalMs = Math.max(250, Math.floor(durationSec * 1000) - endHoldMs);
+  const chars = [...String(text)];
+  const n = Math.max(1, chars.length);
+  const per = totalMs / n;
+
+  for (let i = 0; i < n; i++) {
+    el.textContent += chars[i];
+    await wait(per);
+  }
+  await wait(endHoldMs);
+}
+
     els.taskActions?.classList.add("hidden");
 
     function showChoices(labels) {
