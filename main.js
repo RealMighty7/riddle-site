@@ -512,8 +512,12 @@
         const id = getIdFromLine(rawLine);
         if (!id) return Promise.resolve();
 
+        // Severely reduce Liam (Worker)
+        const isWorker = /^\s*(Liam\s*\(Worker\)|Worker:)/i.test(String(rawLine));
+        const vol = isWorker ? 0.22 : 1.0;
+
         this._audioChain = this._audioChain
-          .then(() => VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false }))
+          .then(() => VO.playById(id, { volume: vol, baseHoldMs: 160, stopPrevious: false }))
           .catch(() => {});
         return this._audioChain;
       },
@@ -984,6 +988,24 @@ Reinitializing simulation…`
       for (const step of steps) {
         if (step.say) {
           await playLines(step.say);
+          continue;
+        }
+        if (step.choice) {
+          showChoices(step.choice);
+          const choice = await waitForChoice();
+
+          if (choice === "comply") {
+            if (!recordChoice(true)) return;
+            resistanceScore = Math.max(0, resistanceScore - 1);
+          } else if (choice === "lie") {
+            if (!recordChoice(true)) return;
+            resistanceScore = Math.min(12, resistanceScore + 0);
+          } else {
+            if (!recordChoice(false)) return;
+            resistanceScore = Math.min(12, resistanceScore + 2);
+          }
+
+          hideChoices();
           continue;
         }
 
