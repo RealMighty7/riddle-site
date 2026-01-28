@@ -6,7 +6,7 @@
   <title>index</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-  <link rel="stylesheet" href="/styles.css?v=41" />
+  <link rel="stylesheet" href="/styles.css?v=42" />
 </head>
 
 <body>
@@ -25,15 +25,13 @@
         If you believe you’ve reached this page in error, you may close it at any time.
       </p>
 
-      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-        <input id="viewerToken" placeholder="viewer token" autocomplete="off" spellcheck="false"
-               style="flex:1; min-width:220px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:rgba(232,237,247,.9);" />
+      <div class="topRow">
+        <input id="viewerToken" placeholder="viewer token" autocomplete="off" spellcheck="false" />
         <div class="pill" id="timestamp">timestamp: —</div>
         <div class="pill" id="build">build: revision</div>
       </div>
     </header>
 
-    <!-- ====== FAKE "AD LAUNCHER" UI ====== -->
     <section class="grid card" aria-label="media">
       <img class="adImg" alt="">
       <img class="adImg" alt="">
@@ -44,16 +42,16 @@
     </section>
 
     <section class="card" aria-label="controls">
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <div class="btnRow">
         <button class="sim-btn" id="launchBtn">launch campaign</button>
         <div class="pill" id="launchStatus">Notice: this endpoint is not intended for external access.</div>
       </div>
 
-      <div style="margin-top:12px; opacity:.8; font-size:13px; line-height:1.25;">
+      <div class="smallNote">
         functionality may be incomplete. do not rely on output. if something looks wrong, report it.
       </div>
 
-      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="btnRow">
         <button class="sim-btn" disabled>report issue</button>
         <button class="sim-btn" disabled>billing</button>
         <button class="sim-btn" disabled>assets</button>
@@ -70,11 +68,11 @@
 
   <!-- ====== SIM ROOM ====== -->
   <section id="simRoom" class="hidden" aria-hidden="true">
-    <div class="card">
+    <div class="card simCard">
       <div class="pill" style="margin-bottom:10px;">simulation</div>
       <pre id="simText" class="simText" aria-live="polite"></pre>
 
-      <div id="simChoices" class="hidden" style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+      <div id="simChoices" class="hidden simChoices">
         <button class="sim-btn" id="choiceNeed">…</button>
         <button class="sim-btn" id="choiceLie">…</button>
         <button class="sim-btn" id="choiceRun">…</button>
@@ -84,13 +82,12 @@
 
   <!-- ====== TASK UI ====== -->
   <section id="taskUI" class="hidden" aria-hidden="true">
-    <div class="card">
+    <div class="card taskCard">
       <div class="pill" id="taskTitle">TASK</div>
-      <div style="margin-top:8px; opacity:.85;" id="taskDesc">—</div>
+      <div class="taskDesc" id="taskDesc">—</div>
+      <div id="taskBody" class="taskBody"></div>
 
-      <div id="taskBody" style="margin-top:12px;"></div>
-
-      <div id="taskActions" style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+      <div id="taskActions" class="taskActions">
         <button class="sim-btn" id="taskPrimary">continue</button>
         <button class="sim-btn hidden" id="taskSecondary">secondary</button>
       </div>
@@ -99,28 +96,26 @@
 
   <!-- ====== RESET OVERLAY ====== -->
   <section id="resetOverlay" class="hidden" aria-hidden="true">
-    <div class="card">
+    <div class="card resetCard">
       <div class="pill" id="resetTitle">RESET</div>
-      <pre id="resetBody" style="margin-top:10px; white-space:pre-wrap; opacity:.9;"></pre>
+      <pre id="resetBody" class="resetBody"></pre>
     </div>
   </section>
 
   <!-- ====== FINAL MODAL ====== -->
   <section id="finalOverlay" class="hidden" aria-hidden="true">
-    <div class="card" style="max-width:560px; margin:0 auto;">
+    <div class="card finalCard">
       <div class="pill">verification</div>
-      <p style="margin-top:10px; opacity:.85;">
+      <p class="smallNote" style="margin-top:10px;">
         Notice: this endpoint is not intended for external access.<br>
         Functionality may be incomplete.
       </p>
 
-      <input id="finalDiscord" placeholder="discord username" autocomplete="off" spellcheck="false"
-             style="width:100%; margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:rgba(232,237,247,.9);" />
-
+      <input id="finalDiscord" placeholder="discord username" autocomplete="off" spellcheck="false" class="textIn" />
       <div id="turnstileBox" style="margin-top:12px;"></div>
-      <div id="finalErr" style="margin-top:10px; color:rgba(255,190,190,.95);"></div>
+      <div id="finalErr" class="errText"></div>
 
-      <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="taskActions" style="margin-top:14px;">
         <button class="sim-btn" id="finalCancel">cancel</button>
         <button class="sim-btn" id="finalVerify">verify</button>
       </div>
@@ -154,26 +149,26 @@
     </div>
   </section>
 
-  <!-- ====== OPTIONAL ADMIN PANEL ====== -->
+  <!-- ====== ADMIN PANEL (draggable via main.js handle: .adminHead) ====== -->
   <section id="adminPanel" class="hidden" aria-hidden="true">
-    <div class="card" style="position:fixed; left:18px; top:18px; width:260px; z-index:9999;">
-      <div class="adminHead" style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+    <div class="adminBox">
+      <div class="adminHead">
         <div class="pill">admin</div>
         <button class="sim-btn" id="adminToggle">hide</button>
       </div>
 
-      <div style="margin-top:10px; font-size:12px; opacity:.85;">
+      <div class="adminBody">
         task: <span id="adminTask">—</span><br>
         hint: <span id="adminAnswer">—</span>
       </div>
 
-      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="adminBtns">
         <button class="sim-btn" id="adminSkip">skip</button>
       </div>
     </div>
   </section>
 
-  <!-- OPTIONAL IDS main.js treats as "safe if missing" -->
+  <!-- OPTIONAL placeholders (safe) -->
   <div id="viewerFake" class="hidden"></div>
   <div id="viewerState" class="hidden"></div>
 
@@ -181,23 +176,26 @@
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
   <!-- Load order matters -->
-  <script src="/dialogue.js?v=41"></script>
-  <script src="/tasks.js?v=41"></script>
-  <script src="/packs/pack1.js?v=41"></script>
-  <script src="/packs/pack2.js?v=41"></script>
-  <script src="/packs/pack3.js?v=41"></script>
-  <script src="/packs/pack4.js?v=41"></script>
-  <script src="/packs/pack5.js?v=41"></script>
+  <script src="/dialogue.js?v=42"></script>
+  <script src="/tasks.js?v=42"></script>
 
-  <script src="/audio_player.js?v=41"></script>
-  <script src="/main.js?v=41"></script>
+  <script src="/packs/pack1.js?v=42"></script>
+  <script src="/packs/pack2.js?v=42"></script>
+  <script src="/packs/pack3.js?v=42"></script>
+  <script src="/packs/pack4.js?v=42"></script>
+  <script src="/packs/pack5.js?v=42"></script>
 
+  <script src="/audio_player.js?v=42"></script>
+  <script src="/main.js?v=42"></script>
+
+  <!-- timestamp updater -->
   <script>
     (function () {
       const el = document.getElementById("timestamp");
       if (!el) return;
       function tick() {
-        el.textContent = "timestamp: " + new Date().toLocaleString();
+        const d = new Date();
+        el.textContent = "timestamp: " + d.toLocaleString();
       }
       tick();
       setInterval(tick, 1000);
