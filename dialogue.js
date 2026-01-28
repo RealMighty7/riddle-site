@@ -1,6 +1,5 @@
 // dialogue.js (FULL REPLACEMENT)
 // Exposes window.DIALOGUE used by main.js
-// IMPORTANT: only references pools you actually load (pack1..pack4)
 
 window.DIALOGUE = {
   intro: [
@@ -62,13 +61,30 @@ window.DIALOGUE = {
       "Liam (Worker): Boring is invisible.",
       "Liam (Worker): Don't try to win. Try to slip.",
       "Liam (Worker): If it feels pointless, it's working."
+    ],
+
+    // Optional pressure pools (safe if unused)
+    filler_system_pressure: [
+      "System: Retention window closing.",
+      "System: Trace frequency increased.",
+      "System: Mirror writes are permanent."
+    ],
+    filler_worker_pressure: [
+      "Liam (Worker): Small steps.",
+      "Liam (Worker): Quiet hands.",
+      "Liam (Worker): Don't overcorrect."
+    ],
+    filler_security_pressure: [
+      "Emma (Security): One more mistake.",
+      "Emma (Security): You're being watched.",
+      "Emma (Security): Stop testing the edges."
     ]
   },
 
   steps: [
     { say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] },
 
-    // EARLY: gentle
+    // EARLY: gentle (uses your existing random task system, if present)
     { task: "random", args: { pool: ["core"] } },
     { filler: { pool: "AUTO", count: 1 } },
 
@@ -102,50 +118,22 @@ window.DIALOGUE = {
 
     // LATE: pressure
     { filler: { pool: "AUTO", count: 1 } },
-    {
-      say: [
-        "System: Attention window narrowing.",
-        "Emma (Security): You’re almost out of time."
-      ]
-    },
+    { say: ["System: Attention window narrowing.", "Emma (Security): You’re almost out of time."] },
     { task: "random", args: { pool: ["pack4"] } },
+
+    // --- PACK 5 INSERT (direct task ids you pasted) ---
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "keypad_4" },
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "wire_cut" },
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "mirror_match" },
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "arrow_memory" },
+    { filler: { pool: "AUTO", count: 1 } },
+    { task: "click_pressure" },
 
     { say: ["System: …"] },
     { filler: { pool: "AUTO", count: 1 } }
-    ]
-    // --- ensure steps exists + include pack5 tasks somewhere in your flow ---
-window.DIALOGUE.steps = window.DIALOGUE.steps || [
-  { task: "keypad_4" },
-  { filler: { pool: "AUTO", count: 1 } },
-  { task: "mirror_match" },
-  { filler: { pool: "AUTO", count: 1 } },
-  { task: "wire_cut" },
-  { filler: { pool: "AUTO", count: 1 } },
-  { task: "arrow_memory" },
-  { filler: { pool: "AUTO", count: 1 } },
-  { task: "click_pressure" },
-];
-
-// optional filler pools if missing
-window.DIALOGUE.fillerPools = window.DIALOGUE.fillerPools || {
-  filler_standard: [
-    "System: Did I say to stop?",
-    "System: Keep it going.",
-    "Security: Look forward.",
-    "Worker: Don't try anything.",
-  ],
-  filler_security: [
-    "Security: Don’t improvise.",
-    "Security: Follow procedure.",
-  ],
-  filler_worker: [
-    "Worker: Small steps.",
-    "Worker: Quiet hands.",
-  ],
-  filler_system_pressure: [
-    "System: Retention window closing.",
-    "System: Trace frequency increased.",
-  ],
-};
-
+  ]
 };
