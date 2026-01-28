@@ -6,8 +6,6 @@
   <title>index</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-
-  <!-- bump versions to bust cache -->
   <link rel="stylesheet" href="/styles.css?v=41" />
 </head>
 
@@ -15,7 +13,7 @@
   <!-- ====== GLASS LAYER ====== -->
   <div id="glassFX" aria-hidden="true"></div>
 
-  <!-- ====== CRACKS LAYER (SVG is built by main.js) ====== -->
+  <!-- ====== CRACKS LAYER ====== -->
   <svg id="cracks" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
 
   <main id="wrap">
@@ -27,7 +25,6 @@
         If you believe you’ve reached this page in error, you may close it at any time.
       </p>
 
-      <!-- optional admin token input (safe if unused) -->
       <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
         <input id="viewerToken" placeholder="viewer token" autocomplete="off" spellcheck="false"
                style="flex:1; min-width:220px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:rgba(232,237,247,.9);" />
@@ -36,7 +33,7 @@
       </div>
     </header>
 
-    <!-- ====== FAKE "AD LAUNCHER" UI (mostly empty) ====== -->
+    <!-- ====== FAKE "AD LAUNCHER" UI ====== -->
     <section class="grid card" aria-label="media">
       <img class="adImg" alt="">
       <img class="adImg" alt="">
@@ -65,7 +62,7 @@
     </section>
   </main>
 
-  <!-- ====== SUBTITLES (used by audio layer) ====== -->
+  <!-- ====== SUBTITLES ====== -->
   <section id="subs" class="hidden" aria-hidden="true">
     <div id="subsName"></div>
     <div id="subsText"></div>
@@ -108,7 +105,7 @@
     </div>
   </section>
 
-  <!-- ====== FINAL MODAL (discord + turnstile) ====== -->
+  <!-- ====== FINAL MODAL ====== -->
   <section id="finalOverlay" class="hidden" aria-hidden="true">
     <div class="card" style="max-width:560px; margin:0 auto;">
       <div class="pill">verification</div>
@@ -157,7 +154,7 @@
     </div>
   </section>
 
-  <!-- ====== OPTIONAL ADMIN PANEL (hidden until unlocked) ====== -->
+  <!-- ====== OPTIONAL ADMIN PANEL ====== -->
   <section id="adminPanel" class="hidden" aria-hidden="true">
     <div class="card" style="position:fixed; left:18px; top:18px; width:260px; z-index:9999;">
       <div class="adminHead" style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
@@ -173,20 +170,12 @@
       <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
         <button class="sim-btn" id="adminSkip">skip</button>
       </div>
-
-      <!-- optional, but required IDs in main.js list -->
-      <div class="hidden" id="adminAnswer"></div>
     </div>
   </section>
 
-  <!-- ====== OPTIONAL/SAFE PLACEHOLDER IDS (required by main.js list) ====== -->
+  <!-- OPTIONAL IDS main.js treats as "safe if missing" -->
   <div id="viewerFake" class="hidden"></div>
   <div id="viewerState" class="hidden"></div>
-
-  <!-- required by main.js list but not shown in UI -->
-  <div id="choiceNeed" class="hidden"></div>
-  <div id="choiceLie" class="hidden"></div>
-  <div id="choiceRun" class="hidden"></div>
 
   <!-- Cloudflare Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -200,21 +189,15 @@
   <script src="/packs/pack4.js?v=41"></script>
   <script src="/packs/pack5.js?v=41"></script>
 
-  <!-- voice layer (your file) -->
   <script src="/audio_player.js?v=41"></script>
-
-  <!-- main -->
   <script src="/main.js?v=41"></script>
 
-  <!-- tiny timestamp updater -->
   <script>
     (function () {
       const el = document.getElementById("timestamp");
       if (!el) return;
       function tick() {
-        const d = new Date();
-        const t = d.toLocaleString();
-        el.textContent = "timestamp: " + t;
+        el.textContent = "timestamp: " + new Date().toLocaleString();
       }
       tick();
       setInterval(tick, 1000);
