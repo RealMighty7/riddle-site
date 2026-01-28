@@ -4,33 +4,32 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>escaped</title>
-  <link rel="stylesheet" href="/styles.css?v=100" />
+  <link rel="stylesheet" href="/styles.css?v=101" />
 </head>
 <body>
   <main id="wrap">
-    <section class="card" style="margin-top:24px">
+    <section class="card" style="margin-top:24px; padding:16px">
       <h1>You escaped.</h1>
       <p id="msg" style="margin-top:8px"></p>
       <p style="margin-top:12px; opacity:.85">
         Save this code. You won’t see it again.
       </p>
 
-      <div id="codeBox" style="
+      <div id="codeBox" class="escapeCode" style="
         margin-top:14px;
         padding:14px 16px;
         border-radius:12px;
-        border:1px solid #e5e7eb;
+        border:1px solid rgba(0,0,0,0.14);
         background:#fff;
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
         font-size: 22px;
         letter-spacing: .14em;
         display:inline-block;
       ">----------</div>
-      <div id="codeBox" class="escapeCode">----------</div>
 
       <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap">
         <button id="copy" style="
-          border:1px solid #e5e7eb;
+          border:1px solid rgba(0,0,0,0.14);
           background:#fff;
           padding:10px 14px;
           border-radius:10px;
@@ -39,7 +38,7 @@
 
         <a href="/" style="
           display:inline-block;
-          border:1px solid #e5e7eb;
+          border:1px solid rgba(0,0,0,0.14);
           background:#fff;
           padding:10px 14px;
           border-radius:10px;
