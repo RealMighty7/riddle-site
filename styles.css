@@ -421,6 +421,13 @@ body.in-sim #cracks{
 body.in-sim #glassFX{
   opacity: .22; /* optional in sim only */
 }
+/* show cracks after first crack stage */
+body.crack1 #cracks,
+body.crack2 #cracks,
+body.crack3 #cracks,
+body.crack4 #cracks {
+  opacity: 1;
+}
 @keyframes cracks_into_sim{
   0%   { opacity:1; filter: none; transform: translateZ(0); }
   30%  { opacity:1; filter: brightness(1.6) contrast(1.2) blur(.6px); }
