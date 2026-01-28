@@ -94,7 +94,7 @@ body:not(.in-sim) button:disabled,
 body:not(.in-sim) .btn.is-disabled,
 body:not(.in-sim) .launch:disabled{
   opacity: 0.60;
-  filter: grayscale(0.15);
+  filter: grayscale(0.9);
   cursor: not-allowed;
 }
 
