@@ -1,1406 +1,429 @@
-/* styles.css (FULL REPLACEMENT)
-   - landing is white + “under construction”
-   - sim is dark
-   - cracks: 4-stage panes + lines
-   - shatter: falling glass pieces with duplicated/cloned wrap
-   - removes subtitle bar visually (but keeps nodes safe for JS/VO)
-*/
+/* styles.css (FULL REPLACEMENT) */
 
-/* =========================================================
-   THEME TOKENS
-   ========================================================= */
 :root{
-  --bg0:#05070c;
-  --bg1:#070b14;
-
-  --card: rgba(255,255,255,0.06);
-  --stroke: rgba(255,255,255,0.14);
-
-  --text: rgba(235,238,245,0.92);
-  --muted: rgba(235,238,245,0.68);
-
-  --shadow: 0 18px 60px rgba(0,0,0,0.55);
-  --radius: 16px;
-
-  --ring: rgba(140,190,255,0.35);
-  --ring2: rgba(140,190,255,0.18);
-  --danger: rgba(255,190,190,.95);
-  --ok: rgba(232,237,247,0.92);
+  --bg: #07090d;
+  --fg: rgba(232,237,247,.92);
+  --muted: rgba(232,237,247,.70);
+  --line: rgba(255,255,255,.14);
+  --panel: rgba(255,255,255,.06);
+  --panel2: rgba(0,0,0,.22);
+  --bad: rgba(255,190,190,.95);
+  --ok: rgba(200,255,220,.90);
+  --pill: rgba(255,255,255,.08);
 }
 
-/* =========================================================
-   BASE
-   ========================================================= */
-*{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+*{ box-sizing:border-box; }
 html,body{ height:100%; }
 body{
   margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  background: radial-gradient(1200px 700px at 50% 0%, #0d1120 0%, var(--bg) 55%, #05060a 100%);
+  color: var(--fg);
+  overflow-x:hidden;
 }
 
-/* Utility */
-.hidden{ display:none !important; }
-
-/* =========================================================
-   LANDING (WHITE, BASIC, UNDER-CONSTRUCTION)
-   ========================================================= */
-body:not(.in-sim){
-  background:#ffffff;
-  color: rgba(12,14,18,0.92);
-}
-
-/* Make landing feel less “polished” */
-body:not(.in-sim) .panel,
-body:not(.in-sim) .card{
-  background: #ffffff;
-  border: 1px solid rgba(0,0,0,0.14);
-  box-shadow: none;
-  border-radius: 10px;
-  backdrop-filter: none;
-}
-
-body:not(.in-sim) .muted,
-body:not(.in-sim) .hint,
-body:not(.in-sim) .subtle,
-body:not(.in-sim) .sub{
-  color: rgba(12,14,18,0.62);
-}
-
-body:not(.in-sim) .title,
-body:not(.in-sim) .label{
-  color: rgba(12,14,18,0.92);
-}
-
-body:not(.in-sim) button,
-body:not(.in-sim) .btn,
-body:not(.in-sim) .launch,
-body:not(.in-sim) .sim-btn{
-  background: rgba(25, 35, 55, 0.05);
-  border: 1px solid rgba(25, 35, 55, 0.20);
-  color: rgba(12,14,18,0.88);
-  box-shadow: none;
-}
-
-body:not(.in-sim) button:hover,
-body:not(.in-sim) .btn:hover,
-body:not(.in-sim) .launch:hover,
-body:not(.in-sim) .sim-btn:hover{
-  background: rgba(25, 35, 55, 0.09);
-  border-color: rgba(25, 35, 55, 0.28);
-  transform: none;
-}
-
-body:not(.in-sim) button:disabled,
-body:not(.in-sim) .btn.is-disabled,
-body:not(.in-sim) .launch:disabled{
-  opacity: 0.60;
-  filter: grayscale(0.9);
-  cursor: not-allowed;
-}
-
-/* Landing boxes */
-body:not(.in-sim) .systemLog,
-body:not(.in-sim) .viewerBox,
-body:not(.in-sim) .kv{
-  background: rgba(0,0,0,0.03);
-  border: 1px solid rgba(0,0,0,0.10);
-  color: rgba(12,14,18,0.86);
-}
-
-/* subtle scanline feel (landing only, very light) */
-@keyframes scanShift{
-  0%{ transform: translateY(-10%); opacity: .08; }
-  50%{ opacity: .12; }
-  100%{ transform: translateY(10%); opacity: .08; }
-}
-body:not(.in-sim) #wrap::after{
-  content:"";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.04), transparent);
-  opacity: 0.10;
-  animation: scanShift 9.5s ease-in-out infinite;
-}
-
-/* =========================================================
-   SIM (DARK)
-   ========================================================= */
-body.in-sim{
-  background:
-    radial-gradient(1200px 800px at 50% 20%, rgba(42,72,150,0.22), transparent 55%),
-    radial-gradient(900px 700px at 20% 80%, rgba(42,72,150,0.14), transparent 60%),
-    linear-gradient(180deg, #070b14, #05070c);
-  color: var(--text);
-}
-
-body.in-sim .card{
-  background: var(--card);
-  border: 1px solid var(--stroke);
-  box-shadow: var(--shadow);
-  border-radius: var(--radius);
-  backdrop-filter: blur(10px);
-}
-
-/* Hide landing app completely once transition begins */
-.wrap-hidden{
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transform: translateY(-6px) scale(0.995);
-}
-
-/* During transition, prevent layout gaps */
-body.sim-transition #wrap,
-body.in-sim #wrap{
-  display: none !important;
-}
-
-/* =========================================================
-   COMMON: pills + text helpers
-   ========================================================= */
-.pill{
-  display:inline-flex;
-  align-items:center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.18);
-  color: rgba(235,238,245,0.78);
-  font-size: 12px;
-  letter-spacing: .02em;
-}
-.pill.small{ padding: 6px 8px; font-size: 11px; }
-.pill.ghost{ background: transparent; opacity: .85; }
-
-.muted{ color: var(--muted); }
-.fine{ font-size: 12px; line-height: 1.45; opacity: .82; }
-
-/* Focus ring */
-.sim-btn:focus-visible,
-#taskBody input:focus-visible,
-.modal input:focus-visible,
-.viewerInput:focus-visible{
-  box-shadow: 0 0 0 3px var(--ring2), 0 0 0 1px var(--ring);
-  border-color: rgba(140,190,255,0.28);
-  outline: none;
-}
-
-/* =========================================================
-   BASIC ELEMENT WRAP (LANDING)
-   ========================================================= */
-#wrap{
-  width:min(980px, calc(100% - 40px));
-  margin:42px auto 80px;
-  position:relative;
-  z-index: 2;
-}
-
-/* Side ads */
-.sideAds{
-  position: fixed;
-  top: 80px;
-  bottom: 80px;
-  width: 190px;
-  display:flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 12px;
-  pointer-events: none;
-  opacity: .92;
-  z-index: 1;
-}
-.sideAds.left{ left: 14px; }
-.sideAds.right{ right: 14px; }
-
-.adImg{
-  width: 100%;
-  height: 160px;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.08);
-  background: rgba(0,0,0,0.10);
-  object-fit: cover;
-  filter: saturate(0.95) contrast(1.02);
-  box-shadow: none;
-}
-@media (max-width: 1100px){
-  .sideAds{ display:none; }
-}
-
-/* Landing panel */
-.panel{
-  background: var(--card);
-  border: 1px solid var(--stroke);
-  border-radius: 10px;
-  box-shadow: none;
-  padding: 18px;
-  position: relative;
-  overflow: hidden;
-}
-.panel::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  background:
-    radial-gradient(900px 320px at 15% 0%, rgba(0,0,0,0.04), transparent 55%),
-    radial-gradient(700px 280px at 85% 0%, rgba(0,0,0,0.03), transparent 55%);
-  pointer-events:none;
-  opacity: .8;
-}
-
-.topBar{
-  display:flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-  position: relative;
-  z-index: 2;
-}
-
-.brand{ display:flex; align-items: center; gap: 12px; }
-.mark{
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight: 800;
-  letter-spacing: .10em;
-  background: rgba(25,35,55,0.06);
-  border: 1px solid rgba(25,35,55,0.12);
-}
-.title{ font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
-.sub{ font-size: 12px; opacity: .85; }
-
-.meta{ display:flex; gap: 10px; align-items:center; flex-wrap: wrap; }
-
-.grid2{
-  display:grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
-  gap: 14px;
-  position: relative;
-  z-index: 2;
-}
-@media (max-width: 980px){
-  .grid2{ grid-template-columns: 1fr; }
-}
-
-.card.big{ padding: 18px; min-height: 240px; }
-.card:not(.big){ padding: 16px; }
-
-.row{
-  display:flex;
-  justify-content: space-between;
-  align-items:center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.label{ font-weight: 700; letter-spacing: .02em; }
-
-.warn{ color: rgba(170,40,40,.92); font-weight: 600; }
-
-/* Launcher button */
-.launcher{
-  margin-top: 14px;
-  display:flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.launch{
-  appearance:none;
-  border: 1px solid rgba(0,0,0,0.16);
-  background: rgba(0,0,0,0.03);
-  color: rgba(12,14,18,0.92);
-  padding: 12px 14px;
-  border-radius: 10px;
-  cursor:pointer;
-  font-weight: 800;
-  letter-spacing: .08em;
-  transition: background 140ms ease, border-color 140ms ease;
-}
-.launch.busy{ opacity: .85; cursor: progress; }
-
-.hintline{
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  font-size: 12px;
-  color: rgba(12,14,18,0.68);
-}
-.hintline .dot{
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(0,0,0,0.28);
-  opacity: .65;
-}
-
-.miniRow{
-  display:grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: 10px;
-  margin-top: 14px;
-}
-@media (max-width: 640px){
-  .miniRow{ grid-template-columns: 1fr; }
-}
-.kv{
-  border: 1px solid rgba(0,0,0,0.12);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: rgba(0,0,0,0.03);
-}
-.kv .k{
-  font-size: 11px;
-  opacity: .75;
-  letter-spacing: .10em;
-  text-transform: uppercase;
-}
-.kv .v{ margin-top: 6px; font-weight: 700; }
-
-.queue{ display:flex; flex-direction: column; gap: 8px; font-size: 13px; }
-.qitem{ display:flex; gap: 10px; align-items:center; opacity: .9; }
-.qitem .qdot{
-  width: 8px; height: 8px; border-radius: 999px;
-  background: rgba(0,0,0,0.22);
-  opacity: .65;
-}
-.qitem.missing{ opacity: .65; }
-
-.divider{
-  height: 1px;
-  background: rgba(0,0,0,0.08);
-  border-radius: 999px;
-  margin: 12px 0;
-  opacity: .9;
-}
-
-.systemLog{
-  margin-top: 10px;
-  padding: 12px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.12);
-  background: rgba(0,0,0,0.03);
-  color: rgba(12,14,18,0.82);
-  min-height: 74px;
-  display:flex;
-  align-items:center;
-  gap: 10px;
-}
-.systemLog::before{
-  content:"";
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(0,0,0,0.22);
-  opacity: 0.65;
-}
-
-.viewerBox{
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.12);
-  background: rgba(0,0,0,0.03);
-}
-.fakeInput{
-  display:flex;
-  justify-content: space-between;
-  align-items:center;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.12);
-  background: rgba(0,0,0,0.03);
-}
-.cursor{ opacity: .65; }
-
-.footer{
-  margin-top: 14px;
-  display:flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  position: relative;
-  z-index: 2;
-}
-
-/* Viewer input styling */
-.viewerInput{
-  width: 100%;
-  margin-top: 10px;
-  padding: 12px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.14);
-  background: rgba(0,0,0,0.03);
-  color: rgba(12,14,18,0.92);
-  font: 600 14px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  letter-spacing: .2px;
-  outline: none;
-}
-.viewerInput:disabled{ opacity: .55; cursor: not-allowed; }
-
-#viewerToken:not(:disabled){
-  opacity: 1;
-  box-shadow: 0 0 0 2px rgba(120,160,255,0.18);
-}
-
-/* =========================================================
-   ADMIN-ONLY VISIBILITY (landing hidden card)
-   ========================================================= */
-.adminOnly{
-  display:none !important;
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-}
-body.admin .adminOnly{
-  display:block !important;
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
-}
-body.admin #viewerToken{
-  border-color: rgba(140,190,255,0.28);
-  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
-}
-
-/* =========================================================
-   FX OVERLAY STACKS
-   ========================================================= */
-#cracks,
+/* ===================== LANDING NOT DIMMED ===================== */
+/* Keep overlays effectively off until sim */
 #glassFX{
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-/* clickable anchors (if you use them) */
-.anchor,
-.anchorDot,
-[data-anchor]{
-  pointer-events: auto;
-}
-
-/* =========================================================
-   CRACK SHARDS + STAGED LINES
-   ========================================================= */
-#cracks::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: rgba(0,0,0,0.06);
-  opacity: 1;
-}
-
-/* panes */
-#cracks .pane{
-  position:absolute;
-  inset:0;
-  opacity: 0;
-  will-change: opacity, transform, filter;
-  transform: translate(var(--dx, 0px), var(--dy, 0px));
-}
-
-#cracks[data-stage="1"] .pane[data-rank="1"]{ opacity: var(--paneOpacity, 0.14); }
-#cracks[data-stage="2"] .pane[data-rank="1"],
-#cracks[data-stage="2"] .pane[data-rank="2"]{ opacity: var(--paneOpacity, 0.24); }
-#cracks[data-stage="3"] .pane[data-rank="1"],
-#cracks[data-stage="3"] .pane[data-rank="2"],
-#cracks[data-stage="3"] .pane[data-rank="3"]{ opacity: var(--paneOpacity, 0.34); }
-#cracks[data-stage="4"] .pane{ opacity: var(--paneOpacity, 0.44); }
-
-#cracks .pane::before{
-  content:"";
-  position:absolute;
-  inset:-22px;
-  transform: translate(calc(0px - var(--dx, 0px)), calc(0px - var(--dy, 0px)));
-  backdrop-filter: blur(1.2px) saturate(1.35) contrast(1.22) brightness(1.04);
-  -webkit-backdrop-filter: blur(1.2px) saturate(1.35) contrast(1.22) brightness(1.04);
-  background: rgba(255,255,255,0.00);
-  border: 1px solid rgba(255,255,255,0.06);
-  box-shadow:
-    inset 0 0 0 1px rgba(0,0,0,0.20),
-    inset 0 0 24px rgba(0,0,0,0.20),
-    inset 0 0 40px rgba(255,255,255,0.06);
-  opacity: 0.95;
-  border-radius: 14px;
-}
-
-#cracks .pane::after{
-  content:"";
-  position:absolute;
+  position:fixed;
   inset:0;
   pointer-events:none;
-  background:
-    linear-gradient(135deg,
-      rgba(255,255,255,0.10),
-      rgba(255,255,255,0.00) 35%,
-      rgba(255,255,255,0.06) 65%,
-      rgba(255,255,255,0.00)
-    );
-  opacity: 0.22;
-  filter: blur(0.8px);
-  mix-blend-mode: screen;
+  opacity:0;                 /* <-- no dim on landing */
+  background: radial-gradient(900px 600px at 50% 20%, rgba(255,255,255,.08), rgba(0,0,0,0));
+  filter: blur(0px);
+  z-index:2;
 }
-#cracks .pane.glint::after{ opacity: 0.35; }
-#cracks.flash .pane::after{ opacity: 0.55; }
 
-/* staged crack lines */
-#cracks .seg{ opacity: 0; transition: opacity 160ms ease; }
-#cracks[data-stage="1"] .seg[data-rank="1"]{ opacity: 1; }
-#cracks[data-stage="2"] .seg[data-rank="1"],
-#cracks[data-stage="2"] .seg[data-rank="2"]{ opacity: 1; }
-#cracks[data-stage="3"] .seg[data-rank="1"],
-#cracks[data-stage="3"] .seg[data-rank="2"],
-#cracks[data-stage="3"] .seg[data-rank="3"]{ opacity: 1; }
-#cracks[data-stage="4"] .seg{ opacity: 1; }
-
-#cracks svg{
-  position:absolute;
+#cracks{
+  position:fixed;
   inset:0;
   width:100%;
   height:100%;
-  opacity: 1;
-}
-#cracks .crack-path{ fill:none; stroke-linecap: round; stroke-linejoin: round; }
-#cracks .crack-under{
-  stroke: rgba(0,0,0,0.65);
-  stroke-width: 3.6;
-  opacity: 0.55;
-  filter: blur(0.6px);
-}
-#cracks .crack-line{
-  stroke: rgba(240,245,255,0.72);
-  stroke-width: 1.15;
-  opacity: 0.92;
-  filter:
-    drop-shadow(0 0 10px rgba(120,180,255,0.20))
-    drop-shadow(0 0 2px rgba(255,255,255,0.25));
-}
-#cracks .crack-glint{
-  stroke: rgba(160,210,255,0.85);
-  stroke-width: 0.9;
-  opacity: 0.7;
-  filter: blur(0.2px) drop-shadow(0 0 10px rgba(120,180,255,0.30));
-}
-#cracks .draw{ animation: crackDraw 700ms ease-out forwards; }
-@keyframes crackDraw{ to{ stroke-dashoffset: 0; } }
-
-/* =========================================================
-   FALLING SHARDS (GLASS FX)
-   ========================================================= */
-#glassFX .glass-piece{
-  position: fixed;
-  inset: 0;
-  transform: translate3d(0,0,0) rotate(0deg);
-  transform-origin: 50% 50%;
-  will-change: transform, opacity, filter;
-  opacity: 0.98;
-}
-
-#glassFX .glass-inner{
-  position: fixed;
-  inset: 0;
-  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
-  filter: blur(var(--rblur, 1px)) saturate(1.10) contrast(1.06);
-  opacity: 0.98;
-  isolation: isolate;
-}
-
-/* cloned wrap layers */
-#glassFX .glass-inner > #wrap,
-#glassFX .glass-inner > .wrap-clone{ opacity: 1; }
-
-#glassFX .glass-rgb{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  will-change: transform, opacity, filter;
-  mix-blend-mode: screen;
-  opacity: 0.85;
-}
-
-#glassFX .glass-rgb.r{
-  transform: translate3d(calc(var(--rx, 0px) + var(--rgbx, 2px)), calc(var(--ry, 0px) + var(--rgby, -1px)), 0);
-  filter: blur(calc(var(--rblur, 1px) + 0.2px)) contrast(1.07) saturate(1.08);
-}
-#glassFX .glass-rgb.g{
-  transform: translate3d(var(--rx, 0px), var(--ry, 0px), 0);
-  filter: blur(var(--rblur, 1px)) contrast(1.05) saturate(1.06);
-}
-#glassFX .glass-rgb.b{
-  transform: translate3d(calc(var(--rx, 0px) - var(--rgbx, 2px)), calc(var(--ry, 0px) - var(--rgby, -1px)), 0);
-  filter: blur(calc(var(--rblur, 1px) + 0.25px)) contrast(1.07) saturate(1.08);
-}
-
-#glassFX .glass-rgb::before{
-  content:"";
-  position: fixed;
-  inset: 0;
   pointer-events:none;
-  mix-blend-mode: multiply;
-  opacity: 0.95;
-}
-#glassFX .glass-rgb.r::before{ background: rgba(255, 80, 80, 1); }
-#glassFX .glass-rgb.g::before{ background: rgba(80, 255, 160, 1); }
-#glassFX .glass-rgb.b::before{ background: rgba(90, 150, 255, 1); }
-
-#glassFX .glass-piece::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.10),
-    inset 0 0 18px rgba(180,220,255,0.10);
-  background: linear-gradient(
-    135deg,
-    rgba(255,255,255,0.08),
-    rgba(255,255,255,0.00) 40%,
-    rgba(255,255,255,0.06) 70%,
-    rgba(255,255,255,0.00)
-  );
-  mix-blend-mode: screen;
-  opacity: 0.75;
+  z-index:3;
+  opacity:0;                 /* start invisible */
 }
 
-#glassFX .glass-piece::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.22), rgba(255,255,255,0) 45%);
-  opacity: 0.25;
-  mix-blend-mode: screen;
+/* show cracks during landing interactions (main.js adds paths) */
+#cracks .crack-path{
+  fill:none;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  vector-effect: non-scaling-stroke;
+}
+#cracks .crack-under{ stroke: rgba(120,160,255,.12); stroke-width: 10; filter: blur(1.2px); }
+#cracks .crack-line{ stroke: rgba(180,210,255,.55); stroke-width: 2.2; }
+#cracks .crack-glint{ stroke: rgba(210,235,255,.85); stroke-width: 1.3; filter: drop-shadow(0 0 10px rgba(120,170,255,.35)); }
+
+#cracks.flash{ filter: brightness(1.4) contrast(1.1); }
+
+.hidden{ display:none !important; }
+
+#wrap{
+  max-width: 980px;
+  margin: 26px auto;
+  padding: 0 16px 50px;
+  position:relative;
+  z-index:5;
 }
 
-#glassFX.glass-fall .glass-piece .glass-rgb{ animation: rgbJitter 240ms steps(2, end) infinite; }
-@keyframes rgbJitter{
-  0%{ filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
-  50%{ filter: blur(calc(var(--rblur, 1px) + 0.35px)) contrast(1.10) saturate(1.12); opacity: 0.82; }
-  100%{ filter: blur(var(--rblur, 1px)) contrast(1.06) saturate(1.08); opacity: 0.86; }
+.card{
+  border:1px solid var(--line);
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 16px 16px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.28);
 }
 
-#glassFX.glass-fall .glass-piece{
-  animation: shardFall 1100ms cubic-bezier(.2,.7,.2,1) forwards;
-}
-@keyframes shardFall{
-  0%{
-    opacity: 1;
-    transform: translate3d(0,0,0) rotate(0deg);
-    filter: drop-shadow(0 18px 40px rgba(0,0,0,0.55));
-  }
-  25%{
-    transform: translate3d(var(--sx, 0px), var(--sy, 0px), 0) rotate(var(--rot, 0deg));
-  }
-  100%{
-    opacity: 0;
-    transform: translate3d(calc(var(--sx, 0px) * 1.15), 110vh, 0)
-               rotate(calc(var(--rot, 0deg) * 1.8));
-    filter: drop-shadow(0 40px 80px rgba(0,0,0,0.65));
-  }
-}
-/* dim the shatter overlay so it’s readable */
-#glassFX {
-  background: rgba(0,0,0,0.55);
+h1{
+  margin:0 0 10px 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing:.2px;
+  opacity:.92;
 }
 
-/* make pieces darker + less washed out */
-.glass-piece {
-  opacity: 0.45;
-}
-
-.glass-inner {
-  filter: brightness(0.65) contrast(1.15);
-}
-
-/* =========================================================
-   ADMIN DIAGNOSTIC PANEL (sim-only)
-   ========================================================= */
-.adminPanel{
-  position: fixed;
-  top: 18px;
-  right: 18px;
-  z-index: 9999;
-  width: min(420px, calc(100vw - 36px));
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(10,12,18,0.86);
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-  backdrop-filter: blur(10px);
-  padding: 12px;
-}
-body.admin .adminPanel.hidden{ display:none !important; }
-body.admin #adminPanel{ display:block; }
-body:not(.admin) #adminPanel{ display:none !important; }
-
-.adminHead{
-  display:flex;
-  justify-content: space-between;
-  align-items:center;
-  gap: 10px;
-  margin-bottom: 10px;
-  user-select: none;
-}
-.adminTitle{
-  font-weight: 800;
-  letter-spacing: .12em;
-  font-size: 12px;
-  opacity: .9;
-}
-.adminTiny{
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  opacity: .9;
-}
-.adminRow{
-  display:flex;
-  gap: 8px;
-  align-items:center;
-  flex-wrap: wrap;
-}
-.adminAnswer{
-  margin: 8px 0 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.22);
-  color: rgba(235,238,245,0.92);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
-  font-size: 12.5px;
-  line-height: 1.35;
-  max-height: 220px;
-  overflow:auto;
-  white-space: pre-wrap;
-}
-.adminActions{
-  display:flex;
-  justify-content:flex-end;
-  gap:10px;
-  margin-top: 10px;
-}
-@media (max-width: 520px){
-  .adminPanel{ top:auto; bottom:18px; left:18px; right:auto; }
-}
-
-/* =========================================================
-   SIM ROOM (FIXED VIEWPORT)
-   ========================================================= */
-#simRoom{
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 48px 18px 18px;
-  background: transparent;
-  overflow: hidden;
-}
-
-#simRoom .cardShell{
-  width: min(980px, 100%);
-  margin: 0 auto;
-  background: rgba(0,0,0,0.22);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 16px;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-  backdrop-filter: blur(10px);
-  padding: 18px;
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* SIM LOG (NO HORIZONTAL SCROLL BAR) */
-#simText{
-  width: 100%;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-/* scrollbar polish (vertical only) */
-#simText, .modal, #hackLines{
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.18) transparent;
-}
-#simText::-webkit-scrollbar,
-#hackLines::-webkit-scrollbar{
-  width: 10px;
-}
-#simText::-webkit-scrollbar-thumb,
-#hackLines::-webkit-scrollbar-thumb{
-  background: rgba(255,255,255,0.12);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-#simText::-webkit-scrollbar:horizontal{ height: 0 !important; }
-
-/* choices */
-#simChoices{
-  display:flex;
-  gap: 10px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-  padding-top: 2px;
-  position: relative;
-  z-index: 2;
-}
-
-.sim-btn{
-  appearance:none;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
-  color: rgba(235,238,245,0.92);
-  padding: 10px 12px;
-  border-radius: 12px;
-  cursor:pointer;
-  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
-}
-.sim-btn:hover{
-  transform: translateY(-1px);
-  background: rgba(255,255,255,0.09);
-  border-color: rgba(140,190,255,0.25);
-}
-.sim-btn:disabled{
-  opacity: 0.5;
-  cursor:not-allowed;
-  transform:none;
-}
-
-/* =========================================================
-   TASK UI (NO INTERNAL SCROLL / NO HORIZONTAL BAR)
-   ========================================================= */
-#taskUI{
-  margin-top: 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background:
-    radial-gradient(900px 220px at 20% 0%, rgba(140,190,255,0.10), transparent 60%),
-    rgba(0,0,0,0.22);
-  padding: 14px;
-  position: relative;
-  overflow: visible;
-  z-index: 60;
-}
-#taskUI::before{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  background:
-    linear-gradient(180deg,
-      rgba(255,255,255,0.06),
-      rgba(255,255,255,0.00) 35%,
-      rgba(0,0,0,0.00) 65%,
-      rgba(255,255,255,0.04)
-    );
-  opacity: 0.35;
-  pointer-events:none;
-}
-
-#taskTitle{
-  font-size: 12px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: rgba(235,238,245,0.80);
-  margin: 2px 0 6px;
-}
-#taskDesc{
-  color: rgba(235,238,245,0.70);
-  font-size: 13px;
-  line-height: 1.45;
-  margin-bottom: 12px;
-}
-
-#taskBody{
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.18);
-  overflow: visible;
-  overflow-x: hidden;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-#taskBody > * + *{ margin-top: 10px; }
-
-#taskActions{
-  margin-top: 12px;
-  display:flex;
-  gap: 10px;
-  align-items:center;
-  justify-content:flex-end;
-  flex-wrap: wrap;
-}
-
-#taskBody input{
-  width: min(520px, 100%);
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.22);
-  color: rgba(235,238,245,0.92);
-}
-#taskBody input::placeholder{ color: rgba(235,238,245,0.45); }
-
-@keyframes taskIn{
-  from{ opacity: 0; transform: translateY(6px); filter: blur(1.5px); }
-  to{ opacity: 1; transform: translateY(0); filter: blur(0); }
-}
-#taskUI:not(.hidden){ animation: taskIn 180ms ease-out; }
-
-@keyframes taskShake{
-  0%,100%{ transform: translateX(0); }
-  20%{ transform: translateX(-3px); }
-  40%{ transform: translateX(3px); }
-  60%{ transform: translateX(-2px); }
-  80%{ transform: translateX(2px); }
-}
-#taskUI.is-error{ animation: taskShake 220ms ease; }
-
-#taskUI.is-ok{
-  box-shadow:
-    0 18px 60px rgba(0,0,0,0.55),
-    0 0 0 1px rgba(140,190,255,0.10),
-    0 0 28px rgba(140,190,255,0.10);
-}
-
-/* Task kit helpers (used by tasks.js) */
-.task-note{ opacity: 0.88; color: rgba(235,238,245,0.82); font-size: 13px; line-height: 1.45; }
-.task-error{ color: rgba(255,190,190,.95); opacity: 0.95; font-size: 13px; }
-.task-ok{ color: rgba(232,237,247,0.92); opacity: 0.92; font-size: 13px; }
-.task-code{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; font-size: 13px; letter-spacing: 0.02em; }
-.task-panel{ padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.18); }
-.task-divider{ height: 1px; background: rgba(255,255,255,0.10); border-radius: 999px; margin: 10px 0; opacity: 0.8; }
-
-.task-row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-.task-grid-2{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
-.task-grid-3{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
-.task-grid-4{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
-
-#taskBody .sim-btn{ min-height: 40px; }
-.task-list-btn{ display:block; width:100%; text-align:left; }
-.task-chip{ padding: 10px 12px; border-radius: 999px; }
-
-.task-pill{
-  display:inline-flex;
-  align-items:center;
-  gap: 8px;
+.pill{
+  display:inline-block;
   padding: 8px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.16);
-  color: rgba(235,238,245,0.80);
+  border:1px solid var(--line);
+  background: var(--pill);
+  color: var(--muted);
   font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.task-bar{
-  height: 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.22);
-  overflow:hidden;
-}
-.task-bar > div{
-  height: 100%;
-  width: 0%;
-  border-radius: 999px;
-  background: rgba(140,190,255,0.45);
-}
-
-@media (max-width: 520px){
-  .task-grid-4{ grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .task-grid-3{ grid-template-columns: repeat(2, minmax(0,1fr)); }
-}
-/* ===== TASK UI NOTES ===== */
-.task-note, .task-ok, .task-error {
-  margin-top: 10px;
+/* input/button baseline */
+.textIn, input#viewerToken{
   padding: 10px 12px;
   border-radius: 12px;
-  font-size: 13px;
-  line-height: 1.25;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(0,0,0,.20);
-}
-.task-ok { color: rgba(232,237,247,0.9); }
-.task-error { color: rgba(255,190,190,.95); }
-.task-note { color: rgba(232,237,247,0.82); }
-
-/* ===== CRACKS (works whether #cracks is svg or div>svg) ===== */
-#cracks, #cracks svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.crack-path {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.crack-under { stroke: rgba(0,0,0,.55); stroke-width: 4.2; filter: blur(.2px); }
-.crack-line  { stroke: rgba(232,237,247,.55); stroke-width: 1.35; }
-.crack-glint { stroke: rgba(255,255,255,.85); stroke-width: .8; }
-
-.seg path.pending { opacity: 0; }
-.seg path.active  { opacity: 1; transition: opacity .2s ease; }
-
-#cracks.pulse { filter: brightness(1.15); }
-#cracks.flash { filter: contrast(1.25) brightness(1.1); }
-
-#cracks.shatter { transform: scale(1.01); filter: blur(.4px) contrast(1.2); opacity: .88; }
-
-/* ===== HACK ROOM ===== */
-#hackRoom.hidden { display: none; }
-#hackRoom {
-  background: rgba(0,0,0,.92);
-  color: rgba(232,237,247,.88);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  padding: 18px 16px 22px;
-}
-.hackTop {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 14px;
-}
-.hackFiles { display: flex; gap: 8px; flex-wrap: wrap; }
-.hack-filebtn {
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.14);
+  border:1px solid var(--line);
   background: rgba(255,255,255,.06);
-  color: rgba(232,237,247,.86);
-  cursor: pointer;
-}
-.hack-filebtn.active { background: rgba(140,188,255,.14); border-color: rgba(140,188,255,.35); }
-
-.hackMeta {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 10px 0 12px;
-}
-.hackMeta .pill { font-size: 12px; }
-
-#hackLines {
-  margin-top: 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.04);
-  overflow: hidden;
-}
-.hack-line {
-  display: grid;
-  grid-template-columns: 54px 1fr;
-  gap: 10px;
-  padding: 10px 12px;
-  border-top: 1px solid rgba(255,255,255,.08);
-  cursor: pointer;
-}
-.hack-line:first-child { border-top: none; }
-.hack-ln { opacity: .6; user-select: none; }
-.hack-txt { white-space: pre-wrap; word-break: break-word; }
-
-.hack-line.target .hack-txt { color: rgba(255,232,190,.95); }
-.hack-line.selected { background: rgba(140,188,255,.12); }
-
-.hackActions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 14px;
+  color: var(--fg);
+  outline: none;
+  min-width: 220px;
 }
 
-
-/* =========================================================
-   HACK ROOM POLISH
-   ========================================================= */
-#hackRoom.card{
-  background: rgba(0,0,0,0.20);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: var(--shadow);
-  border-radius: 16px;
-}
-
-.hack-filebtn{ position: relative; overflow: hidden; }
-.hack-filebtn.active{
-  border-color: rgba(140,190,255,0.28);
-  box-shadow: 0 0 0 3px rgba(140,190,255,0.10);
-}
-
-#hackStatus{
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.18);
-}
-
-#hackLines{
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.22);
-  overflow: hidden;
-}
-
-.hack-line{
+.topRow{
+  margin-top:12px;
   display:flex;
-  gap: 12px;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+/* 1-frame “timestamp covers viewer box” glitch every second */
+#timestamp{
+  position:relative;
+  animation: ts_glitch 1s steps(1,end) infinite;
+  transform-origin: left center;
+}
+@keyframes ts_glitch{
+  0%   { transform: translateX(-280px) scaleX(2.1); filter: brightness(1.35); }
+  2%   { transform: translateX(0px) scaleX(1); filter:none; }
+  100% { transform: translateX(0px) scaleX(1); filter:none; }
+}
+
+.grid{
+  margin-top: 14px;
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 760px){
+  .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.adImg{
+  width:100%;
+  height: 130px;
+  object-fit: cover;
+  border-radius: 14px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+  display:block;
+}
+
+.btnRow{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.smallNote{
+  margin-top:12px;
+  opacity:.78;
+  font-size:13px;
+  line-height:1.25;
+}
+
+/* ===================== BUTTONS ===================== */
+.sim-btn{
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--fg);
   padding: 10px 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  cursor: pointer;
-  user-select: none;
+  border-radius: 14px;
+  cursor:pointer;
+  user-select:none;
 }
-.hack-line:first-child{ border-top: 0; }
-.hack-line:hover{ background: rgba(255,255,255,0.03); }
-
-.hack-ln{
-  width: 34px;
-  opacity: 0.55;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
-  font-size: 12px;
-  text-align: right;
-}
-.hack-txt{
-  flex: 1;
-  opacity: 0.88;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
-  font-size: 12.5px;
-  line-height: 1.35;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+.sim-btn:hover{ background: rgba(255,255,255,.09); }
+.sim-btn:active{ transform: translateY(1px); }
+.sim-btn:disabled{
+  cursor:not-allowed;
+  opacity:.5;
 }
 
-.hack-line.target{ background: rgba(255,190,190,0.04); }
-.hack-line.target .hack-txt{ opacity: 0.95; }
+/* ===================== SIM ===================== */
+body.in-sim #wrap{ display:none; }
 
-.hack-line.selected{
-  background: rgba(140,190,255,0.08);
-  outline: 1px solid rgba(140,190,255,0.20);
-}
-.hack-line.selected .hack-ln{ opacity: 0.8; }
-
-/* =========================================================
-   ANCHORS (if used by tasks.js)
-   ========================================================= */
-.anchor{
-  position: fixed;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  background: rgba(140,190,255,0.7);
-  box-shadow: 0 0 18px rgba(120,180,255,0.55);
-  border: 1px solid rgba(255,255,255,0.18);
-  cursor: pointer;
-  pointer-events: auto;
-  z-index: 120;
-}
-
-/* =========================================================
-   MODAL OVERLAYS (reset/final)
-   ========================================================= */
-#resetOverlay,
-#finalOverlay{
-  position: fixed;
+#simRoom{
+  position:fixed;
   inset:0;
-  z-index: 160;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding: 22px 16px 180px;
+  z-index: 20;
+}
+
+.simCard{
+  width: min(860px, 100%);
+}
+
+.simText{
+  margin:0;
+  padding: 12px;
+  min-height: 240px;
+  max-height: 380px;
+  overflow:auto;
+  background: rgba(0,0,0,.22);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  color: rgba(232,237,247,.88);
+  font-size: 13px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.simChoices{
+  margin-top:12px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+/* ===================== TASK UI ===================== */
+#taskUI{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding: 22px 16px 130px;
+  z-index: 30;
+}
+.taskCard{ width: min(700px, 100%); }
+.taskDesc{ margin-top:8px; opacity:.85; }
+.taskBody{ margin-top:12px; }
+.taskActions{
+  margin-top:14px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.task-note{
+  margin-top:10px;
+  opacity:.85;
+  color: rgba(232,237,247,.78);
+}
+.task-error{
+  margin-top:10px;
+  color: var(--bad);
+  opacity:.95;
+}
+.task-ok{
+  margin-top:10px;
+  color: var(--ok);
+  opacity:.95;
+}
+
+/* ===================== RESET OVERLAY ===================== */
+#resetOverlay{
+  position:fixed;
+  inset:0;
   display:flex;
   align-items:center;
   justify-content:center;
-  padding: 24px;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(10px);
+  padding: 22px 16px;
+  z-index: 100;
+  background: rgba(0,0,0,.55);
+}
+.resetCard{ width: min(700px, 100%); }
+.resetBody{
+  margin-top:10px;
+  white-space:pre-wrap;
+  opacity:.9;
 }
 
-#resetOverlay.hidden,
-#finalOverlay.hidden{ display:none !important; }
-
-.modal{
-  width: min(520px, 100%);
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(10,12,18,0.82);
-  box-shadow: var(--shadow);
-  padding: 16px;
-}
-
-.modal h2, .modal h3{
-  margin: 0 0 8px;
-  font-size: 18px;
-}
-.modal p{
-  margin: 0;
-  color: rgba(235,238,245,0.70);
-  white-space: pre-wrap;
-  line-height: 1.4;
-}
-
-/* inputs in modal */
-#finalOverlay input{
-  width:100%;
-  margin-top: 6px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.22);
-  color: rgba(235,238,245,0.92);
-  outline: none;
-}
-#finalOverlay input::placeholder{ color: rgba(235,238,245,0.45); }
-
-.modal-actions{
+/* ===================== FINAL OVERLAY ===================== */
+#finalOverlay{
+  position:fixed;
+  inset:0;
   display:flex;
-  justify-content:flex-end;
-  gap: 10px;
-  margin-top: 14px;
-  flex-wrap: wrap;
+  align-items:center;
+  justify-content:center;
+  padding: 22px 16px;
+  z-index: 120;
+  background: rgba(0,0,0,.55);
 }
+.finalCard{ width: min(560px, 100%); }
+.errText{ margin-top:10px; color: var(--bad); }
 
-/* =========================================================
-   SUBTITLES (HIDE VISUALLY, KEEP DOM SAFE)
-   ========================================================= */
-body.in-sim #subs{
+/* ===================== SUBTITLES (BOTTOM CENTER) ===================== */
+#subs{
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 10px;
-  z-index: 55;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  width: min(860px, calc(100% - 32px));
+  z-index: 60;
   pointer-events: none;
+  text-align:left;
+}
+#subsName{
+  font-size: 12px;
+  opacity: .75;
+  margin-bottom: 6px;
+}
+#subsText{
+  font-size: 14px;
+  line-height: 1.25;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.28);
+  box-shadow: 0 10px 24px rgba(0,0,0,.28);
+}
+#subs.calm #subsText{ filter: brightness(1.05); }
+
+/* ===================== HACK ROOM ===================== */
+#hackRoom{
+  position:fixed;
+  inset:0;
+  z-index: 2000;
+  background: rgba(0,0,0,.75);
+  padding: 16px;
+  overflow:auto;
+}
+.hackTop{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+}
+.hackFiles{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.hack-filebtn{
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--fg);
+  padding: 8px 10px;
+  border-radius: 999px;
+  cursor:pointer;
+}
+.hack-filebtn.active{ background: rgba(120,160,255,.18); }
+
+.hackMeta{
+  margin-top:12px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+#hackLines{
+  margin-top:12px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  overflow:hidden;
+}
+.hack-line{
+  display:grid;
+  grid-template-columns: 54px 1fr;
+  gap:10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  cursor:pointer;
+}
+.hack-line:last-child{ border-bottom:none; }
+.hack-ln{ opacity:.6; font-size:12px; }
+.hack-txt{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.hack-line.target .hack-txt{ color: rgba(200,255,220,.92); }
+.hack-line.selected{ background: rgba(120,160,255,.12); }
+
+.hackActions{
+  margin-top:12px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+/* ===================== ADMIN PANEL ===================== */
+#adminPanel{
+  position: fixed; /* main.js sets to fixed too; this is fine */
+  left: 18px;
+  top: 18px;
+  z-index: 9999;
+}
+.adminBox{
+  width: 260px;
+  border:1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.08);
+  border-radius: 18px;
+  padding: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.30);
+}
+.adminHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  user-select:none;
+}
+.adminBody{
+  margin-top:10px;
+  font-size:12px;
+  opacity:.88;
+  line-height:1.3;
+}
+.adminBtns{
+  margin-top:12px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+/* ===================== CRACKS DISAPPEAR INTO SIM ===================== */
+/* When sim starts, briefly glitch the cracks, then fade them out. */
+body.in-sim #cracks{
   opacity: 1;
-  height: auto;
-  overflow: visible;
-  transform: none;
+  animation: cracks_into_sim 820ms ease forwards;
 }
-body:not(.in-sim) #subs{
-  opacity: 0;
-  height: 0;
-  overflow: hidden;
+body.in-sim #glassFX{
+  opacity: .22; /* optional in sim only */
 }
-
-/* =========================================================
-   OPTIONAL: OVERLAY POP-IN + SHAKE
-   ========================================================= */
-@keyframes popIn{
-  0%{ opacity:0; transform: translateY(8px) scale(0.985); filter: blur(0.6px); }
-  100%{ opacity:1; transform: translateY(0) scale(1); filter: blur(0); }
-}
-.pop-in{
-  animation: popIn 180ms ease-out both;
-  will-change: transform, opacity, filter;
-}
-
-@keyframes softShake{
-  0%{ transform: translate3d(0,0,0); }
-  15%{ transform: translate3d(-2px, 0, 0); }
-  30%{ transform: translate3d( 2px,-1px,0); }
-  45%{ transform: translate3d(-2px, 1px,0); }
-  60%{ transform: translate3d( 1px, 0,0); }
-  75%{ transform: translate3d(-1px,-1px,0); }
-  100%{ transform: translate3d(0,0,0); }
-}
-.shake{
-  animation: softShake 220ms ease-out both;
-  will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce){
-  .pop-in, .shake{ animation:none !important; }
-}
-
-/* =========================================================
-   SMALL FIXES / SAFETY
-   ========================================================= */
-/* If any wrap clones are injected during glass FX */
-.wrap-clone{ position: relative; }
-
-/* Make sure overlays never block clicking underneath unless you explicitly add anchors */
-#cracks, #glassFX{ pointer-events: none; }
-.anchor, .anchorDot, [data-anchor]{ pointer-events: auto; }
-/* =========================
-   SHATTER / GLASS WHITEOUT FIX
-   ========================= */
-
-/* Darken the whole overlay */
-#glassFX {
-  background: rgba(0,0,0,0.82) !important;
-}
-
-/* Pieces were too bright */
-.glass-piece {
-  opacity: 0.28 !important;
-}
-
-/* The cloned "wrap" layers are what create the white smear */
-.glass-inner .wrap-clone {
-  filter: brightness(0.40) contrast(1.25) saturate(0.9) !important;
-}
-
-/* Tone down the RGB layers specifically */
-.glass-rgb {
-  opacity: 0.55 !important;
-  filter: brightness(0.55) contrast(1.2) !important;
-}
-
-/* If your crack "flash" class is also blasting the screen, reduce it */
-#cracks.flash {
-  filter: brightness(0.85) !important;
-}
-/* ===========================
-   LANDING: do NOT dim
-   =========================== */
-
-/* Make overlays non-dark by default (landing) */
-#glassFX {
-  background: transparent !important;
-  opacity: 0.0 !important;
-  pointer-events: none;
-}
-
-#cracks {
-  opacity: 1 !important;            /* cracks can still show */
-  pointer-events: none;
-}
-
-/* If you have a global dim on body/wrap, neutralize it for landing */
-body:not(.in-sim) #wrap {
-  filter: none !important;
-  opacity: 1 !important;
-}
-
-/* ===========================
-   SIM: dim only after transition
-   =========================== */
-body.in-sim #glassFX {
-  /* keep it subtle; change 0.25 -> 0.15 if you want even less */
-  background: rgba(0, 0, 0, 0.45) !important;
-  opacity: 0.25 !important;
-}
-
-/* Optional: slightly dim landing background only in sim */
-body.in-sim #wrap {
-  filter: saturate(0.9) contrast(0.95);
-}
-body:not(.in-sim)::before,
-body:not(.in-sim)::after,
-body:not(.in-sim) #wrap::before,
-body:not(.in-sim) #wrap::after {
-  opacity: 0 !important;
-  background: transparent !important;
+@keyframes cracks_into_sim{
+  0%   { opacity:1; filter: none; transform: translateZ(0); }
+  30%  { opacity:1; filter: brightness(1.6) contrast(1.2) blur(.6px); }
+  55%  { opacity:.9; filter: hue-rotate(18deg) brightness(1.35) blur(1.2px); }
+  100% { opacity:0; filter: blur(2px); }
 }
