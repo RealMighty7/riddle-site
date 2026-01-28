@@ -1353,17 +1353,19 @@ reg({
   random: async (ctx, args = {}) => {
     const poolName = String(args.pool || args.poolName || "pack5");
     const pools = window.__TASK_POOLS || {};
-    const list = pools[poolName];
-
+    let list = pools[poolName];
+    
+    // ✅ fallback: if DIALOGUE asks for "core" but it's not registered,
+    // use pack5, then any first available pool.
     if (!Array.isArray(list) || !list.length) {
-      // fail open: do not hang the sim
-      ctx.showTaskUI("PROCEDURE", `Missing pool: ${poolName}`);
-      ctx.taskBody.textContent = `pool "${poolName}" not registered.`;
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = false;
-      await new Promise((r) => (ctx.taskPrimary.onclick = r));
-      return;
+      list = pools.pack5;
+    
+      if (!Array.isArray(list) || !list.length) {
+        const firstPool = Object.keys(pools).find((k) => Array.isArray(pools[k]) && pools[k].length);
+        if (firstPool) list = pools[firstPool];
+      }
     }
+
 
     // weighted pick
     const total = list.reduce((a, it) => a + Math.max(0, Number(it.w || 1)), 0) || list.length;
@@ -1398,6 +1400,7 @@ reg({
     ctx.taskPrimary.disabled = false;
     await new Promise((r) => (ctx.taskPrimary.onclick = r));
   },
+  // If your dialogue expects a "core" pool, point it at pack5 for now.
+registerTaskPool("core", (window.__TASK_POOLS?.pack5 || []).slice());
 });
-
 })();
