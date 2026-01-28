@@ -112,7 +112,7 @@ window.DIALOGUE = {
 
     { say: ["System: …"] },
     { filler: { pool: "AUTO", count: 1 } }
-    ],
+    ]
     // --- ensure steps exists + include pack5 tasks somewhere in your flow ---
 window.DIALOGUE.steps = window.DIALOGUE.steps || [
   { task: "keypad_4" },
