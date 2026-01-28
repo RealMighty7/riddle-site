@@ -2,81 +2,219 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>escaped</title>
-  <link rel="stylesheet" href="/styles.css?v=101" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>index</title>
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
+
+  <!-- bump versions to bust cache -->
+  <link rel="stylesheet" href="/styles.css?v=41" />
 </head>
+
 <body>
+  <!-- ====== GLASS LAYER ====== -->
+  <div id="glassFX" aria-hidden="true"></div>
+
+  <!-- ====== CRACKS LAYER (SVG is built by main.js) ====== -->
+  <svg id="cracks" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+
   <main id="wrap">
-    <section class="card" style="margin-top:24px; padding:16px">
-      <h1>You escaped.</h1>
-      <p id="msg" style="margin-top:8px"></p>
-      <p style="margin-top:12px; opacity:.85">
-        Save this code. You won’t see it again.
+    <header class="card">
+      <h1>Welcome</h1>
+      <p id="system">
+        This page is currently under revision.<br><br>
+        Some content may be incomplete or displayed incorrectly.
+        If you believe you’ve reached this page in error, you may close it at any time.
       </p>
 
-      <div id="codeBox" class="escapeCode" style="
-        margin-top:14px;
-        padding:14px 16px;
-        border-radius:12px;
-        border:1px solid rgba(0,0,0,0.14);
-        background:#fff;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
-        font-size: 22px;
-        letter-spacing: .14em;
-        display:inline-block;
-      ">----------</div>
+      <!-- optional admin token input (safe if unused) -->
+      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+        <input id="viewerToken" placeholder="viewer token" autocomplete="off" spellcheck="false"
+               style="flex:1; min-width:220px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:rgba(232,237,247,.9);" />
+        <div class="pill" id="timestamp">timestamp: —</div>
+        <div class="pill" id="build">build: revision</div>
+      </div>
+    </header>
 
-      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap">
-        <button id="copy" style="
-          border:1px solid rgba(0,0,0,0.14);
-          background:#fff;
-          padding:10px 14px;
-          border-radius:10px;
-          cursor:pointer;
-        ">copy</button>
+    <!-- ====== FAKE "AD LAUNCHER" UI (mostly empty) ====== -->
+    <section class="grid card" aria-label="media">
+      <img class="adImg" alt="">
+      <img class="adImg" alt="">
+      <img class="adImg" alt="">
+      <img class="adImg" alt="">
+      <img class="adImg" alt="">
+      <img class="adImg" alt="">
+    </section>
 
-        <a href="/" style="
-          display:inline-block;
-          border:1px solid rgba(0,0,0,0.14);
-          background:#fff;
-          padding:10px 14px;
-          border-radius:10px;
-          text-decoration:none;
-          color:#111;
-        ">restart</a>
+    <section class="card" aria-label="controls">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <button class="sim-btn" id="launchBtn">launch campaign</button>
+        <div class="pill" id="launchStatus">Notice: this endpoint is not intended for external access.</div>
       </div>
 
-      <div id="hint" style="margin-top:10px; opacity:.7; font-size:12px"></div>
+      <div style="margin-top:12px; opacity:.8; font-size:13px; line-height:1.25;">
+        functionality may be incomplete. do not rely on output. if something looks wrong, report it.
+      </div>
+
+      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="sim-btn" disabled>report issue</button>
+        <button class="sim-btn" disabled>billing</button>
+        <button class="sim-btn" disabled>assets</button>
+        <button class="sim-btn" disabled>export</button>
+      </div>
     </section>
   </main>
 
+  <!-- ====== SUBTITLES (used by audio layer) ====== -->
+  <section id="subs" class="hidden" aria-hidden="true">
+    <div id="subsName"></div>
+    <div id="subsText"></div>
+  </section>
+
+  <!-- ====== SIM ROOM ====== -->
+  <section id="simRoom" class="hidden" aria-hidden="true">
+    <div class="card">
+      <div class="pill" style="margin-bottom:10px;">simulation</div>
+      <pre id="simText" class="simText" aria-live="polite"></pre>
+
+      <div id="simChoices" class="hidden" style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="sim-btn" id="choiceNeed">…</button>
+        <button class="sim-btn" id="choiceLie">…</button>
+        <button class="sim-btn" id="choiceRun">…</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== TASK UI ====== -->
+  <section id="taskUI" class="hidden" aria-hidden="true">
+    <div class="card">
+      <div class="pill" id="taskTitle">TASK</div>
+      <div style="margin-top:8px; opacity:.85;" id="taskDesc">—</div>
+
+      <div id="taskBody" style="margin-top:12px;"></div>
+
+      <div id="taskActions" style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="sim-btn" id="taskPrimary">continue</button>
+        <button class="sim-btn hidden" id="taskSecondary">secondary</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== RESET OVERLAY ====== -->
+  <section id="resetOverlay" class="hidden" aria-hidden="true">
+    <div class="card">
+      <div class="pill" id="resetTitle">RESET</div>
+      <pre id="resetBody" style="margin-top:10px; white-space:pre-wrap; opacity:.9;"></pre>
+    </div>
+  </section>
+
+  <!-- ====== FINAL MODAL (discord + turnstile) ====== -->
+  <section id="finalOverlay" class="hidden" aria-hidden="true">
+    <div class="card" style="max-width:560px; margin:0 auto;">
+      <div class="pill">verification</div>
+      <p style="margin-top:10px; opacity:.85;">
+        Notice: this endpoint is not intended for external access.<br>
+        Functionality may be incomplete.
+      </p>
+
+      <input id="finalDiscord" placeholder="discord username" autocomplete="off" spellcheck="false"
+             style="width:100%; margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:rgba(232,237,247,.9);" />
+
+      <div id="turnstileBox" style="margin-top:12px;"></div>
+      <div id="finalErr" style="margin-top:10px; color:rgba(255,190,190,.95);"></div>
+
+      <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="sim-btn" id="finalCancel">cancel</button>
+        <button class="sim-btn" id="finalVerify">verify</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== HACK ROOM ====== -->
+  <section id="hackRoom" class="hidden" aria-hidden="true">
+    <div class="hackTop">
+      <div class="pill" id="hackUser">USER: —</div>
+
+      <div class="hackFiles">
+        <button class="hack-filebtn" data-file="0">boot.log</button>
+        <button class="hack-filebtn" data-file="1">profile.cfg</button>
+        <button class="hack-filebtn" data-file="2">cache.tmp</button>
+      </div>
+
+      <div class="pill" id="hackFilename">—</div>
+    </div>
+
+    <div class="hackMeta">
+      <div class="pill">targets<span id="hackTargets"></span></div>
+      <div class="pill" id="hackStatus">—</div>
+    </div>
+
+    <div id="hackLines"></div>
+
+    <div class="hackActions">
+      <button class="sim-btn" id="hackDelete">delete selected</button>
+      <button class="sim-btn" id="hackReset">reset</button>
+    </div>
+  </section>
+
+  <!-- ====== OPTIONAL ADMIN PANEL (hidden until unlocked) ====== -->
+  <section id="adminPanel" class="hidden" aria-hidden="true">
+    <div class="card" style="position:fixed; left:18px; top:18px; width:260px; z-index:9999;">
+      <div class="adminHead" style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div class="pill">admin</div>
+        <button class="sim-btn" id="adminToggle">hide</button>
+      </div>
+
+      <div style="margin-top:10px; font-size:12px; opacity:.85;">
+        task: <span id="adminTask">—</span><br>
+        hint: <span id="adminAnswer">—</span>
+      </div>
+
+      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="sim-btn" id="adminSkip">skip</button>
+      </div>
+
+      <!-- optional, but required IDs in main.js list -->
+      <div class="hidden" id="adminAnswer"></div>
+    </div>
+  </section>
+
+  <!-- ====== OPTIONAL/SAFE PLACEHOLDER IDS (required by main.js list) ====== -->
+  <div id="viewerFake" class="hidden"></div>
+  <div id="viewerState" class="hidden"></div>
+
+  <!-- required by main.js list but not shown in UI -->
+  <div id="choiceNeed" class="hidden"></div>
+  <div id="choiceLie" class="hidden"></div>
+  <div id="choiceRun" class="hidden"></div>
+
+  <!-- Cloudflare Turnstile -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
+  <!-- Load order matters -->
+  <script src="/dialogue.js?v=41"></script>
+  <script src="/tasks.js?v=41"></script>
+  <script src="/packs/pack5.js?v=41"></script>
+
+  <!-- voice layer (your file) -->
+  <script src="/audio_player.js?v=41"></script>
+
+  <!-- main -->
+  <script src="/main.js?v=41"></script>
+
+  <!-- tiny timestamp updater -->
   <script>
-    const code = sessionStorage.getItem("escape_code") || "";
-    const user = sessionStorage.getItem("escape_user") || "";
-    const codeBox = document.getElementById("codeBox");
-    const msg = document.getElementById("msg");
-    const hint = document.getElementById("hint");
-    const copyBtn = document.getElementById("copy");
-
-    if (!code) {
-      codeBox.textContent = "NO-CODE";
-      hint.textContent = "No code found in this session. Returning to start…";
-      setTimeout(() => location.href = "/", 1200);
-    } else {
-      codeBox.textContent = code;
-      if (user) msg.textContent = `User: ${user}`;
-    }
-
-    copyBtn.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(codeBox.textContent);
-        hint.textContent = "Copied.";
-        setTimeout(() => hint.textContent = "", 1200);
-      } catch {
-        hint.textContent = "Copy failed. Select it manually.";
+    (function () {
+      const el = document.getElementById("timestamp");
+      if (!el) return;
+      function tick() {
+        const d = new Date();
+        const t = d.toLocaleString();
+        el.textContent = "timestamp: " + t;
       }
-    };
+      tick();
+      setInterval(tick, 1000);
+    })();
   </script>
 </body>
 </html>
