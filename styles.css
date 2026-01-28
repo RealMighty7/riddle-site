@@ -389,3 +389,42 @@ body.in-sim #glassFX{
   55%  { opacity:.9; filter: hue-rotate(18deg) brightness(1.35) blur(1.2px); }
   100% { opacity:0; filter: blur(2px); }
 }
+/* ===== WHITE LANDING (default) ===== */
+body{
+  background: #ffffff !important;
+  color: rgba(10,12,16,.92) !important;
+}
+
+/* cards on landing should be light */
+#wrap .card{
+  background: rgba(0,0,0,.03) !important;
+  border-color: rgba(0,0,0,.12) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.10) !important;
+}
+.pill{
+  background: rgba(0,0,0,.04) !important;
+  border-color: rgba(0,0,0,.12) !important;
+  color: rgba(10,12,16,.70) !important;
+}
+.sim-btn{
+  border-color: rgba(0,0,0,.14) !important;
+  background: rgba(0,0,0,.03) !important;
+  color: rgba(10,12,16,.92) !important;
+}
+.sim-btn:hover{ background: rgba(0,0,0,.06) !important; }
+
+/* ===== DARK SIM (when main.js adds body.in-sim) ===== */
+body.in-sim{
+  background: radial-gradient(1200px 700px at 50% 0%, #0d1120 0%, #07090d 55%, #05060a 100%) !important;
+  color: rgba(232,237,247,.92) !important;
+}
+body.in-sim .sim-btn{
+  border-color: rgba(255,255,255,.14) !important;
+  background: rgba(255,255,255,.06) !important;
+  color: rgba(232,237,247,.92) !important;
+}
+body.in-sim .pill{
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(255,255,255,.14) !important;
+  color: rgba(232,237,247,.70) !important;
+}
