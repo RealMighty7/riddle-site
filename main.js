@@ -57,7 +57,6 @@
       "hackStatus",
     ];
 
-    // Optional (safe if missing)
     const OPTIONAL_IDS = [
       "viewerToken",
       "viewerFake",
@@ -204,6 +203,9 @@
       if (sys) sys.textContent = "admin context detected.";
     });
 
+    // global skip flag consumed by the task runner
+    window.__ADMIN_FORCE_OK = false;
+
     function initAdminPanel() {
       const panel = document.getElementById("adminPanel");
       if (!panel) return;
@@ -252,10 +254,8 @@
         clampToViewport();
 
         let dragging = false;
-        let startX = 0,
-          startY = 0;
-        let baseLeft = 0,
-          baseTop = 0;
+        let startX = 0, startY = 0;
+        let baseLeft = 0, baseTop = 0;
 
         const onDown = (e) => {
           const t = e.target;
@@ -276,13 +276,10 @@
 
         const onMove = (e) => {
           if (!dragging) return;
-
           const dx = e.clientX - startX;
           const dy = e.clientY - startY;
-
           panelEl.style.left = `${baseLeft + dx}px`;
           panelEl.style.top = `${baseTop + dy}px`;
-
           clampToViewport();
         };
 
@@ -290,7 +287,6 @@
           if (!dragging) return;
           dragging = false;
           handleEl.style.cursor = "grab";
-
           try {
             localStorage.setItem(
               "adminPanelPos",
@@ -306,7 +302,6 @@
         handleEl.addEventListener("pointerdown", onDown);
         window.addEventListener("pointermove", onMove);
         window.addEventListener("pointerup", onUp);
-
         window.addEventListener("resize", clampToViewport);
 
         handleEl.addEventListener("dblclick", () => {
@@ -319,9 +314,7 @@
       btnToggle?.addEventListener("click", () => {
         const willHide = !panel.classList.contains("hidden");
         if (willHide) {
-          try {
-            document.activeElement?.blur?.();
-          } catch {}
+          try { document.activeElement?.blur?.(); } catch {}
         }
         panel.classList.toggle("hidden");
         panel.setAttribute("aria-hidden", panel.classList.contains("hidden") ? "true" : "false");
@@ -332,22 +325,14 @@
         window.__ADMIN_FORCE_OK = true;
         document.dispatchEvent(new CustomEvent("admin:skip", { bubbles: true }));
         panel.setAttribute("aria-hidden", "false");
-        try {
-          document.activeElement?.blur?.();
-        } catch {}
+        try { document.activeElement?.blur?.(); } catch {}
       });
 
       document.addEventListener("admin:task", (e) => {
         const id = e?.detail?.taskId || "—";
+        const args = e?.detail?.args ? JSON.stringify(e.detail.args) : "—";
         if (elTask) elTask.textContent = id;
-        if (elAns) elAns.textContent = "—";
-      });
-
-      document.addEventListener("admin:hint", (e) => {
-        const hint = e?.detail?.hint;
-        if (!hint) return;
-        if (elTask && e?.detail?.taskId) elTask.textContent = e.detail.taskId;
-        if (elAns) elAns.textContent = String(hint);
+        if (elAns) elAns.textContent = args;
       });
     }
 
@@ -385,10 +370,7 @@
     const MS_PER_WORD = 60000 / WPM;
 
     function wordsCount(s) {
-      return String(s || "")
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean).length;
+      return String(s || "").trim().split(/\s+/).filter(Boolean).length;
     }
 
     function msToRead(line) {
@@ -455,7 +437,6 @@
 
     function getIdFromLine(rawLine) {
       const raw = String(rawLine || "");
-
       const m = raw.match(/^\s*\[(\d{1,4})\]\s*/);
       if (m) return String(m[1]).padStart(4, "0");
 
@@ -512,20 +493,14 @@
         const id = getIdFromLine(rawLine);
         if (!id) return Promise.resolve();
 
-        // Severely reduce Liam (Worker)
-        const isWorker = /^\s*(Liam\s*\(Worker\)|Worker:)/i.test(String(rawLine));
-        const vol = isWorker ? 0.22 : 1.0;
-
         this._audioChain = this._audioChain
-          .then(() => VO.playById(id, { volume: vol, baseHoldMs: 160, stopPrevious: false }))
+          .then(() => VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false }))
           .catch(() => {});
         return this._audioChain;
       },
 
       stop() {
-        try {
-          VO?.stopCurrent?.();
-        } catch {}
+        try { VO?.stopCurrent?.(); } catch {}
       },
     };
 
@@ -578,11 +553,12 @@
           : Promise.resolve();
 
       const typingMs = getTypingMsForLine(raw);
-      await typeLineIntoSim(printed, typingMs);
 
-      try {
-        await voPromise;
-      } catch {}
+      // ✅ sync typing + audio together (no serial lag)
+      await Promise.all([
+        typeLineIntoSim(printed, typingMs),
+        voPromise
+      ]);
     }
 
     async function playLines(lines) {
@@ -608,18 +584,6 @@
 
     function hideChoices() {
       simChoices.classList.add("hidden");
-    }
-
-    function showTaskUI(title, desc) {
-      taskUI.classList.remove("hidden");
-      taskTitle.textContent = title;
-      taskDesc.textContent = desc;
-      taskBody.innerHTML = "";
-
-      taskSecondary.classList.add("hidden");
-      taskPrimary.disabled = false;
-
-      els.taskActions?.classList.remove("hidden");
     }
 
     function hardReload() {
@@ -694,15 +658,9 @@ Reinitializing simulation…`
       tsWidgetId = window.turnstile.render(turnstileBox, {
         sitekey: "0x4AAAAAACN_lQF6Hw5BHs2u",
         theme: "dark",
-        callback: (token) => {
-          tsToken = token;
-        },
-        "expired-callback": () => {
-          tsToken = null;
-        },
-        "error-callback": () => {
-          tsToken = null;
-        },
+        callback: (token) => { tsToken = token; },
+        "expired-callback": () => { tsToken = null; },
+        "error-callback": () => { tsToken = null; },
       });
     }
 
@@ -871,9 +829,7 @@ Reinitializing simulation…`
 
     hackDelete.onclick = async () => {
       const f = FILES[activeFileIndex];
-      const selectedLines = Array.from(selected)
-        .map((i) => i + 1)
-        .sort((a, b) => a - b);
+      const selectedLines = Array.from(selected).map((i) => i + 1).sort((a, b) => a - b);
       const targets = f.targets.slice().sort((a, b) => a - b);
 
       const ok =
@@ -929,7 +885,6 @@ Reinitializing simulation…`
       els.taskActions?.classList.add("hidden");
 
       forceHackTopLayer();
-
       hackUser.textContent = `USER: ${finalDiscordName}`;
       hackRoom.classList.remove("hidden");
       renderFile(0);
@@ -940,7 +895,21 @@ Reinitializing simulation…`
       taskPrimary,
       taskSecondary,
       taskBody,
-      showTaskUI,
+      showTaskUI(title, desc) {
+        // task should never overlap the sim panel:
+        document.body.classList.add("task-open");
+        simRoom.classList.add("hidden");
+
+        taskUI.classList.remove("hidden");
+        taskTitle.textContent = title;
+        taskDesc.textContent = desc;
+        taskBody.innerHTML = "";
+
+        taskSecondary.classList.add("hidden");
+        taskPrimary.disabled = false;
+
+        els.taskActions?.classList.remove("hidden");
+      },
       doReset,
       difficultyBoost,
       penalize,
@@ -950,6 +919,9 @@ Reinitializing simulation…`
     let guidePath = "unknown"; // "emma" | "liam" | "run" | "unknown"
 
     function chooseFillerPool() {
+      // reduce worker spam early
+      if (guidePath === "liam" && resistanceScore < 4) return "filler_standard";
+
       if (guidePath === "run") return resistanceScore >= 6 ? "filler_run_hard" : "filler_run";
       if (guidePath === "emma") return resistanceScore >= 6 ? "filler_security_pressure" : "filler_security";
       if (guidePath === "liam") return resistanceScore >= 6 ? "filler_worker_pressure" : "filler_worker";
@@ -984,46 +956,36 @@ Reinitializing simulation…`
       openFinalModal(finalDiscordName);
     }
 
+    function waitForChoice() {
+      return new Promise((resolve) => {
+        const cleanup = () => {
+          choiceNeed.onclick = null;
+          choiceLie.onclick = null;
+          choiceRun.onclick = null;
+        };
+        choiceNeed.onclick = () => { cleanup(); resolve("comply"); };
+        choiceLie.onclick = () => { cleanup(); resolve("lie"); };
+        choiceRun.onclick = () => { cleanup(); resolve("run"); };
+      });
+    }
+
     async function runSteps(steps) {
       for (const step of steps) {
         if (step.say) {
+          // when speaking, ensure sim is visible
+          document.body.classList.remove("task-open");
+          simRoom.classList.remove("hidden");
+          taskUI.classList.add("hidden");
+
           await playLines(step.say);
-          continue;
-        }
-        if (step.choice) {
-          showChoices(step.choice);
-          const choice = await waitForChoice();
-
-          if (choice === "comply") {
-            if (!recordChoice(true)) return;
-            resistanceScore = Math.max(0, resistanceScore - 1);
-          } else if (choice === "lie") {
-            if (!recordChoice(true)) return;
-            resistanceScore = Math.min(12, resistanceScore + 0);
-          } else {
-            if (!recordChoice(false)) return;
-            resistanceScore = Math.min(12, resistanceScore + 2);
-          }
-
-          hideChoices();
-          continue;
-        }
-
-        if (step.task) {
-          const fn = TASKS[step.task];
-          if (!fn) {
-            console.warn("[sim] Missing task:", step.task, step.args || {});
-            await playLines([`System: PROCEDURE MISSING (${step.task}).`]);
-            continue;
-          }
-
-          await fn(taskContext, step.args || {});
-          tasksCompleted++;
-          await maybeAlmostDonePhase();
           continue;
         }
 
         if (step.filler) {
+          document.body.classList.remove("task-open");
+          simRoom.classList.remove("hidden");
+          taskUI.classList.add("hidden");
+
           const count = Number(step.filler.count || 1);
           let poolName = String(step.filler.pool || "filler_standard");
           if (poolName === "AUTO") poolName = chooseFillerPool();
@@ -1037,6 +999,84 @@ Reinitializing simulation…`
           }
           continue;
         }
+
+        if (step.choice) {
+          document.body.classList.remove("task-open");
+          simRoom.classList.remove("hidden");
+          taskUI.classList.add("hidden");
+
+          // show the choice buttons (uses your built-in simChoices)
+          const labels = step.choice;
+          if (labels?.complyLabel) choiceNeed.textContent = labels.complyLabel;
+          if (labels?.lieLabel) choiceLie.textContent = labels.lieLabel;
+          if (labels?.runLabel) choiceRun.textContent = labels.runLabel;
+          simChoices.classList.remove("hidden");
+
+          const choice = await waitForChoice();
+
+          if (choiceTotal === 0) {
+            // first choice determines guidePath
+            if (choice === "comply") guidePath = "emma";
+            else if (choice === "lie") guidePath = "liam";
+            else guidePath = "run";
+          }
+
+          if (choice === "comply") {
+            if (!recordChoice(true)) return;
+            resistanceScore = Math.max(0, resistanceScore - 1);
+          } else if (choice === "lie") {
+            if (!recordChoice(true)) return;
+          } else {
+            if (!recordChoice(false)) return;
+            resistanceScore = Math.min(12, resistanceScore + 2);
+          }
+
+          simChoices.classList.add("hidden");
+          continue;
+        }
+
+        if (step.task) {
+          // admin panel: announce task id + args (works for ALL pack tasks)
+          document.dispatchEvent(new CustomEvent("admin:task", {
+            detail: { taskId: step.task, args: step.args || null }
+          }));
+
+          // allow admin skip to bypass any task cleanly
+          if (window.__ADMIN_FORCE_OK) {
+            window.__ADMIN_FORCE_OK = false;
+            tasksCompleted++;
+            await wait(200);
+            await maybeAlmostDonePhase();
+            continue;
+          }
+
+          const fn = TASKS[step.task];
+          if (!fn) {
+            console.warn("[sim] Missing task:", step.task, step.args || {});
+            await playLines([`System: PROCEDURE MISSING (${step.task}).`]);
+            continue;
+          }
+
+          // run task
+          document.body.classList.add("task-open");
+          simRoom.classList.add("hidden");
+          simChoices.classList.add("hidden");
+
+          await fn(taskContext, step.args || {});
+
+          // close task UI cleanly
+          taskUI.classList.add("hidden");
+          document.body.classList.remove("task-open");
+          simRoom.classList.remove("hidden");
+
+          tasksCompleted++;
+
+          // small breath space to reduce repetition feel
+          await wait(320);
+
+          await maybeAlmostDonePhase();
+          continue;
+        }
       }
     }
 
@@ -1047,8 +1087,6 @@ Reinitializing simulation…`
       await unlockAudio();
 
       document.body.classList.add("in-sim");
-
-      // IMPORTANT: remove .hidden so CSS can position it (you were keeping it display:none)
       subs?.classList.remove("hidden");
 
       simRoom.classList.remove("hidden");
@@ -1060,60 +1098,9 @@ Reinitializing simulation…`
       playSfx("static1", { volume: 0.25, overlap: false });
 
       await playLines(DIALOGUE.intro);
-      await runChoiceBeats();
+
+      // IMPORTANT: cadence is now driven ONLY by DIALOGUE.steps
       await runSteps(DIALOGUE.steps);
-    }
-
-    function waitForChoice() {
-      return new Promise((resolve) => {
-        const cleanup = () => {
-          choiceNeed.onclick = null;
-          choiceLie.onclick = null;
-          choiceRun.onclick = null;
-        };
-        choiceNeed.onclick = () => {
-          cleanup();
-          resolve("comply");
-        };
-        choiceLie.onclick = () => {
-          cleanup();
-          resolve("lie");
-        };
-        choiceRun.onclick = () => {
-          cleanup();
-          resolve("run");
-        };
-      });
-    }
-
-    async function runChoiceBeats() {
-      for (let i = 0; i < (DIALOGUE.choiceBeats || []).length; i++) {
-        const beat = DIALOGUE.choiceBeats[i];
-
-        await playLines(beat.say || []);
-        showChoices(beat.choices);
-
-        const choice = await waitForChoice();
-
-        if (i === 0) {
-          if (choice === "comply") guidePath = "emma";
-          else if (choice === "lie") guidePath = "liam";
-          else guidePath = "run";
-        }
-
-        if (choice === "comply") {
-          if (!recordChoice(true)) return;
-          resistanceScore = Math.max(0, resistanceScore - 1);
-        } else if (choice === "lie") {
-          if (!recordChoice(true)) return;
-          resistanceScore = Math.min(12, resistanceScore + 0);
-        } else {
-          if (!recordChoice(false)) return;
-          resistanceScore = Math.min(12, resistanceScore + 2);
-        }
-        hideChoices();
-        await playLines(beat.respond && beat.respond[choice] ? beat.respond[choice] : []);
-      }
     }
 
     /* ======================
@@ -1122,12 +1109,8 @@ Reinitializing simulation…`
     document.addEventListener("selectstart", (e) => {
       const t = e.target;
       const el = t && t.nodeType === 1 ? t : t?.parentElement || null;
-
       if (el && el.closest && el.closest("input, textarea")) return;
-
-      if (stage === 1 || document.body.classList.contains("sim-transition")) {
-        e.preventDefault();
-      }
+      if (stage === 1 || document.body.classList.contains("sim-transition")) e.preventDefault();
     });
 
     let crackBuilt = false;
@@ -1144,11 +1127,9 @@ Reinitializing simulation…`
     }
 
     function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
-      let x = cx,
-        y = cy;
+      let x = cx, y = cy;
       let ang = rng() * Math.PI * 2;
       const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
-
       for (let i = 0; i < steps; i++) {
         ang += (rng() - 0.5) * jitter;
         x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
@@ -1205,12 +1186,10 @@ Reinitializing simulation…`
 
       const paneCount = 18;
 
-      // Build SVG cracks (ranked 1..4 so we can reveal in stages)
       let svg = cracks;
       const isSvg = svg && svg.namespaceURI === "http://www.w3.org/2000/svg";
 
       if (!isSvg) {
-        // If #cracks is a div, we create an svg inside it
         cracks.innerHTML = "";
         svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", "0 0 1000 1000");
@@ -1224,15 +1203,13 @@ Reinitializing simulation…`
         svg.setAttribute("preserveAspectRatio", "none");
       }
 
-      // Multiple origins so it feels like “panes” reflecting/duplicating
       const origins = [
-        { x: 320 + rng() * 90, y: 280 + rng() * 90, bias: 1 },
-        { x: 680 + rng() * 90, y: 320 + rng() * 90, bias: 2 },
-        { x: 360 + rng() * 90, y: 720 + rng() * 90, bias: 3 },
-        { x: 720 + rng() * 90, y: 740 + rng() * 90, bias: 4 },
+        { x: 320 + rng() * 90, y: 280 + rng() * 90 },
+        { x: 680 + rng() * 90, y: 320 + rng() * 90 },
+        { x: 360 + rng() * 90, y: 720 + rng() * 90 },
+        { x: 720 + rng() * 90, y: 740 + rng() * 90 },
       ];
 
-      // Main “spines”
       for (let i = 0; i < origins.length; i++) {
         const o = origins[i];
         const spineSteps = 12 + Math.floor(rng() * 10);
@@ -1240,12 +1217,9 @@ Reinitializing simulation…`
         const spineJitter = 1.25 + rng() * 0.8;
 
         const d = makePathFromCenter(rng, o.x, o.y, spineSteps, spineLen, spineJitter);
-
-        // rank: make earlier stages get fewer, thicker spines
         const rank = (i % 4) + 1;
         addSeg(svg, d, rank);
 
-        // Branches off spine
         const branchCount = 3 + Math.floor(rng() * 4);
         for (let b = 0; b < branchCount; b++) {
           const bx = o.x + (rng() - 0.5) * 240;
@@ -1257,14 +1231,12 @@ Reinitializing simulation…`
 
           const bd = makePathFromCenter(rng, bx, by, steps, stepLen, jitter);
 
-          // heavier weighting toward later stages for branch clutter
           const rPick = rng();
           const brRank = rPick < 0.28 ? 2 : rPick < 0.58 ? 3 : 4;
           addSeg(svg, bd, brRank);
         }
       }
 
-      // Extra micro-fractures (mostly later stages)
       for (let i = 0; i < paneCount; i++) {
         const cx = 120 + rng() * 760;
         const cy = 120 + rng() * 760;
@@ -1284,7 +1256,6 @@ Reinitializing simulation…`
     function setCrackStage(n) {
       crackStage = clamp(n, 0, 4);
 
-      // body hooks for CSS (optional)
       document.body.classList.toggle("crack1", crackStage >= 1);
       document.body.classList.toggle("crack2", crackStage >= 2);
       document.body.classList.toggle("crack3", crackStage >= 3);
@@ -1302,7 +1273,6 @@ Reinitializing simulation…`
           if (reveal) {
             p.classList.remove("pending");
             p.classList.add("active");
-            // animate draw-in
             try {
               requestAnimationFrame(() => {
                 p.style.strokeDashoffset = "0";
@@ -1311,7 +1281,6 @@ Reinitializing simulation…`
           } else {
             p.classList.add("pending");
             p.classList.remove("active");
-            // reset to hidden
             try {
               const len = p.style.getPropertyValue("--dash") || p.getTotalLength?.() || 0;
               p.style.strokeDashoffset = String(len);
@@ -1322,12 +1291,16 @@ Reinitializing simulation…`
     }
 
     function maybeAdvanceCracks() {
-      // stage thresholds
       const next =
-        clicks >= CRACK_AT[3] ? 4 :
-        clicks >= CRACK_AT[2] ? 3 :
-        clicks >= CRACK_AT[1] ? 2 :
-        clicks >= CRACK_AT[0] ? 1 : 0;
+        clicks >= CRACK_AT[3]
+          ? 4
+          : clicks >= CRACK_AT[2]
+          ? 3
+          : clicks >= CRACK_AT[1]
+          ? 2
+          : clicks >= CRACK_AT[0]
+          ? 1
+          : 0;
 
       if (next !== crackStage) {
         setCrackStage(next);
@@ -1345,11 +1318,16 @@ Reinitializing simulation…`
       cracks.classList.add("shatter");
       glassFX?.classList.add("shatter");
 
-      // small delay for visual
       await wait(520);
 
-      // hide landing bits if you have them (safe if missing)
-      document.querySelectorAll(".landingOnly").forEach((n) => n.classList.add("hidden"));
+      // "cracks disappear into sim" is handled by CSS once body.in-sim is applied,
+      // but we also force a quick fade if the browser is slow:
+      try {
+        cracks.style.opacity = "1";
+        setTimeout(() => {
+          cracks.style.opacity = "";
+        }, 50);
+      } catch {}
 
       await openSimRoom();
     }
@@ -1390,24 +1368,150 @@ Reinitializing simulation…`
     document.addEventListener("pointerdown", registerLandingClick, { passive: true });
 
     /* ====================== BOOT UI ====================== */
-    // If you have a launch button, allow it to also count as clicks (but not required)
     els.launchBtn?.addEventListener("click", (e) => {
-      // treat as a landing click (honors cooldown)
       registerLandingClick(e);
     });
 
-    // Basic timestamp tick if you have it
+    // Timestamp tick (your index also has a tiny inline script; this just keeps it consistent)
     if (els.timestamp) {
       const tick = () => {
         const d = new Date();
-        els.timestamp.textContent = d.toLocaleString();
+        els.timestamp.textContent = "timestamp: " + d.toLocaleString();
       };
       tick();
       setInterval(tick, 1000);
     }
 
-    // start in landing mode
+    // use all 5 packs: ensure packs merged into TASKS if they export separate objects
+    // (safe no-op if packs already extend window.TASKS)
+    (function normalizeTasks() {
+      const mergeFrom = (obj) => {
+        if (!obj || typeof obj !== "object") return;
+        for (const [k, v] of Object.entries(obj)) {
+          if (typeof v === "function" && !TASKS[k]) TASKS[k] = v;
+        }
+      };
+
+      mergeFrom(window.PACK1);
+      mergeFrom(window.PACK2);
+      mergeFrom(window.PACK3);
+      mergeFrom(window.PACK4);
+      mergeFrom(window.PACK5);
+
+      // also support packs exporting under window.PACKS = {pack1:{},...}
+      if (window.PACKS && typeof window.PACKS === "object") {
+        for (const v of Object.values(window.PACKS)) mergeFrom(v);
+      }
+    })();
+
+    // Start in landing mode
     stage = 1;
+
+    /* ======================
+       ENFORCE SIM CADENCE: dialogue -> choice -> task (x10)
+       This uses your existing DIALOGUE content but prevents repeating the same phrases.
+    ====================== */
+
+    // Dedup helper for repeated dialogue/filler lines
+    const _recentLines = [];
+    function pickNonRepeating(pool, maxRecent = 10) {
+      const arr = (pool || []).filter((x) => typeof x === "string" && x.trim());
+      if (!arr.length) return null;
+
+      const recentSet = new Set(_recentLines.slice(-maxRecent));
+      const candidates = arr.filter((s) => !recentSet.has(s));
+      const pick = (candidates.length ? candidates : arr)[Math.floor(Math.random() * (candidates.length ? candidates : arr).length)];
+      _recentLines.push(pick);
+      if (_recentLines.length > 40) _recentLines.splice(0, _recentLines.length - 40);
+      return pick;
+    }
+
+    // Build an auto-step sequence that alternates: dialogue -> choice -> task
+    // Uses pack pools if present in DIALOGUE.steps already; otherwise it picks random tasks from TASKS.
+    function buildCadenceSteps(loopCount = 10) {
+      const steps = [];
+
+      // dialogue chunk source: security/worker/system-ish
+      const sayPool = []
+        .concat(DIALOGUE.fillerPools?.filler_security || [])
+        .concat(DIALOGUE.fillerPools?.filler_worker || [])
+        .concat(DIALOGUE.fillerPools?.filler_standard || []);
+
+      const choiceLabels = DIALOGUE.choiceBeats?.[0]?.choices || {
+        complyLabel: "I'm sorry.",
+        lieLabel: "It wasn't me.",
+        runLabel: "Run.",
+      };
+
+      // choose task ids: prefer your pack pools if you named them, else any TASKS key
+      const taskIds = Object.keys(TASKS || {}).filter((k) => typeof TASKS[k] === "function");
+      const safeTaskIds = taskIds.filter((k) => !/debug|test|internal/i.test(k)); // light filter, optional
+
+      const pickTaskId = () => {
+        const list = safeTaskIds.length ? safeTaskIds : taskIds;
+        if (!list.length) return null;
+        return list[Math.floor(Math.random() * list.length)];
+      };
+
+      for (let i = 0; i < loopCount; i++) {
+        // DIALOGUE
+        const d1 = pickNonRepeating(sayPool) || "System: …";
+        const d2 = pickNonRepeating(sayPool) || null;
+        steps.push({ say: d2 ? [d1, d2] : [d1] });
+
+        // CHOICE
+        steps.push({ choice: choiceLabels });
+
+        // TASK
+        const tid = pickTaskId();
+        if (tid) steps.push({ task: tid, args: {} });
+        else steps.push({ say: ["System: PROCEDURE MISSING (no tasks loaded)."] });
+      }
+
+      return steps;
+    }
+
+    // If your dialogue.js already has a deliberate steps array, we keep it,
+    // but if it’s short or contains missing tasks, we replace/extend it with cadence steps.
+    function patchDialogueSteps() {
+      const base = Array.isArray(DIALOGUE.steps) ? DIALOGUE.steps.slice() : [];
+      const hasEnough = base.length >= 24; // rough threshold
+      if (!hasEnough) {
+        DIALOGUE.steps = base.concat(buildCadenceSteps(10));
+      } else {
+        // still enforce alternation by appending a cadence segment at the end
+        DIALOGUE.steps = base.concat(buildCadenceSteps(10));
+      }
+    }
+
+    patchDialogueSteps();
+
+    /* ====================== WORKER VOLUME REDUCTION ====================== */
+    // If your VoiceBank supports per-speaker gain, we apply it. Otherwise we still soft-reduce using subtitles tags.
+    (function reduceWorkerVolume() {
+      try {
+        // best effort: set speaker gain map if available
+        if (VO && typeof VO.setSpeakerGain === "function") {
+          VO.setSpeakerGain("Liam", 0.28);
+          VO.setSpeakerGain("Worker", 0.28);
+        }
+      } catch {}
+      // fallback: if your voice lines include "Liam (Worker):" we lower gain at playback time
+      const origPlayById = VO?.playById;
+      if (VO && typeof origPlayById === "function" && !VO.__gainPatched) {
+        VO.__gainPatched = true;
+        VO.playById = function (id, opts = {}) {
+          try {
+            const meta = VO.byId?.get?.(id);
+            const raw = String(meta?.text_raw ?? meta?.text ?? "");
+            const isWorker = /liam\s*\(worker\)|\bworker\b/i.test(raw);
+            if (isWorker) opts = { ...opts, volume: Math.min(0.28, Number(opts.volume ?? 1)) };
+          } catch {}
+          return origPlayById.call(this, id, opts);
+        };
+      }
+    })();
+
   }
 
   boot();
