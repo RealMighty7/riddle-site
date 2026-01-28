@@ -1,6 +1,6 @@
-// dialogue.js
+// dialogue.js (FULL REPLACEMENT)
 // Exposes window.DIALOGUE used by main.js
-// FIXED: all task IDs now exist
+// IMPORTANT: only references pools you actually load (pack1..pack4)
 
 window.DIALOGUE = {
   intro: [
@@ -68,7 +68,7 @@ window.DIALOGUE = {
   steps: [
     { say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] },
 
-    // EARLY PHASE — calm, procedural
+    // EARLY: gentle
     { task: "random", args: { pool: ["core"] } },
     { filler: { pool: "AUTO", count: 1 } },
 
@@ -81,32 +81,34 @@ window.DIALOGUE = {
 
     { filler: { pool: "AUTO", count: 1 } },
     { say: ["System: Stabilization cycle begins."] },
-    { task: "random", args: { pool: ["core"] } },
+    { task: "random", args: { pool: ["pack1"] } },
 
-    // MID PHASE — worker guidance appears
+    // MID: worker guidance
     { filler: { pool: "AUTO", count: 1 } },
     { say: ["Liam (Worker): Keep it boring.", "System: PROCEDURE AVAILABLE."] },
-    { task: "random", args: { pool: ["pack4"] } },
+    { task: "random", args: { pool: ["pack2"] } },
 
     { filler: { pool: "AUTO", count: 1 } },
-    { task: "random", args: { pool: ["pack4", "pack5"] } },
+    { task: "random", args: { pool: ["pack2", "pack3"] } },
 
     // ESCALATION
     { filler: { pool: "AUTO", count: 1 } },
     { say: ["System: Supplemental verification."] },
-    { task: "random", args: { pool: ["pack5"] } },
+    { task: "random", args: { pool: ["pack3"] } },
 
     { filler: { pool: "AUTO", count: 1 } },
     { say: ["System: Monitoring degraded."] },
-    { task: "random", args: { pool: ["pack5"] } },
+    { task: "random", args: { pool: ["pack4"] } },
 
-    // LATE PHASE — pressure
+    // LATE: pressure
     { filler: { pool: "AUTO", count: 1 } },
-    { say: [
-      "System: Attention window narrowing.",
-      "Emma (Security): You’re almost out of time."
-    ]},
-    { task: "random", args: { pool: ["pack5"] } },
+    {
+      say: [
+        "System: Attention window narrowing.",
+        "Emma (Security): You’re almost out of time."
+      ]
+    },
+    { task: "random", args: { pool: ["pack4"] } },
 
     { say: ["System: …"] },
     { filler: { pool: "AUTO", count: 1 } }
