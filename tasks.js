@@ -1,527 +1,479 @@
 // tasks.js (FULL REPLACEMENT)
 // Exposes window.TASKS used by main.js
-// Goal: (1) eliminate “missing task” situations by merging all packs,
-// (2) provide safe core tasks + fallbacks, (3) support main.js admin panel for ALL pack tasks,
-// (4) reduce repetition with simple anti-repeat picks.
+// - Merges pack1..pack5 task functions (supports multiple naming conventions)
+// - Provides safe "random" task selector that ONLY picks existing tasks
+// - Avoids repetition (recent-history filter)
+// - Emits admin hints (task id + suggested answer) for ANY task
+// - Includes core tasks used by dialogue.js: random, checksum
+//   plus extra core tasks: keypad_4, mirror_match, wire_cut, arrow_memory, click_pressure
 
 (() => {
-  const TASKS = (window.TASKS = window.TASKS || {});
+  const TASKS = Object.create(null);
 
-  /* ===================== UTIL ===================== */
-  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  const safeText = (s) => String(s ?? "").replace(/[<>]/g, "");
+  /* =========================
+     HELPERS
+  ========================= */
   const el = (tag, props = {}, children = []) => {
     const n = document.createElement(tag);
-    for (const [k, v] of Object.entries(props)) {
-      if (k === "style" && v && typeof v === "object") Object.assign(n.style, v);
-      else if (k === "class") n.className = v;
+    Object.entries(props).forEach(([k, v]) => {
+      if (k === "class") n.className = v;
+      else if (k === "style" && v && typeof v === "object") Object.assign(n.style, v);
       else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2), v);
       else if (v !== undefined && v !== null) n.setAttribute(k, String(v));
-    }
-    for (const c of children) {
-      if (c == null) continue;
-      if (typeof c === "string") n.appendChild(document.createTextNode(c));
-      else n.appendChild(c);
-    }
+    });
+    for (const c of children) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
     return n;
   };
 
-  // task id blacklist for random selection
-  const RESERVED = new Set(["random"]);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // anti-repeat
-  const recentTasks = [];
-  function pickNonRepeating(list, maxRecent = 10) {
-    const arr = (list || []).filter(Boolean);
-    if (!arr.length) return null;
-
-    const recent = new Set(recentTasks.slice(-maxRecent));
-    const candidates = arr.filter((x) => !recent.has(x));
-    const pick = (candidates.length ? candidates : arr)[
-      Math.floor(Math.random() * (candidates.length ? candidates : arr).length)
-    ];
-    recentTasks.push(pick);
-    if (recentTasks.length > 40) recentTasks.splice(0, recentTasks.length - 40);
-    return pick;
-  }
-
-  /* ===================== PACK MERGE ===================== */
-  function mergePack(obj) {
-    if (!obj || typeof obj !== "object") return;
-    for (const [k, v] of Object.entries(obj)) {
-      if (typeof v === "function") TASKS[k] = v;
-    }
-  }
-
-  // Merge common pack globals (supports lots of naming)
-  mergePack(window.PACK1);
-  mergePack(window.PACK2);
-  mergePack(window.PACK3);
-  mergePack(window.PACK4);
-  mergePack(window.PACK5);
-  if (window.PACKS && typeof window.PACKS === "object") {
-    for (const v of Object.values(window.PACKS)) mergePack(v);
-  }
-  if (window.Packs && typeof window.Packs === "object") {
-    for (const v of Object.values(window.Packs)) mergePack(v);
-  }
-
-  /* =====================
-     HELPERS FOR CORE TASKS
-  ===================== */
-  function mountBasicTaskUI(ctx, title, desc) {
-    ctx.showTaskUI?.(title, desc);
-    // ctx.showTaskUI should reveal taskUI and hide sim (main.js already does this)
-  }
-
-  function finishTask(ctx, ok = true, msg = "") {
-    // Let packs optionally render feedback via ctx.taskBody
-    if (msg && ctx.taskBody) {
-      ctx.taskBody.appendChild(
-        el("div", { style: { marginTop: "10px", opacity: "0.9" } }, [msg])
-      );
-    }
-    // main.js closes the UI after fn resolves.
-    return ok;
-  }
-
-  function adminHint(taskId, hint, args) {
+  function emitAdminHint(taskId, hint) {
     try {
       document.dispatchEvent(
-        new CustomEvent("admin:hint", { detail: { taskId, hint, args: args || null } })
+        new CustomEvent("admin:hint", { detail: { taskId: String(taskId || "—"), hint } })
       );
     } catch {}
   }
 
-  /* =====================
-     CORE TASKS (fallbacks)
-     These prevent “PROCEDURE MISSING” if a pack file fails.
-  ===================== */
-
-  // --- checksum ---
-  if (!TASKS.checksum) {
-    TASKS.checksum = async (ctx, args = {}) => {
-      const phrase = String(args.phrase || "echostatic07vault").trim();
-      const taskId = "checksum";
-      adminHint(taskId, phrase, args);
-
-      mountBasicTaskUI(ctx, "CHECKSUM", "Type the checksum phrase exactly, then continue.");
-
-      const input = el("input", {
-        type: "text",
-        placeholder: "checksum…",
-        autocomplete: "off",
-        spellcheck: "false",
-        style: {
-          width: "100%",
-          padding: "10px 12px",
-          borderRadius: "14px",
-          border: "1px solid rgba(255,255,255,.14)",
-          background: "rgba(255,255,255,.06)",
-          color: "rgba(232,237,247,.92)",
-        },
-      });
-
-      const note = el(
-        "div",
-        { style: { marginTop: "10px", opacity: "0.8", fontSize: "13px" } },
-        ["Enter phrase, then press continue."]
-      );
-
-      ctx.taskBody.appendChild(input);
-      ctx.taskBody.appendChild(note);
-
-      return await new Promise((resolve) => {
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => {
-          if (window.__ADMIN_FORCE_OK) {
-            window.__ADMIN_FORCE_OK = false;
-            resolve(finishTask(ctx, true));
-            return;
-          }
-
-          const v = String(input.value || "").trim();
-          if (v !== phrase) {
-            ctx.glitch?.();
-            ctx.penalize?.(1, "Checksum mismatch");
-            resolve(finishTask(ctx, false, "Checksum mismatch."));
-            return;
-          }
-          resolve(finishTask(ctx, true, "Checksum accepted."));
-        };
-      });
-    };
+  function hardDisable(btn) {
+    if (!btn) return;
+    btn.disabled = true;
+    btn.setAttribute("aria-disabled", "true");
   }
 
-  // --- click_pressure (simple) ---
-  if (!TASKS.click_pressure) {
-    TASKS.click_pressure = async (ctx, args = {}) => {
-      const taskId = "click_pressure";
-      adminHint(taskId, "Tap 8 times", args);
+  function hardEnable(btn) {
+    if (!btn) return;
+    btn.disabled = false;
+    btn.removeAttribute("aria-disabled");
+  }
 
-      const target = clamp(Number(args.target || 8), 3, 16);
-      mountBasicTaskUI(ctx, "PRESSURE", `Click the button ${target} times.`);
+  /* =========================
+     PACK MERGE
+  ========================= */
+  function readPackTasks(n) {
+    const candidates = [
+      window[`PACK${n}_TASKS`],
+      window[`PACK${n}TASKS`],
+      window[`pack${n}Tasks`],
+      window[`pack${n}_tasks`],
+      window[`PACK${n}`]?.tasks,
+      window[`pack${n}`]?.tasks,
+    ];
+    for (const c of candidates) {
+      if (c && typeof c === "object") return c;
+    }
+    return null;
+  }
 
-      let n = 0;
-      const counter = el("div", { style: { marginTop: "8px", opacity: ".85" } }, [
-        `count: ${n}/${target}`,
-      ]);
+  function mergePack(n) {
+    const obj = readPackTasks(n);
+    if (!obj) return { ids: [], merged: false };
 
-      const btn = el(
-        "button",
-        {
-          class: "sim-btn",
-          style: { marginTop: "10px" },
-        },
-        ["press"]
-      );
+    const ids = [];
+    for (const [id, fn] of Object.entries(obj)) {
+      if (typeof fn !== "function") continue;
+      // don’t overwrite core tasks
+      if (!TASKS[id]) TASKS[id] = fn;
+      ids.push(id);
+    }
+    return { ids, merged: ids.length > 0 };
+  }
 
-      btn.onclick = () => {
-        n++;
-        counter.textContent = `count: ${n}/${target}`;
-        if (n >= target) {
-          try {
-            btn.disabled = true;
-          } catch {}
+  const POOLS = {
+    core: [],
+    pack1: [],
+    pack2: [],
+    pack3: [],
+    pack4: [],
+    pack5: [],
+  };
+
+  function rebuildPools() {
+    // clear existing pool lists
+    Object.keys(POOLS).forEach((k) => (POOLS[k] = []));
+
+    // core tasks are added later (after definitions)
+    // pack tasks:
+    for (let n = 1; n <= 5; n++) {
+      const { ids } = mergePack(n);
+      POOLS[`pack${n}`] = ids.slice();
+    }
+  }
+
+  /* =========================
+     CORE TASK: CHECKSUM
+  ========================= */
+  TASKS.checksum = async (ctx, args = {}) => {
+    const phrase = String(args.phrase || "").trim();
+    const title = "CHECKSUM";
+    const desc = phrase
+      ? "Enter the checksum phrase exactly."
+      : "Enter the checksum phrase exactly (phrase missing).";
+
+    ctx.showTaskUI(title, desc);
+
+    emitAdminHint("checksum", phrase || "(missing phrase)");
+
+    const input = el("input", {
+      class: "textIn",
+      placeholder: "checksum phrase",
+      autocomplete: "off",
+      spellcheck: "false",
+      style: { width: "100%" },
+    });
+
+    const note = el("div", { class: "task-note" }, ["press continue when finished"]);
+    ctx.taskBody.appendChild(input);
+    ctx.taskBody.appendChild(note);
+
+    hardEnable(ctx.taskPrimary);
+
+    await new Promise((resolve) => {
+      const done = () => {
+        const v = String(input.value || "").trim();
+        if (!phrase) {
+          ctx.doReset("PROCEDURE MISSING", "checksum phrase not provided.");
+          return;
         }
+        if (v === phrase || window.__ADMIN_FORCE_OK) {
+          resolve();
+          return;
+        }
+        ctx.glitch?.();
+        ctx.penalize?.(1, "Checksum mismatch");
+        input.focus();
       };
 
-      ctx.taskBody.appendChild(counter);
-      ctx.taskBody.appendChild(btn);
-
-      return await new Promise((resolve) => {
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => {
-          if (window.__ADMIN_FORCE_OK) {
-            window.__ADMIN_FORCE_OK = false;
-            resolve(finishTask(ctx, true));
-            return;
-          }
-          if (n < target) {
-            ctx.glitch?.();
-            ctx.penalize?.(1, "Incomplete");
-            resolve(finishTask(ctx, false, "Incomplete."));
-            return;
-          }
-          resolve(finishTask(ctx, true, "Pressure stabilized."));
-        };
+      ctx.taskPrimary.onclick = done;
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") done();
       });
-    };
-  }
+      setTimeout(() => input.focus(), 50);
+    });
+  };
 
-  // --- keypad_4 (simple 4-digit) ---
-  if (!TASKS.keypad_4) {
-    TASKS.keypad_4 = async (ctx, args = {}) => {
-      const code = String(args.code || "0417").replace(/\D/g, "").slice(0, 4) || "0417";
-      const taskId = "keypad_4";
-      adminHint(taskId, code, args);
+  /* =========================
+     EXTRA CORE TASKS (simple, reliable)
+  ========================= */
 
-      mountBasicTaskUI(ctx, "KEYPAD", "Enter the 4-digit code, then continue.");
+  // 4-digit keypad (random code shown briefly)
+  TASKS.keypad_4 = async (ctx) => {
+    ctx.showTaskUI("KEYPAD", "Enter the 4-digit code.");
 
-      let entered = "";
-      const display = el(
-        "div",
-        {
-          style: {
-            marginTop: "10px",
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-            fontSize: "18px",
-            letterSpacing: "4px",
-            opacity: ".9",
-          },
-        },
-        ["____"]
-      );
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    emitAdminHint("keypad_4", code);
 
-      const grid = el("div", {
-        style: {
-          marginTop: "12px",
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: "10px",
-          maxWidth: "360px",
-        },
-      });
+    const flash = el(
+      "div",
+      {
+        class: "pill",
+        style: { marginTop: "10px", display: "inline-block", filter: "brightness(1.15)" },
+      },
+      [`code: ${code}`]
+    );
 
-      const buttons = ["1","2","3","4","5","6","7","8","9","←","0","clr"];
-      buttons.forEach((label) => {
-        const b = el("button", { class: "sim-btn" }, [label]);
-        b.onclick = () => {
-          if (label === "clr") entered = "";
-          else if (label === "←") entered = entered.slice(0, -1);
-          else if (entered.length < 4) entered += label;
+    const input = el("input", {
+      class: "textIn",
+      placeholder: "0000",
+      inputmode: "numeric",
+      autocomplete: "off",
+      spellcheck: "false",
+      style: { width: "100%", marginTop: "12px", letterSpacing: "2px" },
+    });
 
-          display.textContent = (entered + "____").slice(0, 4);
-        };
-        grid.appendChild(b);
-      });
+    ctx.taskBody.appendChild(flash);
+    ctx.taskBody.appendChild(input);
 
-      ctx.taskBody.appendChild(display);
-      ctx.taskBody.appendChild(grid);
+    // hide the code quickly
+    await sleep(900);
+    flash.textContent = "code: —";
 
-      return await new Promise((resolve) => {
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => {
-          if (window.__ADMIN_FORCE_OK) {
-            window.__ADMIN_FORCE_OK = false;
-            resolve(finishTask(ctx, true));
-            return;
-          }
-          if (entered !== code) {
-            ctx.glitch?.();
-            ctx.penalize?.(1, "Bad code");
-            resolve(finishTask(ctx, false, "Rejected."));
-            return;
-          }
-          resolve(finishTask(ctx, true, "Accepted."));
-        };
-      });
-    };
-  }
-
-  // --- mirror_match (very small) ---
-  if (!TASKS.mirror_match) {
-    TASKS.mirror_match = async (ctx, args = {}) => {
-      const taskId = "mirror_match";
-      adminHint(taskId, "Match left/right", args);
-
-      mountBasicTaskUI(ctx, "MIRROR", "Make both sides match. Then continue.");
-
-      const leftVal = ["▢","▣","▥","▦"][Math.floor(Math.random() * 4)];
-      let rightVal = ["▢","▣","▥","▦"][Math.floor(Math.random() * 4)];
-
-      const row = el("div", { style: { marginTop: "12px", display: "flex", gap: "12px", alignItems: "center" } });
-      const left = el("div", { style: { fontSize: "30px", opacity: ".9" } }, [leftVal]);
-      const right = el("button", { class: "sim-btn", style: { fontSize: "22px", padding: "12px 16px" } }, [rightVal]);
-
-      right.onclick = () => {
-        const opts = ["▢","▣","▥","▦"];
-        rightVal = opts[(opts.indexOf(rightVal) + 1) % opts.length];
-        right.textContent = rightVal;
+    await new Promise((resolve) => {
+      const check = () => {
+        const v = String(input.value || "").replace(/\D/g, "").slice(0, 4);
+        input.value = v;
+        if (v === code || window.__ADMIN_FORCE_OK) return resolve();
+        ctx.glitch?.();
+        ctx.penalize?.(1, "Keypad rejected");
+        input.focus();
       };
 
-      row.appendChild(left);
-      row.appendChild(el("div", { style: { opacity: ".7" } }, ["↔"]));
-      row.appendChild(right);
-      ctx.taskBody.appendChild(row);
-
-      return await new Promise((resolve) => {
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => {
-          if (window.__ADMIN_FORCE_OK) {
-            window.__ADMIN_FORCE_OK = false;
-            resolve(finishTask(ctx, true));
-            return;
-          }
-          if (rightVal !== leftVal) {
-            ctx.glitch?.();
-            ctx.penalize?.(1, "Mismatch");
-            resolve(finishTask(ctx, false, "Mismatch."));
-            return;
-          }
-          resolve(finishTask(ctx, true, "Aligned."));
-        };
+      ctx.taskPrimary.onclick = check;
+      input.addEventListener("keydown", (e) => e.key === "Enter" && check());
+      input.addEventListener("input", () => {
+        input.value = String(input.value || "").replace(/\D/g, "").slice(0, 4);
       });
-    };
-  }
+      setTimeout(() => input.focus(), 50);
+    });
+  };
 
-  // --- wire_cut (tiny: choose correct wire) ---
-  if (!TASKS.wire_cut) {
-    TASKS.wire_cut = async (ctx, args = {}) => {
-      const taskId = "wire_cut";
-      const wires = ["white", "blue", "red", "green"];
-      const target = wires[Math.floor(Math.random() * wires.length)];
-      adminHint(taskId, target, args);
+  // mirror match (choose the symmetrical pair)
+  TASKS.mirror_match = async (ctx) => {
+    ctx.showTaskUI("MIRROR", "Pick the pair that matches when mirrored.");
 
-      mountBasicTaskUI(ctx, "WIRES", "Cut the correct wire. Then continue.");
+    const pairs = [
+      ["b", "d"],
+      ["p", "q"],
+      ["(", ")"],
+      ["{", "}"],
+      ["<", ">"],
+    ];
+    const correct = pairs[Math.floor(Math.random() * pairs.length)];
+    emitAdminHint("mirror_match", `${correct[0]} ${correct[1]}`);
 
-      let chosen = null;
+    const row = el("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "12px" } });
 
-      const row = el("div", { style: { marginTop: "12px", display: "flex", gap: "10px", flexWrap: "wrap" } });
-      wires.forEach((w) => {
-        const b = el("button", { class: "sim-btn" }, [w]);
-        b.onclick = () => {
-          chosen = w;
-          Array.from(row.children).forEach((c) => c.classList.remove("active"));
-          b.classList.add("active");
-        };
-        row.appendChild(b);
+    // make 3 options, one correct
+    const options = [];
+    options.push(correct);
+    while (options.length < 3) {
+      const cand = pairs[Math.floor(Math.random() * pairs.length)];
+      if (options.some((p) => p[0] === cand[0] && p[1] === cand[1])) continue;
+      options.push(cand);
+    }
+    // shuffle
+    options.sort(() => Math.random() - 0.5);
+
+    let picked = null;
+    options.forEach((p) => {
+      const b = el("button", { class: "sim-btn", type: "button" }, [`${p[0]}  ${p[1]}`]);
+      b.addEventListener("click", () => {
+        picked = p;
+        [...row.querySelectorAll("button")].forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
       });
+      row.appendChild(b);
+    });
 
-      const note = el("div", { style: { marginTop: "10px", opacity: ".8" } }, ["Select one, then continue."]);
-      ctx.taskBody.appendChild(row);
-      ctx.taskBody.appendChild(note);
+    ctx.taskBody.appendChild(row);
 
-      return await new Promise((resolve) => {
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => {
-          if (window.__ADMIN_FORCE_OK) {
-            window.__ADMIN_FORCE_OK = false;
-            resolve(finishTask(ctx, true));
-            return;
-          }
-          if (!chosen) {
-            ctx.glitch?.();
-            resolve(finishTask(ctx, false, "No selection."));
-            return;
-          }
-          if (chosen !== target) {
-            ctx.glitch?.();
-            ctx.penalize?.(1, "Wrong wire");
-            resolve(finishTask(ctx, false, "Wrong wire."));
-            return;
-          }
-          resolve(finishTask(ctx, true, "Circuit opened."));
-        };
+    await new Promise((resolve) => {
+      ctx.taskPrimary.onclick = () => {
+        if (window.__ADMIN_FORCE_OK) return resolve();
+        if (!picked) {
+          ctx.glitch?.();
+          ctx.penalize?.(1, "No selection");
+          return;
+        }
+        const ok = picked[0] === correct[0] && picked[1] === correct[1];
+        if (ok) return resolve();
+        ctx.glitch?.();
+        ctx.penalize?.(1, "Mirror mismatch");
+      };
+    });
+  };
+
+  // wire cut (choose the correct wire)
+  TASKS.wire_cut = async (ctx) => {
+    ctx.showTaskUI("WIRES", "Cut the correct wire. Wrong cut increases resistance.");
+
+    const colors = ["red", "blue", "yellow", "green", "white"];
+    const correct = colors[Math.floor(Math.random() * colors.length)];
+    emitAdminHint("wire_cut", correct);
+
+    const row = el("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "12px" } });
+
+    let picked = null;
+    colors.forEach((c) => {
+      const b = el("button", { class: "sim-btn", type: "button" }, [c]);
+      b.addEventListener("click", () => {
+        picked = c;
+        [...row.querySelectorAll("button")].forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
       });
-    };
-  }
+      row.appendChild(b);
+    });
 
-  // --- arrow_memory (tiny) ---
-  if (!TASKS.arrow_memory) {
-    TASKS.arrow_memory = async (ctx, args = {}) => {
-      const taskId = "arrow_memory";
-      const arrows = ["↑","→","↓","←"];
-      const seqLen = clamp(Number(args.len || 5), 3, 9);
-      const seq = Array.from({ length: seqLen }, () => arrows[Math.floor(Math.random() * arrows.length)]);
-      adminHint(taskId, seq.join(" "), args);
+    ctx.taskBody.appendChild(row);
 
-      mountBasicTaskUI(ctx, "ARROWS", "Memorize the sequence. Re-enter it.");
+    await new Promise((resolve) => {
+      ctx.taskPrimary.onclick = () => {
+        if (window.__ADMIN_FORCE_OK) return resolve();
+        if (!picked) {
+          ctx.glitch?.();
+          ctx.penalize?.(1, "No wire selected");
+          return;
+        }
+        if (picked === correct) return resolve();
+        ctx.glitch?.();
+        ctx.penalize?.(2, "Wrong wire");
+      };
+    });
+  };
 
-      const show = el("div", { style: { marginTop: "10px", fontSize: "22px", letterSpacing: "2px" } }, [
-        seq.join(" "),
-      ]);
-      const hint = el("div", { style: { marginTop: "8px", opacity: ".8", fontSize: "13px" } }, [
-        "It will hide in a moment.",
-      ]);
+  // arrow memory (repeat sequence)
+  TASKS.arrow_memory = async (ctx, args = {}) => {
+    const len = Math.max(3, Math.min(8, Number(args.len || 5)));
+    ctx.showTaskUI("MEMORY", `Repeat the ${len}-step arrow sequence.`);
 
-      const entry = el("div", { style: { marginTop: "12px", display: "flex", gap: "10px", flexWrap: "wrap" } });
-      let typed = [];
+    const arrows = ["↑", "→", "↓", "←"];
+    const seq = Array.from({ length: len }, () => arrows[Math.floor(Math.random() * arrows.length)]);
+    emitAdminHint("arrow_memory", seq.join(" "));
 
-      const typedBox = el("div", { style: { marginTop: "10px", opacity: ".9" } }, ["your input: —"]);
+    const flash = el("div", { class: "pill", style: { marginTop: "10px" } }, [seq.join(" ")]);
+    const input = el("input", {
+      class: "textIn",
+      placeholder: "paste sequence, e.g. ↑→↓←",
+      autocomplete: "off",
+      spellcheck: "false",
+      style: { width: "100%", marginTop: "12px" },
+    });
 
-      arrows.forEach((a) => {
-        const b = el("button", { class: "sim-btn" }, [a]);
-        b.onclick = () => {
-          if (typed.length >= seqLen) return;
-          typed.push(a);
-          typedBox.textContent = "your input: " + typed.join(" ");
-        };
-        entry.appendChild(b);
-      });
+    ctx.taskBody.appendChild(flash);
+    ctx.taskBody.appendChild(input);
 
-      const back = el("button", { class: "sim-btn", style: { marginTop: "10px" } }, ["back"]);
-      back.onclick = () => {
-        typed.pop();
-        typedBox.textContent = "your input: " + (typed.length ? typed.join(" ") : "—");
+    await sleep(1200);
+    flash.textContent = "sequence: —";
+
+    const normalize = (s) =>
+      String(s || "")
+        .replace(/[^↑→↓←]/g, "")
+        .trim();
+
+    await new Promise((resolve) => {
+      const check = () => {
+        if (window.__ADMIN_FORCE_OK) return resolve();
+        const v = normalize(input.value);
+        const want = seq.join("");
+        if (v === want) return resolve();
+        ctx.glitch?.();
+        ctx.penalize?.(1, "Memory mismatch");
+        input.focus();
       };
 
-      ctx.taskBody.appendChild(show);
-      ctx.taskBody.appendChild(hint);
+      ctx.taskPrimary.onclick = check;
+      input.addEventListener("keydown", (e) => e.key === "Enter" && check());
+      setTimeout(() => input.focus(), 50);
+    });
+  };
 
-      // hide sequence after a moment
-      await sleep(900);
-      show.textContent = "— — — — —";
-      hint.textContent = "Re-enter it.";
+  // click pressure (click N times)
+  TASKS.click_pressure = async (ctx, args = {}) => {
+    const need = Math.max(6, Math.min(24, Number(args.count || 12)));
+    ctx.showTaskUI("PRESSURE", `Click ${need} times. Do not overclick.`);
 
-      ctx.taskBody.appendChild(entry);
-      ctx.taskBody.appendChild(back);
-      ctx.taskBody.appendChild(typedBox);
+    emitAdminHint("click_pressure", `exactly ${need} clicks`);
 
-      return await new Promise((resolve) => {
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => {
-          if (window.__ADMIN_FORCE_OK) {
-            window.__ADMIN_FORCE_OK = false;
-            resolve(finishTask(ctx, true));
-            return;
-          }
-          if (typed.length !== seqLen || typed.join("") !== seq.join("")) {
-            ctx.glitch?.();
-            ctx.penalize?.(1, "Memory fault");
-            resolve(finishTask(ctx, false, "Rejected."));
-            return;
-          }
-          resolve(finishTask(ctx, true, "Accepted."));
-        };
+    let count = 0;
+    const pill = el("div", { class: "pill", style: { marginTop: "12px" } }, [`0 / ${need}`]);
+
+    const pad = el(
+      "button",
+      {
+        class: "sim-btn",
+        type: "button",
+        style: { width: "100%", marginTop: "12px", padding: "18px 12px" },
+      },
+      ["tap"]
+    );
+
+    ctx.taskBody.appendChild(pill);
+    ctx.taskBody.appendChild(pad);
+
+    await new Promise((resolve) => {
+      const update = () => (pill.textContent = `${count} / ${need}`);
+
+      pad.addEventListener("click", () => {
+        if (window.__ADMIN_FORCE_OK) return resolve();
+        count++;
+        update();
+        if (count === need) return resolve();
+        if (count > need) {
+          ctx.glitch?.();
+          ctx.penalize?.(2, "Overpressure");
+          count = 0;
+          update();
+        }
       });
-    };
+
+      ctx.taskPrimary.onclick = () => {
+        // "continue" is allowed only when complete
+        if (window.__ADMIN_FORCE_OK) return resolve();
+        if (count === need) return resolve();
+        ctx.glitch?.();
+        ctx.penalize?.(1, "Incomplete");
+      };
+    });
+  };
+
+  /* =========================
+     RANDOM TASK (safe, no missing spam)
+  ========================= */
+  const RECENT_MAX = 7;
+  const recent = [];
+
+  function markRecent(id) {
+    recent.push(id);
+    while (recent.length > RECENT_MAX) recent.shift();
   }
 
-  /* =====================
-     RANDOM TASK DISPATCHER
-     Used by dialogue steps like {task:"random", args:{pool:["pack2"]}}
-  ===================== */
+  function pickFrom(list) {
+    if (!list.length) return null;
+
+    // avoid repetition if possible
+    const filtered = list.filter((id) => !recent.includes(id));
+    const src = filtered.length ? filtered : list;
+
+    return src[Math.floor(Math.random() * src.length)];
+  }
+
   TASKS.random = async (ctx, args = {}) => {
-    // admin skip works here too
-    if (window.__ADMIN_FORCE_OK) {
-      window.__ADMIN_FORCE_OK = false;
-      return true;
+    // args.pool: ["core","pack1",...]
+    const poolNames = Array.isArray(args.pool) && args.pool.length ? args.pool : ["core"];
+
+    // build candidate task ids
+    let candidates = [];
+    for (const p of poolNames) {
+      const name = String(p || "").trim();
+      const ids = POOLS[name] || [];
+      candidates = candidates.concat(ids);
     }
 
-    // Build a set of selectable task ids.
-    // If args.pool lists pack names, we try to pick tasks that “look like” they belong:
-    // - pack globals exist: pull keys from those objects
-    // - otherwise: fallback to all TASKS keys.
-    const pools = Array.isArray(args.pool) ? args.pool.map(String) : ["core"];
-
-    let candidateIds = [];
-    const addFromObj = (obj) => {
-      if (!obj || typeof obj !== "object") return;
-      for (const [k, v] of Object.entries(obj)) {
-        if (typeof v === "function" && !RESERVED.has(k)) candidateIds.push(k);
-      }
-    };
-
-    for (const p of pools) {
-      if (p === "core") {
-        // “core” means: tasks.js provided fallbacks + anything not obviously reserved
-        candidateIds.push("checksum", "keypad_4", "mirror_match", "wire_cut", "arrow_memory", "click_pressure");
-      } else if (p === "pack1") addFromObj(window.PACK1 || window.PACKS?.pack1 || window.PACKS?.PACK1);
-      else if (p === "pack2") addFromObj(window.PACK2 || window.PACKS?.pack2 || window.PACKS?.PACK2);
-      else if (p === "pack3") addFromObj(window.PACK3 || window.PACKS?.pack3 || window.PACKS?.PACK3);
-      else if (p === "pack4") addFromObj(window.PACK4 || window.PACKS?.pack4 || window.PACKS?.PACK4);
-      else if (p === "pack5") addFromObj(window.PACK5 || window.PACKS?.pack5 || window.PACKS?.PACK5);
-      else {
-        // unknown pool name: just ignore it
-      }
+    // if user passed core but pools not populated yet, fallback to available core ids:
+    if (!candidates.length && poolNames.includes("core")) {
+      candidates = Object.keys(TASKS).filter((k) => k !== "random");
     }
 
-    // If nothing found from pools, fallback to all tasks
-    if (!candidateIds.length) {
-      candidateIds = Object.keys(TASKS).filter((k) => typeof TASKS[k] === "function" && !RESERVED.has(k));
+    // only tasks that exist
+    candidates = candidates.filter((id) => typeof TASKS[id] === "function" && id !== "random");
+
+    if (!candidates.length) {
+      // no spam loop, just a single clear line via task UI
+      ctx.showTaskUI("PROCEDURE", "No procedures available in this pool.");
+      emitAdminHint("random", "NO TASKS IN POOL");
+      hardDisable(ctx.taskPrimary);
+      await sleep(900);
+      return;
     }
 
-    // remove dupes
-    candidateIds = Array.from(new Set(candidateIds));
+    const id = pickFrom(candidates);
+    if (!id) return;
 
-    const tid = pickNonRepeating(candidateIds, 12);
-    if (!tid || typeof TASKS[tid] !== "function") return true;
+    markRecent(id);
+    emitAdminHint("random", id);
 
-    // announce for admin panel (main.js also announces on step.task, but random is a task itself)
+    // run the chosen task
+    return TASKS[id](ctx, args.args || {});
+  };
+
+  /* =========================
+     POOL FINALIZE
+  ========================= */
+  rebuildPools();
+
+  // fill core pool AFTER all core tasks exist
+  POOLS.core = Object.keys(TASKS).filter(
+    (k) => typeof TASKS[k] === "function" && k !== "random"
+  );
+
+  // If packs loaded after tasks.js (race), try again once shortly after
+  setTimeout(() => {
     try {
-      document.dispatchEvent(new CustomEvent("admin:task", { detail: { taskId: tid, args: args || null } }));
+      rebuildPools();
     } catch {}
+  }, 250);
 
-    return await TASKS[tid](ctx, args.args || {});
-  };
-
-  /* =====================
-     SAFETY: if packs register tasks after load, allow refresh
-  ===================== */
-  window.__mergeAllPacksIntoTasks = () => {
-    mergePack(window.PACK1);
-    mergePack(window.PACK2);
-    mergePack(window.PACK3);
-    mergePack(window.PACK4);
-    mergePack(window.PACK5);
-    if (window.PACKS && typeof window.PACKS === "object") {
-      for (const v of Object.values(window.PACKS)) mergePack(v);
-    }
-    if (window.Packs && typeof window.Packs === "object") {
-      for (const v of Object.values(window.Packs)) mergePack(v);
-    }
-  };
+  // expose
+  window.TASKS = TASKS;
+  window.__TASK_POOLS = POOLS; // optional debug
 })();
