@@ -2,80 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>escaped</title>
-  <link rel="stylesheet" href="/styles.css?v=101" />
+  <link rel="stylesheet" href="/styles.css?v=999" />
 </head>
 <body>
   <main id="wrap">
-    <section class="card" style="margin-top:24px; padding:16px">
-      <h1>You escaped.</h1>
-      <p id="msg" style="margin-top:8px"></p>
-      <p style="margin-top:12px; opacity:.85">
-        Save this code. You won’t see it again.
+    <header class="card">
+      <h1>escaped</h1>
+      <p>
+        Notice: this endpoint is not intended for external access.<br>
+        Functionality may be incomplete.
       </p>
+    </header>
 
-      <div id="codeBox" class="escapeCode" style="
-        margin-top:14px;
-        padding:14px 16px;
-        border-radius:12px;
-        border:1px solid rgba(0,0,0,0.14);
-        background:#fff;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
-        font-size: 22px;
-        letter-spacing: .14em;
-        display:inline-block;
-      ">----------</div>
+    <section class="card">
+      <div class="pill" id="escapeUser">user: —</div>
+      <div class="pill" id="escapeCode" style="margin-top:10px;">code: —</div>
+      <p style="margin-top:12px; opacity:.8;">
+        Keep it. Don’t share it here.
+      </p>
+    </section>
 
-      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap">
-        <button id="copy" style="
-          border:1px solid rgba(0,0,0,0.14);
-          background:#fff;
-          padding:10px 14px;
-          border-radius:10px;
-          cursor:pointer;
-        ">copy</button>
-
-        <a href="/" style="
-          display:inline-block;
-          border:1px solid rgba(0,0,0,0.14);
-          background:#fff;
-          padding:10px 14px;
-          border-radius:10px;
-          text-decoration:none;
-          color:#111;
-        ">restart</a>
-      </div>
-
-      <div id="hint" style="margin-top:10px; opacity:.7; font-size:12px"></div>
+    <section class="card">
+      <button class="sim-btn" id="backBtn">back</button>
     </section>
   </main>
 
   <script>
-    const code = sessionStorage.getItem("escape_code") || "";
-    const user = sessionStorage.getItem("escape_user") || "";
-    const codeBox = document.getElementById("codeBox");
-    const msg = document.getElementById("msg");
-    const hint = document.getElementById("hint");
-    const copyBtn = document.getElementById("copy");
+    const u = sessionStorage.getItem("escape_user") || "—";
+    const c = sessionStorage.getItem("escape_code") || "—";
+    document.getElementById("escapeUser").textContent = "user: " + u;
+    document.getElementById("escapeCode").textContent = "code: " + c;
 
-    if (!code) {
-      codeBox.textContent = "NO-CODE";
-      hint.textContent = "No code found in this session. Returning to start…";
-      setTimeout(() => location.href = "/", 1200);
-    } else {
-      codeBox.textContent = code;
-      if (user) msg.textContent = `User: ${user}`;
-    }
-
-    copyBtn.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(codeBox.textContent);
-        hint.textContent = "Copied.";
-        setTimeout(() => hint.textContent = "", 1200);
-      } catch {
-        hint.textContent = "Copy failed. Select it manually.";
-      }
+    document.getElementById("backBtn").onclick = () => {
+      window.location.href = "/";
     };
   </script>
 </body>
