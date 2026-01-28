@@ -1,6 +1,24 @@
 // /packs/pack4.js
 // Registers 20 tasks into window.TASKS via window.registerTasks()
 // Theme: "audit pressure + stealth ops" (slightly harder, still fair)
+// --- pack safety shim (must be FIRST) ---
+(() => {
+  // If tasks.js didn't load for any reason, don't hard-crash.
+  window.TASKS = window.TASKS || {};
+  window.TASK_POOLS = window.TASK_POOLS || {};
+
+  // Some packs call registerTasks/registerTaskPool — define stubs if missing.
+  if (typeof window.registerTasks !== "function") {
+    window.registerTasks = (defs) => {
+      try { Object.assign(window.TASKS, defs || {}); } catch {}
+    };
+  }
+  if (typeof window.registerTaskPool !== "function") {
+    window.registerTaskPool = (name, pool) => {
+      try { window.TASK_POOLS[String(name)] = Array.isArray(pool) ? pool : []; } catch {}
+    };
+  }
+})();
 
 (() => {
   const reg = window.registerTasks;
