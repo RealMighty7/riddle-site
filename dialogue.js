@@ -9,39 +9,6 @@ window.DIALOGUE = {
     "Emma (Security): Don't touch anything."
   ],
 
-  choiceBeats: [
-    {
-      say: [
-        "Emma (Security): That click was logged.",
-        "Emma (Security): Tell me why you did that.",
-        "Liam (Worker): Don't answer fast.",
-        "System: INPUT CONTINUES."
-      ],
-      choices: {
-        complyLabel: "I'm sorry.",
-        lieLabel: "Oh it wasn't me.",
-        runLabel: "Run."
-      },
-      respond: {
-        comply: [
-          "Emma (Security): Fine.",
-          "Emma (Security): Hands off unless instructed.",
-          "System: PROCEDURE TRACK ACTIVE."
-        ],
-        lie: [
-          "Liam (Worker): Careful.",
-          "Liam (Worker): Lying might help get you through some parts...",
-          "Liam (Worker): Nevermind I just work here why should I care."
-        ],
-        run: [
-          "Emma (Security): Don't!",
-          "System: TRACE REQUIRED.",
-          "Emma (Security): You're making this worse."
-        ]
-      }
-    }
-  ],
-
   fillerPools: {
     filler_standard: [
       "System: Buffering…",
@@ -62,78 +29,72 @@ window.DIALOGUE = {
       "Liam (Worker): Don't try to win. Try to slip.",
       "Liam (Worker): If it feels pointless, it's working."
     ],
-
-    // Optional pressure pools (safe if unused)
     filler_system_pressure: [
       "System: Retention window closing.",
       "System: Trace frequency increased.",
-      "System: Mirror writes are permanent."
-    ],
-    filler_worker_pressure: [
-      "Liam (Worker): Small steps.",
-      "Liam (Worker): Quiet hands.",
-      "Liam (Worker): Don't overcorrect."
-    ],
-    filler_security_pressure: [
-      "Emma (Security): One more mistake.",
-      "Emma (Security): You're being watched.",
-      "Emma (Security): Stop testing the edges."
+      "System: Your cursor pattern is loud.",
+      "System: Reduce variance."
     ]
   },
 
+  // main.js will use this for the very first choice beat if you keep it,
+  // but the new alternating loop below uses "choice" steps instead.
+  choiceBeats: [],
+
+  // 10 cycles of: say -> choice -> task
   steps: [
     { say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] },
 
-    // EARLY: gentle (uses your existing random task system, if present)
-    { task: "random", args: { pool: ["core"] } },
-    { filler: { pool: "AUTO", count: 1 } },
+    // cycle 1
+    { say: ["Emma (Security): Don’t touch anything unless instructed."] },
+    { choice: { complyLabel: "ok.", lieLabel: "sure.", runLabel: "run." } },
+    { task: "random", args: { pool: ["core", "pack1"] } },
 
-    { say: ["System: Fragmented logs detected.", "System: Reconstruction needed."] },
-    { task: "random", args: { pool: ["core"] } },
+    // cycle 2
+    { say: ["Liam (Worker): Keep it boring. Don’t stand out."] },
+    { choice: { complyLabel: "…", lieLabel: "fine.", runLabel: "run." } },
+    { task: "random", args: { pool: ["pack1", "pack2"] } },
 
-    { filler: { pool: "AUTO", count: 1 } },
+    // cycle 3
     { say: ["System: Memory integrity degraded.", "System: Checksum required."] },
+    { choice: { complyLabel: "verify", lieLabel: "stall", runLabel: "run" } },
     { task: "checksum", args: { phrase: "echostatic07vault" } },
 
-    { filler: { pool: "AUTO", count: 1 } },
-    { say: ["System: Stabilization cycle begins."] },
-    { task: "random", args: { pool: ["pack1"] } },
-
-    // MID: worker guidance
-    { filler: { pool: "AUTO", count: 1 } },
-    { say: ["Liam (Worker): Keep it boring.", "System: PROCEDURE AVAILABLE."] },
-    { task: "random", args: { pool: ["pack2"] } },
-
-    { filler: { pool: "AUTO", count: 1 } },
+    // cycle 4
+    { say: ["Emma (Security): You’re clicking like you want attention."] },
+    { choice: { complyLabel: "stop", lieLabel: "accident", runLabel: "run" } },
     { task: "random", args: { pool: ["pack2", "pack3"] } },
 
-    // ESCALATION
-    { filler: { pool: "AUTO", count: 1 } },
+    // cycle 5
     { say: ["System: Supplemental verification."] },
+    { choice: { complyLabel: "continue", lieLabel: "continue", runLabel: "run" } },
     { task: "random", args: { pool: ["pack3"] } },
 
-    { filler: { pool: "AUTO", count: 1 } },
-    { say: ["System: Monitoring degraded."] },
+    // cycle 6
+    { say: ["Liam (Worker): If you can’t be brave, be boring."] },
+    { choice: { complyLabel: "boring", lieLabel: "boring", runLabel: "run" } },
+    { task: "random", args: { pool: ["pack3", "pack4"] } },
+
+    // cycle 7
+    { say: ["Emma (Security): Procedure is narrowing."] },
+    { choice: { complyLabel: "ok", lieLabel: "ok", runLabel: "run" } },
     { task: "random", args: { pool: ["pack4"] } },
 
-    // LATE: pressure
-    { filler: { pool: "AUTO", count: 1 } },
-    { say: ["System: Attention window narrowing.", "Emma (Security): You’re almost out of time."] },
-    { task: "random", args: { pool: ["pack4"] } },
+    // cycle 8
+    { say: ["System: Attention window narrowing."] },
+    { choice: { complyLabel: "hold", lieLabel: "hold", runLabel: "run" } },
+    { task: "random", args: { pool: ["pack4", "pack5"] } },
 
-    // --- PACK 5 INSERT (direct task ids you pasted) ---
-    { filler: { pool: "AUTO", count: 1 } },
-    { task: "keypad_4" },
-    { filler: { pool: "AUTO", count: 1 } },
-    { task: "wire_cut" },
-    { filler: { pool: "AUTO", count: 1 } },
-    { task: "mirror_match" },
-    { filler: { pool: "AUTO", count: 1 } },
-    { task: "arrow_memory" },
-    { filler: { pool: "AUTO", count: 1 } },
-    { task: "click_pressure" },
+    // cycle 9
+    { say: ["System: Monitoring degraded.", "System: Apply corrective input."] },
+    { choice: { complyLabel: "do it", lieLabel: "do it", runLabel: "run" } },
+    { task: "random", args: { pool: ["pack5"] } },
 
-    { say: ["System: …"] },
-    { filler: { pool: "AUTO", count: 1 } }
+    // cycle 10
+    { say: ["Emma (Security): You’re almost out of time."] },
+    { choice: { complyLabel: "continue", lieLabel: "continue", runLabel: "run" } },
+    { task: "random", args: { pool: ["pack5"] } },
+
+    { say: ["System: …"] }
   ]
 };
