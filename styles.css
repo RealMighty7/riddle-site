@@ -112,6 +112,10 @@ input{
   color: var(--fg);
   outline: none;
 }
+#cracks {
+  mix-blend-mode: screen;
+  filter: blur(0.3px) saturate(1.15);
+}
 
 /* 1-frame “timestamp covers viewer box” glitch every second */
 #timestamp{
