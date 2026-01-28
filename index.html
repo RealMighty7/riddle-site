@@ -2,323 +2,81 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Campaign Launcher</title>
-
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-  <link rel="stylesheet" href="/styles.css?v=201" />
-
-  <!-- Turnstile (explicit render) -->
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>escaped</title>
+  <link rel="stylesheet" href="/styles.css?v=101" />
 </head>
 <body>
-  <!-- crack overlay -->
-  <div id="cracks" aria-hidden="true" class="hidden"></div>
+  <main id="wrap">
+    <section class="card" style="margin-top:24px; padding:16px">
+      <h1>You escaped.</h1>
+      <p id="msg" style="margin-top:8px"></p>
+      <p style="margin-top:12px; opacity:.85">
+        Save this code. You won’t see it again.
+      </p>
 
-  <!-- falling glass overlay -->
-  <div id="glassFX" aria-hidden="true" class="hidden"></div>
+      <div id="codeBox" class="escapeCode" style="
+        margin-top:14px;
+        padding:14px 16px;
+        border-radius:12px;
+        border:1px solid rgba(0,0,0,0.14);
+        background:#fff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+        font-size: 22px;
+        letter-spacing: .14em;
+        display:inline-block;
+      ">----------</div>
 
-  <!-- SUBTITLES (global; used during sim room dialogue) -->
-  <div id="subs" aria-live="polite" class="subs hidden">
-    <div id="subsName" class="subsName"></div>
-    <div id="subsText" class="subsText"></div>
-  </div>
+      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap">
+        <button id="copy" style="
+          border:1px solid rgba(0,0,0,0.14);
+          background:#fff;
+          padding:10px 14px;
+          border-radius:10px;
+          cursor:pointer;
+        ">copy</button>
 
-  <!-- LANDING PAGE -->
-  <main id="wrap" class="landing">
-    <!-- Side ads (fixed) -->
-    <aside class="sideAds left" aria-hidden="true">
-      <img class="adImg" data-ad="1" alt="">
-      <img class="adImg" data-ad="2" alt="">
-      <img class="adImg" data-ad="3" alt="">
-    </aside>
-
-    <aside class="sideAds right" aria-hidden="true">
-      <img class="adImg" data-ad="4" alt="">
-      <img class="adImg" data-ad="5" alt="">
-      <img class="adImg" data-ad="6" alt="">
-    </aside>
-
-    <!-- Center content -->
-    <section class="panel">
-      <div class="topBar">
-        <div class="brand">
-          <div class="mark">ADS</div>
-          <div>
-            <div class="title">Campaign Launcher</div>
-            <div class="sub">staging / incomplete / do not share</div>
-          </div>
-        </div>
-
-        <div class="meta">
-          <div class="pill" id="timestamp">booting…</div>
-          <div class="pill ghost" id="build">build: pending</div>
-        </div>
+        <a href="/" style="
+          display:inline-block;
+          border:1px solid rgba(0,0,0,0.14);
+          background:#fff;
+          padding:10px 14px;
+          border-radius:10px;
+          text-decoration:none;
+          color:#111;
+        ">restart</a>
       </div>
 
-      <div class="grid2">
-        <div class="card big">
-          <h1>Ad Viewing Campaign</h1>
-          <p class="muted">
-            Connect to a sponsor campaign and begin view tracking.
-            <span class="warn">If this page loaded for you, ignore it.</span>
-          </p>
-
-          <div class="launcher">
-            <button id="launchBtn" class="launch">LAUNCH CAMPAIGN</button>
-            <div class="hintline">
-              <span class="dot"></span>
-              <span>status:</span>
-              <span id="launchStatus" class="muted">idle</span>
-            </div>
-          </div>
-
-          <div class="miniRow">
-            <div class="kv">
-              <div class="k">campaign_id</div>
-              <div class="v">auto</div>
-            </div>
-            <div class="kv">
-              <div class="k">mode</div>
-              <div class="v">watch</div>
-            </div>
-            <div class="kv">
-              <div class="k">telemetry</div>
-              <div class="v">on</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="row">
-            <div class="label">Queue</div>
-            <div class="pill small">unsynced</div>
-          </div>
-
-          <div class="queue">
-            <div class="qitem"><span class="qdot"></span> sponsor_rollup.mp4 <span class="muted">(?)</span></div>
-            <div class="qitem"><span class="qdot"></span> placement_300x250.png</div>
-            <div class="qitem missing"><span class="qdot"></span> creative_pack.zip <span class="muted">(missing)</span></div>
-            <div class="qitem"><span class="qdot"></span> fallback_banner.png</div>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="row">
-            <div class="label">System</div>
-            <div class="pill small ghost">partial</div>
-          </div>
-
-          <div id="system" class="systemLog">
-            initializing…
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="row">
-            <div class="label">Viewer</div>
-            <div class="pill small" id="viewerState">unverified</div>
-          </div>
-
-          <div class="viewerBox">
-            <!-- Disabled-look placeholder -->
-            <div id="viewerFake" class="fakeInput">
-              <span class="muted">viewer token</span>
-              <span class="cursor">▌</span>
-            </div>
-
-            <!-- Real input (hidden/disabled until Launch) -->
-            <input
-              id="viewerToken"
-              class="viewerInput hidden"
-              type="text"
-              placeholder="viewer token"
-              disabled
-              autocomplete="off"
-              spellcheck="false"
-              inputmode="text"
-            />
-
-            <div class="fine muted">
-              this module is unfinished. do not rely on output.
-            </div>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="fine muted">
-            // TODO: remove public access<br />
-            // TODO: disable indexing<br />
-            // TODO: fix layout in firefox
-          </div>
-        </div>
-
-        <!-- ✅ hidden admin-only info card (revealed by body.admin via CSS) -->
-        <div class="card adminOnly" id="adminPanelHidden">
-          <div class="row">
-            <div class="label">Operator</div>
-            <div class="pill small">internal</div>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="fine muted" style="line-height:1.55">
-            notice: this endpoint is not intended for external access.<br/>
-            functionality may be incomplete.<br/><br/>
-            <span style="opacity:.9">flags:</span> <span class="pill small">telemetry_override</span>
-            <span class="pill small">queue_bypass</span>
-            <span class="pill small">trace_partial</span>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="systemLog" style="min-height:64px">
-            operator session flagged.
-          </div>
-        </div>
-
-      </div><!-- /grid2 -->
-
-      <div class="footer">
-        <div class="fine muted">© sponsor tools (internal) — “temporary”</div>
-        <div class="fine muted">If you close this tab, nothing is saved.</div>
-      </div>
+      <div id="hint" style="margin-top:10px; opacity:.7; font-size:12px"></div>
     </section>
   </main>
 
-  <!-- SECURITY ROOM (MUST be OUTSIDE #wrap) -->
-  <section id="simRoom" class="card hidden">
-    <div class="cardShell">
-      <div style="opacity:.75;font-size:12px;margin-bottom:8px">OUTSIDE // SIMULATION</div>
-      <pre id="simText"></pre>
-
-      <div id="simChoices" class="hidden" aria-label="choices">
-        <button id="choiceNeed" class="sim-btn">I'm sorry. I’ll stop.</button>
-        <button id="choiceLie" class="sim-btn">It was an accident.</button>
-        <button id="choiceRun" class="sim-btn">Run.</button>
-      </div>
-
-      <div id="taskUI" class="hidden">
-        <h3 id="taskTitle" style="margin:0 0 6px 0"></h3>
-        <div id="taskDesc" style="opacity:.8"></div>
-        <div id="taskBody"></div>
-        <div id="taskActions">
-          <button id="taskPrimary" class="sim-btn">continue</button>
-          <button id="taskSecondary" class="sim-btn hidden">secondary</button>
-        </div>
-      </div>
-
-      <!-- ADMIN DIAGNOSTIC PANEL (single instance; shown only when body.admin) -->
-      <section id="adminPanel" class="adminPanel hidden" aria-hidden="true">
-        <div class="adminHead">
-          <div class="adminTitle">DIAGNOSTIC</div>
-          <button id="adminToggle" class="sim-btn adminTiny" type="button">hide</button>
-        </div>
-
-        <div class="adminRow">
-          <span class="pill small ghost">task</span>
-          <span id="adminTask" class="pill small">—</span>
-        </div>
-
-        <div class="adminRow" style="margin-top:8px">
-          <span class="pill small ghost">answer</span>
-        </div>
-
-        <pre id="adminAnswer" class="adminAnswer">—</pre>
-
-        <div class="adminActions">
-          <button id="adminSkip" class="sim-btn" type="button">skip task</button>
-        </div>
-      </section>
-    </div>
-  </section>
-
-  <!-- HACK ROOM -->
-  <section id="hackRoom" class="card hidden" style="margin:42px auto 80px; width:min(980px, calc(100% - 40px));">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <div>
-        <div id="hackUser" style="opacity:.85">USER:</div>
-        <div style="opacity:.75;font-size:12px;margin-top:4px">Workstation // line wipe</div>
-      </div>
-      <div>
-        <button class="sim-btn hack-filebtn" data-file="0">boot.log</button>
-        <button class="sim-btn hack-filebtn" data-file="1">profile.cfg</button>
-        <button class="sim-btn hack-filebtn" data-file="2">cache.tmp</button>
-      </div>
-    </div>
-
-    <div style="margin-top:10px;opacity:.85">
-      <b id="hackFilename"></b><span id="hackTargets" style="opacity:.7"></span>
-    </div>
-
-    <div id="hackStatus" style="margin-top:8px;opacity:.8"></div>
-    <div id="hackLines" style="margin-top:10px"></div>
-
-    <div class="modal-actions" style="justify-content:flex-start">
-      <button id="hackDelete" class="sim-btn">delete</button>
-      <button id="hackReset" class="sim-btn">reset</button>
-    </div>
-  </section>
-
-  <!-- reset overlay -->
-  <div id="resetOverlay" class="overlay hidden" aria-hidden="true">
-    <div class="modal">
-      <h3 id="resetTitle" style="margin:0 0 6px 0">RESET</h3>
-      <pre id="resetBody" style="white-space:pre-wrap;opacity:.85;margin:0"></pre>
-    </div>
-  </div>
-
-  <!-- final overlay -->
-  <div id="finalOverlay" class="overlay hidden" aria-hidden="true">
-    <div class="modal">
-      <h3 style="margin:0 0 8px 0">Finalize</h3>
-      <div style="opacity:.8;margin-bottom:10px">Enter your Discord username to login.</div>
-
-      <label style="display:block;margin-bottom:8px;opacity:.8">Discord</label>
-      <input id="finalDiscord" placeholder="your discord username" />
-
-      <div style="margin-top:12px" id="turnstileBox"></div>
-      <div id="finalErr" style="margin-top:10px;color:rgba(255,190,190,.95)"></div>
-
-      <div class="modal-actions">
-        <button id="finalCancel" class="sim-btn">cancel</button>
-        <button id="finalVerify" class="sim-btn">verify</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="/dialogue.js"></script>
-  <script src="/tasks.js"></script>
-
-  <script src="/packs/pack1.js"></script>
-  <script src="/packs/pack2.js"></script>
-  <script src="/packs/pack3.js"></script>
-  <script src="/packs/pack4.js"></script>
-
-  <script src="/audio_player.js"></script>
-  <script src="/main.js"></script>
-
-  <!-- landing-only tiny script -->
   <script>
+    const code = sessionStorage.getItem("escape_code") || "";
+    const user = sessionStorage.getItem("escape_user") || "";
+    const codeBox = document.getElementById("codeBox");
+    const msg = document.getElementById("msg");
+    const hint = document.getElementById("hint");
+    const copyBtn = document.getElementById("copy");
 
-    // Live timestamp (updates every second)
-    const ts = document.getElementById("timestamp");
-    const build = document.getElementById("build");
-    const started = Date.now() - Math.floor(Math.random() * 900000);
-
-    function tick(){
-      const now = new Date();
-      const t = now.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit" });
-      ts.textContent = `time: ${t}`;
-
-      const delta = Date.now() - started;
-      const s = Math.floor(delta/1000)%60;
-      const m = Math.floor(delta/60000)%60;
-      const h = Math.floor(delta/3600000);
-      build.textContent = `uptime: ${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    if (!code) {
+      codeBox.textContent = "NO-CODE";
+      hint.textContent = "No code found in this session. Returning to start…";
+      setTimeout(() => location.href = "/", 1200);
+    } else {
+      codeBox.textContent = code;
+      if (user) msg.textContent = `User: ${user}`;
     }
-    tick();
-    setInterval(tick, 1000);
+
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(codeBox.textContent);
+        hint.textContent = "Copied.";
+        setTimeout(() => hint.textContent = "", 1200);
+      } catch {
+        hint.textContent = "Copy failed. Select it manually.";
+      }
+    };
   </script>
 </body>
 </html>
