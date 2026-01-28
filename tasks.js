@@ -244,9 +244,16 @@ function reg(map) {
     window.TASKS[id] = WRAPPED[id];
   });
 }
+  
 
 // expose reg for legacy packs
+// expose reg for legacy packs (and older names)
 window.reg = window.reg || reg;
+
+// some packs used these names:
+window.registerTasks = window.registerTasks || reg;
+window.registerTask = window.registerTask || ((id, fn) => reg({ [id]: fn }));
+
 
 // Optional: expose pool data if your "random" task needs it
 window.__TASK_POOLS = POOLS;
@@ -1336,4 +1343,61 @@ window.__TASK_POOLS = POOLS;
     { id: "escape_hint_line", w: 1 },
     { id: "toggles_3", w: 1 },
   ]);
+// ============================================================
+// COMPAT TASKS USED BY DIALOGUE
+// - random: picks a task from a pool (supports weights)
+// - checksum: alias -> sum_chunks (or whatever you prefer)
+// ============================================================
+reg({
+  // DIALOGUE uses: { task:"random", args:{ pool:"pack5" } } or { pool:"AUTO" }
+  random: async (ctx, args = {}) => {
+    const poolName = String(args.pool || args.poolName || "pack5");
+    const pools = window.__TASK_POOLS || {};
+    const list = pools[poolName];
+
+    if (!Array.isArray(list) || !list.length) {
+      // fail open: do not hang the sim
+      ctx.showTaskUI("PROCEDURE", `Missing pool: ${poolName}`);
+      ctx.taskBody.textContent = `pool "${poolName}" not registered.`;
+      ctx.taskPrimary.textContent = "continue";
+      ctx.taskPrimary.disabled = false;
+      await new Promise((r) => (ctx.taskPrimary.onclick = r));
+      return;
+    }
+
+    // weighted pick
+    const total = list.reduce((a, it) => a + Math.max(0, Number(it.w || 1)), 0) || list.length;
+    let roll = Math.random() * total;
+
+    let picked = list[0]?.id;
+    for (const it of list) {
+      roll -= Math.max(0, Number(it.w || 1));
+      if (roll <= 0) { picked = it.id; break; }
+    }
+
+    const fn = (window.TASKS || {})[picked];
+    if (!fn) {
+      ctx.showTaskUI("PROCEDURE", `Missing task: ${picked}`);
+      ctx.taskBody.textContent = `task "${picked}" not registered.`;
+      ctx.taskPrimary.textContent = "continue";
+      ctx.taskPrimary.disabled = false;
+      await new Promise((r) => (ctx.taskPrimary.onclick = r));
+      return;
+    }
+
+    await fn(ctx, args.innerArgs || args.args || {});
+  },
+
+  // if your dialogue references "checksum"
+  checksum: async (ctx, args) => {
+    const fn = (window.TASKS || {}).sum_chunks;
+    if (fn) return fn(ctx, args);
+    // fallback: don't hang
+    ctx.showTaskUI("CHECKSUM", "Procedure missing. Continuing.");
+    ctx.taskPrimary.textContent = "continue";
+    ctx.taskPrimary.disabled = false;
+    await new Promise((r) => (ctx.taskPrimary.onclick = r));
+  },
+});
+
 })();
