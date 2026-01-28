@@ -1231,3 +1231,32 @@ body:not(.in-sim) #subs{
 /* Make sure overlays never block clicking underneath unless you explicitly add anchors */
 #cracks, #glassFX{ pointer-events: none; }
 .anchor, .anchorDot, [data-anchor]{ pointer-events: auto; }
+/* =========================
+   SHATTER / GLASS WHITEOUT FIX
+   ========================= */
+
+/* Darken the whole overlay */
+#glassFX {
+  background: rgba(0,0,0,0.82) !important;
+}
+
+/* Pieces were too bright */
+.glass-piece {
+  opacity: 0.28 !important;
+}
+
+/* The cloned "wrap" layers are what create the white smear */
+.glass-inner .wrap-clone {
+  filter: brightness(0.40) contrast(1.25) saturate(0.9) !important;
+}
+
+/* Tone down the RGB layers specifically */
+.glass-rgb {
+  opacity: 0.55 !important;
+  filter: brightness(0.55) contrast(1.2) !important;
+}
+
+/* If your crack "flash" class is also blasting the screen, reduce it */
+#cracks.flash {
+  filter: brightness(0.85) !important;
+}
