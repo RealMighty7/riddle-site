@@ -1,138 +1,143 @@
-// tasks.js (FULL REPLACEMENT)
-// Provides window.TASKS + registration helpers used by packs.
-// Also includes a built-in "random" task that draws from registered pools.
+// tasks.js (REPLACEMENT: loader + core tasks + pack merge)
 
 (() => {
-  const g = window;
+  const TASKS = (window.TASKS = window.TASKS || {});
 
-  // Core registries
-  g.TASKS = g.TASKS || {};
-  g.TASK_POOLS = g.TASK_POOLS || {}; // { poolName: ["taskIdA","taskIdB", ...] }
+  // Packs call registerTasks({...}) or registerTasks([ ... ]) depending on your pack format.
+  window.registerTasks = function registerTasks(payload) {
+    if (!payload) return;
 
-  // ---- Pack API (what your packs are complaining about) ----
-  function registerTasks(taskMap) {
-    if (!taskMap || typeof taskMap !== "object") return;
-    for (const [k, v] of Object.entries(taskMap)) {
-      if (typeof v === "function") g.TASKS[k] = v;
+    // array of { id, fn } or array of functions or array of objects
+    if (Array.isArray(payload)) {
+      for (const item of payload) registerTasks(item);
+      return;
     }
-  }
 
-  function registerTaskPool(name, list) {
-    if (!name) return;
-    const arr = Array.isArray(list) ? list.slice() : [];
-    g.TASK_POOLS[name] = arr.filter((x) => typeof x === "string" && x.trim().length);
-  }
+    // If payload looks like { taskName: fn, ... }
+    for (const [k, v] of Object.entries(payload)) {
+      if (typeof v === "function") TASKS[k] = v;
+    }
+  };
 
-  // Aliases (packs sometimes use slightly different names)
-  g.registerTasks = g.registerTasks || registerTasks;
-  g.registerTaskPool = g.registerTaskPool || registerTaskPool;
-  g.registerTasksPool = g.registerTasksPool || ((name, list) => registerTaskPool(name, list));
-  g.registerTaskPools = g.registerTaskPools || ((obj) => {
-    if (!obj || typeof obj !== "object") return;
-    for (const [name, list] of Object.entries(obj)) registerTaskPool(name, list);
-  });
+  // If packs loaded “too early” (via shim), flush them now
+  try {
+    const q = window.__TASK_QUEUE__ || [];
+    while (q.length) window.registerTasks(q.shift());
+  } catch {}
 
-  // ---- Anti-repeat helper for random ----
-  const RECENT = [];
-  const RECENT_MAX = 6;
+  // -----------------------------
+  // CORE TASKS used by your DIALOGUE
+  // -----------------------------
 
-  function remember(id) {
-    RECENT.push(id);
-    while (RECENT.length > RECENT_MAX) RECENT.shift();
-  }
+  // random: picks a random task from one or more pools of task ids
+  // expects args.pool like ["core"] or ["pack1","pack2"]
+  TASKS.random = async (ctx, args = {}) => {
+    const pools = Array.isArray(args.pool) ? args.pool : ["core"];
 
-  function pickFrom(list) {
-    if (!list.length) return null;
-    // Prefer something not used recently
-    const fresh = list.filter((t) => !RECENT.includes(t));
-    const pool = fresh.length ? fresh : list;
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
+    // Collect candidates from window.TASK_POOLS if you have it,
+    // otherwise fall back to “any registered non-core task”
+    const POOLS = window.TASK_POOLS || {};
+    let candidates = [];
 
-  // ---- Built-in "random" task (your dialogue references this) ----
-  // args: { pool: ["core","pack1",...], allowRepeat?: boolean }
-  if (!g.TASKS.random) {
-    g.TASKS.random = async (ctx, args = {}) => {
-      const pools = Array.isArray(args.pool) ? args.pool : ["core"];
-      const allowRepeat = !!args.allowRepeat;
+    for (const p of pools) {
+      const list = POOLS[p];
+      if (Array.isArray(list)) candidates.push(...list);
+    }
 
-      // Build candidate list from named pools
-      let candidates = [];
-      for (const p of pools) {
-        const list = g.TASK_POOLS[p];
-        if (Array.isArray(list) && list.length) candidates = candidates.concat(list);
-      }
+    // fallback: any task except these
+    if (!candidates.length) {
+      candidates = Object.keys(TASKS).filter(
+        (k) => !["random", "checksum"].includes(k)
+      );
+    }
 
-      // Fallback: if no pools exist, pick from all tasks except "random"
-      if (!candidates.length) {
-        candidates = Object.keys(g.TASKS).filter((k) => k !== "random");
-      }
+    if (!candidates.length) {
+      ctx.showTaskUI("TASK", "No procedures available.");
+      ctx.taskBody.textContent = "System: PROCEDURE MISSING (pool empty).";
+      return;
+    }
 
-      // Filter to tasks that actually exist
-      candidates = candidates.filter((id) => typeof g.TASKS[id] === "function");
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    const fn = TASKS[pick];
 
-      if (!candidates.length) {
-        ctx?.showTaskUI?.("PROCEDURE", "No registered procedures available.");
-        ctx?.taskPrimary && (ctx.taskPrimary.disabled = false);
-        return;
-      }
+    // announce admin hint
+    document.dispatchEvent(new CustomEvent("admin:task", { detail: { taskId: pick, args: null } }));
 
-      let id = pickFrom(candidates);
-      if (!allowRepeat) {
-        // if we somehow picked a recent one and alternatives exist, re-pick
-        const fresh = candidates.filter((t) => !RECENT.includes(t));
-        if (fresh.length) id = pickFrom(fresh);
-      }
+    if (typeof fn !== "function") {
+      ctx.showTaskUI("TASK", "Procedure missing.");
+      ctx.taskBody.textContent = `System: PROCEDURE MISSING (${pick}).`;
+      return;
+    }
 
-      remember(id);
+    await fn(ctx, args.args || {});
+  };
 
-      // Tell admin panel what we’re about to run (if main.js listens)
-      try {
-        document.dispatchEvent(
-          new CustomEvent("admin:task", { detail: { taskId: id, args: { via: "random", pools } } })
-        );
-      } catch {}
+  // checksum: simple input gate
+  TASKS.checksum = async (ctx, args = {}) => {
+    const phrase = String(args.phrase || "").trim();
+    ctx.showTaskUI("checksum", "enter checksum phrase to continue");
 
-      return await g.TASKS[id](ctx, args);
-    };
-  }
+    const wrap = document.createElement("div");
+    wrap.style.display = "flex";
+    wrap.style.gap = "10px";
+    wrap.style.flexWrap = "wrap";
+    wrap.style.alignItems = "center";
 
-  // (Optional) "checksum" shim if you still use it in dialogue but it's not defined in packs.
-  // If your packs already define checksum, this does nothing.
-  if (!g.TASKS.checksum) {
-    g.TASKS.checksum = async (ctx, args = {}) => {
-      const phrase = String(args.phrase || "").trim();
-      ctx.showTaskUI?.("CHECKSUM", `Type the checksum phrase exactly.`);
-      const wrap = document.createElement("div");
-      const input = document.createElement("input");
-      input.className = "textIn";
-      input.placeholder = "enter phrase";
-      input.autocomplete = "off";
-      input.spellcheck = false;
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.placeholder = "checksum phrase";
+    inp.autocomplete = "off";
+    inp.spellcheck = false;
+    inp.style.flex = "1";
+    inp.style.minWidth = "240px";
+    inp.className = "textIn";
 
-      const note = document.createElement("div");
-      note.className = "task-note";
-      note.textContent = "case-sensitive. no extra spaces.";
+    const msg = document.createElement("div");
+    msg.style.opacity = ".85";
 
-      wrap.appendChild(input);
-      wrap.appendChild(note);
-      ctx.taskBody.appendChild(wrap);
+    wrap.appendChild(inp);
+    ctx.taskBody.appendChild(wrap);
+    ctx.taskBody.appendChild(msg);
 
-      ctx.taskPrimary.textContent = "submit";
-      ctx.taskPrimary.onclick = () => {
-        const v = (input.value || "").trim();
-        if (window.__ADMIN_FORCE_OK) {
-          window.__ADMIN_FORCE_OK = false;
-          ctx.taskPrimary.onclick = null;
-          return;
-        }
-        if (v !== phrase) {
-          ctx.glitch?.();
-          ctx.penalize?.(1, "checksum mismatch");
-          return;
-        }
-        ctx.taskPrimary.onclick = null;
-      };
-    };
-  }
+    const done = () =>
+      new Promise((resolve) => {
+        ctx.taskPrimary.textContent = "submit";
+        ctx.taskPrimary.onclick = () => resolve(inp.value.trim());
+      });
+
+    const val = await done();
+
+    if (window.__ADMIN_FORCE_OK) {
+      window.__ADMIN_FORCE_OK = false;
+      return;
+    }
+
+    if (!phrase) return;
+
+    if (val.toLowerCase() === phrase.toLowerCase()) {
+      msg.style.color = "rgba(200,255,220,.90)";
+      msg.textContent = "ok";
+      await new Promise((r) => setTimeout(r, 250));
+      return;
+    }
+
+    msg.style.color = "rgba(255,190,190,.95)";
+    msg.textContent = "bad checksum";
+    ctx.penalize?.(1, "checksum failed");
+    await new Promise((r) => setTimeout(r, 450));
+  };
+
+  // If you maintain pools, define them here (optional)
+  // These should match what your DIALOGUE uses: "core", "pack1"..."pack5"
+  window.TASK_POOLS = window.TASK_POOLS || {
+    core: ["checksum"],
+    pack1: [],
+    pack2: [],
+    pack3: [],
+    pack4: [],
+    pack5: [],
+  };
+
+  // After packs load, you can fill TASK_POOLS.packX in the pack files
+  // OR just leave them empty and random() will fallback to all tasks.
 })();
