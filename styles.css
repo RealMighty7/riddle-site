@@ -1,38 +1,69 @@
-/* styles.css (FULL REPLACEMENT) */
-
 :root{
-  --bg: #07090d;
+  --fg-dark: rgba(20,24,32,.92);
+  --muted-dark: rgba(20,24,32,.62);
+
   --fg: rgba(232,237,247,.92);
   --muted: rgba(232,237,247,.70);
+
+  --line-dark: rgba(0,0,0,.14);
+  --panel-dark: rgba(0,0,0,.04);
+  --pill-dark: rgba(0,0,0,.06);
+
   --line: rgba(255,255,255,.14);
   --panel: rgba(255,255,255,.06);
-  --panel2: rgba(0,0,0,.22);
-  --bad: rgba(255,190,190,.95);
-  --ok: rgba(200,255,220,.90);
   --pill: rgba(255,255,255,.08);
+
+  --bad: rgba(255,80,80,.90);
+  --ok: rgba(120,255,180,.90);
 }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
+
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-  background: radial-gradient(1200px 700px at 50% 0%, #0d1120 0%, var(--bg) 55%, #05060a 100%);
-  color: var(--fg);
   overflow-x:hidden;
 }
 
-.hidden{ display:none !important; }
+/* ===================== LANDING (WHITE) ===================== */
+body:not(.in-sim){
+  background:#ffffff;
+  color: var(--fg-dark);
+}
 
-/* ===================== LANDING NOT DIMMED ===================== */
-/* Keep overlays effectively off until sim */
+body:not(.in-sim) .card{
+  border:1px solid var(--line-dark);
+  background: rgba(255,255,255,.85);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.10);
+}
+
+body:not(.in-sim) .pill{
+  border:1px solid var(--line-dark);
+  background: rgba(0,0,0,.05);
+  color: var(--muted-dark);
+}
+
+body:not(.in-sim) input#viewerToken{
+  border:1px solid var(--line-dark);
+  background: rgba(0,0,0,.03);
+  color: var(--fg-dark);
+}
+
+/* ===================== SIM (DARK) ===================== */
+body.in-sim{
+  background: radial-gradient(1200px 700px at 50% 0%, #0d1120 0%, #07090d 55%, #05060a 100%);
+  color: var(--fg);
+}
+
+/* overlays */
 #glassFX{
   position:fixed;
   inset:0;
   pointer-events:none;
-  opacity:0;                 /* no dim on landing */
-  background: radial-gradient(900px 600px at 50% 20%, rgba(255,255,255,.08), rgba(0,0,0,0));
-  filter: blur(0px);
+  opacity:0;
   z-index:2;
 }
 
@@ -43,30 +74,56 @@ body{
   height:100%;
   pointer-events:none;
   z-index:3;
-  opacity:0;                 /* start invisible */
+  opacity:0;
 }
 
-/* show cracks after first crack stage (main.js toggles crack1..4) */
-body.crack1 #cracks,
-body.crack2 #cracks,
-body.crack3 #cracks,
-body.crack4 #cracks{ opacity:1; }
+.hidden{ display:none !important; }
 
-/* cracks stroke styling */
+/* crack paths (default) */
 #cracks .crack-path{
   fill:none;
   stroke-linecap:round;
   stroke-linejoin:round;
   vector-effect: non-scaling-stroke;
 }
-#cracks .crack-under{ stroke: rgba(120,160,255,.12); stroke-width: 10; filter: blur(1.2px); }
-#cracks .crack-line{ stroke: rgba(180,210,255,.55); stroke-width: 2.2; }
-#cracks .crack-glint{ stroke: rgba(210,235,255,.85); stroke-width: 1.3; filter: drop-shadow(0 0 10px rgba(120,170,255,.35)); }
+
+/* landing cracks: darker so you can see on white */
+body:not(.in-sim) #cracks .crack-under{ stroke: rgba(20,40,80,.10); stroke-width: 10; filter: blur(1.2px); }
+body:not(.in-sim) #cracks .crack-line{  stroke: rgba(20,40,80,.55); stroke-width: 2.2; }
+body:not(.in-sim) #cracks .crack-glint{ stroke: rgba(20,40,80,.70); stroke-width: 1.3; filter: drop-shadow(0 0 10px rgba(20,40,80,.25)); }
+
+/* sim cracks: lighter */
+body.in-sim #cracks .crack-under{ stroke: rgba(120,160,255,.12); stroke-width: 10; filter: blur(1.2px); }
+body.in-sim #cracks .crack-line{  stroke: rgba(180,210,255,.55); stroke-width: 2.2; }
+body.in-sim #cracks .crack-glint{ stroke: rgba(210,235,255,.85); stroke-width: 1.3; filter: drop-shadow(0 0 10px rgba(120,170,255,.35)); }
 
 #cracks.flash{ filter: brightness(1.4) contrast(1.1); }
-#cracks.pulse{ filter: brightness(1.25) contrast(1.05); }
 
-/* ===================== LAYOUT ===================== */
+/* show cracks once stage begins */
+body.crack1 #cracks,
+body.crack2 #cracks,
+body.crack3 #cracks,
+body.crack4 #cracks{
+  opacity:1;
+}
+
+/* “cracks disappear into sim” */
+body.in-sim #cracks{
+  opacity: 1;
+  animation: cracks_into_sim 820ms ease forwards;
+}
+body.in-sim #glassFX{
+  opacity:.22;
+}
+
+@keyframes cracks_into_sim{
+  0%   { opacity:1; filter:none; }
+  30%  { opacity:1; filter:brightness(1.6) contrast(1.2) blur(.6px); }
+  55%  { opacity:.9; filter:hue-rotate(18deg) brightness(1.35) blur(1.2px); }
+  100% { opacity:0; filter:blur(2px); }
+}
+
+/* layout */
 #wrap{
   max-width: 980px;
   margin: 26px auto;
@@ -75,62 +132,37 @@ body.crack4 #cracks{ opacity:1; }
   z-index:5;
 }
 
-.card{
-  border:1px solid var(--line);
-  background: var(--panel);
-  border-radius: 18px;
-  padding: 16px 16px;
-  box-shadow: 0 10px 24px rgba(0,0,0,.28);
-}
-
-h1{
-  margin:0 0 10px 0;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing:.2px;
-  opacity:.92;
-}
+h1{ margin:0 0 10px 0; font-size:22px; font-weight:700; letter-spacing:.2px; opacity:.92; }
 
 .pill{
   display:inline-block;
   padding: 8px 10px;
   border-radius: 999px;
-  border:1px solid var(--line);
-  background: var(--pill);
-  color: var(--muted);
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;
 }
 
-/* inputs */
-input{
+input#viewerToken{
   padding: 10px 12px;
   border-radius: 12px;
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.06);
-  color: var(--fg);
-  outline: none;
-}
-#cracks {
-  mix-blend-mode: screen;
-  filter: blur(0.3px) saturate(1.15);
+  outline:none;
+  min-width: 220px;
 }
 
-/* 1-frame “timestamp covers viewer box” glitch every second */
-#timestamp{
-  position:relative;
-  animation: ts_glitch 1s steps(1,end) infinite;
-  transform-origin: left center;
+.topRow{
+  margin-top:12px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
 }
-@keyframes ts_glitch{
-  0%   { transform: translateX(-280px) scaleX(2.1); filter: brightness(1.35); }
-  2%   { transform: translateX(0px) scaleX(1); filter:none; }
-  100% { transform: translateX(0px) scaleX(1); filter:none; }
-}
+
+/* ✅ timestamp glitch OFF (no animation) */
+#timestamp{ position:relative; }
 
 .grid{
-  margin-top: 14px;
+  margin-top:14px;
   display:grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
@@ -141,30 +173,41 @@ input{
 
 .adImg{
   width:100%;
-  height: 130px;
-  object-fit: cover;
-  border-radius: 14px;
-  border:1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.18);
+  height:130px;
+  object-fit:cover;
+  border-radius:14px;
+  border:1px solid rgba(0,0,0,.10);
+  background: rgba(0,0,0,.04);
   display:block;
 }
 
-/* ===================== BUTTONS ===================== */
+.btnRow{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.smallNote{ margin-top:12px; opacity:.78; font-size:13px; line-height:1.25; }
+
+/* buttons */
 .sim-btn{
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
-  color: var(--fg);
+  border:1px solid rgba(0,0,0,.14);
+  background: rgba(0,0,0,.04);
+  color: inherit;
   padding: 10px 12px;
   border-radius: 14px;
   cursor:pointer;
   user-select:none;
 }
-.sim-btn:hover{ background: rgba(255,255,255,.09); }
-.sim-btn:active{ transform: translateY(1px); }
-.sim-btn:disabled{
-  cursor:not-allowed;
-  opacity:.5;
+body.in-sim .sim-btn{
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: var(--fg);
 }
+.sim-btn:hover{ filter: brightness(1.02); }
+.sim-btn:active{ transform: translateY(1px); }
+.sim-btn:disabled{ cursor:not-allowed; opacity:.5; }
 
 /* ===================== SIM ===================== */
 body.in-sim #wrap{ display:none; }
@@ -178,34 +221,27 @@ body.in-sim #wrap{ display:none; }
   padding: 22px 16px 180px;
   z-index: 20;
 }
-#simRoom > .card{
-  width: min(860px, 100%);
-}
 
-#simText.simText,
-#simText{
+.simCard{ width: min(860px, 100%); }
+
+.simText{
   margin:0;
-  padding: 12px;
-  min-height: 240px;
-  max-height: 380px;
+  padding:12px;
+  min-height:240px;
+  max-height:380px;
   overflow:auto;
   background: rgba(0,0,0,.22);
   border:1px solid rgba(255,255,255,.12);
-  border-radius: 14px;
+  border-radius:14px;
   color: rgba(232,237,247,.88);
   font-size: 13px;
   line-height: 1.35;
   white-space: pre-wrap;
 }
 
-#simChoices{
-  margin-top:12px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
+.simChoices{ display:flex; gap:10px; flex-wrap:wrap; }
 
-/* ===================== TASK UI ===================== */
+/* ===================== TASK UI (separate overlay) ===================== */
 #taskUI{
   position:fixed;
   inset:0;
@@ -213,43 +249,22 @@ body.in-sim #wrap{ display:none; }
   align-items:flex-start;
   justify-content:center;
   padding: 22px 16px 130px;
-  z-index: 30;
-}
-#taskUI > .card{
-  width: min(700px, 100%);
+  z-index: 60; /* above sim */
 }
 
-.task-note{
-  margin-top:10px;
-  opacity:.85;
-  color: rgba(232,237,247,.78);
-}
-.task-error{
-  margin-top:10px;
-  color: var(--bad);
-  opacity:.95;
-}
-.task-ok{
-  margin-top:10px;
-  color: var(--ok);
-  opacity:.95;
+.taskCard{ width: min(700px, 100%); }
+.taskDesc{ margin-top:8px; opacity:.85; }
+.taskBody{ margin-top:12px; }
+.taskActions{ margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; }
+
+body.in-sim #taskUI .card{
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  box-shadow: 0 10px 24px rgba(0,0,0,.28);
 }
 
-/* ===================== RESET OVERLAY ===================== */
-#resetOverlay{
-  position:fixed;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 22px 16px;
-  z-index: 100;
-  background: rgba(0,0,0,.55);
-}
-#resetOverlay > .card{ width: min(700px, 100%); }
-
-/* ===================== FINAL OVERLAY ===================== */
-#finalOverlay{
+/* ===================== RESET / FINAL ===================== */
+#resetOverlay, #finalOverlay{
   position:fixed;
   inset:0;
   display:flex;
@@ -259,7 +274,8 @@ body.in-sim #wrap{ display:none; }
   z-index: 120;
   background: rgba(0,0,0,.55);
 }
-#finalOverlay > .card{ width: min(560px, 100%); }
+.resetBody{ margin-top:10px; white-space:pre-wrap; opacity:.9; }
+.errText{ margin-top:10px; color: var(--bad); }
 
 /* ===================== SUBTITLES (BOTTOM CENTER) ===================== */
 #subs{
@@ -268,21 +284,16 @@ body.in-sim #wrap{ display:none; }
   bottom: 26px;
   transform: translateX(-50%);
   width: min(860px, calc(100% - 32px));
-  z-index: 60;
+  z-index: 80;
   pointer-events: none;
-  text-align:left;
 }
-#subsName{
-  font-size: 12px;
-  opacity: .75;
-  margin-bottom: 6px;
-}
+#subsName{ font-size:12px; opacity:.75; margin-bottom:6px; }
 #subsText{
-  font-size: 14px;
-  line-height: 1.25;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,.12);
+  font-size:14px;
+  line-height:1.25;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
   background: rgba(0,0,0,.28);
   box-shadow: 0 10px 24px rgba(0,0,0,.28);
 }
@@ -297,18 +308,8 @@ body.in-sim #wrap{ display:none; }
   padding: 16px;
   overflow:auto;
 }
-.hackTop{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-  justify-content:space-between;
-}
-.hackFiles{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
+.hackTop{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+.hackFiles{ display:flex; gap:10px; flex-wrap:wrap; }
 .hack-filebtn{
   border:1px solid rgba(255,255,255,.14);
   background: rgba(255,255,255,.06);
@@ -318,14 +319,7 @@ body.in-sim #wrap{ display:none; }
   cursor:pointer;
 }
 .hack-filebtn.active{ background: rgba(120,160,255,.18); }
-
-.hackMeta{
-  margin-top:12px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-}
+.hackMeta{ margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
 
 #hackLines{
   margin-top:12px;
@@ -347,84 +341,23 @@ body.in-sim #wrap{ display:none; }
 .hack-txt{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
 .hack-line.target .hack-txt{ color: rgba(200,255,220,.92); }
 .hack-line.selected{ background: rgba(120,160,255,.12); }
-
-.hackActions{
-  margin-top:12px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
+.hackActions{ margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
 
 /* ===================== ADMIN PANEL ===================== */
-/* main.js handles drag; this just makes the handle obvious */
-#adminPanel{
-  position: fixed;
-  left: 18px;
-  top: 18px;
-  z-index: 9999;
-}
-#adminPanel .card{
+#adminPanel{ position: fixed; left: 18px; top: 18px; z-index: 9999; }
+.adminBox{
   width: 260px;
+  border:1px solid rgba(0,0,0,.14);
+  background: rgba(255,255,255,.88);
+  border-radius: 18px;
+  padding: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.14);
+}
+body.in-sim .adminBox{
   border:1px solid rgba(255,255,255,.16);
   background: rgba(255,255,255,.08);
+  color: var(--fg);
 }
-#adminPanel .adminHead{
-  cursor: grab;
-  user-select:none;
-}
-#adminPanel .adminHead:active{ cursor: grabbing; }
-
-/* ===================== CRACKS DISAPPEAR INTO SIM ===================== */
-/* When sim starts, briefly glitch the cracks, then fade them out. */
-body.in-sim #cracks{
-  opacity: 1;
-  animation: cracks_into_sim 820ms ease forwards;
-}
-body.in-sim #glassFX{
-  opacity: .22; /* optional in sim only */
-}
-@keyframes cracks_into_sim{
-  0%   { opacity:1; filter: none; transform: translateZ(0); }
-  30%  { opacity:1; filter: brightness(1.6) contrast(1.2) blur(.6px); }
-  55%  { opacity:.9; filter: hue-rotate(18deg) brightness(1.35) blur(1.2px); }
-  100% { opacity:0; filter: blur(2px); }
-}
-/* ===== WHITE LANDING (default) ===== */
-body{
-  background: #ffffff !important;
-  color: rgba(10,12,16,.92) !important;
-}
-
-/* cards on landing should be light */
-#wrap .card{
-  background: rgba(0,0,0,.03) !important;
-  border-color: rgba(0,0,0,.12) !important;
-  box-shadow: 0 10px 24px rgba(0,0,0,.10) !important;
-}
-.pill{
-  background: rgba(0,0,0,.04) !important;
-  border-color: rgba(0,0,0,.12) !important;
-  color: rgba(10,12,16,.70) !important;
-}
-.sim-btn{
-  border-color: rgba(0,0,0,.14) !important;
-  background: rgba(0,0,0,.03) !important;
-  color: rgba(10,12,16,.92) !important;
-}
-.sim-btn:hover{ background: rgba(0,0,0,.06) !important; }
-
-/* ===== DARK SIM (when main.js adds body.in-sim) ===== */
-body.in-sim{
-  background: radial-gradient(1200px 700px at 50% 0%, #0d1120 0%, #07090d 55%, #05060a 100%) !important;
-  color: rgba(232,237,247,.92) !important;
-}
-body.in-sim .sim-btn{
-  border-color: rgba(255,255,255,.14) !important;
-  background: rgba(255,255,255,.06) !important;
-  color: rgba(232,237,247,.92) !important;
-}
-body.in-sim .pill{
-  background: rgba(255,255,255,.08) !important;
-  border-color: rgba(255,255,255,.14) !important;
-  color: rgba(232,237,247,.70) !important;
-}
+.adminHead{ display:flex; justify-content:space-between; align-items:center; gap:10px; user-select:none; }
+.adminBody{ margin-top:10px; font-size:12px; opacity:.88; line-height:1.3; }
+.adminBtns{ margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
