@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
 
   <!-- bump versions to bust cache -->
-  <link rel="stylesheet" href="/styles.css?v=99" />
+  <link rel="stylesheet" href="/styles.css?v=42" />
 </head>
 
 <body>
@@ -54,7 +54,7 @@
       </div>
 
       <div class="btnRow" style="margin-top:12px;">
-        <button class="sim-btn" id="reportIssue">report issue</button>
+        <button class="sim-btn" disabled>report issue</button>
         <button class="sim-btn" disabled>billing</button>
         <button class="sim-btn" disabled>assets</button>
         <button class="sim-btn" disabled>export</button>
@@ -74,7 +74,7 @@
       <div class="pill" style="margin-bottom:10px;">simulation</div>
       <pre id="simText" class="simText" aria-live="polite"></pre>
 
-      <div id="simChoices" class="hidden simChoices" style="margin-top:12px;">
+      <div id="simChoices" class="hidden simChoices">
         <button class="sim-btn" id="choiceNeed">…</button>
         <button class="sim-btn" id="choiceLie">…</button>
         <button class="sim-btn" id="choiceRun">…</button>
@@ -87,7 +87,6 @@
     <div class="card taskCard">
       <div class="pill" id="taskTitle">TASK</div>
       <div class="taskDesc" id="taskDesc">—</div>
-
       <div id="taskBody" class="taskBody"></div>
 
       <div id="taskActions" class="taskActions">
@@ -114,13 +113,12 @@
         Functionality may be incomplete.
       </p>
 
-      <input id="finalDiscord" placeholder="discord username" autocomplete="off" spellcheck="false"
-             style="width:100%; margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(0,0,0,.18);" />
+      <input id="finalDiscord" placeholder="discord username" autocomplete="off" spellcheck="false" />
 
       <div id="turnstileBox" style="margin-top:12px;"></div>
       <div id="finalErr" class="errText"></div>
 
-      <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+      <div class="btnRow" style="margin-top:14px;">
         <button class="sim-btn" id="finalCancel">cancel</button>
         <button class="sim-btn" id="finalVerify">verify</button>
       </div>
@@ -173,49 +171,47 @@
     </div>
   </section>
 
-  <!-- Optional placeholders -->
   <div id="viewerFake" class="hidden"></div>
   <div id="viewerState" class="hidden"></div>
 
-  <!-- Cloudflare Turnstile -->
+  <!-- Turnstile -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
-  <!-- ✅ Load order: tasks -> packs -> dialogue -> audio -> main -->
-  <script src="/tasks.js?v=99"></script>
+  <!-- ✅ IMPORTANT: shim FIRST so packs never throw -->
+  <script>
+    (function(){
+      window.TASKS = window.TASKS || {};
+      window.__TASK_QUEUE__ = window.__TASK_QUEUE__ || [];
+      window.registerTasks = window.registerTasks || function(obj){
+        // packs may call registerTasks() before tasks.js is parsed (cache races)
+        window.__TASK_QUEUE__.push(obj);
+      };
+    })();
+  </script>
 
-  <script src="/packs/pack1.js?v=99"></script>
-  <script src="/packs/pack2.js?v=99"></script>
-  <script src="/packs/pack3.js?v=99"></script>
-  <script src="/packs/pack4.js?v=99"></script>
-  <script src="/packs/pack5.js?v=99"></script>
+  <!-- Load order matters -->
+  <script src="/dialogue.js?v=42"></script>
+  <script src="/tasks.js?v=42"></script>
 
-  <script src="/dialogue.js?v=99"></script>
-  <script src="/audio_player.js?v=99"></script>
-  <script src="/main.js?v=99"></script>
+  <script src="/packs/pack1.js?v=42"></script>
+  <script src="/packs/pack2.js?v=42"></script>
+  <script src="/packs/pack3.js?v=42"></script>
+  <script src="/packs/pack4.js?v=42"></script>
+  <script src="/packs/pack5.js?v=42"></script>
+
+  <script src="/audio_player.js?v=42"></script>
+  <script src="/main.js?v=42"></script>
 
   <script>
-    // timestamp tick (NO glitch animation)
     (function () {
       const el = document.getElementById("timestamp");
       if (!el) return;
-      function tick() { el.textContent = "timestamp: " + new Date().toLocaleString(); }
+      function tick() {
+        const d = new Date();
+        el.textContent = "timestamp: " + d.toLocaleString();
+      }
       tick();
       setInterval(tick, 1000);
-    })();
-
-    // report issue mailto
-    (function () {
-      const btn = document.getElementById("reportIssue");
-      if (!btn) return;
-      btn.addEventListener("click", () => {
-        const subj = encodeURIComponent("Report issue: ad launcher");
-        const body = encodeURIComponent(
-          "Describe what happened:\n\n" +
-          "timestamp: " + new Date().toLocaleString() + "\n" +
-          "url: " + location.href + "\n"
-        );
-        location.href = `mailto:?subject=${subj}&body=${body}`;
-      });
     })();
   </script>
 </body>
