@@ -622,9 +622,26 @@ Reinitializing simulation…`
           continue;
         }
 
+        // When a step is { filler: { pool:"AUTO", count:N, meta:{...} } }
         if (step.filler) {
-          // keep simple for now; you said you’ll rewrite dialogue later
-          continue;
+          const count = step.filler.count ?? 1;
+          const pool = step.filler.pool ?? "AUTO";
+          const meta = step.filler.meta ?? {};
+        
+          for (let i = 0; i < count; i++) {
+            let line = "";
+            if (pool === "AUTO" && window.DIALOGUE_HELPERS?.autoFiller) {
+              // You can pass real values here if you track them:
+              // meta.path = state.guidePath; meta.loopIndex = state.loopIndex; meta.pressure = state.pressure;
+              line = window.DIALOGUE_HELPERS.autoFiller(meta);
+            } else {
+              // fallback if you still support named pools
+              line = `(filler:${pool})`;
+            }
+            // push/show line like you do for say lines
+            enqueueLine(line);
+          }
+          continue; // advance to next step
         }
       }
     }
