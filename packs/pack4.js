@@ -3,11 +3,9 @@
 // Theme: "audit pressure + stealth ops" (slightly harder, still fair)
 // --- pack safety shim (must be FIRST) ---
 (() => {
-  // If tasks.js didn't load for any reason, don't hard-crash.
   window.TASKS = window.TASKS || {};
   window.TASK_POOLS = window.TASK_POOLS || {};
 
-  // Some packs call registerTasks/registerTaskPool — define stubs if missing.
   if (typeof window.registerTasks !== "function") {
     window.registerTasks = (defs) => {
       try { Object.assign(window.TASKS, defs || {}); } catch {}
@@ -27,7 +25,6 @@
     return;
   }
 
-  // Pack-local helpers
   const el = (t, c, txt) => {
     const d = document.createElement(t);
     if (c) d.className = c;
@@ -45,6 +42,7 @@
     }
     return a;
   };
+
   const begin = (ctx, title, desc) => {
     ctx.showTaskUI(title, desc);
     ctx.taskPrimary.textContent = "continue";
@@ -52,14 +50,15 @@
     ctx.taskSecondary.classList.add("hidden");
     ctx.taskBody.innerHTML = "";
   };
-const note = (t, kind = "note") => {
-  const n = el("div");
-  n.textContent = t ?? "";
-  n.className = (kind === "error") ? "task-error"
-              : (kind === "ok") ? "task-ok"
-              : "task-note";
-  return n;
-};
+
+  const note = (t, kind = "note") => {
+    const n = el("div");
+    n.textContent = t ?? "";
+    n.className = (kind === "error") ? "task-error"
+                : (kind === "ok") ? "task-ok"
+                : "task-note";
+    return n;
+  };
 
   const makeInput = (ph) => {
     const i = el("input");
@@ -71,7 +70,6 @@ const note = (t, kind = "note") => {
     return i;
   };
 
-  // Prevent double-resolving
   const once = (fn) => {
     let done = false;
     return (...args) => {
@@ -81,9 +79,31 @@ const note = (t, kind = "note") => {
     };
   };
 
-  // ============================================================
-  // PACK 4 TASKS
-  // ============================================================
+  const scoped = () => {
+    const offs = [];
+    return {
+      on(target, type, fn, opts) {
+        target.addEventListener(type, fn, opts);
+        offs.push(() => target.removeEventListener(type, fn, opts));
+      },
+      interval(fn, ms) {
+        const id = setInterval(fn, ms);
+        offs.push(() => clearInterval(id));
+        return id;
+      },
+      timeout(fn, ms) {
+        const id = setTimeout(fn, ms);
+        offs.push(() => clearTimeout(id));
+        return id;
+      },
+      clear() {
+        for (const off of offs.splice(0)) {
+          try { off(); } catch {}
+        }
+      }
+    };
+  };
+
   reg({
     // 1) Reaction gate: click ONLY when it turns "SAFE"
     safe_gate: async (ctx) => {
@@ -107,25 +127,26 @@ const note = (t, kind = "note") => {
       wrap.appendChild(msg);
       ctx.taskBody.appendChild(wrap);
 
-      const safeWindows = clamp(2 + Math.floor(ctx.difficultyBoost() / 2), 2, 5);
+      const safeWindows = clamp(2 + Math.floor((ctx.difficultyBoost?.() ?? 0) / 2), 2, 5);
       let safeCount = 0;
       let state = "HOLD";
 
-      // make SAFE windows appear randomly
+      const L = scoped();
+
       const cycle = () => {
-        const holdMs = clamp(rndInt(650, 1100) + ctx.difficultyBoost() * 60, 650, 1600);
-        const safeMs = clamp(rndInt(420, 780) - ctx.difficultyBoost() * 25, 220, 780);
+        const holdMs = clamp(rndInt(650, 1100) + (ctx.difficultyBoost?.() ?? 0) * 60, 650, 1600);
+        const safeMs = clamp(rndInt(420, 780) - (ctx.difficultyBoost?.() ?? 0) * 25, 220, 780);
 
         pill.textContent = "STATUS: HOLD";
         pill.style.opacity = "0.85";
         state = "HOLD";
 
-        setTimeout(() => {
+        L.timeout(() => {
           pill.textContent = "STATUS: SAFE";
           pill.style.opacity = "1";
           state = "SAFE";
 
-          setTimeout(() => {
+          L.timeout(() => {
             if (safeCount < safeWindows) cycle();
           }, safeMs);
         }, holdMs);
@@ -133,13 +154,16 @@ const note = (t, kind = "note") => {
       cycle();
 
       let resolve;
-      const done = once(() => resolve());
+      const done = once(() => {
+        L.clear();
+        resolve();
+      });
 
       btn.onclick = () => {
         if (state !== "SAFE") {
           msg.textContent = "Too early.";
-          ctx.glitch();
-          ctx.penalize(1, "misclick");
+          ctx.glitch?.();
+          ctx.penalize?.(1, "misclick");
           return;
         }
         safeCount++;
@@ -159,7 +183,7 @@ const note = (t, kind = "note") => {
     bracket_extract: async (ctx) => {
       begin(ctx, "EXTRACT", "Type only the letters inside [brackets], in order.");
       const letters = "abcdefghijklmnopqrstuvwxyz";
-      const len = clamp(18 + ctx.difficultyBoost() * 2, 18, 34);
+      const len = clamp(18 + (ctx.difficultyBoost?.() ?? 0) * 2, 18, 34);
 
       let s = "";
       let answer = "";
@@ -170,7 +194,7 @@ const note = (t, kind = "note") => {
         else s += ch;
         if (Math.random() < 0.12) s += " ";
       }
-      if (!answer) { // guarantee at least something
+      if (!answer) {
         const ch = letters[rndInt(0, letters.length - 1)];
         s += ` [${ch}]`;
         answer = ch;
@@ -199,8 +223,8 @@ const note = (t, kind = "note") => {
         const got = (inp.value || "").trim().replace(/\s+/g, "");
         if (got !== answer) {
           msg.textContent = "Extraction failed.";
-          ctx.glitch();
-          ctx.penalize(1, "read error");
+          ctx.glitch?.();
+          ctx.penalize?.(1, "read error");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -237,8 +261,8 @@ const note = (t, kind = "note") => {
         b.onclick = () => {
           if (o !== correct) {
             msg.textContent = "Too loud.";
-            ctx.glitch();
-            ctx.penalize(1, "audit risk");
+            ctx.glitch?.();
+            ctx.penalize?.(1, "audit risk");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -280,9 +304,10 @@ const note = (t, kind = "note") => {
       ctx.taskBody.appendChild(readout);
       ctx.taskBody.appendChild(warn);
 
-      const shortMax = clamp(320 + ctx.difficultyBoost() * 35, 320, 620);
-      const longMin = clamp(720 + ctx.difficultyBoost() * 55, 720, 1150);
+      const shortMax = clamp(320 + (ctx.difficultyBoost?.() ?? 0) * 35, 320, 620);
+      const longMin = clamp(720 + (ctx.difficultyBoost?.() ?? 0) * 55, 720, 1150);
 
+      const L = scoped();
       let downAt = null;
 
       const render = () => {
@@ -295,12 +320,12 @@ const note = (t, kind = "note") => {
         got.length = 0;
         render();
         warn.textContent = "Signal corrupted. Reset.";
-        ctx.glitch();
-        ctx.penalize(1, "bad signal");
+        ctx.glitch?.();
+        ctx.penalize?.(1, "bad signal");
       };
 
-      btn.addEventListener("mousedown", () => { downAt = performance.now(); });
-      window.addEventListener("mouseup", () => {
+      L.on(btn, "mousedown", () => { downAt = performance.now(); });
+      L.on(window, "mouseup", () => {
         if (downAt === null) return;
         const dur = performance.now() - downAt;
         downAt = null;
@@ -311,13 +336,13 @@ const note = (t, kind = "note") => {
         got.push(seg);
         render();
 
-        // validate prefix
         for (let i = 0; i < got.length; i++) {
           if (got[i] !== target[i]) return fail();
         }
         if (got.length === target.length) {
           warn.style.color = "rgba(232,237,247,0.85)";
           warn.textContent = "Signal accepted.";
+          L.clear();
           ctx.taskPrimary.textContent = "continue";
           ctx.taskPrimary.disabled = false;
           ctx.taskPrimary.onclick = () => resolve();
@@ -351,7 +376,7 @@ const note = (t, kind = "note") => {
         b.onclick = () => {
           if (t !== correct) {
             msg.textContent = "Wrong scan.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -373,7 +398,7 @@ const note = (t, kind = "note") => {
     index_chars: async (ctx) => {
       begin(ctx, "INDEX", "Type the 3rd and 7th characters (no spaces).");
       const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-      const len = clamp(10 + ctx.difficultyBoost(), 10, 18);
+      const len = clamp(10 + (ctx.difficultyBoost?.() ?? 0), 10, 18);
       let s = "";
       for (let i = 0; i < len; i++) s += chars[rndInt(0, chars.length - 1)];
       const ans = (s[2] || "") + (s[6] || "");
@@ -396,8 +421,8 @@ const note = (t, kind = "note") => {
         const got = (inp.value || "").trim();
         if (got !== ans) {
           msg.textContent = "Index mismatch.";
-          ctx.glitch();
-          ctx.penalize(1, "index error");
+          ctx.glitch?.();
+          ctx.penalize?.(1, "index error");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -414,8 +439,7 @@ const note = (t, kind = "note") => {
       begin(ctx, "FILTER", "Click the only option with an EVEN number of characters.");
       const make = (n) => Array.from({ length: n }, () => String.fromCharCode(rndInt(97, 122))).join("");
 
-      // build 3 odd length + 1 even length
-      const even = make(rndInt(6, 10) * 2); // even
+      const even = make(rndInt(6, 10) * 2);
       const opts = [
         make(rndInt(7, 15) | 1),
         make(rndInt(7, 15) | 1),
@@ -438,7 +462,7 @@ const note = (t, kind = "note") => {
         b.onclick = () => {
           if (o !== even) {
             msg.textContent = "Rejected.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -457,10 +481,10 @@ const note = (t, kind = "note") => {
       return new Promise(r => (resolve = r));
     },
 
-    // 8) Micro-scrub: replace all "x" with "." by typing (no copy/paste)
+    // 8) Micro-scrub: replace all "x" with "." by typing (anti-paste-ish)
     scrub_x: async (ctx) => {
-      begin(ctx, "SCRUB", "Replace every 'x' with '.' and submit. (No copy/paste.)");
-      const len = clamp(18 + ctx.difficultyBoost() * 2, 18, 40);
+      begin(ctx, "SCRUB", "Replace every 'x' with '.' and submit.");
+      const len = clamp(18 + (ctx.difficultyBoost?.() ?? 0) * 2, 18, 40);
       let s = "";
       for (let i = 0; i < len; i++) s += (Math.random() < 0.22 ? "x" : String.fromCharCode(rndInt(97, 122)));
       if (!s.includes("x")) s = s.slice(0, -1) + "x";
@@ -474,14 +498,13 @@ const note = (t, kind = "note") => {
       msg.style.color = "rgba(255,190,190,.95)";
       ctx.taskBody.appendChild(msg);
 
-      // crude anti-paste: if input length jumps too far at once
       let last = 0;
       inp.addEventListener("input", () => {
         const now = inp.value.length;
         if (now - last > 6) {
           msg.textContent = "Too fast.";
-          ctx.glitch();
-          ctx.penalize(1, "paste risk");
+          ctx.glitch?.();
+          ctx.penalize?.(1, "paste risk");
         }
         last = now;
       });
@@ -496,8 +519,8 @@ const note = (t, kind = "note") => {
         const got = (inp.value || "").trim();
         if (got !== target) {
           msg.textContent = "Scrub failed.";
-          ctx.glitch();
-          ctx.penalize(1, "dirty");
+          ctx.glitch?.();
+          ctx.penalize?.(1, "dirty");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -512,8 +535,8 @@ const note = (t, kind = "note") => {
     // 9) Choose the ONLY option that contains a dash
     has_dash: async (ctx) => {
       begin(ctx, "SCAN", "Click the only option that contains a dash (-).");
-      const dash = "echo-static";
-      const opts = shuffle(["echostatic", "echo/static", dash, "echo_static"]);
+      const dash = "audit-log";
+      const opts = shuffle(["auditlog", "audit/log", dash, "audit_log"]);
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
@@ -528,7 +551,7 @@ const note = (t, kind = "note") => {
         b.onclick = () => {
           if (o !== dash) {
             msg.textContent = "No.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -550,7 +573,7 @@ const note = (t, kind = "note") => {
     // 10) Type the word that appears twice
     duplicate_word: async (ctx) => {
       begin(ctx, "DUPLICATE", "Type the word that appears twice.");
-      const base = shuffle(["pane", "static", "echo", "buffer", "trace", "vault"]);
+      const base = shuffle(["pane", "buffer", "trace", "audit", "quiet", "layer"]);
       const dup = base[0];
       const list = shuffle([dup, dup, base[1], base[2], base[3]]);
       ctx.taskBody.appendChild(note(list.join("   ")));
@@ -572,8 +595,8 @@ const note = (t, kind = "note") => {
         const got = (inp.value || "").trim().toLowerCase();
         if (got !== dup) {
           msg.textContent = "Wrong.";
-          ctx.glitch();
-          ctx.penalize(1, "scan fail");
+          ctx.glitch?.();
+          ctx.penalize?.(1, "scan fail");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -585,17 +608,17 @@ const note = (t, kind = "note") => {
       return new Promise(r => (resolve = r));
     },
 
-    // 11) "Do not click" test: don't click for N seconds (but you can move mouse)
+    // 11) "Do not click" test: don't click for N seconds
     dont_click: async (ctx) => {
-      const sec = clamp(2 + Math.floor(ctx.difficultyBoost() / 2), 2, 6);
-      begin(ctx, "COMPLIANCE", `Do NOT click anywhere for ${sec} seconds. Clicking adds noise.`);
+      const sec = clamp(2 + Math.floor((ctx.difficultyBoost?.() ?? 0) / 2), 2, 6);
+      begin(ctx, "COMPLIANCE", `Do NOT click anywhere for ${sec} seconds.`);
 
       const timer = el("div", "pill", `time: ${sec}s`);
       timer.style.marginTop = "12px";
       ctx.taskBody.appendChild(timer);
 
       let clicks = 0;
-      const onClick = (e) => { clicks++; };
+      const onClick = () => { clicks++; };
       window.addEventListener("click", onClick, true);
 
       const start = performance.now();
@@ -606,15 +629,13 @@ const note = (t, kind = "note") => {
 
         if (t >= sec) {
           window.removeEventListener("click", onClick, true);
-
           if (clicks > 0) {
-            ctx.glitch();
-            ctx.penalize(1, "impulse");
-            ctx.taskBody.appendChild(note("You clicked. Auditor noted it."));
+            ctx.glitch?.();
+            ctx.penalize?.(1, "impulse");
+            ctx.taskBody.appendChild(note("Auditor noted it."));
           } else {
             ctx.taskBody.appendChild(note("Clean window held."));
           }
-
           ctx.taskPrimary.textContent = "continue";
           ctx.taskPrimary.disabled = false;
           ctx.taskPrimary.onclick = () => resolve();
@@ -648,7 +669,7 @@ const note = (t, kind = "note") => {
         b.onclick = () => {
           if (o !== correct) {
             msg.textContent = "Format rejected.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -667,10 +688,10 @@ const note = (t, kind = "note") => {
       return new Promise(r => (resolve = r));
     },
 
-    // 13) Order by length (3 items) - small sort
+    // 13) Order by length (3 items)
     length_order_3: async (ctx) => {
       begin(ctx, "ORDER", "Order from shortest → longest (click to append).");
-      const words = shuffle(["pane", "static", "echo", "buffer", "trace", "vault", "integrity", "containment"]);
+      const words = shuffle(["pane", "buffer", "trace", "audit", "quiet", "layer", "integrity", "containment"]);
       const a = words[0], b = words[1], c = words[2];
       const items = shuffle([a, b, c]);
       const correct = [a, b, c].slice().sort((x, y) => x.length - y.length);
@@ -704,8 +725,8 @@ const note = (t, kind = "note") => {
             const ok = picked.join("|") === correct.join("|");
             if (!ok) {
               msg.textContent = "Wrong order.";
-              ctx.glitch();
-              ctx.penalize(1, "sort fail");
+              ctx.glitch?.();
+              ctx.penalize?.(1, "sort fail");
               picked.length = 0;
               render();
               return;
@@ -732,7 +753,7 @@ const note = (t, kind = "note") => {
     count_vowels: async (ctx) => {
       begin(ctx, "COUNT", "Count the vowels (a,e,i,o,u). Type the number.");
       const letters = "abcdefghijklmnopqrstuvwxyz";
-      const len = clamp(10 + ctx.difficultyBoost() * 2, 10, 24);
+      const len = clamp(10 + (ctx.difficultyBoost?.() ?? 0) * 2, 10, 24);
       let s = "";
       for (let i = 0; i < len; i++) s += letters[rndInt(0, letters.length - 1)];
       const vowels = new Set(["a","e","i","o","u"]);
@@ -757,8 +778,8 @@ const note = (t, kind = "note") => {
         const got = (inp.value || "").trim();
         if (got !== String(count)) {
           msg.textContent = "Wrong.";
-          ctx.glitch();
-          ctx.penalize(1, "count fail");
+          ctx.glitch?.();
+          ctx.penalize?.(1, "count fail");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -788,7 +809,7 @@ const note = (t, kind = "note") => {
         b.onclick = () => {
           if (o !== correct) {
             msg.textContent = "Wrong path.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -831,7 +852,7 @@ const note = (t, kind = "note") => {
         const got = (inp.value || "").trim();
         if (got !== ans) {
           msg.textContent = "Incorrect.";
-          ctx.glitch();
+          ctx.glitch?.();
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -862,7 +883,7 @@ const note = (t, kind = "note") => {
         b.onclick = () => {
           if (o !== correct) {
             msg.textContent = "Rejected.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -901,8 +922,8 @@ const note = (t, kind = "note") => {
         b.onclick = () => {
           if (o !== correct) {
             msg.textContent = "Too obvious.";
-            ctx.glitch();
-            ctx.penalize(1, "noise");
+            ctx.glitch?.();
+            ctx.penalize?.(1, "noise");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -944,7 +965,7 @@ const note = (t, kind = "note") => {
         b.onclick = () => {
           if (o !== correct) {
             msg.textContent = "False.";
-            ctx.glitch();
+            ctx.glitch?.();
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -965,8 +986,8 @@ const note = (t, kind = "note") => {
     // 20) "Token split": type the second half of a token
     token_split: async (ctx) => {
       begin(ctx, "TOKEN", "Type the SECOND half of the token (after the |).");
-      const partsA = shuffle(["echo", "static", "pane", "trace", "vault", "buffer"]);
-      const partsB = shuffle(["07", "19", "42", "88", "13", "64"]);
+      const partsA = shuffle(["pane", "trace", "buffer", "quiet", "audit", "layer"]);
+      const partsB = shuffle(["19", "42", "88", "13", "64", "21"]);
       const token = `${partsA[0]}${partsB[0]}|${partsA[1]}${partsB[1]}`;
       const ans = token.split("|")[1];
 
@@ -988,8 +1009,8 @@ const note = (t, kind = "note") => {
         const got = (inp.value || "").trim();
         if (got !== ans) {
           msg.textContent = "Wrong half.";
-          ctx.glitch();
-          ctx.penalize(1, "token fail");
+          ctx.glitch?.();
+          ctx.penalize?.(1, "token fail");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -1002,7 +1023,6 @@ const note = (t, kind = "note") => {
     },
   });
 
-  // Optional: register a pool for this pack (recommended)
   if (window.registerTaskPool) {
     window.registerTaskPool("pack4", [
       { id: "safe_gate", w: 1 },
