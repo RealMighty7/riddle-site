@@ -1,13 +1,11 @@
 // /packs/pack3.js
 // Registers 20 tasks into window.TASKS via window.registerTasks()
-// Also registers a pool "pack3" so TASKS.random can pull from it.
+// Theme: "mirror logic + duplication artifacts" (fair, but feels strict)
 // --- pack safety shim (must be FIRST) ---
 (() => {
-  // If tasks.js didn't load for any reason, don't hard-crash.
   window.TASKS = window.TASKS || {};
   window.TASK_POOLS = window.TASK_POOLS || {};
 
-  // Some packs call registerTasks/registerTaskPool — define stubs if missing.
   if (typeof window.registerTasks !== "function") {
     window.registerTasks = (defs) => {
       try { Object.assign(window.TASKS, defs || {}); } catch {}
@@ -24,19 +22,18 @@
   const reg = window.registerTasks;
   const regPool = window.registerTaskPool;
 
-  if (!reg || !regPool) {
-    console.error("registerTasks/registerTaskPool missing — load /tasks.js before /packs/pack3.js");
+  if (!reg) {
+    console.error("registerTasks missing — load tasks.js before /packs/pack3.js");
     return;
   }
 
-  // Helpers (pack-local)
   const el = (t, c, txt) => {
     const d = document.createElement(t);
     if (c) d.className = c;
     if (txt !== undefined) d.textContent = txt;
     return d;
   };
-  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
   const rndInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
   const shuffle = (arr) => {
@@ -52,19 +49,18 @@
     ctx.showTaskUI(title, desc);
     ctx.taskPrimary.textContent = "continue";
     ctx.taskPrimary.disabled = true;
-    ctx.taskSecondary?.classList?.add("hidden");
+    ctx.taskSecondary.classList.add("hidden");
     ctx.taskBody.innerHTML = "";
   };
 
-const note = (t, kind = "note") => {
-  const n = el("div");
-  n.textContent = t ?? "";
-  n.className = (kind === "error") ? "task-error"
-              : (kind === "ok") ? "task-ok"
-              : "task-note";
-  return n;
-};
-
+  const note = (t, kind = "note") => {
+    const n = el("div");
+    n.textContent = t ?? "";
+    n.className = (kind === "error") ? "task-error"
+                : (kind === "ok") ? "task-ok"
+                : "task-note";
+    return n;
+  };
 
   const makeInput = (ph) => {
     const i = el("input");
@@ -73,123 +69,56 @@ const note = (t, kind = "note") => {
     i.spellcheck = false;
     i.style.width = "min(520px, 100%)";
     i.style.marginTop = "10px";
-    i.style.padding = "10px 12px";
-    i.style.borderRadius = "10px";
-    i.style.border = "1px solid rgba(255,255,255,0.18)";
-    i.style.background = "rgba(0,0,0,0.25)";
-    i.style.color = "#e5e7eb";
     return i;
   };
 
-  const makeRow = () => {
-    const row = el("div");
-    row.style.marginTop = "10px";
-    row.style.display = "flex";
-    row.style.flexWrap = "wrap";
-    row.style.gap = "10px";
-    return row;
+  const scoped = () => {
+    const offs = [];
+    return {
+      on(target, type, fn, opts) {
+        try {
+          target.addEventListener(type, fn, opts);
+          offs.push(() => target.removeEventListener(type, fn, opts));
+        } catch {}
+      },
+      interval(fn, ms) {
+        const id = setInterval(fn, ms);
+        offs.push(() => clearInterval(id));
+        return id;
+      },
+      timeout(fn, ms) {
+        const id = setTimeout(fn, ms);
+        offs.push(() => clearTimeout(id));
+        return id;
+      },
+      clear() {
+        for (const off of offs.splice(0)) {
+          try { off(); } catch {}
+        }
+      }
+    };
   };
 
-  const doneGate = (ctx, resolve) => {
+  const finish = (ctx, resolve, answer) => {
+    try { ctx.setAnswer?.(answer); } catch {}
     ctx.taskPrimary.textContent = "continue";
     ctx.taskPrimary.disabled = false;
     ctx.taskPrimary.onclick = () => resolve();
   };
 
-  const PACK3_TASKS = {
-    // 1) click three stamps in order (procedural vibe)
-    stamp_order_3: async (ctx) => {
-      begin(ctx, "STAMP", "Apply stamps in the correct order: REVIEW → ACK → ARCHIVE.");
-      const order = ["REVIEW", "ACK", "ARCHIVE"];
-      const opts = shuffle(order);
+  const alpha = "abcdefghijklmnopqrstuvwxyz";
+  const alnum = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-      let i = 0;
-      const msg = note("");
-      msg.style.color = "rgba(255,190,190,.95)";
+  reg({
+    // 1) Spot the duplicated pair (exactly one token repeats)
+    dup_token: async (ctx) => {
+      begin(ctx, "DUPLICATE", "Type the token that appears twice.");
+      const base = shuffle(["pane", "trace", "buffer", "mirror", "quiet", "audit", "shadow"]);
+      const dup = base[0];
+      const list = shuffle([dup, dup, base[1], base[2], base[3], base[4]]);
+      ctx.taskBody.appendChild(note(list.join("   ")));
 
-      const row = makeRow();
-      opts.forEach(label => {
-        const b = el("button", "sim-btn", label);
-        b.onclick = () => {
-          if (label !== order[i]) {
-            i = 0;
-            msg.textContent = "Wrong stamp. Procedure reset.";
-            ctx.glitch?.();
-            ctx.penalize?.(1, "procedure");
-            return;
-          }
-          i++;
-          msg.textContent = `ok (${i}/3)`;
-          if (i === order.length) {
-            msg.style.color = "rgba(232,237,247,0.85)";
-            msg.textContent = "Stamped.";
-            doneGate(ctx, resolve);
-          }
-        };
-        row.appendChild(b);
-      });
-
-      ctx.taskBody.appendChild(row);
-      ctx.taskBody.appendChild(msg);
-
-      let resolve;
-      return new Promise(r => (resolve = r));
-    },
-
-    // 2) slider align (calibration)
-    align_slider: async (ctx) => {
-      begin(ctx, "CALIBRATE", "Align the slider to the target value exactly.");
-      const target = rndInt(12, 88);
-      ctx.taskBody.appendChild(note(`target: ${target}`));
-
-      const wrap = el("div");
-      wrap.style.marginTop = "12px";
-      wrap.style.width = "min(520px, 100%)";
-
-      const range = el("input");
-      range.type = "range";
-      range.min = "0";
-      range.max = "100";
-      range.value = String(rndInt(0, 100));
-      range.style.width = "100%";
-
-      const read = note("");
-      read.style.marginTop = "8px";
-      read.textContent = `value: ${range.value}`;
-
-      range.addEventListener("input", () => {
-        read.textContent = `value: ${range.value}`;
-        const ok = Number(range.value) === target;
-        ctx.taskPrimary.disabled = !ok;
-        if (ok) read.textContent += "  ✓";
-      });
-
-      wrap.appendChild(range);
-      wrap.appendChild(read);
-      ctx.taskBody.appendChild(wrap);
-
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = true;
-
-      return new Promise(r => (ctx.taskPrimary.onclick = r));
-    },
-
-    // 3) nth character extraction (small “audit check”)
-    nth_char: async (ctx) => {
-      begin(ctx, "INDEX", "Type the requested character from the string.");
-      const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789-_";
-      const len = rndInt(14, 24);
-      let s = "";
-      for (let i = 0; i < len; i++) s += alphabet[rndInt(0, alphabet.length - 1)];
-
-      const idx = rndInt(3, Math.min(len, 18)); // 1-based prompt
-      const correct = s[idx - 1];
-
-      ctx.taskBody.appendChild(note(`string: ${s}`));
-      ctx.taskBody.appendChild(note(`requested: character #${idx} (1-based)`));
-
-      const inp = makeInput("type the character");
-      inp.maxLength = 1;
+      const inp = makeInput("duplicate…");
       ctx.taskBody.appendChild(inp);
 
       const msg = note("");
@@ -198,550 +127,211 @@ const note = (t, kind = "note") => {
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
-        const got = (inp.value || "");
-        if (got !== correct) {
-          msg.textContent = "Incorrect index.";
+        const got = (inp.value || "").trim().toLowerCase();
+        if (got !== dup) {
+          msg.textContent = "Wrong.";
           ctx.glitch?.();
-          ctx.penalize?.(1, "index");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
-        msg.textContent = "Index verified.";
-        doneGate(ctx, resolve);
+        msg.textContent = "Confirmed.";
+        finish(ctx, resolve, dup);
       };
 
-      inp.focus();
-
-      let resolve;
-      return new Promise(r => (resolve = r));
+      return new Promise((r) => (resolve = r));
     },
 
-    // 4) triage flags (select exactly 3 safe)
-    triage_flags: async (ctx) => {
-      begin(ctx, "TRIAGE", "Select exactly THREE items that are safe to keep.");
-      const safe = new Set(["cache-note", "noise.tmp", "idle-memo"]);
-      const opts = shuffle(["cache-note", "kernel.map", "noise.tmp", "user.db", "idle-memo", "audit.key"]);
+    // 2) Mirror math: reverse then take first 3
+    mirror_take3: async (ctx) => {
+      begin(ctx, "MIRROR", "Reverse the string, then type the first 3 characters.");
+      let s = "";
+      const len = clamp(9 + (ctx.difficultyBoost?.() ?? 0), 9, 15);
+      for (let i = 0; i < len; i++) s += alnum[rndInt(0, alnum.length - 1)];
+      const ans = s.split("").reverse().join("").slice(0, 3);
 
-      const picked = new Set();
-      const msg = note("Pick 3.");
+      ctx.taskBody.appendChild(note(`string: ${s}`));
+      const inp = makeInput("3 chars…");
+      ctx.taskBody.appendChild(inp);
+
+      const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
-
-      const row = makeRow();
-      opts.forEach(o => {
-        const b = el("button", "sim-btn", o);
-        b.style.opacity = "1";
-        b.onclick = () => {
-          if (picked.has(o)) {
-            picked.delete(o);
-            b.style.opacity = "1";
-          } else {
-            picked.add(o);
-            b.style.opacity = "0.7";
-          }
-
-          if (picked.size === 3) {
-            const ok = [...picked].every(x => safe.has(x));
-            if (!ok) {
-              msg.textContent = "Bad triage. Too loud.";
-              ctx.glitch?.();
-              ctx.penalize?.(1, "triage");
-              return;
-            }
-            msg.style.color = "rgba(232,237,247,0.85)";
-            msg.textContent = "Triage accepted.";
-            doneGate(ctx, resolve);
-          } else {
-            msg.textContent = `Selected: ${picked.size}/3`;
-            ctx.taskPrimary.disabled = true;
-          }
-
-          if (picked.size > 3) {
-            msg.textContent = "Too many selected.";
-            ctx.glitch?.();
-            ctx.penalize?.(1, "overselect");
-          }
-        };
-        row.appendChild(b);
-      });
-
-      ctx.taskBody.appendChild(row);
       ctx.taskBody.appendChild(msg);
 
+      ctx.taskPrimary.textContent = "verify";
+      ctx.taskPrimary.disabled = false;
+
       let resolve;
-      return new Promise(r => (resolve = r));
+      ctx.taskPrimary.onclick = () => {
+        const got = (inp.value || "").trim();
+        if (got !== ans) {
+          msg.textContent = "No.";
+          ctx.glitch?.();
+          return;
+        }
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Ok.";
+        finish(ctx, resolve, ans);
+      };
+
+      return new Promise((r) => (resolve = r));
     },
 
-    // 5) pair match (two-column linking)
-    match_pairs_3: async (ctx) => {
-      begin(ctx, "PAIRING", "Match each label with its partner. (3 pairs)");
-      const pairs = [
-        ["echo", "reflection"],
-        ["static", "snow"],
-        ["vault", "latch"]
-      ];
-      const left = shuffle(pairs.map(p => p[0]));
-      const right = shuffle(pairs.map(p => p[1]));
-      const map = new Map(pairs.map(p => [p[0], p[1]]));
-
-      let activeLeft = null;
-      let solved = 0;
+    // 3) Click only the option with two slashes
+    two_slashes: async (ctx) => {
+      begin(ctx, "FILTER", "Click the only option with exactly TWO slashes (/).");
+      const correct = "sys/cache/quiet";
+      const opts = shuffle([
+        "sys/cache/quiet",
+        "sys//cache/quiet",
+        "sys/cache/quiet/",
+        "sys-cache-quiet",
+      ]);
 
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
-      const cols = el("div");
-      cols.style.display = "grid";
-      cols.style.gridTemplateColumns = "1fr 1fr";
-      cols.style.gap = "10px";
-      cols.style.marginTop = "10px";
-      cols.style.maxWidth = "520px";
-
-      const leftCol = el("div");
-      const rightCol = el("div");
-
-      const leftBtns = new Map();
-      const rightBtns = new Map();
-
-      left.forEach(l => {
-        const b = el("button", "sim-btn", l);
+      opts.forEach((o) => {
+        const b = el("button", "sim-btn", o);
+        b.style.display = "block";
         b.style.width = "100%";
         b.style.textAlign = "left";
+        b.style.marginTop = "10px";
         b.onclick = () => {
-          if (b.disabled) return;
-          activeLeft = l;
-          for (const x of leftBtns.values()) x.style.outline = "";
-          b.style.outline = "2px solid rgba(120,180,255,0.55)";
-          msg.textContent = `Selected: ${l} → ?`;
-        };
-        leftBtns.set(l, b);
-        leftCol.appendChild(b);
-        leftCol.appendChild(el("div", null, "")); // spacer-ish
-      });
-
-      right.forEach(r => {
-        const b = el("button", "sim-btn", r);
-        b.style.width = "100%";
-        b.style.textAlign = "left";
-        b.onclick = () => {
-          if (b.disabled) return;
-          if (!activeLeft) {
-            msg.textContent = "Pick a left label first.";
+          const c = (o.match(/\//g) || []).length;
+          if (c !== 2 || o !== correct) {
+            msg.textContent = "Rejected.";
             ctx.glitch?.();
             return;
           }
-          const correct = map.get(activeLeft);
-          if (r !== correct) {
-            msg.textContent = "Mismatch.";
-            ctx.glitch?.();
-            ctx.penalize?.(1, "pair mismatch");
-            return;
-          }
-          // lock both
-          leftBtns.get(activeLeft).disabled = true;
-          leftBtns.get(activeLeft).style.opacity = "0.6";
-          leftBtns.get(activeLeft).style.outline = "";
-          b.disabled = true;
-          b.style.opacity = "0.6";
-          activeLeft = null;
-          solved++;
           msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = `Paired (${solved}/3).`;
-          if (solved === 3) {
-            msg.textContent = "All pairs matched.";
-            doneGate(ctx, resolve);
-          } else {
-            msg.style.color = "rgba(255,190,190,.95)";
-          }
+          msg.textContent = "Ok.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => resolve();
         };
-        rightBtns.set(r, b);
-        rightCol.appendChild(b);
-        rightCol.appendChild(el("div", null, ""));
+        ctx.taskBody.appendChild(b);
       });
 
-      cols.appendChild(leftCol);
-      cols.appendChild(rightCol);
-      ctx.taskBody.appendChild(cols);
       ctx.taskBody.appendChild(msg);
-
       let resolve;
-      return new Promise(r => (resolve = r));
+      return new Promise((r) => (resolve = r));
     },
 
-    // 6) tap when lit (reaction but gentle)
-    tap_on_green: async (ctx) => {
-      begin(ctx, "GATE", "Tap only when the indicator is ON. Need 5 clean taps.");
-      const need = clamp(5 + (ctx.difficultyBoost?.() ?? 0), 5, 8);
+    // 4) Type only bracketed digits
+    bracket_digits: async (ctx) => {
+      begin(ctx, "EXTRACT", "Type only the digits inside [brackets], in order.");
+      const L = clamp(20 + (ctx.difficultyBoost?.() ?? 0) * 2, 20, 38);
+      let s = "";
+      let ans = "";
+      for (let i = 0; i < L; i++) {
+        const d = String(rndInt(0, 9));
+        const mark = Math.random() < 0.22;
+        if (mark) { s += `[${d}]`; ans += d; }
+        else s += (Math.random() < 0.6 ? alpha[rndInt(0, 25)] : d);
+        if (Math.random() < 0.12) s += " ";
+      }
+      if (!ans) { s += " [7]"; ans = "7"; }
 
-      const indicator = el("div", "pill", "OFF");
-      indicator.style.width = "min(520px, 100%)";
-      indicator.style.textAlign = "center";
-      indicator.style.padding = "12px";
-      indicator.style.marginTop = "10px";
+      const shown = el("div", "pill", s);
+      shown.style.marginTop = "10px";
+      shown.style.whiteSpace = "pre-wrap";
+      ctx.taskBody.appendChild(shown);
 
-      const btn = el("button", "sim-btn", "tap");
-      btn.style.marginTop = "10px";
+      const inp = makeInput("digits…");
+      ctx.taskBody.appendChild(inp);
 
-      const msg = note(`clean taps: 0/${need}`);
+      const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
 
-      let on = false;
-      let taps = 0;
+      ctx.taskPrimary.textContent = "verify";
+      ctx.taskPrimary.disabled = false;
 
-      const cycle = async () => {
-        for (;;) {
-          const offMs = rndInt(450, 900);
-          const onMs = rndInt(320, 650);
-
-          on = false;
-          indicator.textContent = "OFF";
-          indicator.style.background = "rgba(0,0,0,0.25)";
-          await wait(offMs);
-
-          on = true;
-          indicator.textContent = "ON";
-          indicator.style.background = "rgba(120,180,255,0.22)";
-          await wait(onMs);
-        }
-      };
-
-      let alive = true;
-      cycle();
-
-      btn.onclick = () => {
-        if (!alive) return;
-        if (!on) {
-          msg.textContent = "Bad tap. Not during ON.";
+      let resolve;
+      ctx.taskPrimary.onclick = () => {
+        const got = (inp.value || "").trim().replace(/\s+/g, "");
+        if (got !== ans) {
+          msg.textContent = "Extraction failed.";
           ctx.glitch?.();
-          ctx.penalize?.(1, "timing");
+          ctx.penalize?.(1, "read");
           return;
         }
-        taps++;
         msg.style.color = "rgba(232,237,247,0.85)";
-        msg.textContent = `clean taps: ${taps}/${need}`;
-        msg.style.color = "rgba(255,190,190,.95)";
-        if (taps >= need) {
-          alive = false;
-          msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = "Gate passed.";
-          doneGate(ctx, resolve);
-        }
+        msg.textContent = "Extracted.";
+        finish(ctx, resolve, ans);
       };
 
-      ctx.taskBody.appendChild(indicator);
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 5) Click when the dot is "cold" (dim) — reaction gate
+    cold_dot: async (ctx) => {
+      begin(ctx, "WINDOW", "Click only when the dot is dim.");
+      const dot = el("div");
+      dot.style.width = "16px";
+      dot.style.height = "16px";
+      dot.style.borderRadius = "999px";
+      dot.style.border = "1px solid rgba(255,255,255,0.18)";
+      dot.style.marginTop = "12px";
+
+      const btn = el("button", "sim-btn", "click");
+      btn.style.marginTop = "12px";
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      ctx.taskBody.appendChild(dot);
       ctx.taskBody.appendChild(btn);
       ctx.taskBody.appendChild(msg);
 
+      const L = scoped();
+      const need = clamp(3 + Math.floor((ctx.difficultyBoost?.() ?? 0) / 2), 3, 8);
+      let ok = 0;
+      let dim = true;
+
+      const flip = () => {
+        dim = Math.random() < 0.55;
+        dot.style.background = dim ? "rgba(255,255,255,0.10)" : "rgba(255,200,200,0.26)";
+        dot.style.boxShadow = dim ? "none" : "0 0 18px rgba(255,180,180,0.18)";
+      };
+      flip();
+      L.interval(flip, clamp(520 - (ctx.difficultyBoost?.() ?? 0) * 35, 260, 520));
+
       let resolve;
-      return new Promise(r => (resolve = r));
-    },
-
-    // 7) type phrase without letter (anti-copy vibe)
-    type_without_e: async (ctx) => {
-      begin(ctx, "SANITIZE", "Retype the phrase WITHOUT using the letter 'e'.");
-      const phrase = "keep it boring and quiet";
-      ctx.taskBody.appendChild(note(`phrase: "${phrase}"`));
-      ctx.taskBody.appendChild(note("Rule: your retype must contain NO 'e' characters."));
-
-      const inp = makeInput("type sanitized phrase…");
-      ctx.taskBody.appendChild(inp);
-
-      const msg = note("");
-      msg.style.color = "rgba(255,190,190,.95)";
-      ctx.taskBody.appendChild(msg);
-
-      ctx.taskPrimary.textContent = "verify";
-      ctx.taskPrimary.disabled = false;
-
-      ctx.taskPrimary.onclick = () => {
-        const got = (inp.value || "").trim().toLowerCase();
-        if (got.includes("e")) {
-          msg.textContent = "Rejected: contains 'e'.";
+      btn.onclick = () => {
+        if (!dim) {
+          msg.textContent = "Too bright.";
           ctx.glitch?.();
-          ctx.penalize?.(1, "sanitize");
+          ctx.penalize?.(1, "misclick");
           return;
         }
-        // must still roughly match meaning: require words subset
-        const want = ["keep", "it", "boring", "and", "quiet"];
-        const ok = want.every(w => got.split(/\s+/).includes(w));
-        if (!ok) {
-          msg.textContent = "Too mangled.";
-          ctx.glitch?.();
-          return;
-        }
+        ok++;
         msg.style.color = "rgba(232,237,247,0.85)";
-        msg.textContent = "Sanitized.";
-        doneGate(ctx, resolve);
-      };
-
-      inp.focus();
-
-      let resolve;
-      return new Promise(r => (resolve = r));
-    },
-
-    // 8) bucket sort (two buckets)
-    bucket_sort_4: async (ctx) => {
-      begin(ctx, "SORT", "Move each item into the correct bucket: SAFE or NOISY.");
-      const items = shuffle(["cache.tmp", "audit.key", "noise.log", "idle.memo"]);
-      const safe = new Set(["cache.tmp", "idle.memo"]);
-
-      const msg = note("Drag not required — just click bucket buttons.");
-      msg.style.color = "rgba(255,190,190,.95)";
-
-      const list = el("div");
-      list.style.marginTop = "10px";
-      list.style.display = "grid";
-      list.style.gap = "10px";
-      list.style.maxWidth = "520px";
-
-      let solved = 0;
-
-      items.forEach(item => {
-        const row = el("div");
-        row.style.display = "flex";
-        row.style.gap = "10px";
-        row.style.alignItems = "center";
-
-        const pill = el("div", "pill", item);
-        pill.style.flex = "1";
-
-        const safeBtn = el("button", "sim-btn", "SAFE");
-        const noisyBtn = el("button", "sim-btn", "NOISY");
-
-        const lock = () => {
-          safeBtn.disabled = true;
-          noisyBtn.disabled = true;
-          safeBtn.style.opacity = "0.65";
-          noisyBtn.style.opacity = "0.65";
-          pill.style.opacity = "0.75";
-        };
-
-        safeBtn.onclick = () => {
-          const ok = safe.has(item);
-          if (!ok) {
-            msg.textContent = `${item} is not SAFE.`;
-            ctx.glitch?.();
-            ctx.penalize?.(1, "sort");
-            return;
-          }
-          lock();
-          solved++;
-          msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = `Sorted (${solved}/4).`;
-          msg.style.color = "rgba(255,190,190,.95)";
-          if (solved === 4) {
-            msg.style.color = "rgba(232,237,247,0.85)";
-            msg.textContent = "Sorted.";
-            doneGate(ctx, resolve);
-          }
-        };
-
-        noisyBtn.onclick = () => {
-          const ok = !safe.has(item);
-          if (!ok) {
-            msg.textContent = `${item} should be SAFE.`;
-            ctx.glitch?.();
-            ctx.penalize?.(1, "sort");
-            return;
-          }
-          lock();
-          solved++;
-          msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = `Sorted (${solved}/4).`;
-          msg.style.color = "rgba(255,190,190,.95)";
-          if (solved === 4) {
-            msg.style.color = "rgba(232,237,247,0.85)";
-            msg.textContent = "Sorted.";
-            doneGate(ctx, resolve);
-          }
-        };
-
-        row.appendChild(pill);
-        row.appendChild(safeBtn);
-        row.appendChild(noisyBtn);
-        list.appendChild(row);
-      });
-
-      ctx.taskBody.appendChild(list);
-      ctx.taskBody.appendChild(msg);
-
-      let resolve;
-      return new Promise(r => (resolve = r));
-    },
-
-    // 9) color memory (short)
-    color_memory_4: async (ctx) => {
-      begin(ctx, "VISUAL", "Memorize the color order. Then click them in the same order.");
-      const colors = ["Slate", "Ice", "Ash", "Ink", "Fog", "Steel"];
-      const seq = shuffle(colors).slice(0, 4);
-
-      const shown = el("div");
-      shown.style.marginTop = "12px";
-      shown.style.display = "flex";
-      shown.style.flexWrap = "wrap";
-      shown.style.gap = "10px";
-      shown.style.maxWidth = "520px";
-
-      seq.forEach(c => {
-        const p = el("div", "pill", c);
-        p.style.flex = "1";
-        p.style.textAlign = "center";
-        shown.appendChild(p);
-      });
-
-      ctx.taskBody.appendChild(note("Showing for a moment…"));
-      ctx.taskBody.appendChild(shown);
-
-      await wait(2000 + clamp((ctx.difficultyBoost?.() ?? 0) * 250, 0, 1500));
-
-      shown.style.opacity = "0.35";
-      shown.style.filter = "blur(2px)";
-
-      const msg = note("");
-      msg.style.color = "rgba(255,190,190,.95)";
-
-      const buttons = makeRow();
-      const opts = shuffle(seq.concat(shuffle(colors.filter(x => !seq.includes(x))).slice(0, 2)));
-
-      let i = 0;
-
-      opts.forEach(c => {
-        const b = el("button", "sim-btn", c);
-        b.onclick = () => {
-          if (c !== seq[i]) {
-            i = 0;
-            msg.textContent = "Wrong order. Reset.";
-            ctx.glitch?.();
-            ctx.penalize?.(1, "memory");
-            return;
-          }
-          i++;
-          msg.textContent = `ok (${i}/4)`;
-          if (i === 4) {
-            msg.style.color = "rgba(232,237,247,0.85)";
-            msg.textContent = "Order confirmed.";
-            doneGate(ctx, resolve);
-          }
-        };
-        buttons.appendChild(b);
-      });
-
-      ctx.taskBody.appendChild(note("Now repeat:"));
-      ctx.taskBody.appendChild(buttons);
-      ctx.taskBody.appendChild(msg);
-
-      let resolve;
-      return new Promise(r => (resolve = r));
-    },
-
-    // 10) hold SPACE (keyboard physicality)
-    hold_space: async (ctx) => {
-      begin(ctx, "HOLD KEY", "Hold SPACE until the counter completes. Releasing resets.");
-      const ms = clamp(2200 + (ctx.difficultyBoost?.() ?? 0) * 350, 2200, 4200);
-
-      const bar = el("div", "pill", "Hold SPACE");
-      bar.style.marginTop = "12px";
-      bar.style.width = "min(520px, 100%)";
-      bar.style.padding = "12px";
-      bar.style.textAlign = "center";
-
-      const fillWrap = el("div");
-      fillWrap.style.marginTop = "10px";
-      fillWrap.style.width = "min(520px, 100%)";
-      fillWrap.style.height = "12px";
-      fillWrap.style.borderRadius = "999px";
-      fillWrap.style.border = "1px solid rgba(255,255,255,0.18)";
-      fillWrap.style.overflow = "hidden";
-      fillWrap.style.background = "rgba(0,0,0,0.25)";
-
-      const fill = el("div");
-      fill.style.height = "100%";
-      fill.style.width = "0%";
-      fill.style.background = "rgba(120,180,255,0.22)";
-      fillWrap.appendChild(fill);
-
-      const msg = note("Click here then press SPACE.");
-      msg.style.color = "rgba(255,190,190,.95)";
-
-      ctx.taskBody.appendChild(bar);
-      ctx.taskBody.appendChild(fillWrap);
-      ctx.taskBody.appendChild(msg);
-
-      let holding = false;
-      let start = null;
-      let raf = null;
-
-      const step = (t) => {
-        if (!holding) return;
-        if (start === null) start = t;
-        const pct = clamp((t - start) / ms, 0, 1);
-        fill.style.width = `${(pct * 100).toFixed(1)}%`;
-        if (pct >= 1) {
-          holding = false;
-          msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = "Key hold confirmed.";
-          doneGate(ctx, resolve);
-          return;
-        }
-        raf = requestAnimationFrame(step);
-      };
-
-      const reset = () => {
-        start = null;
-        fill.style.width = "0%";
-        msg.textContent = "Released. Reset.";
-        ctx.glitch?.();
-        ctx.penalize?.(1, "stability");
-      };
-
-      const onDown = (e) => {
-        if (e.code !== "Space") return;
-        e.preventDefault();
-        if (!holding) {
-          holding = true;
-          msg.textContent = "";
-          raf = requestAnimationFrame(step);
+        msg.textContent = `ok (${ok}/${need})`;
+        if (ok >= need) {
+          L.clear();
+          finish(ctx, resolve, String(need));
         }
       };
 
-      const onUp = (e) => {
-        if (e.code !== "Space") return;
-        e.preventDefault();
-        if (holding) {
-          holding = false;
-          if (raf) cancelAnimationFrame(raf);
-          reset();
-        }
-      };
-
-      window.addEventListener("keydown", onDown);
-      window.addEventListener("keyup", onUp);
-
-      let resolve;
-      const p = new Promise(r => (resolve = r));
-      p.finally(() => {
-        window.removeEventListener("keydown", onDown);
-        window.removeEventListener("keyup", onUp);
-        if (raf) cancelAnimationFrame(raf);
-      });
-      return p;
+      return new Promise((r) => (resolve = r));
     },
 
-    // 11) count vowels
+    // 6) Count vowels
     count_vowels: async (ctx) => {
-      begin(ctx, "COUNT", "Count the vowels (a,e,i,o,u) in the string. Type the number.");
-      const alphabet = "abcdefghijklmnopqrstuvwxyz";
-      const len = rndInt(12, 22);
+      begin(ctx, "COUNT", "Count the vowels (a,e,i,o,u). Type the number.");
+      const len = clamp(12 + (ctx.difficultyBoost?.() ?? 0) * 2, 12, 28);
       let s = "";
-      for (let i = 0; i < len; i++) s += alphabet[rndInt(0, alphabet.length - 1)];
-
+      for (let i = 0; i < len; i++) s += alpha[rndInt(0, 25)];
       const vowels = new Set(["a","e","i","o","u"]);
       let count = 0;
       for (const ch of s) if (vowels.has(ch)) count++;
 
       ctx.taskBody.appendChild(note(`string: ${s}`));
-      const inp = makeInput("vowel count");
+      const inp = makeInput("vowel count…");
       ctx.taskBody.appendChild(inp);
 
       const msg = note("");
@@ -750,438 +340,396 @@ const note = (t, kind = "note") => {
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
         const got = (inp.value || "").trim();
         if (got !== String(count)) {
-          msg.textContent = "Wrong count.";
+          msg.textContent = "Wrong.";
           ctx.glitch?.();
-          ctx.penalize?.(1, "count");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
-        msg.textContent = "Count verified.";
-        doneGate(ctx, resolve);
+        msg.textContent = "Ok.";
+        finish(ctx, resolve, String(count));
       };
 
-      inp.focus();
-
-      let resolve;
-      return new Promise(r => (resolve = r));
+      return new Promise((r) => (resolve = r));
     },
 
-    // 12) pick duplicate line
-    pick_duplicate: async (ctx) => {
-      begin(ctx, "DEDUP", "Click the line that appears twice.");
-      const base = shuffle([
-        "System: buffer stable.",
-        "System: noise floor ok.",
-        "Security: eyes forward.",
-        "System: cache warmed."
-      ]);
-      const dup = base[rndInt(0, base.length - 1)];
-      const lines = shuffle(base.concat([dup])); // one duplicate
+    // 7) Pick only valid key=value (no spaces)
+    key_value: async (ctx) => {
+      begin(ctx, "FORMAT", "Click the only valid key=value string.");
+      const correct = "mode=quiet";
+      const opts = shuffle(["mode : quiet", "mode==quiet", correct, "mode= quiet"]);
 
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
-      lines.forEach(t => {
+      const row = el("div");
+      row.style.marginTop = "10px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      opts.forEach((o) => {
+        const b = el("button", "sim-btn", o);
+        b.onclick = () => {
+          if (o !== correct) {
+            msg.textContent = "Rejected.";
+            ctx.glitch?.();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Valid.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => resolve();
+        };
+        row.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
+
+      let resolve;
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 8) Remove all underscores (must delete them)
+    remove_underscores: async (ctx) => {
+      begin(ctx, "EDIT", "Remove ALL underscores (_) and submit.");
+      const base = "pane_reflection__trace_ok__cache_layer";
+      const target = base.replace(/_/g, "");
+
+      const shown = el("div", "pill", base);
+      shown.style.marginTop = "10px";
+      ctx.taskBody.appendChild(shown);
+
+      const inp = makeInput("edited…");
+      inp.value = base;
+      ctx.taskBody.appendChild(inp);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
+
+      ctx.taskPrimary.textContent = "verify";
+      ctx.taskPrimary.disabled = false;
+
+      let resolve;
+      ctx.taskPrimary.onclick = () => {
+        const got = (inp.value || "");
+        if (got !== target) {
+          msg.textContent = "Not clean.";
+          ctx.glitch?.();
+          ctx.penalize?.(1, "edit");
+          return;
+        }
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Applied.";
+        finish(ctx, resolve, target);
+      };
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 9) Click the only line with no punctuation at all
+    no_punct: async (ctx) => {
+      begin(ctx, "SCAN", "Click the only line with no punctuation.");
+      const correct = "trace checkpoint ok";
+      const lines = shuffle([
+        "System: Session pinned",
+        "audit window (active)",
+        correct,
+        "mirror-write enabled.",
+      ]);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      lines.forEach((t) => {
         const b = el("button", "sim-btn", t);
         b.style.display = "block";
         b.style.width = "100%";
         b.style.textAlign = "left";
         b.style.marginTop = "10px";
         b.onclick = () => {
-          if (t !== dup) {
-            msg.textContent = "Not the duplicate.";
+          if (t !== correct) {
+            msg.textContent = "Wrong scan.";
             ctx.glitch?.();
-            ctx.penalize?.(1, "dedup");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = "Duplicate removed.";
-          doneGate(ctx, resolve);
+          msg.textContent = "Clean.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => resolve();
         };
         ctx.taskBody.appendChild(b);
       });
 
       ctx.taskBody.appendChild(msg);
-
       let resolve;
-      return new Promise(r => (resolve = r));
+      return new Promise((r) => (resolve = r));
     },
 
-    // 13) binary choice (small)
-    pick_binary: async (ctx) => {
-      begin(ctx, "ENCODE", "Pick the correct binary for the number.");
-      const n = rndInt(3, 15);
-      const correct = n.toString(2);
+    // 10) Add three numbers
+    add_three: async (ctx) => {
+      begin(ctx, "CHECKSUM", "Add the three numbers.");
+      const a = rndInt(4, 29), b = rndInt(4, 29), c = rndInt(4, 29);
+      const ans = String(a + b + c);
 
-      const opts = shuffle([
-        correct,
-        (n + 1).toString(2),
-        (n + 2).toString(2),
-        Math.max(0, n - 1).toString(2)
-      ]);
-
-      ctx.taskBody.appendChild(note(`number: ${n}`));
-
-      const msg = note("");
-      msg.style.color = "rgba(255,190,190,.95)";
-
-      const row = makeRow();
-      opts.forEach(o => {
-        const b = el("button", "sim-btn", o);
-        b.onclick = () => {
-          if (o !== correct) {
-            msg.textContent = "Wrong encoding.";
-            ctx.glitch?.();
-            ctx.penalize?.(1, "encode");
-            return;
-          }
-          msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = "Encoding ok.";
-          doneGate(ctx, resolve);
-        };
-        row.appendChild(b);
-      });
-
-      ctx.taskBody.appendChild(row);
-      ctx.taskBody.appendChild(msg);
-
-      let resolve;
-      return new Promise(r => (resolve = r));
-    },
-
-    // 14) whitelist toggles (checkboxes)
-    whitelist_toggles: async (ctx) => {
-      begin(ctx, "WHITELIST", "Enable ONLY the allowed switches.");
-      const allowed = new Set(["cache", "idle", "noise"]);
-      const opts = shuffle(["cache", "camera", "idle", "export", "noise", "trace"]);
-
-      const msg = note("Allowed: cache, idle, noise");
-      msg.style.color = "rgba(255,190,190,.95)";
-
-      const wrap = el("div");
-      wrap.style.marginTop = "12px";
-      wrap.style.display = "grid";
-      wrap.style.gap = "10px";
-      wrap.style.maxWidth = "520px";
-
-      const checks = [];
-
-      opts.forEach(name => {
-        const row = el("label");
-        row.style.display = "flex";
-        row.style.alignItems = "center";
-        row.style.gap = "10px";
-        row.style.padding = "10px 12px";
-        row.style.borderRadius = "12px";
-        row.style.border = "1px solid rgba(255,255,255,0.14)";
-        row.style.background = "rgba(0,0,0,0.18)";
-
-        const cb = el("input");
-        cb.type = "checkbox";
-        const t = el("div", null, name);
-        t.style.opacity = "0.9";
-
-        row.appendChild(cb);
-        row.appendChild(t);
-        wrap.appendChild(row);
-
-        checks.push([name, cb]);
-      });
-
-      const validate = () => {
-        for (const [name, cb] of checks) {
-          if (allowed.has(name) && !cb.checked) return false;
-          if (!allowed.has(name) && cb.checked) return false;
-        }
-        return true;
-      };
-
-      wrap.addEventListener("change", () => {
-        ctx.taskPrimary.disabled = !validate();
-      });
-
-      ctx.taskBody.appendChild(wrap);
-      ctx.taskBody.appendChild(msg);
-
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = true;
-      return new Promise(r => (ctx.taskPrimary.onclick = r));
-    },
-
-    // 15) time gate (click within short window after unlock)
-    time_gate: async (ctx) => {
-      begin(ctx, "WINDOW", "Wait for UNLOCK, then click within the window.");
-      const pre = clamp(900 + (ctx.difficultyBoost?.() ?? 0) * 250, 900, 2400);
-      const windowMs = clamp(650 - (ctx.difficultyBoost?.() ?? 0) * 60, 350, 650);
-
-      const btn = el("button", "sim-btn", "LOCKED");
-      btn.disabled = true;
-      btn.style.marginTop = "12px";
-
-      const msg = note("Don’t guess.");
-      msg.style.color = "rgba(255,190,190,.95)";
-
-      ctx.taskBody.appendChild(btn);
-      ctx.taskBody.appendChild(msg);
-
-      await wait(pre);
-
-      btn.disabled = false;
-      btn.textContent = "UNLOCK";
-
-      let openedAt = performance.now();
-      let clicked = false;
-
-      btn.onclick = () => {
-        clicked = true;
-        const dt = performance.now() - openedAt;
-        if (dt > windowMs) {
-          msg.textContent = "Too late.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "window");
-          // still allow continue (keeps pacing moving)
-        } else {
-          msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = "On time.";
-        }
-        doneGate(ctx, resolve);
-      };
-
-      // auto-fail if they wait too long
-      setTimeout(() => {
-        if (clicked) return;
-        msg.textContent = "Window expired.";
-        ctx.glitch?.();
-        ctx.penalize?.(1, "expired");
-        doneGate(ctx, resolve);
-      }, windowMs + 250);
-
-      let resolve;
-      return new Promise(r => (resolve = r));
-    },
-
-    // 16) scrub log (scroll to bottom)
-    scrub_log_scroll: async (ctx) => {
-      begin(ctx, "SCRUB", "Scroll to the bottom of the log to confirm you reviewed it.");
-      const box = el("div");
-      box.style.marginTop = "12px";
-      box.style.width = "min(520px, 100%)";
-      box.style.height = "180px";
-      box.style.overflow = "auto";
-      box.style.padding = "10px 12px";
-      box.style.borderRadius = "12px";
-      box.style.border = "1px solid rgba(255,255,255,0.14)";
-      box.style.background = "rgba(0,0,0,0.18)";
-      box.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-      box.style.fontSize = "12px";
-      box.style.opacity = "0.9";
-
-      const lines = [];
-      const n = 40 + (ctx.difficultyBoost?.() ?? 0) * 8;
-      for (let i = 0; i < n; i++) {
-        const a = String(rndInt(10, 99));
-        const b = ["cache", "noise", "idle", "trace", "audit"][rndInt(0, 4)];
-        lines.push(`${String(i + 1).padStart(2, "0")}: ${b} … ${a}`);
-      }
-      box.textContent = lines.join("\n");
-
-      const msg = note("Scroll to bottom to unlock.");
-      msg.style.color = "rgba(255,190,190,.95)";
-
-      const onScroll = () => {
-        const nearBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 6;
-        if (nearBottom) {
-          msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = "Reviewed.";
-          ctx.taskPrimary.disabled = false;
-          box.removeEventListener("scroll", onScroll);
-        }
-      };
-
-      box.addEventListener("scroll", onScroll);
-
-      ctx.taskBody.appendChild(box);
-      ctx.taskBody.appendChild(msg);
-
-      ctx.taskPrimary.textContent = "continue";
-      ctx.taskPrimary.disabled = true;
-      return new Promise(r => (ctx.taskPrimary.onclick = r));
-    },
-
-    // 17) quiet typing (slow down)
-    quiet_typing: async (ctx) => {
-      begin(ctx, "QUIET INPUT", "Type the phrase, but not too fast. (No paste.)");
-      const phrase = "acknowledge the window";
-      ctx.taskBody.appendChild(note(`phrase: "${phrase}"`));
-      ctx.taskBody.appendChild(note("Rule: total time must be at least 2 seconds."));
-
-      const inp = makeInput("type here…");
+      ctx.taskBody.appendChild(note(`${a} + ${b} + ${c} = ?`));
+      const inp = makeInput("total…");
       ctx.taskBody.appendChild(inp);
 
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
       ctx.taskBody.appendChild(msg);
 
-      let startedAt = null;
-      let pasted = false;
-
-      inp.addEventListener("paste", (e) => {
-        pasted = true;
-        msg.textContent = "No paste.";
-        ctx.glitch?.();
-        ctx.penalize?.(1, "paste");
-        e.preventDefault();
-      });
-
-      inp.addEventListener("input", () => {
-        if (startedAt === null && (inp.value || "").length > 0) startedAt = performance.now();
-      });
-
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
+
+      let resolve;
       ctx.taskPrimary.onclick = () => {
-        const got = (inp.value || "").trim().toLowerCase();
-        const dt = startedAt === null ? 0 : (performance.now() - startedAt);
-        if (pasted) {
-          msg.textContent = "Rejected: paste detected.";
+        const got = (inp.value || "").trim();
+        if (got !== ans) {
+          msg.textContent = "Incorrect.";
           ctx.glitch?.();
           return;
         }
-        if (got !== phrase) {
-          msg.textContent = "Incorrect phrase.";
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Accepted.";
+        finish(ctx, resolve, ans);
+      };
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 11) Hold pattern: short short long (same as your style, but isolated & cleaned)
+    tap_hold_pattern: async (ctx) => {
+      begin(ctx, "SIGNAL", "Perform: SHORT, SHORT, LONG holds.");
+      const target = ["S", "S", "L"];
+      const got = [];
+
+      const btn = el("button", "sim-btn", "hold");
+      btn.style.marginTop = "12px";
+
+      const readout = el("div", "pill", "pattern: — — —");
+      readout.style.marginTop = "12px";
+
+      const warn = note("Hold and release to register a segment.");
+      warn.style.color = "rgba(232,237,247,0.82)";
+
+      const err = note("");
+      err.style.color = "rgba(255,190,190,.95)";
+
+      ctx.taskBody.appendChild(warn);
+      ctx.taskBody.appendChild(btn);
+      ctx.taskBody.appendChild(readout);
+      ctx.taskBody.appendChild(err);
+
+      const shortMax = clamp(340 + (ctx.difficultyBoost?.() ?? 0) * 35, 340, 650);
+      const longMin = clamp(760 + (ctx.difficultyBoost?.() ?? 0) * 55, 760, 1180);
+
+      const L = scoped();
+      let downAt = null;
+
+      const render = () => {
+        readout.textContent = `pattern: ${target.map((_, i) => got[i] || "—").join(" ")}`;
+      };
+
+      const fail = () => {
+        got.length = 0;
+        render();
+        err.textContent = "Signal corrupted. Reset.";
+        ctx.glitch?.();
+        ctx.penalize?.(1, "signal");
+      };
+
+      L.on(btn, "mousedown", () => { downAt = performance.now(); });
+
+      L.on(window, "mouseup", () => {
+        if (downAt === null) return;
+        const dur = performance.now() - downAt;
+        downAt = null;
+
+        const seg = (dur <= shortMax) ? "S" : (dur >= longMin ? "L" : "?");
+        if (seg === "?") return fail();
+
+        got.push(seg);
+        render();
+
+        for (let i = 0; i < got.length; i++) {
+          if (got[i] !== target[i]) return fail();
+        }
+
+        if (got.length === target.length) {
+          err.style.color = "rgba(232,237,247,0.85)";
+          err.textContent = "Signal accepted.";
+          L.clear();
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => resolve();
+        }
+      });
+
+      render();
+      let resolve;
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 12) Type last word
+    last_word: async (ctx) => {
+      begin(ctx, "MARGIN", "Type the last word.");
+      const line = "keep the noise low and the hands still";
+      ctx.taskBody.appendChild(note(line));
+
+      const inp = makeInput("last word…");
+      ctx.taskBody.appendChild(inp);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
+
+      ctx.taskPrimary.textContent = "verify";
+      ctx.taskPrimary.disabled = false;
+
+      let resolve;
+      ctx.taskPrimary.onclick = () => {
+        const got = (inp.value || "").trim().toLowerCase();
+        if (got !== "still") {
+          msg.textContent = "No.";
+          ctx.glitch?.();
+          return;
+        }
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Ok.";
+        finish(ctx, resolve, "still");
+      };
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 13) Choose the only even-length string
+    even_length: async (ctx) => {
+      begin(ctx, "FILTER", "Click the only option with an EVEN character count.");
+      const mk = (n) => Array.from({ length: n }, () => alpha[rndInt(0, 25)]).join("");
+      const even = mk(rndInt(6, 10) * 2);
+      const opts = shuffle([
+        mk((rndInt(7, 15) | 1)),
+        mk((rndInt(7, 15) | 1)),
+        even,
+        mk((rndInt(7, 15) | 1)),
+      ]);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      const row = el("div");
+      row.style.marginTop = "10px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      opts.forEach((o) => {
+        const b = el("button", "sim-btn", o);
+        b.onclick = () => {
+          if (o !== even) {
+            msg.textContent = "Rejected.";
+            ctx.glitch?.();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Filtered.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => resolve();
+        };
+        row.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
+      let resolve;
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 14) Retype exactly (case-sensitive)
+    retype_exact: async (ctx) => {
+      begin(ctx, "RETYPE", "Retype exactly (case-sensitive).");
+      const parts = ["Quiet", "AUDIT", "mirror", "Trace", "buffer", "SHADOW"];
+      const line = `${parts[rndInt(0, parts.length - 1)]}-${parts[rndInt(0, parts.length - 1)]}-${rndInt(10, 99)}`;
+
+      const shown = el("div", "pill", line);
+      shown.style.marginTop = "12px";
+      ctx.taskBody.appendChild(shown);
+
+      const inp = makeInput("retype…");
+      ctx.taskBody.appendChild(inp);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
+
+      ctx.taskPrimary.textContent = "verify";
+      ctx.taskPrimary.disabled = false;
+
+      let resolve;
+      ctx.taskPrimary.onclick = () => {
+        const got = (inp.value || "").trim();
+        if (got !== line) {
+          msg.textContent = "Mismatch.";
           ctx.glitch?.();
           ctx.penalize?.(1, "typo");
           return;
         }
-        if (dt < 2000) {
-          msg.textContent = "Too fast.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "rushed");
-          // still allow continue to keep flow moving
-        } else {
-          msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = "Quiet enough.";
-        }
-        doneGate(ctx, resolve);
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Exact.";
+        finish(ctx, resolve, line);
       };
 
-      inp.focus();
-
-      let resolve;
-      return new Promise(r => (resolve = r));
+      return new Promise((r) => (resolve = r));
     },
 
-    // 18) mirror word (reverse letters)
-    mirror_word: async (ctx) => {
-      begin(ctx, "MIRROR", "Type the word mirrored (reversed).");
-      const words = ["audit", "quiet", "buffer", "static", "mirror", "vault", "trace"];
+    // 15) Mirror pick: choose the reversed option
+    mirror_pick: async (ctx) => {
+      begin(ctx, "MIRROR PICK", "Click the option that is the mirror (reversed) of the target.");
+      const words = ["pane", "trace", "buffer", "mirror", "quiet", "audit", "shadow", "layer"];
       const w = words[rndInt(0, words.length - 1)];
       const correct = w.split("").reverse().join("");
 
-      ctx.taskBody.appendChild(note(`word: ${w}`));
-      const inp = makeInput("mirrored");
-      ctx.taskBody.appendChild(inp);
+      ctx.taskBody.appendChild(note(`target: ${w}`));
 
-      const msg = note("");
-      msg.style.color = "rgba(255,190,190,.95)";
-      ctx.taskBody.appendChild(msg);
-
-      ctx.taskPrimary.textContent = "verify";
-      ctx.taskPrimary.disabled = false;
-      ctx.taskPrimary.onclick = () => {
-        const got = (inp.value || "").trim().toLowerCase();
-        if (got !== correct) {
-          msg.textContent = "Not mirrored.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "mirror");
-          return;
-        }
-        msg.style.color = "rgba(232,237,247,0.85)";
-        msg.textContent = "Mirror ok.";
-        doneGate(ctx, resolve);
-      };
-
-      inp.focus();
-
-      let resolve;
-      return new Promise(r => (resolve = r));
-    },
-
-    // 19) coordinate pick
-    pick_coordinate: async (ctx) => {
-      begin(ctx, "COORD", "Click the shown coordinate.");
-      const letters = ["A","B","C","D"];
-      const nums = ["1","2","3","4"];
-      const target = `${letters[rndInt(0,3)]}${nums[rndInt(0,3)]}`;
-
-      ctx.taskBody.appendChild(note(`target: ${target}`));
-
-      const grid = el("div");
-      grid.style.marginTop = "12px";
-      grid.style.display = "grid";
-      grid.style.gridTemplateColumns = "repeat(4, 1fr)";
-      grid.style.gap = "10px";
-      grid.style.maxWidth = "520px";
-
-      const msg = note("");
-      msg.style.color = "rgba(255,190,190,.95)";
-
-      for (const L of letters) {
-        for (const N of nums) {
-          const id = `${L}${N}`;
-          const b = el("button", "sim-btn", id);
-          b.onclick = () => {
-            if (id !== target) {
-              msg.textContent = "Wrong cell.";
-              ctx.glitch?.();
-              ctx.penalize?.(1, "coord");
-              return;
-            }
-            msg.style.color = "rgba(232,237,247,0.85)";
-            msg.textContent = "Coordinate confirmed.";
-            doneGate(ctx, resolve);
-          };
-          grid.appendChild(b);
-        }
-      }
-
-      ctx.taskBody.appendChild(grid);
-      ctx.taskBody.appendChild(msg);
-
-      let resolve;
-      return new Promise(r => (resolve = r));
-    },
-
-    // 20) acknowledge keyword among lookalikes
-    choose_acknowledged: async (ctx) => {
-      begin(ctx, "ACK", "Choose the exact keyword.");
-      const correct = "ACKNOWLEDGED";
       const opts = shuffle([
-        "ACKNOWLEDGE",
-        "ACKNOWLEDGED",
-        "ACK-NOW-LEDGED",
-        "A C K N O W L E D G E D"
+        correct,
+        w.toUpperCase(),
+        w + w,
+        w.slice(1) + w[0],
       ]);
 
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
-      const row = makeRow();
-      opts.forEach(o => {
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      opts.forEach((o) => {
         const b = el("button", "sim-btn", o);
         b.onclick = () => {
           if (o !== correct) {
-            msg.textContent = "Not exact.";
+            msg.textContent = "Mismatch.";
             ctx.glitch?.();
-            ctx.penalize?.(1, "precision");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = "Acknowledged.";
-          doneGate(ctx, resolve);
+          msg.textContent = "Matched.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => resolve();
         };
         row.appendChild(b);
       });
@@ -1190,16 +738,251 @@ const note = (t, kind = "note") => {
       ctx.taskBody.appendChild(msg);
 
       let resolve;
-      return new Promise(r => (resolve = r));
+      return new Promise((r) => (resolve = r));
     },
-  };
 
-  // Register tasks
-  reg(PACK3_TASKS);
+    // 16) Split token: type the second half after "|"
+    token_split: async (ctx) => {
+      begin(ctx, "TOKEN", "Type the SECOND half of the token (after the |).");
+      const a = shuffle(["pane", "trace", "buffer", "quiet", "mirror", "audit", "shadow"]);
+      const b = shuffle(["07", "19", "42", "88", "13", "64", "21"]);
+      const token = `${a[0]}${b[0]}|${a[1]}${b[1]}`;
+      const ans = token.split("|")[1];
 
-  // Register pool "pack3"
-  regPool(
-    "pack3",
-    Object.keys(PACK3_TASKS).map(id => ({ id, w: 1 }))
-  );
+      ctx.taskBody.appendChild(note(`token: ${token}`));
+
+      const inp = makeInput("second half…");
+      ctx.taskBody.appendChild(inp);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
+
+      ctx.taskPrimary.textContent = "verify";
+      ctx.taskPrimary.disabled = false;
+
+      let resolve;
+      ctx.taskPrimary.onclick = () => {
+        const got = (inp.value || "").trim();
+        if (got !== ans) {
+          msg.textContent = "Wrong half.";
+          ctx.glitch?.();
+          ctx.penalize?.(1, "token");
+          return;
+        }
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Ok.";
+        finish(ctx, resolve, ans);
+      };
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 17) Order by length (4 items): shortest → longest
+    order_length_4: async (ctx) => {
+      begin(ctx, "ORDER", "Click items shortest → longest.");
+      const items = shuffle(["noise", "trace_ok", "pane_reflection", "microfracture", "audit_shadow"]);
+      const pick = items.slice(0, 4);
+      const sorted = pick.slice().sort((a, b) => a.length - b.length);
+
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      let idx = 0;
+      let resolve;
+
+      pick.forEach((t) => {
+        const b = el("button", "sim-btn", t);
+        b.onclick = () => {
+          if (t !== sorted[idx]) {
+            idx = 0;
+            msg.textContent = "Wrong order.";
+            ctx.glitch?.();
+            ctx.penalize?.(1, "sort");
+            // reset buttons
+            row.querySelectorAll("button").forEach((x) => {
+              x.disabled = false;
+              x.style.opacity = "1";
+            });
+            return;
+          }
+          b.disabled = true;
+          b.style.opacity = "0.55";
+          idx++;
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = `ok (${idx}/${sorted.length})`;
+          if (idx >= sorted.length) {
+            finish(ctx, resolve, sorted.join("→"));
+          }
+        };
+        row.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 18) Scrub X: replace every 'x' with '.' (anti-paste-ish)
+    scrub_x: async (ctx) => {
+      begin(ctx, "SCRUB", "Replace every 'x' with '.' and submit.");
+      const len = clamp(18 + (ctx.difficultyBoost?.() ?? 0) * 2, 18, 40);
+      let s = "";
+      for (let i = 0; i < len; i++) s += (Math.random() < 0.22 ? "x" : alpha[rndInt(0, 25)]);
+      if (!s.includes("x")) s = s.slice(0, -1) + "x";
+      const target = s.replace(/x/g, ".");
+
+      ctx.taskBody.appendChild(note(`source: ${s}`));
+
+      const inp = makeInput("type scrubbed…");
+      ctx.taskBody.appendChild(inp);
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(msg);
+
+      let last = 0;
+      inp.addEventListener("input", () => {
+        const now = inp.value.length;
+        if (now - last > 6) {
+          msg.textContent = "Too fast.";
+          ctx.glitch?.();
+          ctx.penalize?.(1, "paste");
+        }
+        last = now;
+      });
+
+      ctx.taskPrimary.textContent = "verify";
+      ctx.taskPrimary.disabled = false;
+
+      let resolve;
+      ctx.taskPrimary.onclick = () => {
+        const got = (inp.value || "").trim();
+        if (got !== target) {
+          msg.textContent = "Scrub failed.";
+          ctx.glitch?.();
+          ctx.penalize?.(1, "dirty");
+          return;
+        }
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Scrubbed.";
+        finish(ctx, resolve, target);
+      };
+
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 19) Odd-one: click the only option containing a number
+    has_number: async (ctx) => {
+      begin(ctx, "MISMATCH", "Click the only option that contains a number.");
+      const opts = shuffle(["pane", "trace", "mirror", "quiet07"]);
+      const correct = "quiet07";
+
+      const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
+
+      const row = el("div");
+      row.style.marginTop = "12px";
+      row.style.display = "flex";
+      row.style.flexWrap = "wrap";
+      row.style.gap = "10px";
+
+      opts.forEach((o) => {
+        const b = el("button", "sim-btn", o);
+        b.onclick = () => {
+          if (o !== correct) {
+            msg.textContent = "No.";
+            ctx.glitch?.();
+            return;
+          }
+          msg.style.color = "rgba(232,237,247,0.85)";
+          msg.textContent = "Found.";
+          ctx.taskPrimary.textContent = "continue";
+          ctx.taskPrimary.disabled = false;
+          ctx.taskPrimary.onclick = () => resolve();
+        };
+        row.appendChild(b);
+      });
+
+      ctx.taskBody.appendChild(row);
+      ctx.taskBody.appendChild(msg);
+
+      let resolve;
+      return new Promise((r) => (resolve = r));
+    },
+
+    // 20) Compliance: do NOT click for N seconds (global capture)
+    dont_click: async (ctx) => {
+      const sec = clamp(2 + Math.floor((ctx.difficultyBoost?.() ?? 0) / 2), 2, 6);
+      begin(ctx, "COMPLIANCE", `Do NOT click anywhere for ${sec} seconds.`);
+
+      const timer = el("div", "pill", `time: ${sec}s`);
+      timer.style.marginTop = "12px";
+      ctx.taskBody.appendChild(timer);
+
+      let clicks = 0;
+      const onClick = () => { clicks++; };
+      window.addEventListener("click", onClick, true);
+
+      const start = performance.now();
+      const tick = () => {
+        const t = (performance.now() - start) / 1000;
+        const left = Math.max(0, Math.ceil(sec - t));
+        timer.textContent = `time: ${left}s  |  clicks: ${clicks}`;
+
+        if (t >= sec) {
+          window.removeEventListener("click", onClick, true);
+
+          if (clicks > 0) {
+            ctx.glitch?.();
+            ctx.penalize?.(1, "impulse");
+            ctx.taskBody.appendChild(note("Auditor noted it."));
+            finish(ctx, resolve, `clicked:${clicks}`);
+          } else {
+            ctx.taskBody.appendChild(note("Clean window held."));
+            finish(ctx, resolve, "clean");
+          }
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+
+      let resolve;
+      return new Promise((r) => (resolve = r));
+    },
+  });
+
+  // register pool
+  if (regPool) {
+    regPool("pack3", [
+      { id: "dup_token", w: 1 },
+      { id: "mirror_take3", w: 1 },
+      { id: "two_slashes", w: 1 },
+      { id: "bracket_digits", w: 1 },
+      { id: "cold_dot", w: 1 },
+      { id: "count_vowels", w: 1 },
+      { id: "key_value", w: 1 },
+      { id: "remove_underscores", w: 1 },
+      { id: "no_punct", w: 1 },
+      { id: "add_three", w: 1 },
+      { id: "tap_hold_pattern", w: 1 },
+      { id: "last_word", w: 1 },
+      { id: "even_length", w: 1 },
+      { id: "retype_exact", w: 1 },
+      { id: "mirror_pick", w: 1 },
+      { id: "token_split", w: 1 },
+      { id: "order_length_4", w: 1 },
+      { id: "scrub_x", w: 1 },
+      { id: "has_number", w: 1 },
+      { id: "dont_click", w: 1 },
+    ]);
+  }
 })();
