@@ -28,7 +28,7 @@
       </p>
 
       <div class="topRow">
-        <input id="viewerToken" placeholder="viewer token" autocomplete="off" spellcheck="false" />
+        <input id="viewerToken" placeholder="viewer token" autocomplete="off" spellcheck="false" disabled />
         <div class="pill" id="timestamp">timestamp: —</div>
         <div class="pill" id="build">build: revision</div>
       </div>
@@ -162,8 +162,10 @@
 
       <div class="adminBody">
         task: <span id="adminTask">—</span><br>
-        args: <span id="adminAnswer">—</span>
+        args: <span id="adminAnswer">—</span><br>
+        answer: <span id="adminStoredAnswer">—</span>
       </div>
+
 
       <div class="adminBtns">
         <button class="sim-btn" id="adminSkip">skip</button>
