@@ -47,6 +47,7 @@
     }
     return a;
   };
+
   const begin = (ctx, title, desc) => {
     ctx.showTaskUI(title, desc);
     ctx.taskPrimary.textContent = "continue";
@@ -54,14 +55,15 @@
     ctx.taskSecondary.classList.add("hidden");
     ctx.taskBody.innerHTML = "";
   };
-const note = (t, kind = "note") => {
-  const n = el("div");
-  n.textContent = t ?? "";
-  n.className = (kind === "error") ? "task-error"
-              : (kind === "ok") ? "task-ok"
-              : "task-note";
-  return n;
-};
+
+  const note = (t, kind = "note") => {
+    const n = el("div");
+    n.textContent = t ?? "";
+    n.className = (kind === "error") ? "task-error"
+                : (kind === "ok") ? "task-ok"
+                : "task-note";
+    return n;
+  };
 
   const makeInput = (ph) => {
     const i = el("input");
@@ -71,6 +73,14 @@ const note = (t, kind = "note") => {
     i.style.width = "min(520px, 100%)";
     i.style.marginTop = "10px";
     return i;
+  };
+
+  // ✅ single success gate for all tasks (writes admin answer too)
+  const finish = (ctx, resolve, answer) => {
+    try { ctx.setAnswer?.(answer); } catch {}
+    ctx.taskPrimary.textContent = "continue";
+    ctx.taskPrimary.disabled = false;
+    ctx.taskPrimary.onclick = () => resolve();
   };
 
   // Pack task map (same IDs you already use)
@@ -100,8 +110,7 @@ const note = (t, kind = "note") => {
         }
         msg.style.color = "rgba(232,237,247,0.85)";
         msg.textContent = "Accepted.";
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => resolve();
+        finish(ctx, resolve, phrase);
       };
 
       return new Promise(r => (resolve = r));
@@ -132,11 +141,9 @@ const note = (t, kind = "note") => {
       window.addEventListener("mousemove", onMove, { passive: true });
 
       let resolve;
-      const done = () => {
+      const done = (answer) => {
         window.removeEventListener("mousemove", onMove);
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.disabled = false;
-        ctx.taskPrimary.onclick = () => resolve();
+        finish(ctx, resolve, answer);
       };
 
       const start = performance.now();
@@ -148,13 +155,13 @@ const note = (t, kind = "note") => {
           ctx.taskBody.appendChild(note("You moved. Window invalidated."));
           ctx.glitch?.();
           ctx.penalize?.(1, "noise");
-          done();
+          done("moved");
           return;
         }
 
         if (t >= ms) {
           ctx.taskBody.appendChild(note("Window held."));
-          done();
+          done("held");
           return;
         }
 
@@ -198,9 +205,7 @@ const note = (t, kind = "note") => {
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Boring enough.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         row.appendChild(b);
       });
@@ -243,8 +248,7 @@ const note = (t, kind = "note") => {
         }
         msg.style.color = "rgba(232,237,247,0.85)";
         msg.textContent = "Good.";
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => resolve();
+        finish(ctx, resolve, pick);
       };
 
       return new Promise(r => (resolve = r));
@@ -277,9 +281,7 @@ const note = (t, kind = "note") => {
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Okay.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, String(smallest));
         };
         row.appendChild(b);
       });
@@ -319,9 +321,7 @@ const note = (t, kind = "note") => {
         if (inp.value.length === 0) {
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Clean.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, "clean");
         }
       });
 
@@ -360,9 +360,7 @@ const note = (t, kind = "note") => {
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "You listened.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         ctx.taskBody.appendChild(b);
       });
@@ -399,8 +397,7 @@ const note = (t, kind = "note") => {
         }
         msg.style.color = "rgba(232,237,247,0.85)";
         msg.textContent = "Ok.";
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => resolve();
+        finish(ctx, resolve, correct);
       };
 
       return new Promise(r => (resolve = r));
@@ -432,9 +429,7 @@ const note = (t, kind = "note") => {
         if (count === need) {
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Exact.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, String(need));
         }
       };
 
@@ -471,8 +466,7 @@ const note = (t, kind = "note") => {
         }
         msg.style.color = "rgba(232,237,247,0.85)";
         msg.textContent = "Ok.";
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => resolve();
+        finish(ctx, resolve, correct);
       };
 
       return new Promise(r => (resolve = r));
@@ -503,9 +497,7 @@ const note = (t, kind = "note") => {
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Noise selected.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         ctx.taskBody.appendChild(b);
       });
@@ -542,8 +534,7 @@ const note = (t, kind = "note") => {
         }
         msg.style.color = "rgba(232,237,247,0.85)";
         msg.textContent = "Good.";
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => resolve();
+        finish(ctx, resolve, correct);
       };
 
       return new Promise(r => (resolve = r));
@@ -576,9 +567,7 @@ const note = (t, kind = "note") => {
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Ok.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         row.appendChild(b);
       });
@@ -621,9 +610,7 @@ const note = (t, kind = "note") => {
           if (idx === 4) {
             msg.style.color = "rgba(232,237,247,0.85)";
             msg.textContent = "Sequence complete.";
-            ctx.taskPrimary.textContent = "continue";
-            ctx.taskPrimary.disabled = false;
-            ctx.taskPrimary.onclick = () => resolve();
+            finish(ctx, resolve, "1-2-3-4");
           }
         };
         row.appendChild(b);
@@ -673,9 +660,7 @@ const note = (t, kind = "note") => {
             }
             msg.style.color = "rgba(232,237,247,0.85)";
             msg.textContent = "Correct pair.";
-            ctx.taskPrimary.textContent = "continue";
-            ctx.taskPrimary.disabled = false;
-            ctx.taskPrimary.onclick = () => resolve();
+            finish(ctx, resolve, "boring,quiet");
           }
           if (picked.size > 2) {
             msg.textContent = "Too many.";
@@ -720,8 +705,7 @@ const note = (t, kind = "note") => {
         }
         msg.style.color = "rgba(232,237,247,0.85)";
         msg.textContent = "Ok.";
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => resolve();
+        finish(ctx, resolve, correct);
       };
 
       return new Promise(r => (resolve = r));
@@ -759,8 +743,7 @@ const note = (t, kind = "note") => {
         }
         msg.style.color = "rgba(232,237,247,0.85)";
         msg.textContent = "Accepted.";
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.onclick = () => resolve();
+        finish(ctx, resolve, String(sum));
       };
 
       return new Promise(r => (resolve = r));
@@ -782,11 +765,7 @@ const note = (t, kind = "note") => {
       b.textContent = "click";
 
       let resolve;
-      b.onclick = () => {
-        ctx.taskPrimary.textContent = "continue";
-        ctx.taskPrimary.disabled = false;
-        ctx.taskPrimary.onclick = () => resolve();
-      };
+      b.onclick = () => finish(ctx, resolve, `${ms}ms`);
 
       return new Promise(r => (resolve = r));
     },
@@ -821,9 +800,7 @@ const note = (t, kind = "note") => {
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Ok.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         ctx.taskBody.appendChild(b);
       });
@@ -873,8 +850,7 @@ const note = (t, kind = "note") => {
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Procedure complete.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, "OK->CONFIRM");
         }
       };
 
