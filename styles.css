@@ -1,50 +1,53 @@
 /* styles.css (FULL REPLACEMENT) */
 
 :root{
-  --bg: #07090d;
-  --fg: rgba(232,237,247,.92);
-  --muted: rgba(232,237,247,.70);
-  --line: rgba(255,255,255,.14);
-  --panel: rgba(255,255,255,.06);
-  --panel2: rgba(0,0,0,.22);
-  --bad: rgba(255,190,190,.95);
-  --ok: rgba(200,255,220,.90);
-  --pill: rgba(255,255,255,.08);
+  --ink: #111318;
+  --muted: rgba(17,19,24,.62);
+  --line: rgba(17,19,24,.14);
+  --panel: rgba(255,255,255,.72);
+  --panel2: rgba(255,255,255,.88);
+
+  --sim-bg: #07090d;
+  --sim-fg: rgba(232,237,247,.92);
+  --sim-muted: rgba(232,237,247,.70);
+  --sim-line: rgba(255,255,255,.14);
+  --sim-panel: rgba(255,255,255,.06);
+
+  --bad: rgba(210,40,40,.92);
+  --ok: rgba(30,140,70,.92);
 }
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
 
-/* ✅ FORCE dark landing (prevents “white page” even if something overrides) */
-html{ background:#05060a; }
+html{ background:#f6f7fb; }
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-  background-color:#05060a;
-  background-image: radial-gradient(1200px 700px at 50% 0%, #0d1120 0%, #07090d 55%, #05060a 100%);
-  color: var(--fg);
+  color: var(--ink);
+  background:
+    linear-gradient(180deg, #fbfcff 0%, #f4f6fb 100%);
   overflow-x:hidden;
 }
 
 /* ===================== OVERLAYS ===================== */
-/* Glass is OFF on landing (no dim), used only during transition/sim */
 #glassFX{
   position:fixed;
   inset:0;
   pointer-events:none;
   opacity:0;
-  background: radial-gradient(900px 600px at 50% 20%, rgba(255,255,255,.08), rgba(0,0,0,0));
+  background: radial-gradient(900px 600px at 50% 20%, rgba(0,0,0,.10), rgba(0,0,0,0));
   z-index:80;
 }
 
-/* ✅ CRACKS ON TOP of everything */
+/* CRACKS always above everything */
 #cracks{
   position:fixed;
   inset:0;
   width:100%;
   height:100%;
   pointer-events:none;
-  z-index:95;            /* higher than sim/subs/task */
+  z-index:95;
   opacity:0;
 }
 
@@ -54,11 +57,12 @@ body{
   stroke-linejoin:round;
   vector-effect: non-scaling-stroke;
 }
-#cracks .crack-under{ stroke: rgba(120,160,255,.12); stroke-width: 10; filter: blur(1.2px); }
-#cracks .crack-line{ stroke: rgba(180,210,255,.55); stroke-width: 2.2; }
-#cracks .crack-glint{ stroke: rgba(210,235,255,.85); stroke-width: 1.3; filter: drop-shadow(0 0 10px rgba(120,170,255,.35)); }
 
-#cracks.flash{ filter: brightness(1.4) contrast(1.1); }
+#cracks .crack-under{ stroke: rgba(20,30,60,.10); stroke-width: 10; filter: blur(1.2px); }
+#cracks .crack-line{ stroke: rgba(30,40,80,.45); stroke-width: 2.2; }
+#cracks .crack-glint{ stroke: rgba(40,60,120,.55); stroke-width: 1.3; filter: drop-shadow(0 0 10px rgba(40,70,140,.18)); }
+
+#cracks.flash{ filter: brightness(1.2) contrast(1.05); }
 .hidden{ display:none !important; }
 
 body.crack1 #cracks,
@@ -78,14 +82,15 @@ body.crack4 #cracks{ opacity:1; }
 .card{
   border:1px solid var(--line);
   background: var(--panel);
-  border-radius: 18px;
+  border-radius: 16px;
   padding: 16px 16px;
-  box-shadow: 0 10px 24px rgba(0,0,0,.28);
+  box-shadow: 0 10px 20px rgba(0,0,0,.06);
+  backdrop-filter: blur(6px);
 }
 
 h1{
   margin:0 0 10px 0;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing:.2px;
   opacity:.92;
@@ -96,8 +101,8 @@ h1{
   padding: 8px 10px;
   border-radius: 999px;
   border:1px solid var(--line);
-  background: var(--pill);
-  color: var(--muted);
+  background: rgba(255,255,255,.85);
+  color: rgba(17,19,24,.70);
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;
@@ -108,10 +113,15 @@ input#finalDiscord{
   padding: 10px 12px;
   border-radius: 12px;
   border:1px solid var(--line);
-  background: rgba(255,255,255,.06);
-  color: var(--fg);
+  background: rgba(255,255,255,.9);
+  color: var(--ink);
   outline: none;
   min-width: 220px;
+}
+
+input[disabled]{
+  opacity:.55;
+  filter: grayscale(.2);
 }
 
 .topRow{
@@ -121,9 +131,6 @@ input#finalDiscord{
   flex-wrap:wrap;
   align-items:center;
 }
-
-/* ✅ remove timestamp “glitch” completely */
-#timestamp{ position:relative; }
 
 .grid{
   margin-top: 14px;
@@ -140,8 +147,8 @@ input#finalDiscord{
   height: 130px;
   object-fit: cover;
   border-radius: 14px;
-  border:1px solid rgba(255,255,255,.12);
-  background: rgba(0,0,0,.18);
+  border:1px solid rgba(0,0,0,.10);
+  background: rgba(0,0,0,.03);
   display:block;
 }
 
@@ -154,26 +161,30 @@ input#finalDiscord{
 
 .smallNote{
   margin-top:12px;
-  opacity:.78;
+  opacity:.72;
   font-size:13px;
   line-height:1.25;
 }
 
 /* ===================== BUTTONS ===================== */
 .sim-btn{
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
-  color: var(--fg);
+  border:1px solid rgba(0,0,0,.14);
+  background: rgba(255,255,255,.86);
+  color: var(--ink);
   padding: 10px 12px;
   border-radius: 14px;
   cursor:pointer;
   user-select:none;
 }
-.sim-btn:hover{ background: rgba(255,255,255,.09); }
+.sim-btn:hover{ background: rgba(255,255,255,.95); }
 .sim-btn:active{ transform: translateY(1px); }
 .sim-btn:disabled{ cursor:not-allowed; opacity:.5; }
 
-/* ===================== SIM ===================== */
+/* ===================== SIM (dark) ===================== */
+body.in-sim{
+  background: var(--sim-bg);
+  color: var(--sim-fg);
+}
 body.in-sim #wrap{ display:none; }
 
 #simRoom{
@@ -185,8 +196,13 @@ body.in-sim #wrap{ display:none; }
   padding: 22px 16px 180px;
   z-index:70;
 }
-.simCard{ width: min(860px, 100%); }
-
+.simCard{
+  width: min(860px, 100%);
+  border:1px solid var(--sim-line);
+  background: rgba(255,255,255,.04);
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+}
 .simText{
   margin:0;
   padding: 12px;
@@ -219,7 +235,13 @@ body.in-sim #wrap{ display:none; }
   padding: 22px 16px 130px;
   z-index:75;
 }
-.taskCard{ width: min(700px, 100%); }
+.taskCard{
+  width: min(700px, 100%);
+  border:1px solid var(--sim-line);
+  background: rgba(255,255,255,.04);
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+}
 .taskDesc{ margin-top:8px; opacity:.85; }
 .taskBody{ margin-top:12px; }
 .taskActions{
@@ -240,7 +262,13 @@ body.in-sim #wrap{ display:none; }
   z-index:100;
   background: rgba(0,0,0,.55);
 }
-.resetCard{ width: min(700px, 100%); }
+.resetCard{
+  width: min(700px, 100%);
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(10,12,18,.78);
+  color: rgba(232,237,247,.92);
+  border-radius: 18px;
+}
 .resetBody{ margin-top:10px; white-space:pre-wrap; opacity:.9; }
 
 /* ===================== FINAL OVERLAY ===================== */
@@ -254,8 +282,14 @@ body.in-sim #wrap{ display:none; }
   z-index:120;
   background: rgba(0,0,0,.55);
 }
-.finalCard{ width: min(560px, 100%); }
-.errText{ margin-top:10px; color: var(--bad); }
+.finalCard{
+  width: min(560px, 100%);
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(10,12,18,.78);
+  color: rgba(232,237,247,.92);
+  border-radius: 18px;
+}
+.errText{ margin-top:10px; color: rgba(255,190,190,.95); }
 
 /* ===================== SUBTITLES ===================== */
 #subs{
@@ -264,7 +298,7 @@ body.in-sim #wrap{ display:none; }
   bottom: 26px;
   transform: translateX(-50%);
   width: min(860px, calc(100% - 32px));
-  z-index:90;     /* below cracks, above sim */
+  z-index:90;
   pointer-events: none;
   text-align:left;
 }
@@ -277,6 +311,7 @@ body.in-sim #wrap{ display:none; }
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(0,0,0,.28);
   box-shadow: 0 10px 24px rgba(0,0,0,.28);
+  color: rgba(232,237,247,.92);
 }
 #subs.calm #subsText{ filter: brightness(1.05); }
 
@@ -288,55 +323,8 @@ body.in-sim #wrap{ display:none; }
   background: rgba(0,0,0,.75);
   padding: 16px;
   overflow:auto;
+  color: rgba(232,237,247,.92);
 }
-.hackTop{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-  justify-content:space-between;
-}
-.hackFiles{ display:flex; gap:10px; flex-wrap:wrap; }
-.hack-filebtn{
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
-  color: var(--fg);
-  padding: 8px 10px;
-  border-radius: 999px;
-  cursor:pointer;
-}
-.hack-filebtn.active{ background: rgba(120,160,255,.18); }
-
-.hackMeta{
-  margin-top:12px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-}
-
-#hackLines{
-  margin-top:12px;
-  border:1px solid rgba(255,255,255,.12);
-  border-radius: 14px;
-  overflow:hidden;
-}
-.hack-line{
-  display:grid;
-  grid-template-columns: 54px 1fr;
-  gap:10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  background: rgba(255,255,255,.03);
-  cursor:pointer;
-}
-.hack-line:last-child{ border-bottom:none; }
-.hack-ln{ opacity:.6; font-size:12px; }
-.hack-txt{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
-.hack-line.target .hack-txt{ color: rgba(200,255,220,.92); }
-.hack-line.selected{ background: rgba(120,160,255,.12); }
-
-.hackActions{ margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
 
 /* ===================== ADMIN PANEL ===================== */
 #adminPanel{
@@ -346,12 +334,13 @@ body.in-sim #wrap{ display:none; }
   z-index: 9999;
 }
 .adminBox{
-  width: 260px;
+  width: 280px;
   border:1px solid rgba(255,255,255,.16);
-  background: rgba(255,255,255,.08);
+  background: rgba(10,12,18,.70);
   border-radius: 18px;
   padding: 12px;
   box-shadow: 0 10px 24px rgba(0,0,0,.30);
+  color: rgba(232,237,247,.92);
 }
 .adminHead{
   display:flex;
@@ -360,19 +349,18 @@ body.in-sim #wrap{ display:none; }
   gap:10px;
   user-select:none;
 }
-.adminBody{ margin-top:10px; font-size:12px; opacity:.88; line-height:1.3; }
+.adminBody{ margin-top:10px; font-size:12px; opacity:.92; line-height:1.35; }
 .adminBtns{ margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
 
-/* ===================== TRANSITION: crack -> sim ===================== */
-/* main.js should add: body.sim-transition then body.into-sim then body.in-sim */
+/* ===================== TRANSITION ===================== */
 body.sim-transition #glassFX{
-  opacity: .10;
+  opacity: .18;
   animation: glass_ripple 780ms ease forwards;
 }
 @keyframes glass_ripple{
-  0%   { opacity:.10; filter: blur(0px); }
-  45%  { opacity:.18; filter: blur(0.6px); }
-  100% { opacity:.10; filter: blur(0px); }
+  0%   { opacity:.18; filter: blur(0px); }
+  45%  { opacity:.28; filter: blur(0.8px); }
+  100% { opacity:.18; filter: blur(0px); }
 }
 
 body.into-sim #cracks{
@@ -381,11 +369,9 @@ body.into-sim #cracks{
 }
 @keyframes cracks_warp{
   0%   { opacity:1; filter:none; transform: translateZ(0) scale(1); }
-  35%  { opacity:1; filter:brightness(1.7) contrast(1.25) blur(.6px); transform: scale(1.01); }
-  60%  { opacity:.95; filter:hue-rotate(18deg) brightness(1.35) blur(1.2px); transform: scale(1.015); }
+  35%  { opacity:1; filter:brightness(1.4) contrast(1.15) blur(.6px); transform: scale(1.01); }
+  60%  { opacity:.95; filter:hue-rotate(10deg) brightness(1.15) blur(1.2px); transform: scale(1.015); }
   100% { opacity:0; filter: blur(2px); transform: scale(1.02); }
 }
-
-/* once fully in sim, keep cracks gone */
 body.in-sim #cracks{ opacity:0; }
 body.in-sim #glassFX{ opacity:.18; }
