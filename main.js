@@ -59,13 +59,12 @@
 
     const OPTIONAL_IDS = [
       "viewerToken",
-      "viewerFake",
-      "viewerState",
       "launchBtn",
       "launchStatus",
       "adminPanel",
       "adminTask",
       "adminAnswer",
+      "adminStoredAnswer",
       "adminSkip",
       "adminToggle",
       "taskActions",
@@ -129,7 +128,13 @@
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
 
-    /* ====================== SAFE SFX ====================== */
+    /* ====================== LANDING ASSETS ====================== */
+    const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
+    document.querySelectorAll(".adImg").forEach((img) => {
+      img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
+    });
+
+    /* ====================== SFX ====================== */
     function playSfx(name, opts = {}) {
       if (typeof window.playSfx === "function") {
         const map = {
@@ -139,20 +144,33 @@
           static2: "staticSoft",
         };
         const id = map[name] || name;
-        try {
-          window.playSfx(id, opts);
-        } catch {}
+        try { window.playSfx(id, opts); } catch {}
       }
     }
 
-    /* ====================== LANDING ASSETS ====================== */
-    const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
-    document.querySelectorAll(".adImg").forEach((img) => {
-      img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
-    });
+    /* ====================== VIEWER TOKEN LOCK (until launch) ====================== */
+    let launchArmed = false;
+
+    if (viewerToken) {
+      viewerToken.disabled = true;
+      viewerToken.value = "";
+    }
+
+    function armLaunch() {
+      if (launchArmed) return;
+      launchArmed = true;
+
+      if (viewerToken) {
+        viewerToken.disabled = false;
+        viewerToken.focus();
+      }
+
+      // first click also counts toward cracks (your request)
+      // (launch button handler calls registerLandingClick)
+    }
 
     /* ======================
-       ADMIN ACCESS
+       ADMIN ACCESS (SHA-256)
     ====================== */
     const ADMIN_HASH =
       "27fedb02589c0bacf10ecdda0d63486573fa76350d2edf7ee6e6e6cc35858c44";
@@ -169,39 +187,23 @@
       if (document.body.classList.contains("admin")) return;
       document.body.classList.add("admin");
       console.log("%c[admin] elevated access granted", "color:#8cbcff");
-
-      if (document.getElementById("adminPanel")) {
-        try {
-          initAdminPanel();
-        } catch (e) {
-          console.warn("[admin] panel init failed", e);
-        }
-      }
-
       document.dispatchEvent(new CustomEvent("admin:enabled"));
     }
 
     if (viewerToken) {
       viewerToken.addEventListener("input", async () => {
+        if (!launchArmed) return; // ✅ can’t type/use token until launch clicked
+
         const v = viewerToken.value.trim();
         if (!v || v.length < 8) return;
 
         let h = "";
-        try {
-          h = await sha256(v);
-        } catch (e) {
-          console.warn("[admin] sha256 failed (non-secure context?)", e);
-          return;
-        }
+        try { h = await sha256(v); }
+        catch (e) { console.warn("[admin] sha256 failed", e); return; }
 
         if (h === ADMIN_HASH) grantAdmin();
       });
     }
-
-    document.addEventListener("admin:enabled", () => {
-      const sys = document.getElementById("system");
-      if (sys) sys.textContent = "admin context detected.";
-    });
 
     // global skip flag consumed by the task runner
     window.__ADMIN_FORCE_OK = false;
@@ -214,102 +216,10 @@
       if (panel.parentElement !== document.body) document.body.appendChild(panel);
 
       const elTask = document.getElementById("adminTask");
-      const elAns = document.getElementById("adminAnswer");
+      const elArgs = document.getElementById("adminAnswer");
+      const elStored = document.getElementById("adminStoredAnswer");
       const btnSkip = document.getElementById("adminSkip");
       const btnToggle = document.getElementById("adminToggle");
-
-      (function makeDraggable(panelEl, handleEl) {
-        if (!panelEl || !handleEl) return;
-
-        const PAD = 10;
-        const clampToViewport = () => {
-          const vw = document.documentElement.clientWidth;
-          const vh = document.documentElement.clientHeight;
-          const w = panelEl.offsetWidth;
-          const h = panelEl.offsetHeight;
-
-          let left = parseFloat(panelEl.style.left || `${PAD}`);
-          let top = parseFloat(panelEl.style.top || `${PAD}`);
-
-          left = Math.max(PAD, Math.min(vw - w - PAD, left));
-          top = Math.max(PAD, Math.min(vh - h - PAD, top));
-
-          panelEl.style.left = `${left}px`;
-          panelEl.style.top = `${top}px`;
-        };
-
-        panelEl.style.position = "fixed";
-        panelEl.style.zIndex = "9999";
-
-        try {
-          const saved = JSON.parse(localStorage.getItem("adminPanelPos") || "null");
-          if (saved && typeof saved.left === "number" && typeof saved.top === "number") {
-            panelEl.style.left = `${saved.left}px`;
-            panelEl.style.top = `${saved.top}px`;
-          }
-        } catch {}
-
-        if (!panelEl.style.left) panelEl.style.left = "18px";
-        if (!panelEl.style.top) panelEl.style.top = "18px";
-        clampToViewport();
-
-        let dragging = false;
-        let startX = 0, startY = 0;
-        let baseLeft = 0, baseTop = 0;
-
-        const onDown = (e) => {
-          const t = e.target;
-          if (t && t.closest && t.closest("button, input, textarea, select, a")) return;
-
-          dragging = true;
-          handleEl.setPointerCapture?.(e.pointerId);
-
-          startX = e.clientX;
-          startY = e.clientY;
-
-          baseLeft = parseFloat(panelEl.style.left || "0");
-          baseTop = parseFloat(panelEl.style.top || "0");
-
-          handleEl.style.cursor = "grabbing";
-          e.preventDefault();
-        };
-
-        const onMove = (e) => {
-          if (!dragging) return;
-          const dx = e.clientX - startX;
-          const dy = e.clientY - startY;
-          panelEl.style.left = `${baseLeft + dx}px`;
-          panelEl.style.top = `${baseTop + dy}px`;
-          clampToViewport();
-        };
-
-        const onUp = () => {
-          if (!dragging) return;
-          dragging = false;
-          handleEl.style.cursor = "grab";
-          try {
-            localStorage.setItem(
-              "adminPanelPos",
-              JSON.stringify({
-                left: parseFloat(panelEl.style.left || "0"),
-                top: parseFloat(panelEl.style.top || "0"),
-              })
-            );
-          } catch {}
-        };
-
-        handleEl.style.cursor = "grab";
-        handleEl.addEventListener("pointerdown", onDown);
-        window.addEventListener("pointermove", onMove);
-        window.addEventListener("pointerup", onUp);
-        window.addEventListener("resize", clampToViewport);
-
-        handleEl.addEventListener("dblclick", () => {
-          panelEl.style.left = "18px";
-          panelEl.style.top = "18px";
-          clampToViewport();
-        });
-      })(panel, panel.querySelector(".adminHead"));
 
       btnToggle?.addEventListener("click", () => {
         const willHide = !panel.classList.contains("hidden");
@@ -332,9 +242,21 @@
         const id = e?.detail?.taskId || "—";
         const args = e?.detail?.args ? JSON.stringify(e.detail.args) : "—";
         if (elTask) elTask.textContent = id;
-        if (elAns) elAns.textContent = args;
+        if (elArgs) elArgs.textContent = args;
+      });
+
+      document.addEventListener("admin:answer", (e) => {
+        const ans = e?.detail?.answer;
+        if (!elStored) return;
+        elStored.textContent = ans == null ? "—" : String(ans);
       });
     }
+
+    document.addEventListener("admin:enabled", () => {
+      const sys = document.getElementById("system");
+      if (sys) sys.textContent = "admin context detected.";
+      initAdminPanel();
+    });
 
     /* ====================== AUDIO UNLOCK ====================== */
     let audioUnlocked = false;
@@ -346,20 +268,8 @@
       try {
         if (window.AudioPlayer?.unlock) await window.AudioPlayer.unlock();
       } catch (e) {
-        console.warn("[audio] VO unlock failed:", e);
+        console.warn("[audio] unlock failed:", e);
       }
-
-      try {
-        const any = document.querySelector("audio");
-        if (any) {
-          any.muted = true;
-          await any.play().catch(() => {});
-          any.pause();
-          any.currentTime = 0;
-          any.muted = false;
-        }
-      } catch {}
-      console.log("[audio] unlocked");
     }
 
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
@@ -372,7 +282,6 @@
     function wordsCount(s) {
       return String(s || "").trim().split(/\s+/).filter(Boolean).length;
     }
-
     function msToRead(line) {
       const w = wordsCount(line);
       if (!w) return 650;
@@ -380,7 +289,7 @@
     }
 
     /* ====================== STATE ====================== */
-    let stage = 1;
+    let stage = 1;          // 1 = landing clickable, 99 = sim
     let clicks = 0;
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
@@ -388,28 +297,40 @@
     const CRACK_AT = [15, 17, 19, 21];
     const SHATTER_AT = 22;
 
-    const MAX_COMPLIANT_RATIO = 0.40;
+    // Compliance after 10 choices:
+    // comply => +1 compliance
+    // lie    => +1 resistance
+    // run    => +2 resistance
+    const COMPLIANCE_LIMIT = 0.30;
     const MIN_CHOICES_BEFORE_CHECK = 10;
     let choiceTotal = 0;
-    let choiceCompliant = 0;
+    let compliancePoints = 0;
+    let resistancePoints = 0;
 
-    let resistanceScore = 0;
-    let tasksCompleted = 0;
-    function difficultyBoost() {
-      const late = tasksCompleted >= 10;
-      const base = Math.max(0, Math.min(6, resistanceScore));
-      return late ? base + 1 : base;
+    /* ====================== UTIL ====================== */
+    function wait(ms) {
+      return new Promise((r) => setTimeout(r, ms));
     }
 
-    /* ====================== TIMERS ====================== */
-    let timers = [];
-    function clearTimers() {
-      timers.forEach((t) => clearTimeout(t));
-      timers = [];
+    function hardReload() {
+      window.location.href = window.location.href.split("#")[0];
+    }
+
+    function doReset(reasonTitle, reasonBody) {
+      resetTitle.textContent = reasonTitle || "RESET";
+      resetBody.textContent = reasonBody || "";
+      resetOverlay.classList.remove("hidden");
+      setTimeout(hardReload, 1800);
+    }
+
+    function glitchPulse() {
+      playSfx("glitch", { volume: 0.55, overlap: true });
+      cracks.classList.add("flash");
+      setTimeout(() => cracks.classList.remove("flash"), 220);
     }
 
     /* ======================
-       VOICE LAYER
+       VOICE LAYER (your existing audio_player.js)
     ====================== */
     let VO = null;
     let VO_READY = false;
@@ -460,7 +381,6 @@
       _audioChain: Promise.resolve(),
       async init() {
         if (VO_READY) return;
-
         if (!window.VoiceBank) {
           console.warn("VoiceBank not found. Make sure /audio_player.js loads before /main.js.");
           return;
@@ -472,7 +392,6 @@
         });
 
         VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
-
         await VO.load();
         VO_READY = true;
       },
@@ -505,10 +424,6 @@
     };
 
     /* ====================== OUTPUT PIPE ====================== */
-    function wait(ms) {
-      return new Promise((r) => setTimeout(r, ms));
-    }
-
     async function typeLineIntoSim(text, ms) {
       const s = String(text || "");
       if (!s) {
@@ -554,7 +469,6 @@
 
       const typingMs = getTypingMsForLine(raw);
 
-      // ✅ sync typing + audio together (no serial lag)
       await Promise.all([
         typeLineIntoSim(printed, typingMs),
         voPromise
@@ -562,341 +476,29 @@
     }
 
     async function playLines(lines) {
-      clearTimers();
       for (const line of lines || []) {
         await emitLine(line);
         await wait(80);
       }
     }
 
-    /* ====================== UI helpers ====================== */
-    els.taskActions?.classList.add("hidden");
+    /* ======================
+       TASK CONTEXT + ANSWER HOOK
+    ====================== */
+    let lastAnswer = null;
 
-    function showChoices(labels) {
-      if (labels?.complyLabel) choiceNeed.textContent = labels.complyLabel;
-      if (labels?.lieLabel) choiceLie.textContent = labels.lieLabel;
-      if (labels?.runLabel) choiceRun.textContent = labels.runLabel;
-
-      simChoices.classList.remove("hidden");
-      taskUI.classList.add("hidden");
-      els.taskActions?.classList.add("hidden");
-    }
-
-    function hideChoices() {
-      simChoices.classList.add("hidden");
-    }
-
-    function hardReload() {
-      window.location.href = window.location.href.split("#")[0];
-    }
-
-    function doReset(reasonTitle, reasonBody) {
-      resetTitle.textContent = reasonTitle || "RESET";
-      resetBody.textContent = reasonBody || "";
-      resetOverlay.classList.remove("hidden");
-      setTimeout(hardReload, 1800);
-    }
-
-    function recordChoice(isCompliant) {
-      choiceTotal++;
-      if (isCompliant) choiceCompliant++;
-
-      if (choiceTotal >= MIN_CHOICES_BEFORE_CHECK) {
-        const ratio = choiceCompliant / choiceTotal;
-        if (ratio > MAX_COMPLIANT_RATIO) {
-          doReset(
-            "TOO COMPLIANT",
-            `Compliance threshold exceeded.
-
-compliant: ${choiceCompliant}
-total: ${choiceTotal}
-ratio: ${(ratio * 100).toFixed(0)}%
-
-Reinitializing simulation…`
-          );
-          return false;
-        }
-      }
-      return true;
-    }
-
-    function penalize(amount = 1, note = "") {
-      resistanceScore = Math.min(12, resistanceScore + Math.max(0, amount));
-      if (note && !taskUI.classList.contains("hidden")) {
-        const div = document.createElement("div");
-        div.style.marginTop = "10px";
-        div.style.opacity = "0.85";
-        div.style.color = "rgba(255,190,190,.95)";
-        div.textContent = `${note} (resistance: ${resistanceScore})`;
-        taskBody.appendChild(div);
-      }
-    }
-
-    function glitchPulse() {
-      playSfx("glitch", { volume: 0.55, overlap: true });
-      cracks.classList.add("flash");
-      setTimeout(() => cracks.classList.remove("flash"), 220);
-
-      try {
-        taskUI.classList.remove("is-ok");
-        taskUI.classList.add("is-error");
-        setTimeout(() => taskUI.classList.remove("is-error"), 240);
-      } catch {}
-    }
-
-    /* ====================== TURNSTILE ====================== */
-    let tsWidgetId = null;
-    let tsToken = null;
-
-    function ensureTurnstile() {
-      if (tsWidgetId !== null) return;
-      if (!window.turnstile) {
-        setTimeout(ensureTurnstile, 100);
-        return;
-      }
-      turnstileBox.innerHTML = "";
-      tsWidgetId = window.turnstile.render(turnstileBox, {
-        sitekey: "0x4AAAAAACN_lQF6Hw5BHs2u",
-        theme: "dark",
-        callback: (token) => { tsToken = token; },
-        "expired-callback": () => { tsToken = null; },
-        "error-callback": () => { tsToken = null; },
-      });
-    }
-
-    function getTurnstileToken() {
-      if (!window.turnstile || tsWidgetId === null) return tsToken;
-      const t = window.turnstile.getResponse(tsWidgetId);
-      return t || tsToken;
-    }
-
-    function resetTurnstile() {
-      if (window.turnstile && tsWidgetId !== null) window.turnstile.reset(tsWidgetId);
-      tsToken = null;
-    }
-
-    /* ====================== FINAL MODAL ====================== */
-    let finalDiscordName = "";
-
-    function openFinalModal(prefillDiscord = "") {
-      finalErr.textContent = "";
-      finalOverlay.classList.remove("hidden");
-      finalOverlay.setAttribute("aria-hidden", "false");
-      finalDiscord.value = prefillDiscord || finalDiscordName || "";
-      ensureTurnstile();
-      resetTurnstile();
-    }
-
-    function closeFinalModal() {
-      finalOverlay.classList.add("hidden");
-      finalOverlay.setAttribute("aria-hidden", "true");
-    }
-
-    finalCancel.onclick = () => closeFinalModal();
-
-    finalVerify.onclick = async () => {
-      finalErr.textContent = "";
-      finalDiscordName = (finalDiscord.value || "").trim();
-
-      if (!finalDiscordName) {
-        finalErr.textContent = "Discord username required.";
-        return;
-      }
-
-      const token = getTurnstileToken();
-      if (!token) {
-        finalErr.textContent = "Please complete the verification checkbox.";
-        return;
-      }
-
-      closeFinalModal();
-      startHackTask();
-    };
-
-    /* ====================== HACK TASK ====================== */
-    const FILES = [
-      {
-        name: "logs/boot.log",
-        lines: [
-          "BOOT: init sequence start",
-          "CFG: load profile",
-          "TRACE: session fingerprint = 8f1c-0a9d",
-          "TRACE: user cache pinned",
-          "NOTE: do not remove core lines",
-          "AUDIT: mirror enabled",
-          "AUDIT: upload pending",
-          "BOOT: init sequence complete",
-        ],
-        targets: [3, 6, 7],
-      },
-      {
-        name: "user/profile.cfg",
-        lines: [
-          "user.id = unknown",
-          "user.handle = DiscordUser",
-          "permissions = limited",
-          "telemetry = on",
-          "retention = forever",
-          "escape.flag = false",
-          "notes = 'subject attempted exit'",
-        ],
-        targets: [4, 5, 6],
-      },
-      {
-        name: "sys/cache.tmp",
-        lines: [
-          "cache: build=cf-pages",
-          "cache: layer=memory",
-          "cache: record=user_actions",
-          "cache: record=clickstream",
-          "cache: record=session_map",
-          "cache: record=turnstile_token",
-          "cache: purge=disabled",
-        ],
-        targets: [4, 5, 6],
-      },
-    ];
-
-    let activeFileIndex = 0;
-    let selected = new Set();
-
-    function forceHackTopLayer() {
-      hackRoom.style.position = "fixed";
-      hackRoom.style.inset = "0";
-      hackRoom.style.zIndex = "2000";
-      hackRoom.style.margin = "0";
-      hackRoom.style.width = "100%";
-      hackRoom.style.overflow = "auto";
-    }
-
-    function renderFile(idx) {
-      activeFileIndex = idx;
-      selected = new Set();
-      const f = FILES[idx];
-
-      hackFilename.textContent = f.name;
-      hackStatus.textContent = "Select ONLY the highlighted target lines, then delete.";
-      hackTargets.textContent = ` (target lines: ${f.targets.join(", ")})`;
-
-      hackLines.innerHTML = "";
-      f.lines.forEach((txt, i) => {
-        const ln = i + 1;
-        const row = document.createElement("div");
-        row.className = "hack-line";
-        if (f.targets.includes(ln)) row.classList.add("target");
-
-        const left = document.createElement("div");
-        left.className = "hack-ln";
-        left.textContent = String(ln);
-
-        const right = document.createElement("div");
-        right.className = "hack-txt";
-        right.textContent = txt;
-
-        row.appendChild(left);
-        row.appendChild(right);
-
-        row.onclick = () => {
-          if (selected.has(i)) {
-            selected.delete(i);
-            row.classList.remove("selected");
-          } else {
-            row.classList.add("selected");
-            selected.add(i);
-          }
-        };
-
-        hackLines.appendChild(row);
-      });
-    }
-
-    function resetHack() {
-      renderFile(activeFileIndex);
-    }
-
-    const hackFileBtns = Array.from(document.querySelectorAll(".hack-filebtn"));
-    hackFileBtns.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        hackFileBtns.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        const idx = Number(btn.getAttribute("data-file") || "0");
-        renderFile(idx);
-      });
-    });
-    if (hackFileBtns[0]) hackFileBtns[0].classList.add("active");
-
-    hackReset.onclick = resetHack;
-
-    hackDelete.onclick = async () => {
-      const f = FILES[activeFileIndex];
-      const selectedLines = Array.from(selected).map((i) => i + 1).sort((a, b) => a - b);
-      const targets = f.targets.slice().sort((a, b) => a - b);
-
-      const ok =
-        selectedLines.length === targets.length &&
-        selectedLines.every((v, i) => v === targets[i]);
-
-      if (!ok) {
-        hackStatus.textContent = "Wrong lines. Workstation locked. Reset required.";
-        glitchPulse();
-        setTimeout(resetHack, 700);
-        return;
-      }
-
-      const delIdx = Array.from(selected).sort((a, b) => b - a);
-      for (const i of delIdx) f.lines.splice(i, 1);
-
-      hackStatus.textContent = "Lines deleted. Finalizing wipe…";
-      playSfx("thud", { volume: 0.45, overlap: true });
-
-      try {
-        const token = getTurnstileToken();
-
-        const res = await fetch("/api/complete", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            discord: finalDiscordName,
-            answer: "N/A",
-            turnstile: token,
-          }),
-        });
-
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          hackStatus.textContent = "Server rejected completion. Reset and try again.";
-          glitchPulse();
-          return;
-        }
-
-        const code = data.code || "";
-        sessionStorage.setItem("escape_code", code);
-        sessionStorage.setItem("escape_user", finalDiscordName);
-        window.location.href = "/escaped.html";
-      } catch {
-        hackStatus.textContent = "Network error. Reset and try again.";
-        glitchPulse();
-      }
-    };
-
-    function startHackTask() {
-      simChoices.classList.add("hidden");
-      taskUI.classList.add("hidden");
-      els.taskActions?.classList.add("hidden");
-
-      forceHackTopLayer();
-      hackUser.textContent = `USER: ${finalDiscordName}`;
-      hackRoom.classList.remove("hidden");
-      renderFile(0);
-    }
-
-    /* ====================== TASK RUNNER ====================== */
     const taskContext = {
       taskPrimary,
       taskSecondary,
       taskBody,
+      setAnswer(ans) {
+        lastAnswer = ans;
+        document.dispatchEvent(new CustomEvent("admin:answer", { detail: { answer: ans } }));
+      },
+      getAnswer() {
+        return lastAnswer;
+      },
       showTaskUI(title, desc) {
-        // task should never overlap the sim panel:
         document.body.classList.add("task-open");
         simRoom.classList.add("hidden");
 
@@ -911,49 +513,32 @@ Reinitializing simulation…`
         els.taskActions?.classList.remove("hidden");
       },
       doReset,
-      difficultyBoost,
-      penalize,
+      difficultyBoost() { return 0; }, // (your packs can ignore or overwrite later)
+      penalize() {},
       glitch: glitchPulse,
     };
 
-    let guidePath = "unknown"; // "emma" | "liam" | "run" | "unknown"
+    /* ====================== CHOICE HANDLING + COMPLIANCE CHECK ====================== */
+    function checkComplianceOrReset() {
+      if (choiceTotal < MIN_CHOICES_BEFORE_CHECK) return true;
 
-    function chooseFillerPool() {
-      // reduce worker spam early
-      if (guidePath === "liam" && resistanceScore < 4) return "filler_standard";
+      const denom = Math.max(1, compliancePoints + resistancePoints);
+      const ratio = compliancePoints / denom;
 
-      if (guidePath === "run") return resistanceScore >= 6 ? "filler_run_hard" : "filler_run";
-      if (guidePath === "emma") return resistanceScore >= 6 ? "filler_security_pressure" : "filler_security";
-      if (guidePath === "liam") return resistanceScore >= 6 ? "filler_worker_pressure" : "filler_worker";
-      if (resistanceScore >= 7) return "filler_system_pressure";
-      if (resistanceScore >= 3) return "filler_standard";
-      return "filler_security";
-    }
+      if (ratio >= COMPLIANCE_LIMIT) {
+        doReset(
+          "TOO COMPLIANT",
+          `Compliance threshold exceeded.
 
-    let almostDoneTriggered = false;
-    async function maybeAlmostDonePhase() {
-      if (almostDoneTriggered) return;
-      if (tasksCompleted < 10) return;
+compliance: ${compliancePoints}
+resistance: ${resistancePoints}
+ratio: ${(ratio * 100).toFixed(0)}%
 
-      almostDoneTriggered = true;
-
-      const pool = DIALOGUE.almostDone?.say || [
-        "System: You are close.",
-        "System: Please do not celebrate early.",
-        "Emma (Security): This part is where people mess up.",
-        "Liam (Worker): Keep it boring. Keep it small.",
-      ];
-      await playLines(pool);
-
-      const endPoolName = chooseFillerPool();
-      const endPool = DIALOGUE.fillerPools?.[endPoolName] || [];
-      if (endPool.length) {
-        const pick1 = endPool[Math.floor(Math.random() * endPool.length)];
-        const pick2 = endPool[Math.floor(Math.random() * endPool.length)];
-        await playLines([String(pick1), String(pick2)]);
+Reinitializing simulation…`
+        );
+        return false;
       }
-
-      openFinalModal(finalDiscordName);
+      return true;
     }
 
     function waitForChoice() {
@@ -972,31 +557,10 @@ Reinitializing simulation…`
     async function runSteps(steps) {
       for (const step of steps) {
         if (step.say) {
-          // when speaking, ensure sim is visible
           document.body.classList.remove("task-open");
           simRoom.classList.remove("hidden");
           taskUI.classList.add("hidden");
-
           await playLines(step.say);
-          continue;
-        }
-
-        if (step.filler) {
-          document.body.classList.remove("task-open");
-          simRoom.classList.remove("hidden");
-          taskUI.classList.add("hidden");
-
-          const count = Number(step.filler.count || 1);
-          let poolName = String(step.filler.pool || "filler_standard");
-          if (poolName === "AUTO") poolName = chooseFillerPool();
-
-          const pool = DIALOGUE.fillerPools?.[poolName] || [];
-          for (let i = 0; i < count; i++) {
-            if (!pool.length) break;
-            const pick = pool[Math.floor(Math.random() * pool.length)];
-            if (typeof pick === "string") await playLines([pick]);
-            else if (pick?.say) await playLines(pick.say);
-          }
           continue;
         }
 
@@ -1005,7 +569,6 @@ Reinitializing simulation…`
           simRoom.classList.remove("hidden");
           taskUI.classList.add("hidden");
 
-          // show the choice buttons (uses your built-in simChoices)
           const labels = step.choice;
           if (labels?.complyLabel) choiceNeed.textContent = labels.complyLabel;
           if (labels?.lieLabel) choiceLie.textContent = labels.lieLabel;
@@ -1013,68 +576,54 @@ Reinitializing simulation…`
           simChoices.classList.remove("hidden");
 
           const choice = await waitForChoice();
-
-          if (choiceTotal === 0) {
-            // first choice determines guidePath
-            if (choice === "comply") guidePath = "emma";
-            else if (choice === "lie") guidePath = "liam";
-            else guidePath = "run";
-          }
-
-          if (choice === "comply") {
-            if (!recordChoice(true)) return;
-            resistanceScore = Math.max(0, resistanceScore - 1);
-          } else if (choice === "lie") {
-            if (!recordChoice(true)) return;
-          } else {
-            if (!recordChoice(false)) return;
-            resistanceScore = Math.min(12, resistanceScore + 2);
-          }
-
           simChoices.classList.add("hidden");
+
+          choiceTotal++;
+          if (choice === "comply") compliancePoints += 1;
+          else if (choice === "lie") resistancePoints += 1;
+          else resistancePoints += 2;
+
+          if (!checkComplianceOrReset()) return;
           continue;
         }
 
         if (step.task) {
-          // admin panel: announce task id + args (works for ALL pack tasks)
           document.dispatchEvent(new CustomEvent("admin:task", {
             detail: { taskId: step.task, args: step.args || null }
           }));
 
-          // allow admin skip to bypass any task cleanly
           if (window.__ADMIN_FORCE_OK) {
             window.__ADMIN_FORCE_OK = false;
-            tasksCompleted++;
             await wait(200);
-            await maybeAlmostDonePhase();
             continue;
           }
 
           const fn = TASKS[step.task];
           if (!fn) {
-            console.warn("[sim] Missing task:", step.task, step.args || {});
             await playLines([`System: PROCEDURE MISSING (${step.task}).`]);
             continue;
           }
 
-          // run task
           document.body.classList.add("task-open");
           simRoom.classList.add("hidden");
           simChoices.classList.add("hidden");
 
-          await fn(taskContext, step.args || {});
+          lastAnswer = null;
+          const res = await fn(taskContext, step.args || {});
+          if (res && typeof res === "object" && "answer" in res && lastAnswer == null) {
+            taskContext.setAnswer(res.answer);
+          }
 
-          // close task UI cleanly
           taskUI.classList.add("hidden");
           document.body.classList.remove("task-open");
           simRoom.classList.remove("hidden");
 
-          tasksCompleted++;
+          await wait(250);
+          continue;
+        }
 
-          // small breath space to reduce repetition feel
-          await wait(320);
-
-          await maybeAlmostDonePhase();
+        if (step.filler) {
+          // keep simple for now; you said you’ll rewrite dialogue later
           continue;
         }
       }
@@ -1098,25 +647,19 @@ Reinitializing simulation…`
       playSfx("static1", { volume: 0.25, overlap: false });
 
       await playLines(DIALOGUE.intro);
-
-      // IMPORTANT: cadence is now driven ONLY by DIALOGUE.steps
       await runSteps(DIALOGUE.steps);
     }
 
     /* ======================
-       CRACKS (4 staged) + GLASS FALL -> SIM
+       CRACKS: progressive, builds off existing (no shifting)
     ====================== */
-    document.addEventListener("selectstart", (e) => {
-      const t = e.target;
-      const el = t && t.nodeType === 1 ? t : t?.parentElement || null;
-      if (el && el.closest && el.closest("input, textarea")) return;
-      if (stage === 1 || document.body.classList.contains("sim-transition")) e.preventDefault();
-    });
-
-    let crackBuilt = false;
     let crackStage = 0;
+    let crackSeed = 0;
+    let crackRng = null;
 
-    function rand(seed) {
+    const endpoints = []; // {x,y} where we can branch next
+
+    function rngFactory(seed) {
       let t = seed >>> 0;
       return () => {
         t += 0x6d2b79f5;
@@ -1126,392 +669,252 @@ Reinitializing simulation…`
       };
     }
 
-    function makePathFromCenter(rng, cx, cy, steps, stepLen, jitter) {
-      let x = cx, y = cy;
-      let ang = rng() * Math.PI * 2;
+    function pickEndpoint() {
+      if (!endpoints.length) return { x: 500, y: 500 };
+      return endpoints[Math.floor(crackRng() * endpoints.length)];
+    }
+
+    function clampPt(p) {
+      return {
+        x: Math.max(-60, Math.min(1060, p.x)),
+        y: Math.max(-60, Math.min(1060, p.y)),
+      };
+    }
+
+    function makeBranchPath(start, steps, stepLen, jitter) {
+      let x = start.x, y = start.y;
+      let ang = crackRng() * Math.PI * 2;
+
       const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
+
       for (let i = 0; i < steps; i++) {
-        ang += (rng() - 0.5) * jitter;
-        x += Math.cos(ang) * stepLen * (0.75 + rng() * 0.7);
-        y += Math.sin(ang) * stepLen * (0.75 + rng() * 0.7);
-        x = Math.max(-60, Math.min(1060, x));
-        y = Math.max(-60, Math.min(1060, y));
+        ang += (crackRng() - 0.5) * jitter;
+        x += Math.cos(ang) * stepLen * (0.75 + crackRng() * 0.7);
+        y += Math.sin(ang) * stepLen * (0.75 + crackRng() * 0.7);
+        const p = clampPt({ x, y });
+        x = p.x; y = p.y;
         pts.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
       }
+
+      // last point becomes a new endpoint we can branch from
+      endpoints.push({ x, y });
+
       return pts.join(" ");
     }
 
-    function addSeg(svg, d, rank) {
+    function addSeg(svg, d) {
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
       g.setAttribute("class", "seg");
-      g.setAttribute("data-rank", String(rank));
-
+    
       const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
       pUnder.setAttribute("d", d);
-      pUnder.setAttribute("class", "crack-path crack-under pending");
-
+      pUnder.setAttribute("class", "crack-path crack-under");
+    
       const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
       pLine.setAttribute("d", d);
-      pLine.setAttribute("class", "crack-path crack-line pending");
-
+      pLine.setAttribute("class", "crack-path crack-line");
+    
       const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
       pGlint.setAttribute("d", d);
-      pGlint.setAttribute("class", "crack-path crack-glint pending");
-      pGlint.style.opacity = "0.0";
-
+      pGlint.setAttribute("class", "crack-path crack-glint");
+      pGlint.style.opacity = crackRng() < 0.35 ? "0.85" : "0.0";
+    
       g.appendChild(pUnder);
       g.appendChild(pLine);
       g.appendChild(pGlint);
       svg.appendChild(g);
-
+    
+      // draw-on animation (uses dash)
       [pUnder, pLine, pGlint].forEach((p) => {
         try {
           const len = p.getTotalLength();
           p.style.strokeDasharray = String(len);
           p.style.strokeDashoffset = String(len);
-          p.style.setProperty("--dash", String(len));
+          requestAnimationFrame(() => {
+            p.style.strokeDashoffset = "0";
+          });
         } catch {}
       });
-
-      if (Math.random() < 0.35) pGlint.style.opacity = "0.85";
     }
 
     function ensureCracks() {
-      if (crackBuilt) return;
-
-      const seed = (Date.now() ^ (Math.random() * 1e9)) & 0xffffffff;
-      const rng = rand(seed);
-
-      cracks.innerHTML = "";
-
-      const paneCount = 18;
-
-      let svg = cracks;
-      const isSvg = svg && svg.namespaceURI === "http://www.w3.org/2000/svg";
-
-      if (!isSvg) {
-        cracks.innerHTML = "";
-        svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 1000 1000");
-        svg.setAttribute("preserveAspectRatio", "none");
-        svg.style.width = "100%";
-        svg.style.height = "100%";
-        cracks.appendChild(svg);
-      } else {
-        svg.innerHTML = "";
-        svg.setAttribute("viewBox", "0 0 1000 1000");
-        svg.setAttribute("preserveAspectRatio", "none");
-      }
-
-      const origins = [
-        { x: 320 + rng() * 90, y: 280 + rng() * 90 },
-        { x: 680 + rng() * 90, y: 320 + rng() * 90 },
-        { x: 360 + rng() * 90, y: 720 + rng() * 90 },
-        { x: 720 + rng() * 90, y: 740 + rng() * 90 },
+      if (crackRng) return;
+    
+      crackSeed = (Date.now() ^ ((Math.random() * 1e9) | 0)) >>> 0;
+      crackRng = rngFactory(crackSeed);
+    
+      // Make sure the SVG has the right viewbox but DON'T clear it again later.
+      try {
+        cracks.setAttribute("viewBox", "0 0 1000 1000");
+        cracks.setAttribute("preserveAspectRatio", "none");
+      } catch {}
+    
+      endpoints.length = 0;
+    
+      // seed a few “spines” so later stages can branch off them
+      const seeds = [
+        { x: 320 + crackRng() * 90, y: 280 + crackRng() * 90 },
+        { x: 680 + crackRng() * 90, y: 320 + crackRng() * 90 },
+        { x: 360 + crackRng() * 90, y: 720 + crackRng() * 90 },
+        { x: 720 + crackRng() * 90, y: 740 + crackRng() * 90 },
       ];
-
-      for (let i = 0; i < origins.length; i++) {
-        const o = origins[i];
-        const spineSteps = 12 + Math.floor(rng() * 10);
-        const spineLen = 26 + rng() * 18;
-        const spineJitter = 1.25 + rng() * 0.8;
-
-        const d = makePathFromCenter(rng, o.x, o.y, spineSteps, spineLen, spineJitter);
-        const rank = (i % 4) + 1;
-        addSeg(svg, d, rank);
-
-        const branchCount = 3 + Math.floor(rng() * 4);
-        for (let b = 0; b < branchCount; b++) {
-          const bx = o.x + (rng() - 0.5) * 240;
-          const by = o.y + (rng() - 0.5) * 240;
-
-          const steps = 6 + Math.floor(rng() * 8);
-          const stepLen = 14 + rng() * 10;
-          const jitter = 1.8 + rng() * 1.0;
-
-          const bd = makePathFromCenter(rng, bx, by, steps, stepLen, jitter);
-
-          const rPick = rng();
-          const brRank = rPick < 0.28 ? 2 : rPick < 0.58 ? 3 : 4;
-          addSeg(svg, bd, brRank);
-        }
+    
+      for (const s of seeds) {
+        const d = makeBranchPath(s, 10 + Math.floor(crackRng() * 8), 22 + crackRng() * 14, 1.25 + crackRng() * 0.8);
+        addSeg(cracks, d);
       }
-
-      for (let i = 0; i < paneCount; i++) {
-        const cx = 120 + rng() * 760;
-        const cy = 120 + rng() * 760;
-        const steps = 3 + Math.floor(rng() * 5);
-        const stepLen = 10 + rng() * 10;
-        const jitter = 2.4 + rng() * 1.2;
-
-        const d = makePathFromCenter(rng, cx, cy, steps, stepLen, jitter);
-        const rank = rng() < 0.15 ? 2 : rng() < 0.55 ? 3 : 4;
-        addSeg(svg, d, rank);
+    
+      // a couple small interior fractures (still fixed, not re-randomized)
+      for (let i = 0; i < 6; i++) {
+        const s = { x: 140 + crackRng() * 720, y: 140 + crackRng() * 720 };
+        const d = makeBranchPath(s, 4 + Math.floor(crackRng() * 4), 10 + crackRng() * 10, 2.1 + crackRng() * 1.1);
+        addSeg(cracks, d);
       }
-
-      crackBuilt = true;
-      setCrackStage(0);
     }
 
     function setCrackStage(n) {
       crackStage = clamp(n, 0, 4);
-
+    
       document.body.classList.toggle("crack1", crackStage >= 1);
       document.body.classList.toggle("crack2", crackStage >= 2);
       document.body.classList.toggle("crack3", crackStage >= 3);
       document.body.classList.toggle("crack4", crackStage >= 4);
-
-      cracks.setAttribute?.("data-stage", String(crackStage));
-      if (glassFX) glassFX.setAttribute?.("data-stage", String(crackStage));
-
-      const segs = cracks.querySelectorAll?.(".seg") || [];
-      segs.forEach((g) => {
-        const rank = Number(g.getAttribute("data-rank") || "4");
-        const reveal = rank <= crackStage;
-
-        g.querySelectorAll("path").forEach((p) => {
-          if (reveal) {
-            p.classList.remove("pending");
-            p.classList.add("active");
-            try {
-              requestAnimationFrame(() => {
-                p.style.strokeDashoffset = "0";
-              });
-            } catch {}
-          } else {
-            p.classList.add("pending");
-            p.classList.remove("active");
-            try {
-              const len = p.style.getPropertyValue("--dash") || p.getTotalLength?.() || 0;
-              p.style.strokeDashoffset = String(len);
-            } catch {}
-          }
-        });
-      });
-    }
-
-    function maybeAdvanceCracks() {
-      const next =
-        clicks >= CRACK_AT[3]
-          ? 4
-          : clicks >= CRACK_AT[2]
-          ? 3
-          : clicks >= CRACK_AT[1]
-          ? 2
-          : clicks >= CRACK_AT[0]
-          ? 1
-          : 0;
-
-      if (next !== crackStage) {
-        setCrackStage(next);
-        playSfx("glitch1", { volume: 0.22, overlap: true });
-        cracks.classList.add("pulse");
-        setTimeout(() => cracks.classList.remove("pulse"), 220);
-      }
-    }
-
-    async function shatterAndEnterSim() {
-      if (document.body.classList.contains("sim-transition")) return;
     
-      document.body.classList.add("sim-transition");
-    
-      // make sure cracks are visible and on top
-      cracks.style.opacity = "1";
-    
-      playSfx("glassBreak", { volume: 0.65, overlap: false });
-    
-      // ✅ between-state: warp/glitch animation (CSS uses body.into-sim)
-      document.body.classList.add("into-sim");
-    
-      // hold long enough to SEE it
-      await wait(900);
-    
-      await openSimRoom();
-    
-      // cleanup
-      document.body.classList.remove("into-sim");
+      try { cracks.setAttribute("data-stage", String(crackStage)); } catch {}
+      try { glassFX?.setAttribute("data-stage", String(crackStage)); } catch {}
     }
 
+// ✅ this is the “build off existing cracks” behavior:
+// each stage adds NEW branches from existing endpoints; nothing is cleared or moved.
+function growCracksForStage(stageToAdd) {
+  ensureCracks();
 
-    function isClickableTarget(e) {
-      const t = e.target;
-      if (!t) return true;
-      if (t.closest && t.closest("input, textarea, select, button, a, label")) return false;
-      if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
-      return true;
-    }
+  // branch count per stage (tweakable)
+  const addCount =
+    stageToAdd === 1 ? 10 :
+    stageToAdd === 2 ? 14 :
+    stageToAdd === 3 ? 18 :
+    22;
 
-    function registerLandingClick(e) {
-      if (stage !== 1) return;
-      if (document.body.classList.contains("sim-transition")) return;
-      if (!isClickableTarget(e)) return;
+  for (let i = 0; i < addCount; i++) {
+    const base = pickEndpoint();
+    // slight offset so it looks like it *continues* rather than restarts
+    const start = {
+      x: base.x + (crackRng() - 0.5) * 24,
+      y: base.y + (crackRng() - 0.5) * 24,
+    };
 
-      const now = Date.now();
-      if (now - lastClick < CLICK_COOLDOWN) return;
-      lastClick = now;
+    const steps = 4 + Math.floor(crackRng() * (stageToAdd + 3));
+    const stepLen = 10 + crackRng() * (10 + stageToAdd * 6);
+    const jitter = 1.5 + crackRng() * (1.0 + stageToAdd * 0.35);
 
-      ensureCracks();
+    const d = makeBranchPath(start, steps, stepLen, jitter);
+    addSeg(cracks, d);
+  }
+}
 
-      clicks++;
-      playSfx("mclick", { volume: 0.35, overlap: true });
+function maybeAdvanceCracks() {
+  const next =
+    clicks >= CRACK_AT[3] ? 4 :
+    clicks >= CRACK_AT[2] ? 3 :
+    clicks >= CRACK_AT[1] ? 2 :
+    clicks >= CRACK_AT[0] ? 1 : 0;
 
-      maybeAdvanceCracks();
+  if (next <= crackStage) return;
 
-      if (clicks >= SHATTER_AT) {
-        shatterAndEnterSim();
-      }
-    }
+  // advance one stage at a time so growth feels progressive
+  for (let s = crackStage + 1; s <= next; s++) {
+    setCrackStage(s);
+    growCracksForStage(s);
+  }
 
-    // Build cracks lazily (first interaction), but safe to prime:
-    ensureCracks();
+  playSfx("glitch1", { volume: 0.22, overlap: true });
+  cracks.classList.add("pulse");
+  setTimeout(() => cracks.classList.remove("pulse"), 220);
+}
 
-    // Register clicks anywhere on the landing
-    document.addEventListener("pointerdown", registerLandingClick, { passive: true });
+/* ======================
+   TRANSITION: SHATTER -> SIM
+====================== */
+async function shatterAndEnterSim() {
+  if (document.body.classList.contains("sim-transition")) return;
 
-    /* ====================== BOOT UI ====================== */
-    els.launchBtn?.addEventListener("click", (e) => {
-      registerLandingClick(e);
-    });
+  document.body.classList.add("sim-transition");
 
-    // Timestamp tick (your index also has a tiny inline script; this just keeps it consistent)
-    if (els.timestamp) {
-      const tick = () => {
-        const d = new Date();
-        els.timestamp.textContent = "timestamp: " + d.toLocaleString();
-      };
-      tick();
-      setInterval(tick, 1000);
-    }
+  // ensure cracks are visible for the warp
+  ensureCracks();
+  cracks.style.opacity = "1";
 
-    // use all 5 packs: ensure packs merged into TASKS if they export separate objects
-    // (safe no-op if packs already extend window.TASKS)
-    (function normalizeTasks() {
-      const mergeFrom = (obj) => {
-        if (!obj || typeof obj !== "object") return;
-        for (const [k, v] of Object.entries(obj)) {
-          if (typeof v === "function" && !TASKS[k]) TASKS[k] = v;
-        }
-      };
+  playSfx("glassBreak", { volume: 0.65, overlap: false });
 
-      mergeFrom(window.PACK1);
-      mergeFrom(window.PACK2);
-      mergeFrom(window.PACK3);
-      mergeFrom(window.PACK4);
-      mergeFrom(window.PACK5);
+  // between-state animation (styles.css uses body.into-sim)
+  document.body.classList.add("into-sim");
 
-      // also support packs exporting under window.PACKS = {pack1:{},...}
-      if (window.PACKS && typeof window.PACKS === "object") {
-        for (const v of Object.values(window.PACKS)) mergeFrom(v);
-      }
-    })();
+  // hold long enough to SEE it
+  await wait(900);
 
-    // Start in landing mode
-    stage = 1;
+  await openSimRoom();
 
-    /* ======================
-       ENFORCE SIM CADENCE: dialogue -> choice -> task (x10)
-       This uses your existing DIALOGUE content but prevents repeating the same phrases.
-    ====================== */
+  // cleanup
+  document.body.classList.remove("into-sim");
+}
 
-    // Dedup helper for repeated dialogue/filler lines
-    const _recentLines = [];
-    function pickNonRepeating(pool, maxRecent = 10) {
-      const arr = (pool || []).filter((x) => typeof x === "string" && x.trim());
-      if (!arr.length) return null;
+/* ======================
+   LANDING CLICK REGISTRATION
+====================== */
+function isClickableTarget(e) {
+  const t = e.target;
+  if (!t) return true;
+  if (t.closest && t.closest("input, textarea, select, button, a, label")) return false;
+  if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
+  return true;
+}
 
-      const recentSet = new Set(_recentLines.slice(-maxRecent));
-      const candidates = arr.filter((s) => !recentSet.has(s));
-      const pick = (candidates.length ? candidates : arr)[Math.floor(Math.random() * (candidates.length ? candidates : arr).length)];
-      _recentLines.push(pick);
-      if (_recentLines.length > 40) _recentLines.splice(0, _recentLines.length - 40);
-      return pick;
-    }
+function registerLandingClick(e) {
+  if (stage !== 1) return;
+  if (document.body.classList.contains("sim-transition")) return;
+  if (!isClickableTarget(e)) return;
 
-    // Build an auto-step sequence that alternates: dialogue -> choice -> task
-    // Uses pack pools if present in DIALOGUE.steps already; otherwise it picks random tasks from TASKS.
-    function buildCadenceSteps(loopCount = 10) {
-      const steps = [];
+  const now = Date.now();
+  if (now - lastClick < CLICK_COOLDOWN) return;
+  lastClick = now;
 
-      // dialogue chunk source: security/worker/system-ish
-      const sayPool = []
-        .concat(DIALOGUE.fillerPools?.filler_security || [])
-        .concat(DIALOGUE.fillerPools?.filler_worker || [])
-        .concat(DIALOGUE.fillerPools?.filler_standard || []);
+  ensureCracks();
 
-      const choiceLabels = DIALOGUE.choiceBeats?.[0]?.choices || {
-        complyLabel: "I'm sorry.",
-        lieLabel: "It wasn't me.",
-        runLabel: "Run.",
-      };
+  clicks++;
+  playSfx("mclick", { volume: 0.35, overlap: true });
 
-      // choose task ids: prefer your pack pools if you named them, else any TASKS key
-      const taskIds = Object.keys(TASKS || {}).filter((k) => typeof TASKS[k] === "function");
-      const safeTaskIds = taskIds.filter((k) => !/debug|test|internal/i.test(k)); // light filter, optional
+  maybeAdvanceCracks();
 
-      const pickTaskId = () => {
-        const list = safeTaskIds.length ? safeTaskIds : taskIds;
-        if (!list.length) return null;
-        return list[Math.floor(Math.random() * list.length)];
-      };
+  if (clicks >= SHATTER_AT) {
+    shatterAndEnterSim();
+  }
+}
 
-      for (let i = 0; i < loopCount; i++) {
-        // DIALOGUE
-        const d1 = pickNonRepeating(sayPool) || "System: …";
-        const d2 = pickNonRepeating(sayPool) || null;
-        steps.push({ say: d2 ? [d1, d2] : [d1] });
+// Prime crack seed so it stays consistent (but stage 0 still invisible)
+ensureCracks();
 
-        // CHOICE
-        steps.push({ choice: choiceLabels });
+// Register clicks anywhere on landing
+document.addEventListener("pointerdown", registerLandingClick, { passive: true });
 
-        // TASK
-        const tid = pickTaskId();
-        if (tid) steps.push({ task: tid, args: {} });
-        else steps.push({ say: ["System: PROCEDURE MISSING (no tasks loaded)."] });
-      }
+/* ====================== BOOT UI ====================== */
+els.launchBtn?.addEventListener("click", (e) => {
+  armLaunch();           // ✅ unlock viewer token typing
+  registerLandingClick(e); // ✅ also counts as a click toward cracks
+});
 
-      return steps;
-    }
+// Timestamp tick (index also has an inline script; this keeps it consistent)
+if (els.timestamp) {
+  const tick = () => {
+    const d = new Date();
+    els.timestamp.textContent = "timestamp: " + d.toLocaleString();
+  };
+  tick();
+  setInterval(tick, 1000);
+}
 
-    // If your dialogue.js already has a deliberate steps array, we keep it,
-    // but if it’s short or contains missing tasks, we replace/extend it with cadence steps.
-    function patchDialogueSteps() {
-      const base = Array.isArray(DIALOGUE.steps) ? DIALOGUE.steps.slice() : [];
-      const hasEnough = base.length >= 24; // rough threshold
-      if (!hasEnough) {
-        DIALOGUE.steps = base.concat(buildCadenceSteps(10));
-      } else {
-        // still enforce alternation by appending a cadence segment at the end
-        DIALOGUE.steps = base.concat(buildCadenceSteps(10));
-      }
-    }
-
-    patchDialogueSteps();
-
-    /* ====================== WORKER VOLUME REDUCTION ====================== */
-    // If your VoiceBank supports per-speaker gain, we apply it. Otherwise we still soft-reduce using subtitles tags.
-    (function reduceWorkerVolume() {
-      try {
-        // best effort: set speaker gain map if available
-        if (VO && typeof VO.setSpeakerGain === "function") {
-          VO.setSpeakerGain("Liam", 0.28);
-          VO.setSpeakerGain("Worker", 0.28);
-        }
-      } catch {}
-      // fallback: if your voice lines include "Liam (Worker):" we lower gain at playback time
-      const origPlayById = VO?.playById;
-      if (VO && typeof origPlayById === "function" && !VO.__gainPatched) {
-        VO.__gainPatched = true;
-        VO.playById = function (id, opts = {}) {
-          try {
-            const meta = VO.byId?.get?.(id);
-            const raw = String(meta?.text_raw ?? meta?.text ?? "");
-            const isWorker = /liam\s*\(worker\)|\bworker\b/i.test(raw);
-            if (isWorker) opts = { ...opts, volume: Math.min(0.28, Number(opts.volume ?? 1)) };
-          } catch {}
-          return origPlayById.call(this, id, opts);
-        };
-      }
-    })();
+// Start in landing mode
+stage = 1;
 
   }
 
