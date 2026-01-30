@@ -1128,12 +1128,14 @@ Reinitializing simulation…`
     /* ====================== SIM FLOW ====================== */
     async function openSimRoom() {
       stage = 99;
-
+  
+      document.body.classList.remove("cut-black");
+      document.body.classList.remove("shatter-cine");
+      document.body.classList.remove("into-sim");
+      document.body.classList.remove("sim-transition");
       await unlockAudio();
-
       document.body.classList.add("in-sim");
       subs?.classList.remove("hidden");
-
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
       simChoices.classList.add("hidden");
