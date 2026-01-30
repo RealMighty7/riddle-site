@@ -1214,7 +1214,9 @@ Reinitializing simulation…`
     /* ====================== SIM FLOW ====================== */
     async function openSimRoom() {
       stage = 99;
-  
+            // ensure cracks don't remain over sim
+      setCrackStage(0);
+      cracks.style.opacity = "0";
       document.body.classList.remove("cut-black");
       document.body.classList.remove("shatter-cine");
       document.body.classList.remove("into-sim");
