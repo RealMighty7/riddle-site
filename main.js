@@ -1224,7 +1224,10 @@ Reinitializing simulation…`
           const len = p.getTotalLength();
           p.style.strokeDasharray = String(len);
           p.style.strokeDashoffset = String(len);
-          requestAnimationFrame(() => { p.style.strokeDashoffset = "0"; });
+          const delay = Math.floor(crackRng() * 110); // stagger
+          setTimeout(() => {
+            requestAnimationFrame(() => { p.style.strokeDashoffset = "0"; });
+          }, delay);
         } catch {}
       });
     }
@@ -1287,10 +1290,11 @@ Reinitializing simulation…`
       ensureCracks();
 
       const addCount =
-        stageToAdd === 1 ? 10 :
-        stageToAdd === 2 ? 14 :
-        stageToAdd === 3 ? 18 :
-        22;
+        stageToAdd === 1 ? 18 :
+        stageToAdd === 2 ? 28 :
+        stageToAdd === 3 ? 40 :
+        54;
+
 
       for (let i = 0; i < addCount; i++) {
         const base = pickEndpoint();
@@ -1299,9 +1303,9 @@ Reinitializing simulation…`
           y: base.y + (crackRng() - 0.5) * 24,
         };
 
-        const steps = 4 + Math.floor(crackRng() * (stageToAdd + 3));
-        const stepLen = 10 + crackRng() * (10 + stageToAdd * 6);
-        const jitter = 1.5 + crackRng() * (1.0 + stageToAdd * 0.35);
+        const steps = 7 + Math.floor(crackRng() * (stageToAdd * 5 + 8));
+        const stepLen = 16 + crackRng() * (18 + stageToAdd * 12);
+        const jitter = 2.1 + crackRng() * (1.6 + stageToAdd * 0.55);
 
         const d = makeBranchPath(start, steps, stepLen, jitter);
         addSeg(cracks, d);
@@ -1327,51 +1331,56 @@ Reinitializing simulation…`
       setTimeout(() => cracks.classList.remove("pulse"), 220);
     }
 
-    async function shatterAndEnterSim() {
-      if (document.body.classList.contains("sim-transition")) return;
-
-      document.body.classList.add("sim-transition");
-
-      ensureCracks();
-      cracks.style.opacity = "1";
-
-      playSfx("glassBreak", { volume: 0.65, overlap: false });
-      document.body.classList.add("into-sim");
-
-      await wait(900);
-      await openSimRoom();
-
-      document.body.classList.remove("into-sim");
+   async function shatterAndEnterSim() {
+    if (document.body.classList.contains("sim-transition")) return;
+  
+    document.body.classList.add("sim-transition");
+  
+    ensureCracks();
+    cracks.style.opacity = "1";
+  
+    // Create overlays once
+    if (!document.getElementById("flashFX")) {
+      const fx = document.createElement("div");
+      fx.id = "flashFX";
+      document.body.appendChild(fx);
     }
-
-    function isClickableTarget(e) {
-      const t = e.target;
-      if (!t) return true;
-      if (t.closest && t.closest("input, textarea, select, button, a, label")) return false;
-      if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
-      return true;
+    if (!document.getElementById("cutBlack")) {
+      const cb = document.createElement("div");
+      cb.id = "cutBlack";
+      document.body.appendChild(cb);
     }
-
-    function registerLandingClick(e) {
-      if (stage !== 1) return;
-      if (document.body.classList.contains("sim-transition")) return;
-      if (!isClickableTarget(e)) return;
-
-      const now = Date.now();
-      if (now - lastClick < CLICK_COOLDOWN) return;
-      lastClick = now;
-
-      ensureCracks();
-
-      clicks++;
-      playSfx("mclick", { volume: 0.35, overlap: true });
-
-      maybeAdvanceCracks();
-
-      if (clicks >= SHATTER_AT) {
-        shatterAndEnterSim();
-      }
+  
+    // Start cinematic pass
+    document.body.classList.add("shatter-cine");
+  
+    // Audio + small extra glitch pulses
+    playSfx("glassBreak", { volume: 0.75, overlap: false });
+    playSfx("glitch2", { volume: 0.22, overlap: true });
+    setTimeout(() => playSfx("glitch1", { volume: 0.20, overlap: true }), 90);
+    setTimeout(() => playSfx("static1", { volume: 0.18, overlap: true }), 150);
+  
+    // Quick “final fracture growth burst” right at impact
+    for (let s = crackStage + 1; s <= 4; s++) {
+      setCrackStage(s);
+      growCracksForStage(s);
     }
+  
+    // Let the shake/flash play, then hard cut
+    await wait(420);
+    document.body.classList.add("cut-black");
+  
+    // Cut duration (feels like a camera shutter)
+    await wait(160);
+  
+    await openSimRoom();
+  
+    // Clean up transition states
+    document.body.classList.remove("cut-black");
+    document.body.classList.remove("shatter-cine");
+    document.body.classList.remove("into-sim");
+  }
+
 
     // Prime crack seed
     ensureCracks();
