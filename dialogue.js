@@ -1,15 +1,11 @@
 // dialogue.js (FULL REPLACEMENT)
 // Exposes window.DIALOGUE used by main.js
 //
-// Goal: cinematic "simulation director" tone + scalable to hundreds of lines
+// Cinematic "simulation director" tone + scalable to hundreds of lines
 // without feeling repeated.
 //
-// Key idea: steps can be "say" (explicit), "filler" (procedural), "choice", "task".
-// filler uses smart selection: weighted pools + anti-repeat cooldown + pressure gating.
-//
-// NOTE: This file is data + tiny helpers only.
-// If your main.js already supports { filler:{pool:"AUTO"} } etc, it will work.
-// If not, see the short main.js patch notes below.
+// This file is data + tiny helpers only.
+// main.js uses { filler:{pool:"AUTO"} } which calls window.DIALOGUE_HELPERS.autoFiller(meta)
 
 (() => {
   const W = window;
@@ -18,8 +14,7 @@
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const now = () => Date.now();
 
-  // ---------- Anti-repeat selector ----------
-  // Keeps per-pool history + global history; prevents “same vibe” spam.
+  /* ---------- Anti-repeat selector ---------- */
   function createPicker() {
     const hist = {
       global: [],
@@ -53,31 +48,29 @@
       if (inPool) return -999;
       if (inGlobal && age < 16) return -999;
 
-      // Prefer fresh lines; gently avoid over-used ones
-      const freshness = clamp(age / 30, 0, 2);      // up to +2
-      const usagePenalty = clamp(used * 0.25, 0, 3); // up to -3
+      const freshness = clamp(age / 30, 0, 2);        // up to +2
+      const usagePenalty = clamp(used * 0.25, 0, 3);  // up to -3
 
       return 1 + freshness - usagePenalty - (inGlobal ? 0.5 : 0);
     }
 
-    // pool can be: [ "line", "line", ... ] OR [ {t,w}, ... ] OR mix
     function choose(key, pool) {
       const expanded = [];
       for (const item of pool || []) {
         if (!item) continue;
         if (typeof item === "string") expanded.push({ t: item, w: 1 });
-        else if (typeof item === "object" && typeof item.t === "string") expanded.push({ t: item.t, w: item.w || 1 });
+        else if (typeof item === "object" && typeof item.t === "string") {
+          expanded.push({ t: item.t, w: item.w || 1 });
+        }
       }
       if (!expanded.length) return "";
 
-      // Build a candidate set (weighted) then pick best scored
       const candidates = [];
       for (const it of expanded) {
         const reps = clamp(Math.floor(it.w), 1, 6);
         for (let i = 0; i < reps; i++) candidates.push(it.t);
       }
 
-      // Evaluate a few random candidates, pick the best score
       let best = null;
       let bestScore = -1e9;
       const tries = Math.min(14, candidates.length);
@@ -88,7 +81,6 @@
         if (s > bestScore) { bestScore = s; best = line; }
       }
 
-      // Fallback if everything is blocked
       if (!best || bestScore < -100) best = candidates[Math.floor(Math.random() * candidates.length)];
 
       mark(key, best);
@@ -100,8 +92,7 @@
 
   const PICKER = createPicker();
 
-  // ---------- Micro-variation ----------
-  // Adds subtle realism without changing meaning (great for long runs).
+  /* ---------- Micro-variation (rare) ---------- */
   function vary(line, vibe) {
     if (!line) return line;
 
@@ -129,7 +120,6 @@
       " (heuristics active).",
     ];
 
-    // Don’t overdo it: apply rarely.
     const r = Math.random();
     if (vibe === "system" && r < 0.12) return line + pick(sys);
     if ((vibe === "emma" || vibe === "liam") && r < 0.10) return line + pick(tense);
@@ -138,9 +128,7 @@
     return line;
   }
 
-  // ---------- Cinematic stage directions ----------
-  // These are text lines you can ALSO voice (System voice) or render as subtitles only.
-  // If your TTS pipeline tags lines, you can keep them as raw strings and post-process.
+  /* ---------- Cinematic directions ---------- */
   const DIRECTIONS = {
     camera: [
       { t: "System: CAMERA: pull back. Keep the cursor framed.", w: 1 },
@@ -162,9 +150,8 @@
     ]
   };
 
-  // ---------- Character libraries (big, varied, not “catchphrase-only”) ----------
+  /* ---------- Character pools ---------- */
   const POOLS = {
-    // Neutral system narration
     sys_low: [
       { t: "System: Buffering…", w: 2 },
       { t: "System: Integrity check pending.", w: 2 },
@@ -178,7 +165,6 @@
       { t: "System: Surface looks normal. Do not trust it.", w: 1 },
     ],
 
-    // System when pressure rises (more “director”)
     sys_high: [
       { t: "System: Attention window narrowing.", w: 2 },
       { t: "System: Trace frequency increased.", w: 2 },
@@ -192,7 +178,6 @@
       { t: "System: Exit vectors reduced.", w: 1 },
     ],
 
-    // Emma: command/control, but with cinematic realism
     emma_low: [
       { t: "Emma (Security): Hands off unless instructed.", w: 2 },
       { t: "Emma (Security): Slow down.", w: 2 },
@@ -216,7 +201,6 @@
       { t: "Emma (Security): If you keep pushing, the system resets you.", w: 1 },
     ],
 
-    // Liam: guidance that sounds like a real coworker whispering over comms
     liam_low: [
       { t: "Liam (Worker): Don’t answer fast.", w: 2 },
       { t: "Liam (Worker): Keep it boring.", w: 2 },
@@ -238,7 +222,6 @@
       { t: "Liam (Worker): Let the system get bored of you.", w: 1 },
     ],
 
-    // Run track flavor
     run_low: [
       { t: "System: Movement detected.", w: 2 },
       { t: "System: Route shifting.", w: 1 },
@@ -252,24 +235,23 @@
     ]
   };
 
-  // ---------- “AUTO” filler logic ----------
-  // main.js can pass { pool:"AUTO", count: N } and optionally meta like pressure/loop/path.
-  // If your main.js doesn’t pass meta, this still works: it guesses with randomness.
+  /* ---------- AUTO filler logic ---------- */
   function autoFiller(meta = {}) {
     const path = meta.path || meta.guidePath || "auto"; // "emma"|"liam"|"run"|etc
     const loop = meta.loopIndex ?? meta.loop ?? 0;
+
+    // If main.js passes pressureTier (0/1/2) we use it. Otherwise infer.
     const pressure = meta.pressure ?? (loop >= 7 ? 2 : loop >= 4 ? 1 : 0);
 
-    // Sprinkle stage directions occasionally to sell “cinematic sim”
     const wantDirection = Math.random() < (pressure ? 0.18 : 0.10);
 
     if (wantDirection) {
-      const dirPool = pressure ? [...DIRECTIONS.pressure, ...DIRECTIONS.sim, ...DIRECTIONS.camera]
-                               : [...DIRECTIONS.sim, ...DIRECTIONS.camera];
+      const dirPool = pressure
+        ? [...DIRECTIONS.pressure, ...DIRECTIONS.sim, ...DIRECTIONS.camera]
+        : [...DIRECTIONS.sim, ...DIRECTIONS.camera];
       return PICKER.choose("dir", dirPool);
     }
 
-    // Character-driven filler
     if (path === "run") {
       const pool = pressure ? POOLS.run_high : POOLS.run_low;
       return vary(PICKER.choose("run", pool), "system");
@@ -285,23 +267,20 @@
       return vary(PICKER.choose("liam", pool), "liam");
     }
 
-    // “auto”: blend (system leads, characters punctuate)
     const blend = pressure
-      ? [ ...POOLS.sys_high, ...POOLS.sys_high, ...POOLS.emma_high, ...POOLS.liam_high ]
-      : [ ...POOLS.sys_low, ...POOLS.sys_low, ...POOLS.emma_low, ...POOLS.liam_low ];
+      ? [...POOLS.sys_high, ...POOLS.sys_high, ...POOLS.emma_high, ...POOLS.liam_high]
+      : [...POOLS.sys_low, ...POOLS.sys_low, ...POOLS.emma_low, ...POOLS.liam_low];
 
     const line = PICKER.choose(pressure ? "auto_high" : "auto_low", blend);
     const vibe = line.startsWith("System:") ? "system" : (line.startsWith("Emma") ? "emma" : "liam");
     return vary(line, vibe);
   }
 
-  // Export a tiny helper API so main.js can ask for procedural lines
   W.DIALOGUE_HELPERS = W.DIALOGUE_HELPERS || {};
   W.DIALOGUE_HELPERS.autoFiller = autoFiller;
   W.DIALOGUE_HELPERS._picker = PICKER; // optional debugging
 
-  // ---------- Your dialogue structure ----------
-  // Keep intro + choiceBeats, but now steps can be huge without repeating.
+  /* ---------- Dialogue structure ---------- */
   W.DIALOGUE = {
     intro: [
       "Emma (Security): You're not supposed to be here.",
@@ -343,7 +322,6 @@
       }
     ],
 
-    // Keep your “almost done” beat, but add variation-friendly versions
     almostDone: {
       say: [
         "System: You are close.",
@@ -354,8 +332,6 @@
       ]
     },
 
-    // Steps remain explicit, but fillers are now procedural with anti-repeat.
-    // Use meta hints so filler matches what’s happening.
     steps: [
       { say: ["System: RESTART REQUIRED.", "System: Establishing boundary anchors…"] },
 
@@ -365,61 +341,61 @@
       { task: "random", args: { pool: ["core", "pack1"] } },
 
       // LOOP 2
-      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 2, pressure: 0 } } },
+      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 2 } } },
       { say: ["Emma (Security): Keep your hands visible.", "System: Procedure continues."] },
       { choice: { complyLabel: "Fine.", lieLabel: "Sure.", runLabel: "Run." } },
       { task: "random", args: { pool: ["pack1"] } },
 
       // LOOP 3
-      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 3, pressure: 0 } } },
+      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 3 } } },
       { say: ["System: Checksum required.", "System: Do not guess quickly."] },
       { choice: { complyLabel: "Understood.", lieLabel: "I already did.", runLabel: "Run." } },
       { task: "checksum", args: { phrase: "echostatic07vault" } },
 
       // LOOP 4
-      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 4, pressure: 1 } } },
+      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 4 } } },
       { say: ["Liam (Worker): Slow is safer.", "System: Alternate path available."] },
       { choice: { complyLabel: "I'll wait.", lieLabel: "I know this.", runLabel: "Run." } },
       { task: "random", args: { pool: ["pack2"] } },
 
       // LOOP 5
-      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 5, pressure: 1 } } },
+      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 5 } } },
       { say: ["System: Supplemental verification.", "Emma (Security): No mistakes."] },
       { choice: { complyLabel: "Got it.", lieLabel: "It worked.", runLabel: "Run." } },
       { task: "random", args: { pool: ["pack2", "pack3"] } },
 
       // LOOP 6
-      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 6, pressure: 1 } } },
+      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 6 } } },
       { say: ["System: Monitoring degraded.", "System: Re-align the interface."] },
       { choice: { complyLabel: "Okay.", lieLabel: "Already aligned.", runLabel: "Run." } },
       { task: "random", args: { pool: ["pack3"] } },
 
       // LOOP 7
-      { filler: { pool: "AUTO", count: 3, meta: { loopIndex: 7, pressure: 2 } } },
+      { filler: { pool: "AUTO", count: 3, meta: { loopIndex: 7 } } },
       { say: ["Emma (Security): You're lingering.", "System: Commit to input."] },
       { choice: { complyLabel: "Proceed.", lieLabel: "Proceeding.", runLabel: "Run." } },
       { task: "random", args: { pool: ["pack3", "pack4"] } },
 
       // LOOP 8
-      { filler: { pool: "AUTO", count: 3, meta: { loopIndex: 8, pressure: 2 } } },
+      { filler: { pool: "AUTO", count: 3, meta: { loopIndex: 8 } } },
       { say: ["System: Pressure rising.", "Liam (Worker): Don't make it interesting."] },
       { choice: { complyLabel: "Okay.", lieLabel: "Okay.", runLabel: "Run." } },
       { task: "random", args: { pool: ["pack4"] } },
 
       // LOOP 9
-      { filler: { pool: "AUTO", count: 3, meta: { loopIndex: 9, pressure: 2 } } },
+      { filler: { pool: "AUTO", count: 3, meta: { loopIndex: 9 } } },
       { say: ["System: Secondary channel open.", "System: Confirm continuity."] },
       { choice: { complyLabel: "Confirm.", lieLabel: "Confirmed.", runLabel: "Run." } },
       { task: "random", args: { pool: ["pack4", "pack5"] } },
 
       // LOOP 10
-      { filler: { pool: "AUTO", count: 4, meta: { loopIndex: 10, pressure: 2 } } },
+      { filler: { pool: "AUTO", count: 4, meta: { loopIndex: 10 } } },
       { say: ["System: Final pass.", "Emma (Security): Don't choke now."] },
       { choice: { complyLabel: "…", lieLabel: "…", runLabel: "Run." } },
       { task: "random", args: { pool: ["pack5"] } },
 
       // Tail
-      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 11, pressure: 2 } } },
+      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 11 } } },
       { say: ["System: …"] }
     ]
   };
