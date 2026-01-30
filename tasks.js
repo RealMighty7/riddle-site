@@ -1,5 +1,4 @@
 // tasks.js (FULL REPLACEMENT: loader + answer plumbing + core tasks)
-
 (() => {
   const TASKS = (window.TASKS = window.TASKS || {});
 
@@ -17,7 +16,7 @@
     }
   };
 
-  // Flush queued registrations
+  // Flush queued registrations (from your safety shim / packs)
   try {
     const q = window.__TASK_QUEUE__ || [];
     while (q.length) window.registerTasks(q.shift());
@@ -32,19 +31,6 @@
     pack4: [],
     pack5: [],
   };
-
-  // Helper: announce to admin
-  function adminTask(taskId, args) {
-    document.dispatchEvent(new CustomEvent("admin:task", {
-      detail: { taskId, args: args ?? null }
-    }));
-  }
-
-  function adminAnswer(answer) {
-    document.dispatchEvent(new CustomEvent("admin:answer", {
-      detail: { answer }
-    }));
-  }
 
   // -----------------------------
   // CORE TASKS
@@ -63,42 +49,46 @@
 
     // fallback: any task except random itself
     if (!candidates.length) {
-      candidates = Object.keys(TASKS).filter(k => !["random"].includes(k));
+      candidates = Object.keys(TASKS).filter((k) => k !== "random");
     }
 
     if (!candidates.length) {
       ctx.showTaskUI("TASK", "No procedures available.");
       ctx.taskBody.textContent = "System: PROCEDURE MISSING (pool empty).";
-      return;
+      // Optional: count as a wrong attempt? (keeping it neutral for now)
+      return { answer: ctx.getAnswer?.() ?? null };
     }
 
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     const fn = TASKS[pick];
 
-    adminTask(pick, args.args || null);
-
     if (typeof fn !== "function") {
       ctx.showTaskUI("TASK", "Procedure missing.");
       ctx.taskBody.textContent = `System: PROCEDURE MISSING (${pick}).`;
-      return;
+      return { answer: ctx.getAnswer?.() ?? null };
     }
+
+    // Note: main.js already dispatches admin:task for every step.task,
+    // so do NOT dispatch it here (avoids duplicates).
 
     // Let task return an answer object OR call ctx.setAnswer itself
     const before = ctx.getAnswer?.() ?? null;
     const res = await fn(ctx, args.args || {});
     const after = ctx.getAnswer?.() ?? null;
 
-    if (after != null && after !== before) adminAnswer(after);
-    else if (res && typeof res === "object" && "answer" in res) {
+    // If it returned an answer and didn’t set it, set it.
+    if (res && typeof res === "object" && "answer" in res && after == null) {
       ctx.setAnswer?.(res.answer);
-      adminAnswer(res.answer);
     }
+
+    // Return whatever the nested task returned (useful for future hooks/debug)
+    return res ?? { answer: ctx.getAnswer?.() ?? null };
   };
 
   // checksum: simple input gate (exposes phrase as admin answer)
   TASKS.checksum = async (ctx, args = {}) => {
     const phrase = String(args.phrase || "").trim();
-    ctx.setAnswer?.(phrase); // ✅ admin can see expected phrase
+    ctx.setAnswer?.(phrase); // admin can see expected phrase
 
     ctx.showTaskUI("checksum", "enter checksum phrase to continue");
 
@@ -124,11 +114,20 @@
     ctx.taskBody.appendChild(msg);
 
     const val = await new Promise((resolve) => {
+      let done = false;
+      const finish = (v) => {
+        if (done) return;
+        done = true;
+        resolve(String(v || "").trim());
+      };
+
       ctx.taskPrimary.textContent = "submit";
-      ctx.taskPrimary.onclick = () => resolve(inp.value.trim());
+      ctx.taskPrimary.onclick = () => finish(inp.value);
+
       inp.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") resolve(inp.value.trim());
+        if (e.key === "Enter") finish(inp.value);
       });
+
       inp.focus();
     });
 
