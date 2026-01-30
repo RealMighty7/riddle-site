@@ -1381,7 +1381,35 @@ Reinitializing simulation…`
     document.body.classList.remove("into-sim");
   }
 
+    function isClickableTarget(e) {
+      const t = e.target;
+      if (!t) return true;
+      if (t.closest && t.closest("input, textarea, select, button, a, label")) return false;
+      if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
+      return true;
+    }
 
+    function registerLandingClick(e) {
+      if (stage !== 1) return;
+      if (document.body.classList.contains("sim-transition")) return;
+      if (!isClickableTarget(e)) return;
+    
+      const now = Date.now();
+      if (now - lastClick < CLICK_COOLDOWN) return;
+      lastClick = now;
+    
+      ensureCracks();
+    
+      clicks++;
+      playSfx("mclick", { volume: 0.35, overlap: true });
+    
+      maybeAdvanceCracks();
+    
+      if (clicks >= SHATTER_AT) {
+        shatterAndEnterSim();
+      }
+    }
+    
     // Prime crack seed
     ensureCracks();
     document.addEventListener("pointerdown", registerLandingClick, { passive: true });
