@@ -192,6 +192,92 @@
     window.sayEmma   = (text, extra) => window.sayLine("Emma", text, extra);
     window.sayLiam   = (text, extra) => window.sayLine("Liam", text, extra);
 
+    function stripIdsDeep(node) {
+      try {
+        if (node.nodeType !== 1) return;
+        if (node.hasAttribute("id")) node.removeAttribute("id");
+        const kids = node.children;
+        for (let i = 0; i < kids.length; i++) stripIdsDeep(kids[i]);
+      } catch {}
+    }
+    
+    function buildShardFX() {
+      const old = document.getElementById("shardFX");
+      if (old) old.remove();
+    
+      const wrap = document.getElementById("wrap");
+      if (!wrap) return null;
+    
+      const fx = document.createElement("div");
+      fx.id = "shardFX";
+    
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+    
+      // one clean clone we can reuse per shard
+      const baseClone = wrap.cloneNode(true);
+      stripIdsDeep(baseClone);
+      baseClone.style.margin = "0";
+      baseClone.style.maxWidth = "none";
+      baseClone.style.width = wrap.getBoundingClientRect().width + "px";
+      baseClone.style.height = wrap.getBoundingClientRect().height + "px";
+    
+      const wrapRect = wrap.getBoundingClientRect();
+    
+      const shardCount = 14; // tweak
+      for (let i = 0; i < shardCount; i++) {
+        const shard = document.createElement("div");
+        shard.className = "shard";
+    
+        // random-ish rectangles across viewport
+        const w = 140 + Math.random() * 260;
+        const h = 90 + Math.random() * 220;
+        const x = Math.random() * (W - w);
+        const y = Math.random() * (H - h);
+    
+        shard.style.left = x + "px";
+        shard.style.top = y + "px";
+        shard.style.width = w + "px";
+        shard.style.height = h + "px";
+    
+        // fly direction + rotation
+        const dx = (Math.random() - 0.5) * 520;
+        const dy = (Math.random() - 0.5) * 420;
+        const dr = (Math.random() - 0.5) * 26;
+    
+        shard.style.setProperty("--dx", dx.toFixed(1) + "px");
+        shard.style.setProperty("--dy", dy.toFixed(1) + "px");
+        shard.style.setProperty("--dr", dr.toFixed(1) + "deg");
+    
+        // jagged-ish clip polygon
+        const j = () => (Math.random() * 6).toFixed(1) + "%";
+        shard.style.clipPath = `polygon(${j()} ${j()}, ${100 - Math.random()*6}% ${j()}, ${100 - Math.random()*6}% ${100 - Math.random()*6}%, ${j()} ${100 - Math.random()*6}%)`;
+    
+        // inner is a fresh clone so each shard can position it independently
+        const inner = baseClone.cloneNode(true);
+        inner.className = "inner";
+        stripIdsDeep(inner);
+    
+        // align clone so shard shows the correct “slice” of the landing UI
+        // shift relative to wrap position on screen
+        const offsetX = -(x - wrapRect.left);
+        const offsetY = -(y - wrapRect.top);
+        inner.style.left = offsetX + "px";
+        inner.style.top = offsetY + "px";
+    
+        shard.appendChild(inner);
+        fx.appendChild(shard);
+      }
+    
+      document.body.appendChild(fx);
+      return fx;
+    }
+    
+    function removeShardFX() {
+      const fx = document.getElementById("shardFX");
+      if (fx) fx.remove();
+    }
+
     /* ======================
        BUILD: REVISION COUNTER (persists across forced resets)
     ====================== */
