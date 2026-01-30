@@ -1,4 +1,4 @@
-// main.js (FULL REPLACEMENT) — PART 1/2
+// main.js (FULL REPLACEMENT)
 (() => {
   function boot() {
     if (document.readyState === "loading") {
@@ -127,6 +127,12 @@
 
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
+
+    /* ======================
+       GLOBAL ABORT FLAG (prevents post-reset logic)
+    ====================== */
+    let ABORTED = false;
+    const abortIfNeeded = () => ABORTED || document.body.classList.contains("sim-transition");
 
     /* ====================== SFX ====================== */
     function playSfx(name, opts = {}) {
@@ -334,6 +340,9 @@
     }
 
     function doReset(reasonTitle, reasonBody) {
+      if (ABORTED) return;
+      ABORTED = true;
+
       // forced reset increments revision and persists
       incRevisionCount();
       renderRevisionCount();
@@ -341,6 +350,11 @@
       resetTitle.textContent = reasonTitle || "RESET";
       resetBody.textContent = reasonBody || "";
       resetOverlay.classList.remove("hidden");
+
+      // stop audio + timer if any
+      try { window.AudioPlayer?.stop?.(); } catch {}
+      try { taskTimer?.stop?.(); } catch {}
+
       setTimeout(hardReload, 1800);
     }
 
@@ -422,7 +436,8 @@
         resTxt = document.createElement("div");
         resTxt.id = "resMeterTxt";
         resTxt.textContent = "resistance: 0";
-        resTxt.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+        resTxt.style.fontFamily =
+          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
         resTxt.style.fontSize = "12px";
         resTxt.style.color = "rgba(255,255,255,0.72)";
         resTxt.style.textShadow = "0 1px 0 rgba(0,0,0,0.35)";
@@ -457,11 +472,11 @@
       // stingers (once per task)
       if (pressureTier === 1 && !pressureHinted.yellow) {
         pressureHinted.yellow = true;
-        emitLine("System: Time window narrowing.");
+        void emitLine("System: Time window narrowing.");
       }
       if (pressureTier === 2 && !pressureHinted.red) {
         pressureHinted.red = true;
-        emitLine("System: Do not stall.");
+        void emitLine("System: Do not stall.");
       }
     }
 
@@ -528,7 +543,6 @@
         },
         hide() {
           HUD.barWrap.style.opacity = "0";
-          // keep resistance visible in sim; if you want it hidden outside tasks, set 0 here
         },
         start() {
           if (running) return;
@@ -545,7 +559,6 @@
           drainMult = clamp(drainMult + (multAdd || 0), 1.0, 4.0);
         },
         onWrong() {
-          // wrong attempt: speeds drain a bit (and stays faster)
           api.bumpDrain(0.25);
         },
         resetForNewTask() {
@@ -559,7 +572,8 @@
       };
 
       function loop() {
-        if (!running) return;
+        if (!running || ABORTED) return;
+
         const now = performance.now();
         const dt = Math.max(0, now - lastT);
         lastT = now;
@@ -667,13 +681,13 @@ Reinitializing…`
 
       async playLine(rawLine) {
         await this.init();
-        if (!VO) return Promise.resolve();
+        if (!VO || ABORTED) return Promise.resolve();
 
         const id = getIdFromLine(rawLine);
         if (!id) return Promise.resolve();
 
         this._audioChain = this._audioChain
-          .then(() => VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false }))
+          .then(() => (ABORTED ? null : VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false })))
           .catch(() => {});
         return this._audioChain;
       },
@@ -685,6 +699,8 @@ Reinitializing…`
 
     /* ====================== OUTPUT PIPE ====================== */
     async function typeLineIntoSim(text, ms) {
+      if (ABORTED) return;
+
       const s = String(text || "");
       if (!s) {
         simText.textContent += "\n";
@@ -695,7 +711,6 @@ Reinitializing…`
       const minMs = 450;
 
       // pace influenced by: choice bias + pressure
-      // (pressure makes everything feel tighter; run path makes it sharper)
       const pressureMult = (pressureTier === 2) ? 0.62 : (pressureTier === 1) ? 0.78 : 1.0;
       const biasMult =
         (paceBias >= 2) ? 0.70 :
@@ -708,6 +723,7 @@ Reinitializing…`
       const per = total / Math.max(1, chars.length);
 
       for (let i = 0; i < chars.length; i++) {
+        if (ABORTED) return;
         simText.textContent += chars[i];
         simText.scrollTop = simText.scrollHeight;
         await wait(per);
@@ -729,6 +745,8 @@ Reinitializing…`
     }
 
     async function emitLine(line) {
+      if (ABORTED) return;
+
       const raw = String(line || "");
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
 
@@ -747,6 +765,7 @@ Reinitializing…`
 
     async function playLines(lines) {
       for (const line of lines || []) {
+        if (ABORTED) return;
         await emitLine(line);
         const gap =
           (pressureTier === 2) ? 20 :
@@ -769,6 +788,8 @@ Reinitializing…`
     let taskTimer = null;
 
     function recordWrongAttempt(reason) {
+      if (ABORTED) return;
+
       // +3 resistance on wrong attempt
       resistancePoints += 3;
       updateResistanceMeter();
@@ -793,24 +814,26 @@ Resetting simulation…`
         return;
       }
 
-      // small stinger at wrongs (keeps it cinematic)
-      if (taskWrongCount === 1) emitLine("System: Incorrect.");
-      else if (taskWrongCount === 2) emitLine("System: Stop guessing.");
-      else emitLine("System: Input rejected.");
+      // stingers
+      if (taskWrongCount === 1) void emitLine("System: Incorrect.");
+      else if (taskWrongCount === 2) void emitLine("System: Stop guessing.");
+      else void emitLine("System: Input rejected.");
     }
 
     const taskContext = {
       taskPrimary,
       taskSecondary,
       taskBody,
+
       setAnswer(ans) {
         lastAnswer = ans;
         document.dispatchEvent(new CustomEvent("admin:answer", { detail: { answer: ans } }));
       },
-      getAnswer() {
-        return lastAnswer;
-      },
+      getAnswer() { return lastAnswer; },
+
       showTaskUI(title, desc) {
+        if (ABORTED) return;
+
         document.body.classList.add("task-open");
         simRoom.classList.add("hidden");
 
@@ -824,19 +847,22 @@ Resetting simulation…`
 
         els.taskActions?.classList.remove("hidden");
       },
+
       doReset,
+
       difficultyBoost() { return resistancePoints >= 10 ? 1 : 0; },
 
-      // IMPORTANT: packs should call ctx.penalize() on wrong inputs for scoring/timer.
+      // Packs MUST call ctx.penalize() for wrong attempts to count as resistance.
       penalize(n = 1, reason = "") {
-        // treat ANY penalize as a wrong attempt event
         recordWrongAttempt(reason || "penalty");
       },
 
       glitch: glitchPulse,
     };
 
-    /* ====================== CHOICE HANDLING + COMPLIANCE CHECK ====================== */
+    /* ======================
+       CHOICE HANDLING + COMPLIANCE CHECK
+    ====================== */
     function checkComplianceOrReset() {
       if (choiceTotal < MIN_CHOICES_BEFORE_CHECK) return true;
 
@@ -874,6 +900,8 @@ Reinitializing simulation…`
 
     async function runSteps(steps) {
       for (const step of steps) {
+        if (ABORTED) return;
+
         if (step.say) {
           document.body.classList.remove("task-open");
           simRoom.classList.remove("hidden");
@@ -897,8 +925,8 @@ Reinitializing simulation…`
           simChoices.classList.add("hidden");
 
           choiceTotal++;
+
           if (choice === "comply") {
-            resistancePoints += 0; // choices don't add resistance directly (tasks do)
             guidePath = "emma";
             paceBias = -1;
           } else if (choice === "lie") {
@@ -911,6 +939,7 @@ Reinitializing simulation…`
           }
 
           updateResistanceMeter();
+
           if (!checkComplianceOrReset()) return;
           continue;
         }
@@ -946,27 +975,24 @@ Reinitializing simulation…`
 
           lastAnswer = null;
 
-          // start timer (5min base, modified by resistance)
+          // start timer
           taskTimer = createTaskTimerController();
           taskTimer.resetForNewTask();
           taskTimer.show();
           taskTimer.start();
 
           // run task
-          const res = await fn(taskContext, step.args || {});
-          if (res && typeof res === "object" && "answer" in res && lastAnswer == null) {
-            taskContext.setAnswer(res.answer);
-          }
+          await fn(taskContext, step.args || {});
+          if (ABORTED) return;
 
-          // task completed successfully => +1 compliance
+          // completed => +1 compliance
           compliancePoints += 1;
 
-          // stop timer (next task gets a new limit; wrong attempts never reset it during the task)
+          // stop timer
           taskTimer.stop();
           taskTimer.hide();
           taskTimer = null;
 
-          // compliance check (uses both)
           if (!checkComplianceOrReset()) return;
 
           // close task UI
@@ -978,13 +1004,13 @@ Reinitializing simulation…`
           continue;
         }
 
-        // filler
         if (step.filler) {
           const count = step.filler.count ?? 1;
           const pool = step.filler.pool ?? "AUTO";
           const meta = step.filler.meta ?? {};
 
           for (let i = 0; i < count; i++) {
+            if (ABORTED) return;
             let line = "";
             if (pool === "AUTO" && window.DIALOGUE_HELPERS?.autoFiller) {
               line = window.DIALOGUE_HELPERS.autoFiller({
