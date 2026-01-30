@@ -224,7 +224,7 @@
     
       const wrapRect = wrap.getBoundingClientRect();
     
-      const shardCount = 14; // tweak
+      const shardCount = 25; // tweak
       for (let i = 0; i < shardCount; i++) {
         const shard = document.createElement("div");
         shard.className = "shard";
