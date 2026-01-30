@@ -1,6 +1,6 @@
 // /packs/pack2.js
 // Registers 20 tasks into window.TASKS via window.registerTasks()
-// (Optional) also registers a pool via window.registerTaskPool()
+// Also registers TASK_POOLS.pack2 for the random router.
 // --- pack safety shim (must be FIRST) ---
 (() => {
   window.TASKS = window.TASKS || {};
@@ -49,6 +49,7 @@
     ctx.showTaskUI(title, desc);
     ctx.taskPrimary.textContent = "continue";
     ctx.taskPrimary.disabled = true;
+    ctx.taskPrimary.onclick = null;
     ctx.taskSecondary.classList.add("hidden");
     ctx.taskBody.innerHTML = "";
   };
@@ -56,9 +57,10 @@
   const note = (t, kind = "note") => {
     const n = el("div");
     n.textContent = t ?? "";
-    n.className = (kind === "error") ? "task-error"
-                : (kind === "ok") ? "task-ok"
-                : "task-note";
+    n.className =
+      kind === "error" ? "task-error" :
+      kind === "ok" ? "task-ok" :
+      "task-note";
     return n;
   };
 
@@ -70,16 +72,6 @@
     i.style.width = "min(520px, 100%)";
     i.style.marginTop = "10px";
     return i;
-  };
-
-  // prevent double resolve
-  const once = (fn) => {
-    let done = false;
-    return (...args) => {
-      if (done) return;
-      done = true;
-      fn(...args);
-    };
   };
 
   // safe cleanup container for listeners/intervals/timeouts
@@ -118,11 +110,22 @@
     ctx.taskPrimary.onclick = () => resolve();
   };
 
-  reg({
+  // ✅ unified wrong handler (counts toward +3 resistance + haywire)
+  const wrong = (ctx, msgEl, text, reason) => {
+    if (msgEl) {
+      msgEl.style.color = "rgba(255,190,190,.95)";
+      msgEl.textContent = text || "Incorrect.";
+    }
+    ctx.glitch?.();
+    ctx.penalize?.(1, reason || "wrong");
+  };
+
+  const TASKS = {
     // 1
     liam_whisper: async (ctx) => {
       begin(ctx, "WORKER CHANNEL", "Someone left a note in the margin. Type the last word.");
       ctx.taskBody.appendChild(note("Liam (Worker): Don't look at me. Read the end."));
+
       const line = "route everything into noise, then pretend you never saw it";
       const pill = el("div", "pill", line);
       pill.style.marginTop = "12px";
@@ -132,23 +135,30 @@
       ctx.taskBody.appendChild(inp);
 
       const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
       ctx.taskBody.appendChild(msg);
+
+      const ans = "it";
+      ctx.setAnswer?.(ans);
 
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
 
       let resolve;
-      ctx.taskPrimary.onclick = () => {
+      const submit = () => {
         const got = (inp.value || "").trim().toLowerCase();
-        if (got !== "it") {
-          msg.textContent = "No.";
-          ctx.glitch?.();
+        if (got !== ans) {
+          wrong(ctx, msg, "No.", "liam_whisper");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
         msg.textContent = "…okay.";
-        finish(ctx, resolve, "it");
+        finish(ctx, resolve, ans);
       };
+
+      ctx.taskPrimary.onclick = submit;
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+      inp.focus();
 
       return new Promise((r) => (resolve = r));
     },
@@ -174,6 +184,7 @@
 
       const btn = el("button", "sim-btn", "click");
       const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
 
       wrap.appendChild(dot);
       wrap.appendChild(btn);
@@ -184,6 +195,7 @@
       let dim = true;
       let strikes = 0;
       const need = clamp(3 + (ctx.difficultyBoost?.() ?? 0), 3, 8);
+      ctx.setAnswer?.(String(need));
 
       const flip = () => {
         dim = Math.random() < 0.55;
@@ -200,9 +212,7 @@
       btn.onclick = () => {
         if (!dim) {
           strikes++;
-          msg.textContent = "Too bright.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "camera attention");
+          wrong(ctx, msg, "Too bright.", "emma_watch misclick");
           if (strikes >= 2) {
             L.clear();
             msg.textContent = "Stop. You're drawing eyes.";
@@ -225,9 +235,13 @@
     // 3
     restore_header: async (ctx) => {
       begin(ctx, "RESTORE HEADER", "Pick the only valid header signature.");
+
       const opts = shuffle(["[[ ok ]]", "{ ok }]", "(( ok ))", "{[ ok ]}"]);
       const correct = "(( ok ))";
+      ctx.setAnswer?.(correct);
+
       const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
 
       let resolve;
 
@@ -239,8 +253,7 @@
         b.style.marginTop = "10px";
         b.onclick = () => {
           if (o !== correct) {
-            msg.textContent = "Malformed.";
-            ctx.glitch?.();
+            wrong(ctx, msg, "Malformed.", "restore_header");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
@@ -257,8 +270,11 @@
     // 4
     sort_lengths: async (ctx) => {
       begin(ctx, "SORT", "Click items shortest → longest.");
+
       const items = shuffle(["noise", "trace_ok", "pane_reflection", "microfracture", "audit_shadow"]);
       const sorted = items.slice().sort((a, b) => a.length - b.length);
+      const answer = sorted.join("→");
+      ctx.setAnswer?.(answer);
 
       const row = el("div");
       row.style.marginTop = "12px";
@@ -267,6 +283,7 @@
       row.style.gap = "10px";
 
       const msg = note("");
+      msg.style.color = "rgba(255,190,190,.95)";
       let idx = 0;
 
       let resolve;
@@ -276,10 +293,7 @@
         b.onclick = () => {
           if (t !== sorted[idx]) {
             idx = 0;
-            msg.textContent = "Wrong order.";
-            ctx.glitch?.();
-            ctx.penalize?.(1, "messy");
-            // re-enable buttons
+            wrong(ctx, msg, "Wrong order.", "sort_lengths");
             row.querySelectorAll("button").forEach((bb) => {
               bb.disabled = false;
               bb.style.opacity = "";
@@ -292,7 +306,7 @@
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = `ok (${idx}/${sorted.length})`;
           if (idx >= sorted.length) {
-            finish(ctx, resolve, sorted.join("→"));
+            finish(ctx, resolve, answer);
           }
         };
         row.appendChild(b);
@@ -307,7 +321,11 @@
     // 5
     quiet_replace: async (ctx) => {
       begin(ctx, "EDIT", "Replace all underscores (_) with hyphens (-).");
+
       const base = "pane_reflection__trace_ok__cache_layer";
+      const target = base.replace(/_/g, "-");
+      ctx.setAnswer?.(target);
+
       const inp = makeInput("");
       inp.value = base;
 
@@ -321,15 +339,11 @@
       ctx.taskPrimary.textContent = "verify";
       ctx.taskPrimary.disabled = false;
 
-      const target = base.replace(/_/g, "-");
       let resolve;
-
-      ctx.taskPrimary.onclick = () => {
+      const submit = () => {
         const got = (inp.value || "").trim();
         if (got !== target) {
-          msg.textContent = "Not clean.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "dirty edit");
+          wrong(ctx, msg, "Not clean.", "quiet_replace");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -337,14 +351,21 @@
         finish(ctx, resolve, target);
       };
 
+      ctx.taskPrimary.onclick = submit;
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+      inp.focus();
+
       return new Promise((r) => (resolve = r));
     },
 
     // 6
     pick_only_lowercase: async (ctx) => {
       begin(ctx, "FILTER", "Click the only option that is entirely lowercase.");
+
       const correct = "quiet";
       const opts = shuffle(["Quiet", "QUIET", correct, "quIet"]);
+      ctx.setAnswer?.(correct);
+
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
@@ -354,19 +375,18 @@
       row.style.flexWrap = "wrap";
       row.style.gap = "10px";
 
+      let resolve;
+
       opts.forEach((o) => {
         const b = el("button", "sim-btn", o);
         b.onclick = () => {
           if (o !== correct) {
-            msg.textContent = "Rejected.";
-            ctx.glitch?.();
+            wrong(ctx, msg, "Rejected.", "pick_only_lowercase");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Ok.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         row.appendChild(b);
       });
@@ -374,18 +394,19 @@
       ctx.taskBody.appendChild(row);
       ctx.taskBody.appendChild(msg);
 
-      let resolve;
       return new Promise((r) => (resolve = r));
     },
 
     // 7
     index_2_5: async (ctx) => {
       begin(ctx, "INDEX", "Type the 2nd and 5th characters (no spaces).");
+
       const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
       const len = clamp(9 + (ctx.difficultyBoost?.() ?? 0), 9, 16);
       let s = "";
       for (let i = 0; i < len; i++) s += chars[rndInt(0, chars.length - 1)];
       const ans = (s[1] || "") + (s[4] || "");
+      ctx.setAnswer?.(ans);
 
       ctx.taskBody.appendChild(note(`string: ${s}`));
       const inp = makeInput("two characters…");
@@ -399,12 +420,10 @@
       ctx.taskPrimary.disabled = false;
 
       let resolve;
-      ctx.taskPrimary.onclick = () => {
+      const submit = () => {
         const got = (inp.value || "").trim();
         if (got !== ans) {
-          msg.textContent = "Mismatch.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "index");
+          wrong(ctx, msg, "Mismatch.", "index_2_5");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -412,15 +431,21 @@
         finish(ctx, resolve, ans);
       };
 
+      ctx.taskPrimary.onclick = submit;
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+      inp.focus();
+
       return new Promise((r) => (resolve = r));
     },
 
     // 8
     reverse_confirm: async (ctx) => {
       begin(ctx, "MIRROR", "Type the reverse of the shown token.");
+
       const tokens = ["pane", "trace", "buffer", "quiet", "audit", "shadow", "mirror"];
       const t = tokens[rndInt(0, tokens.length - 1)] + "_" + rndInt(10, 99);
       const ans = t.split("").reverse().join("");
+      ctx.setAnswer?.(ans);
 
       const shown = el("div", "pill", t);
       shown.style.marginTop = "12px";
@@ -437,11 +462,10 @@
       ctx.taskPrimary.disabled = false;
 
       let resolve;
-      ctx.taskPrimary.onclick = () => {
+      const submit = () => {
         const got = (inp.value || "").trim();
         if (got !== ans) {
-          msg.textContent = "No.";
-          ctx.glitch?.();
+          wrong(ctx, msg, "No.", "reverse_confirm");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -449,12 +473,17 @@
         finish(ctx, resolve, ans);
       };
 
+      ctx.taskPrimary.onclick = submit;
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+      inp.focus();
+
       return new Promise((r) => (resolve = r));
     },
 
     // 9
     click_when_blank: async (ctx) => {
       begin(ctx, "WINDOW", "Click only when the line is blank.");
+
       const pill = el("div", "pill", "—");
       pill.style.marginTop = "12px";
       ctx.taskBody.appendChild(pill);
@@ -469,6 +498,8 @@
 
       const L = scoped();
       const need = clamp(3 + Math.floor((ctx.difficultyBoost?.() ?? 0) / 2), 3, 7);
+      ctx.setAnswer?.(String(need));
+
       let ok = 0;
       let stateBlank = true;
 
@@ -485,9 +516,7 @@
       let resolve;
       btn.onclick = () => {
         if (!stateBlank) {
-          msg.textContent = "Too loud.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "misclick");
+          wrong(ctx, msg, "Too loud.", "click_when_blank");
           return;
         }
         ok++;
@@ -505,6 +534,7 @@
     // 10
     choose_valid_path: async (ctx) => {
       begin(ctx, "PATH", "Pick the only path that looks internally consistent.");
+
       const correct = "sys/cache/quiet.cfg";
       const opts = shuffle([
         "sys//cache/quiet.cfg",
@@ -512,9 +542,12 @@
         correct,
         "sys/cache/quiet cfg",
       ]);
+      ctx.setAnswer?.(correct);
 
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
+
+      let resolve;
 
       opts.forEach((o) => {
         const b = el("button", "sim-btn", o);
@@ -524,31 +557,30 @@
         b.style.marginTop = "10px";
         b.onclick = () => {
           if (o !== correct) {
-            msg.textContent = "No.";
-            ctx.glitch?.();
+            wrong(ctx, msg, "No.", "choose_valid_path");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Ok.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         ctx.taskBody.appendChild(b);
       });
-      ctx.taskBody.appendChild(msg);
 
-      let resolve;
+      ctx.taskBody.appendChild(msg);
       return new Promise((r) => (resolve = r));
     },
 
     // 11
     count_slashes: async (ctx) => {
       begin(ctx, "COUNT", "Count the slashes ( / ) and type the number.");
+
       const parts = ["sys", "cache", "quiet.cfg", "logs", "tmp", "shadow"];
       const n = rndInt(3, 5);
       const path = Array.from({ length: n }, () => parts[rndInt(0, parts.length - 1)]).join("/");
       const count = (path.match(/\//g) || []).length;
+      const ans = String(count);
+      ctx.setAnswer?.(ans);
 
       ctx.taskBody.appendChild(note(`path: ${path}`));
       const inp = makeInput("number…");
@@ -562,17 +594,20 @@
       ctx.taskPrimary.disabled = false;
 
       let resolve;
-      ctx.taskPrimary.onclick = () => {
+      const submit = () => {
         const got = (inp.value || "").trim();
-        if (got !== String(count)) {
-          msg.textContent = "Wrong.";
-          ctx.glitch?.();
+        if (got !== ans) {
+          wrong(ctx, msg, "Wrong.", "count_slashes");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
         msg.textContent = "Count matches.";
-        finish(ctx, resolve, String(count));
+        finish(ctx, resolve, ans);
       };
+
+      ctx.taskPrimary.onclick = submit;
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+      inp.focus();
 
       return new Promise((r) => (resolve = r));
     },
@@ -580,8 +615,11 @@
     // 12
     strip_spaces: async (ctx) => {
       begin(ctx, "SANITIZE", "Remove ALL spaces and submit.");
+
       const base = "trace  ok   pane  cache";
       const target = base.replace(/\s+/g, "");
+      ctx.setAnswer?.(target);
+
       ctx.taskBody.appendChild(note("input:"));
       const shown = el("div", "pill", base);
       shown.style.marginTop = "10px";
@@ -599,12 +637,10 @@
       ctx.taskPrimary.disabled = false;
 
       let resolve;
-      ctx.taskPrimary.onclick = () => {
+      const submit = () => {
         const got = (inp.value || "");
         if (got !== target) {
-          msg.textContent = "Not sanitized.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "sanitize");
+          wrong(ctx, msg, "Not sanitized.", "strip_spaces");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -612,22 +648,25 @@
         finish(ctx, resolve, target);
       };
 
+      ctx.taskPrimary.onclick = submit;
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+      inp.focus();
+
       return new Promise((r) => (resolve = r));
     },
 
     // 13
     choose_unique_symbol: async (ctx) => {
       begin(ctx, "SCAN", "Click the only line that contains a tilde (~).");
+
       const correct = "mode~quiet";
-      const lines = shuffle([
-        "mode=quiet",
-        "mode:quiet",
-        correct,
-        "mode_quiet",
-      ]);
+      const lines = shuffle(["mode=quiet", "mode:quiet", correct, "mode_quiet"]);
+      ctx.setAnswer?.(correct);
 
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
+
+      let resolve;
 
       lines.forEach((t) => {
         const b = el("button", "sim-btn", t);
@@ -637,30 +676,28 @@
         b.style.marginTop = "10px";
         b.onclick = () => {
           if (t !== correct) {
-            msg.textContent = "No.";
-            ctx.glitch?.();
+            wrong(ctx, msg, "No.", "choose_unique_symbol");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Found.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         ctx.taskBody.appendChild(b);
       });
 
       ctx.taskBody.appendChild(msg);
-      let resolve;
       return new Promise((r) => (resolve = r));
     },
 
     // 14
     add_two: async (ctx) => {
       begin(ctx, "CHECK", "Add the two numbers. Type the total.");
+
       const a = rndInt(7, 41);
       const b = rndInt(7, 41);
       const ans = String(a + b);
+      ctx.setAnswer?.(ans);
 
       ctx.taskBody.appendChild(note(`${a} + ${b} = ?`));
       const inp = makeInput("total…");
@@ -674,11 +711,10 @@
       ctx.taskPrimary.disabled = false;
 
       let resolve;
-      ctx.taskPrimary.onclick = () => {
+      const submit = () => {
         const got = (inp.value || "").trim();
         if (got !== ans) {
-          msg.textContent = "Incorrect.";
-          ctx.glitch?.();
+          wrong(ctx, msg, "Incorrect.", "pack2 add_two");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -686,14 +722,21 @@
         finish(ctx, resolve, ans);
       };
 
+      ctx.taskPrimary.onclick = submit;
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+      inp.focus();
+
       return new Promise((r) => (resolve = r));
     },
 
     // 15
     pick_palindrome: async (ctx) => {
       begin(ctx, "PATTERN", "Click the only palindrome.");
+
       const correct = "level";
       const opts = shuffle([correct, "lever", "label", "levle"]);
+      ctx.setAnswer?.(correct);
+
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
@@ -703,32 +746,32 @@
       row.style.flexWrap = "wrap";
       row.style.gap = "10px";
 
+      let resolve;
+
       opts.forEach((o) => {
         const b = el("button", "sim-btn", o);
         b.onclick = () => {
           if (o !== correct) {
-            msg.textContent = "No.";
-            ctx.glitch?.();
+            wrong(ctx, msg, "No.", "pick_palindrome");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Ok.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         row.appendChild(b);
       });
 
       ctx.taskBody.appendChild(row);
       ctx.taskBody.appendChild(msg);
-      let resolve;
+
       return new Promise((r) => (resolve = r));
     },
 
     // 16
     tap_triplet: async (ctx) => {
       begin(ctx, "RHYTHM", "Click three times. The third must be delayed.");
+
       const btn = el("button", "sim-btn", "click");
       btn.style.marginTop = "12px";
       ctx.taskBody.appendChild(btn);
@@ -738,36 +781,37 @@
       msg.style.marginTop = "10px";
       ctx.taskBody.appendChild(msg);
 
-      const warn = note("");
-      warn.style.color = "rgba(255,190,190,.95)";
-      ctx.taskBody.appendChild(warn);
+      const warnEl = note("");
+      warnEl.style.color = "rgba(255,190,190,.95)";
+      ctx.taskBody.appendChild(warnEl);
 
-      const L = scoped();
       const times = [];
       const minGap3 = clamp(520 - (ctx.difficultyBoost?.() ?? 0) * 30, 320, 520);
+      ctx.setAnswer?.("gap_ms");
 
       let resolve;
       btn.onclick = () => {
         const t = performance.now();
         times.push(t);
+
         if (times.length < 3) {
-          warn.textContent = `(${times.length}/3)`;
+          warnEl.textContent = `(${times.length}/3)`;
           return;
         }
+
         const gap12 = times[1] - times[0];
         const gap23 = times[2] - times[1];
-        // requirement: third is noticeably delayed relative to the first gap, and above min
+
         if (gap23 < minGap3 || gap23 < gap12 + 140) {
           times.length = 0;
-          warn.textContent = "Too even. Reset.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "timing");
+          wrong(ctx, warnEl, "Too even. Reset.", "tap_triplet");
           return;
         }
-        warn.style.color = "rgba(232,237,247,0.85)";
-        warn.textContent = "Ok.";
-        finish(ctx, resolve, String(Math.round(gap23)));
-        L.clear();
+
+        const ans = String(Math.round(gap23));
+        warnEl.style.color = "rgba(232,237,247,0.85)";
+        warnEl.textContent = "Ok.";
+        finish(ctx, resolve, ans);
       };
 
       return new Promise((r) => (resolve = r));
@@ -776,8 +820,10 @@
     // 17
     choose_missing_char: async (ctx) => {
       begin(ctx, "REPAIR", "Pick the token that is missing exactly ONE letter from 'mirror'.");
+
       const correct = "miror"; // missing one 'r'
       const opts = shuffle(["mirror", correct, "miiror", "mirrror"]);
+      ctx.setAnswer?.(correct);
 
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
@@ -788,32 +834,32 @@
       row.style.flexWrap = "wrap";
       row.style.gap = "10px";
 
+      let resolve;
+
       opts.forEach((o) => {
         const b = el("button", "sim-btn", o);
         b.onclick = () => {
           if (o !== correct) {
-            msg.textContent = "Not that.";
-            ctx.glitch?.();
+            wrong(ctx, msg, "Not that.", "choose_missing_char");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Repaired.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         row.appendChild(b);
       });
 
       ctx.taskBody.appendChild(row);
       ctx.taskBody.appendChild(msg);
-      let resolve;
+
       return new Promise((r) => (resolve = r));
     },
 
     // 18
     hold_to_fill: async (ctx) => {
       begin(ctx, "HOLD", "Hold to fill the bar. Release early resets.");
+
       const bar = el("div");
       bar.style.marginTop = "12px";
       bar.style.width = "min(520px, 100%)";
@@ -841,24 +887,26 @@
 
       const L = scoped();
       const needMs = clamp(900 + (ctx.difficultyBoost?.() ?? 0) * 120, 900, 1900);
+      ctx.setAnswer?.(String(needMs));
 
       let downAt = null;
       let raf = null;
+
+      let resolve;
 
       const render = () => {
         if (downAt == null) return;
         const t = performance.now() - downAt;
         const p = clamp(t / needMs, 0, 1);
         fill.style.width = `${Math.round(p * 100)}%`;
+
         if (p >= 1) {
-          cancelAnimationFrame(raf);
+          if (raf) cancelAnimationFrame(raf);
           raf = null;
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Filled.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
           L.clear();
+          finish(ctx, resolve, String(needMs));
           return;
         }
         raf = requestAnimationFrame(render);
@@ -874,23 +922,24 @@
         if (downAt == null) return;
         const t = performance.now() - downAt;
         downAt = null;
+
         if (t < needMs) {
           fill.style.width = "0%";
-          msg.textContent = "Released.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "impatient");
+          wrong(ctx, msg, "Released.", "hold_to_fill");
         }
       });
 
-      let resolve;
       return new Promise((r) => (resolve = r));
     },
 
     // 19
     choose_even_digits: async (ctx) => {
       begin(ctx, "FILTER", "Click the only option made of ONLY even digits.");
+
       const correct = "2468";
       const opts = shuffle([correct, "2489", "1357", "0247"]);
+      ctx.setAnswer?.(correct);
+
       const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
 
@@ -900,32 +949,32 @@
       row.style.flexWrap = "wrap";
       row.style.gap = "10px";
 
+      let resolve;
+
       opts.forEach((o) => {
         const b = el("button", "sim-btn", o);
         b.onclick = () => {
           if (o !== correct) {
-            msg.textContent = "No.";
-            ctx.glitch?.();
+            wrong(ctx, msg, "No.", "choose_even_digits");
             return;
           }
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Ok.";
-          ctx.taskPrimary.textContent = "continue";
-          ctx.taskPrimary.disabled = false;
-          ctx.taskPrimary.onclick = () => resolve();
+          finish(ctx, resolve, correct);
         };
         row.appendChild(b);
       });
 
       ctx.taskBody.appendChild(row);
       ctx.taskBody.appendChild(msg);
-      let resolve;
+
       return new Promise((r) => (resolve = r));
     },
 
     // 20
     final_phrase: async (ctx) => {
       begin(ctx, "CLOSE OUT", "Type the exact phrase shown. (No extra spaces.)");
+
       const phrases = [
         "notice: internal endpoint",
         "notice: restricted access",
@@ -933,6 +982,7 @@
         "notice: audit window",
       ];
       const line = phrases[rndInt(0, phrases.length - 1)];
+      ctx.setAnswer?.(line);
 
       const shown = el("div", "pill", line);
       shown.style.marginTop = "12px";
@@ -949,12 +999,10 @@
       ctx.taskPrimary.disabled = false;
 
       let resolve;
-      ctx.taskPrimary.onclick = () => {
+      const submit = () => {
         const got = (inp.value || "").trim();
         if (got !== line) {
-          msg.textContent = "Mismatch.";
-          ctx.glitch?.();
-          ctx.penalize?.(1, "typo");
+          wrong(ctx, msg, "Mismatch.", "final_phrase");
           return;
         }
         msg.style.color = "rgba(232,237,247,0.85)";
@@ -962,32 +1010,18 @@
         finish(ctx, resolve, line);
       };
 
+      ctx.taskPrimary.onclick = submit;
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+      inp.focus();
+
       return new Promise((r) => (resolve = r));
     },
-  });
+  };
 
+  reg(TASKS);
+
+  // ✅ Pool as string IDs (tasks.js random expects strings)
   if (regPool) {
-    regPool("pack2", [
-      { id: "liam_whisper", w: 1 },
-      { id: "emma_watch", w: 1 },
-      { id: "restore_header", w: 1 },
-      { id: "sort_lengths", w: 1 },
-      { id: "quiet_replace", w: 1 },
-      { id: "pick_only_lowercase", w: 1 },
-      { id: "index_2_5", w: 1 },
-      { id: "reverse_confirm", w: 1 },
-      { id: "click_when_blank", w: 1 },
-      { id: "choose_valid_path", w: 1 },
-      { id: "count_slashes", w: 1 },
-      { id: "strip_spaces", w: 1 },
-      { id: "choose_unique_symbol", w: 1 },
-      { id: "add_two", w: 1 },
-      { id: "pick_palindrome", w: 1 },
-      { id: "tap_triplet", w: 1 },
-      { id: "choose_missing_char", w: 1 },
-      { id: "hold_to_fill", w: 1 },
-      { id: "choose_even_digits", w: 1 },
-      { id: "final_phrase", w: 1 },
-    ]);
+    regPool("pack2", Object.keys(TASKS));
   }
 })();
