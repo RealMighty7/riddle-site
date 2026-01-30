@@ -429,3 +429,104 @@ body.into-sim #cracks{
 
 body.in-sim #cracks{ opacity:0; }
 body.in-sim #glassFX{ opacity:.18; }
+/* =========================
+   CINEMATIC SHATTER PASS
+   ========================= */
+
+:root{
+  --shakeA: 10px;
+  --shakeB: 6px;
+}
+
+/* Keep cracks crisp */
+#cracks {
+  opacity: 0;
+  transform: none !important;
+  filter: none;
+  transition: opacity 180ms ease;
+}
+
+/* When cracks start showing */
+body.crack1 #cracks,
+body.crack2 #cracks,
+body.crack3 #cracks,
+body.crack4 #cracks {
+  opacity: 1;
+}
+
+/* Make cracks more aggressive visually */
+#cracks .crack-under { stroke-width: 6 !important; opacity: 0.55 !important; }
+#cracks .crack-line  { stroke-width: 2.2 !important; opacity: 0.95 !important; }
+#cracks .crack-glint { stroke-width: 1.2 !important; opacity: 0.9 !important; }
+
+/* Cinematic shatter state */
+body.sim-transition #cracks {
+  opacity: 1;
+}
+
+body.shatter-cine {
+  cursor: none;
+}
+
+/* Screen shake (applies to whole page) */
+body.shatter-cine {
+  animation: shatterShake 520ms ease-in-out 1;
+}
+
+@keyframes shatterShake {
+  0%   { transform: translate(0,0); }
+  12%  { transform: translate(calc(var(--shakeA) * -1), var(--shakeB)); }
+  24%  { transform: translate(var(--shakeA), calc(var(--shakeB) * -1)); }
+  36%  { transform: translate(calc(var(--shakeB) * -1), calc(var(--shakeA) * -1)); }
+  48%  { transform: translate(var(--shakeB), var(--shakeA)); }
+  62%  { transform: translate(calc(var(--shakeA) * -0.6), calc(var(--shakeB) * 0.6)); }
+  76%  { transform: translate(calc(var(--shakeB) * 0.5), calc(var(--shakeA) * -0.4)); }
+  100% { transform: translate(0,0); }
+}
+
+/* Flash overlay (main.js creates #flashFX) */
+#flashFX {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  pointer-events: none;
+  opacity: 0;
+  background: rgba(255,255,255,0.0);
+}
+
+body.shatter-cine #flashFX {
+  animation: flashPop 360ms ease-out 1;
+}
+
+@keyframes flashPop {
+  0%   { opacity: 0; background: rgba(255,255,255,0.00); }
+  18%  { opacity: 1; background: rgba(255,255,255,0.85); }
+  40%  { opacity: 0.35; background: rgba(255,255,255,0.15); }
+  100% { opacity: 0; background: rgba(255,255,255,0.00); }
+}
+
+/* Hard cut to sim (main.js toggles .cut-black briefly) */
+#cutBlack {
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  pointer-events: none;
+  background: #000;
+  opacity: 0;
+  transition: opacity 120ms linear;
+}
+
+body.cut-black #cutBlack { opacity: 1; }
+
+/* Optional: make cracks "glow" right at shatter */
+body.shatter-cine #cracks .crack-glint {
+  animation: glintFlicker 520ms ease-in-out 1;
+}
+
+@keyframes glintFlicker {
+  0% { opacity: 0.0; }
+  22% { opacity: 0.95; }
+  45% { opacity: 0.15; }
+  70% { opacity: 0.85; }
+  100% { opacity: 0.25; }
+}
