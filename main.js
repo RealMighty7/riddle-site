@@ -1389,10 +1389,10 @@ Reinitializing simulation…`
       return true;
     }
 
-    function registerLandingClick(e) {
+    function registerLandingClick(e, force = false) {
       if (stage !== 1) return;
       if (document.body.classList.contains("sim-transition")) return;
-      if (!isClickableTarget(e)) return;
+      if (!force && !isClickableTarget(e)) return;
     
       const now = Date.now();
       if (now - lastClick < CLICK_COOLDOWN) return;
@@ -1416,7 +1416,7 @@ Reinitializing simulation…`
 
     els.launchBtn?.addEventListener("click", (e) => {
       armLaunch();
-      registerLandingClick(e);
+      registerLandingClick(e, true);
       // Bias endpoints toward the click position (impact point)
       try {
         const r = cracks.getBoundingClientRect();
