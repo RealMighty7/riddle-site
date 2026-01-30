@@ -182,6 +182,17 @@ input[disabled]{
   font-size:13px;
   line-height:1.25;
 }
+/* Hide cracks once the sim is active */
+body.in-sim #cracks{
+  opacity: 0 !important;
+  display: none !important;
+}
+
+/* Also hide cracks after the cinematic transition finishes */
+body.in-sim #cracks,
+body.sim-visible #cracks{
+  opacity: 0 !important;
+}
 
 /* ===================== BUTTONS ===================== */
 .sim-btn{
