@@ -62,6 +62,22 @@ window.playSfx = playSfx;
    VOICE BANK (dialogue playback)
 ========================================================= */
 
+function speakerToFolder(speaker) {
+  // Goal: map "Emma (Security)" -> "emma", "Liam (Worker)" -> "liam", "System" -> "system"
+  const s = String(speaker || "system").trim().toLowerCase();
+  if (!s) return "system";
+
+  // fast path for common speakers
+  if (s.startsWith("emma")) return "emma";
+  if (s.startsWith("liam")) return "liam";
+  if (s.startsWith("system")) return "system";
+  if (s.startsWith("you")) return "you";
+
+  // generic sanitize: keep first alnum token
+  const token = (s.match(/[a-z0-9]+/) || [])[0];
+  return token || "system";
+}
+
 class VoiceBank {
   constructor({ voicesUrl = "/audio/data/voices.json", onTag = null } = {}) {
     this.voicesUrl = voicesUrl;
@@ -90,6 +106,7 @@ class VoiceBank {
     if (!res.ok) throw new Error(`Failed to load voices.json (${res.status})`);
 
     const ct = (res.headers.get("content-type") || "").toLowerCase();
+    // Some hosts return application/json; charset=utf-8, so includes() is correct.
     if (!ct.includes("application/json")) {
       const preview = (await res.text()).slice(0, 120);
       throw new Error(`voices.json is not JSON: ${preview}`);
@@ -100,7 +117,7 @@ class VoiceBank {
     if (!Array.isArray(lines)) throw new Error("voices.json missing lines[]");
 
     for (const line of lines) {
-      if (!line || !line.id) continue;
+      if (!line || line.id == null) continue;
       const id = String(line.id).padStart(4, "0");
       this.byId.set(id, line);
     }
@@ -179,14 +196,15 @@ class VoiceBank {
       }
     }
 
-    // audio src
-    const folder = (line.speaker || "system").toLowerCase();
+    // audio src (folder must be safe)
+    const folder = speakerToFolder(line.speaker || "system");
     const src = `/audio/${folder}/${key}.wav`;
 
     const audio = new Audio(src);
     this._currentAudio = audio;
 
     if (typeof opts.volume === "number") audio.volume = clamp01(opts.volume);
+    if (typeof opts.rate === "number") audio.playbackRate = clampRate(opts.rate);
 
     const baseHoldMs = Number(opts.baseHoldMs ?? 0);
     const holdMs = Number.isFinite(baseHoldMs) ? Math.max(0, baseHoldMs) : 0;
