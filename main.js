@@ -487,38 +487,27 @@
       setTimeout(hardReload, 1800);
     }
 
-    // Auto-continue after a task calls ctx.setAnswer(...)
-    // IMPORTANT: tasks often "await" a click on taskPrimary to resolve.
-    // So we *simulate* that click to unblock the task function.
+    // ===== TASK COMPLETION GATE (auto-continue that actually advances) =====
     let __autoContinueTimer = 0;
+    let __taskDoneResolve = null;
     
     function scheduleAutoContinue(delayMs = 550) {
       if (ABORTED) return;
-    
       if (__autoContinueTimer) clearTimeout(__autoContinueTimer);
     
       __autoContinueTimer = setTimeout(() => {
         __autoContinueTimer = 0;
         if (ABORTED) return;
     
-        // Make sure the button is clickable
-        try {
-          taskPrimary.disabled = false;
-          taskPrimary.classList.remove("hidden");
-        } catch {}
-    
-        // If the task attached an onclick and is awaiting it, this will resolve it.
-        try {
-          taskPrimary.click();
-          return;
-        } catch {}
-    
-        // Fallback: dispatch a click event
-        try {
-          taskPrimary.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-        } catch {}
+        // Resolve the task gate (this is the real "continue")
+        if (typeof __taskDoneResolve === "function") {
+          const r = __taskDoneResolve;
+          __taskDoneResolve = null;
+          r();
+        }
       }, Math.max(0, delayMs | 0));
     }
+
 
 
     function glitchPulse() {
@@ -905,6 +894,16 @@ Reinitializing…`
         }
       } catch {}
       return msToRead(rawLine);
+    }
+
+    function shouldUseAzureTTS(rawLine) {
+      try {
+        if (!window.TTS?.enqueue) return false;
+        const id = getIdFromLine(rawLine);
+        return !id; // only when no local audio file exists
+      } catch {
+        return false;
+      }
     }
 
     async function emitLine(line) {
