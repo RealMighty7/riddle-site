@@ -1419,55 +1419,78 @@ Reinitializing simulation…`
       setTimeout(() => cracks.classList.remove("pulse"), 220);
     }
 
-   async function shatterAndEnterSim() {
-    if (document.body.classList.contains("sim-transition")) return;
-  
-    document.body.classList.add("sim-transition");
-  
-    ensureCracks();
-    cracks.style.opacity = "1";
-  
-    // Create overlays once
-    if (!document.getElementById("flashFX")) {
-      const fx = document.createElement("div");
-      fx.id = "flashFX";
-      document.body.appendChild(fx);
+    async function shatterAndEnterSim() {
+      if (document.body.classList.contains("sim-transition")) return;
+    
+      document.body.classList.add("sim-transition");
+    
+      ensureCracks();
+      cracks.style.opacity = "1";
+    
+      // Create overlays once
+      if (!document.getElementById("flashFX")) {
+        const fx = document.createElement("div");
+        fx.id = "flashFX";
+        document.body.appendChild(fx);
+      }
+      if (!document.getElementById("cutBlack")) {
+        const cb = document.createElement("div");
+        cb.id = "cutBlack";
+        document.body.appendChild(cb);
+      }
+    
+      // --- NEW: build fragment overlay of the landing UI ---
+      buildShardFX();
+      document.body.classList.add("frag-break");
+    
+      // Make sim room exist under everything (but fade it in)
+      simRoom.classList.remove("hidden");
+      document.body.classList.add("reveal-sim");
+    
+      // Start cinematic pass
+      document.body.classList.add("shatter-cine");
+    
+      // Audio + small extra glitch pulses
+      playSfx("glassBreak", { volume: 0.75, overlap: false });
+      playSfx("glitch2", { volume: 0.22, overlap: true });
+      setTimeout(() => playSfx("glitch1", { volume: 0.20, overlap: true }), 90);
+      setTimeout(() => playSfx("static1", { volume: 0.18, overlap: true }), 150);
+    
+      // final crack burst right at impact
+      for (let s = crackStage + 1; s <= 4; s++) {
+        setCrackStage(s);
+        growCracksForStage(s);
+      }
+    
+      // Let shards “stutter” for a beat, then explode outward
+      await wait(140);
+      document.body.classList.add("frag-go");
+    
+      // Fade sim in while shards leave
+      await wait(120);
+      document.body.classList.add("sim-visible");
+    
+      // Short shutter cut (optional, keeps your cinematic snap)
+      await wait(200);
+      document.body.classList.add("cut-black");
+      await wait(120);
+      document.body.classList.remove("cut-black");
+    
+      // Now enter sim (this clears cut-black immediately too, from your prior fix)
+      await openSimRoom();
+    
+      // Cleanup transition states
+      document.body.classList.remove("shatter-cine");
+      document.body.classList.remove("into-sim");
+      document.body.classList.remove("sim-transition");
+    
+      document.body.classList.remove("frag-go");
+      document.body.classList.remove("frag-break");
+      document.body.classList.remove("reveal-sim");
+      document.body.classList.remove("sim-visible");
+      removeShardFX();
     }
-    if (!document.getElementById("cutBlack")) {
-      const cb = document.createElement("div");
-      cb.id = "cutBlack";
-      document.body.appendChild(cb);
-    }
-  
-    // Start cinematic pass
-    document.body.classList.add("shatter-cine");
-  
-    // Audio + small extra glitch pulses
-    playSfx("glassBreak", { volume: 0.75, overlap: false });
-    playSfx("glitch2", { volume: 0.22, overlap: true });
-    setTimeout(() => playSfx("glitch1", { volume: 0.20, overlap: true }), 90);
-    setTimeout(() => playSfx("static1", { volume: 0.18, overlap: true }), 150);
-  
-    // Quick “final fracture growth burst” right at impact
-    for (let s = crackStage + 1; s <= 4; s++) {
-      setCrackStage(s);
-      growCracksForStage(s);
-    }
-  
-    // Let the shake/flash play, then hard cut
-    await wait(420);
-    document.body.classList.add("cut-black");
-  
-    // Cut duration (feels like a camera shutter)
-    await wait(160);
-  
-    await openSimRoom();
-  
-    // Clean up transition states
-    document.body.classList.remove("cut-black");
-    document.body.classList.remove("shatter-cine");
-    document.body.classList.remove("into-sim");
-  }
+
 
     function isClickableTarget(e) {
       const t = e.target;
