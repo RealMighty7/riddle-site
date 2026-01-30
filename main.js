@@ -1380,10 +1380,10 @@ Reinitializing simulation…`
       ensureCracks();
 
       const addCount =
-        stageToAdd === 1 ? 18 :
-        stageToAdd === 2 ? 28 :
-        stageToAdd === 3 ? 40 :
-        54;
+        stageToAdd === 1 ? 13 :
+        stageToAdd === 2 ? 20 :
+        stageToAdd === 3 ? 27 :
+        34;
 
 
       for (let i = 0; i < addCount; i++) {
@@ -1393,9 +1393,9 @@ Reinitializing simulation…`
           y: base.y + (crackRng() - 0.5) * 24,
         };
 
-        const steps = 7 + Math.floor(crackRng() * (stageToAdd * 5 + 8));
-        const stepLen = 16 + crackRng() * (18 + stageToAdd * 12);
-        const jitter = 2.1 + crackRng() * (1.6 + stageToAdd * 0.55);
+          const steps = 6 + Math.floor(crackRng() * (stageToAdd * 4 + 6));
+          const stepLen = 14 + crackRng() * (14 + stageToAdd * 9);
+          const jitter = 1.8 + crackRng() * (1.2 + stageToAdd * 0.45);
 
         const d = makeBranchPath(start, steps, stepLen, jitter);
         addSeg(cracks, d);
@@ -1491,6 +1491,9 @@ Reinitializing simulation…`
       document.body.classList.remove("reveal-sim");
       document.body.classList.remove("sim-visible");
       removeShardFX();
+      // hard-hide cracks now that we are inside sim
+      setCrackStage(0);
+      cracks.style.opacity = "0";
     }
 
 
