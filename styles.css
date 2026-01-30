@@ -445,6 +445,56 @@ body.sim-transition #glassFX{
 }
 body.in-sim #glassFX{ opacity:.18; }
 /* =========================
+   FRAGMENT SHARDS (transition)
+   ========================= */
+#fragFX{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99998; /* under flash/cutBlack, above page */
+  overflow: hidden;
+  opacity: 0;
+}
+
+body.shatter-cine #fragFX{ opacity: 1; }
+
+.fragShard{
+  position: absolute;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+  backdrop-filter: blur(6px);
+  transform: translate(0,0) rotate(0deg);
+  opacity: 0.95;
+  animation: shardFly 520ms ease-in-out 1 forwards;
+}
+
+.fragShard::after{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border-radius: 10px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,.08) 0px,
+      rgba(255,255,255,.08) 6px,
+      rgba(255,255,255,0) 12px,
+      rgba(255,255,255,0) 18px
+    );
+  mix-blend-mode: screen;
+  opacity: .18;
+  filter: blur(.3px);
+}
+
+@keyframes shardFly{
+  0%   { transform: translate(0,0) rotate(0deg) scale(1); filter: none; }
+  35%  { filter: blur(.6px) contrast(1.1); }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--dr)) scale(.92); opacity: 0; filter: blur(1.2px); }
+}
+
+/* =========================
    CINEMATIC SHATTER PASS
    ========================= */
 
