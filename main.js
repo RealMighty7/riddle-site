@@ -1432,6 +1432,66 @@ Reinitializing simulation…`
       setTimeout(() => cracks.classList.remove("pulse"), 220);
     }
 
+    function ensureFragFX() {
+      let fx = document.getElementById("fragFX");
+      if (fx) return fx;
+    
+      fx = document.createElement("div");
+      fx.id = "fragFX";
+      document.body.appendChild(fx);
+      return fx;
+    }
+    
+    function spawnShards() {
+      const fx = ensureFragFX();
+      fx.innerHTML = "";
+    
+      // Shards roughly mimic UI panels breaking apart
+      const count = 18;
+      for (let i = 0; i < count; i++) {
+        const d = document.createElement("div");
+        d.className = "fragShard";
+    
+        const w = 120 + Math.random() * 220;
+        const h = 60 + Math.random() * 160;
+    
+        const x = Math.random() * (window.innerWidth - w);
+        const y = 40 + Math.random() * (Math.min(window.innerHeight, 520) - h);
+    
+        const dx = (Math.random() - 0.5) * 520;
+        const dy = (Math.random() - 0.3) * 420;
+        const dr = (Math.random() - 0.5) * 40;
+    
+        d.style.left = `${x}px`;
+        d.style.top = `${y}px`;
+        d.style.width = `${w}px`;
+        d.style.height = `${h}px`;
+        d.style.setProperty("--dx", `${dx}px`);
+        d.style.setProperty("--dy", `${dy}px`);
+        d.style.setProperty("--dr", `${dr}deg`);
+    
+        // Random “broken” silhouette
+        const clip = [
+          `${10 + Math.random()*20}% ${0 + Math.random()*10}%`,
+          `${80 + Math.random()*15}% ${0 + Math.random()*10}%`,
+          `${100}% ${20 + Math.random()*30}%`,
+          `${90 + Math.random()*10}% ${90 + Math.random()*10}%`,
+          `${20 + Math.random()*25}% ${100}%`,
+          `${0}% ${70 + Math.random()*20}%`,
+          `${0}% ${20 + Math.random()*30}%`,
+        ].join(", ");
+        d.style.clipPath = `polygon(${clip})`;
+    
+        fx.appendChild(d);
+      }
+    
+      // Clean up after animation
+      setTimeout(() => {
+        const node = document.getElementById("fragFX");
+        if (node) node.innerHTML = "";
+      }, 620);
+    }
+
     async function shatterAndEnterSim() {
       if (document.body.classList.contains("sim-transition")) return;
     
@@ -1462,6 +1522,7 @@ Reinitializing simulation…`
     
       // Start cinematic pass
       document.body.classList.add("shatter-cine");
+      spawnShards();
     
       // Audio + small extra glitch pulses
       playSfx("glassBreak", { volume: 0.75, overlap: false });
