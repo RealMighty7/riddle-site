@@ -469,10 +469,9 @@ body.crack4 #cracks {
   opacity: 1;
 }
 
-/* Make cracks more aggressive visually */
-#cracks .crack-under { stroke-width: 6 !important; opacity: 0.55 !important; }
-#cracks .crack-line  { stroke-width: 2.2 !important; opacity: 0.95 !important; }
-#cracks .crack-glint { stroke-width: 1.2 !important; opacity: 0.9 !important; }
+#cracks .crack-under { stroke-width: 5 !important; opacity: 0.45 !important; }
+#cracks .crack-line  { stroke-width: 1.8 !important; opacity: 0.90 !important; }
+#cracks .crack-glint { stroke-width: 1.0 !important; opacity: 0.75 !important; }
 
 /* Cinematic shatter state */
 body.sim-transition #cracks {
