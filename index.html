@@ -166,7 +166,6 @@
         answer: <span id="adminStoredAnswer">—</span>
       </div>
 
-
       <div class="adminBtns">
         <button class="sim-btn" id="adminSkip">skip</button>
       </div>
@@ -203,18 +202,5 @@
 
   <script src="/audio_player.js?v=42"></script>
   <script src="/main.js?v=42"></script>
-
-  <script>
-    (function () {
-      const el = document.getElementById("timestamp");
-      if (!el) return;
-      function tick() {
-        const d = new Date();
-        el.textContent = "timestamp: " + d.toLocaleString();
-      }
-      tick();
-      setInterval(tick, 1000);
-    })();
-  </script>
 </body>
 </html>
