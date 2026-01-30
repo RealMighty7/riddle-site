@@ -89,9 +89,10 @@ class VoiceBank {
     this.subtitleEl = null;
     this.nameEl = null;
 
-    this._currentAudio = null;
-    this._playToken = 0;
-    this._unlocked = false;
+   this._currentAudio = null;
+   this._activeAudios = new Set();
+   this._playToken = 0;
+   this._unlocked = false;
   }
 
   bindSubtitleUI({ nameEl, subtitleEl }) {
@@ -160,15 +161,27 @@ class VoiceBank {
     } catch {}
   }
 
-  stopCurrent() {
-    try {
-      if (this._currentAudio) {
-        this._currentAudio.pause();
-        this._currentAudio.currentTime = 0;
-      }
-    } catch {}
-    this._currentAudio = null;
-  }
+   stopCurrent() {
+     // Stop *all* active audios (important when stopPrevious:false was used)
+     try {
+       for (const a of this._activeAudios) {
+         try { a.pause(); } catch {}
+         try { a.currentTime = 0; } catch {}
+       }
+     } catch {}
+   
+     this._activeAudios.clear();
+   
+     try {
+       if (this._currentAudio) {
+         try { this._currentAudio.pause(); } catch {}
+         try { this._currentAudio.currentTime = 0; } catch {}
+       }
+     } catch {}
+   
+     this._currentAudio = null;
+   }
+
 
   async playById(id, opts = {}) {
     await this.load();
@@ -199,9 +212,11 @@ class VoiceBank {
     // audio src (folder must be safe)
     const folder = speakerToFolder(line.speaker || "system");
     const src = `/audio/${folder}/${key}.wav`;
-
     const audio = new Audio(src);
     this._currentAudio = audio;
+   
+    this._activeAudios.add(audio);
+
 
     if (typeof opts.volume === "number") audio.volume = clamp01(opts.volume);
     if (typeof opts.rate === "number") audio.playbackRate = clampRate(opts.rate);
@@ -211,8 +226,14 @@ class VoiceBank {
 
     return new Promise((resolve) => {
       const finish = () => {
+        // Always untrack this audio
+        try { this._activeAudios.delete(audio); } catch {}
+      
         if (token !== this._playToken) return resolve(); // replaced by newer line
-        this._currentAudio = null;
+      
+        // Only clear currentAudio if this one is the "current"
+        if (this._currentAudio === audio) this._currentAudio = null;
+      
         if (holdMs) setTimeout(resolve, holdMs);
         else resolve();
       };
