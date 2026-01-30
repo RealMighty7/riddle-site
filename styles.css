@@ -534,3 +534,114 @@ body.shatter-cine #cracks .crack-glint {
   70% { opacity: 0.85; }
   100% { opacity: 0.25; }
 }
+/* =========================
+   FRAGMENT BREAK (landing shards reveal sim)
+   ========================= */
+
+#shardFX{
+  position: fixed;
+  inset: 0;
+  z-index: 99998; /* below flash/cutBlack, above page */
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#shardFX .shard{
+  position: absolute;
+  overflow: hidden;
+  border-radius: 10px;
+  transform: translateZ(0);
+  opacity: 0.0;
+  filter: contrast(1.05) saturate(1.05);
+  will-change: transform, opacity, filter, clip-path;
+  mix-blend-mode: screen; /* feels “glitchy” on light bg */
+}
+
+#shardFX .shard::after{
+  /* scanline/static overlay inside each shard */
+  content:"";
+  position:absolute;
+  inset:-30px;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255,255,255,0.00) 0px,
+      rgba(255,255,255,0.00) 2px,
+      rgba(255,255,255,0.05) 3px,
+      rgba(255,255,255,0.00) 5px
+    );
+  opacity: 0;
+  mix-blend-mode: overlay;
+}
+
+#shardFX .shard .inner{
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translateZ(0);
+  filter: none;
+}
+
+/* Sim fades in underneath while shards break */
+body.reveal-sim #simRoom{
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+body.reveal-sim.sim-visible #simRoom{
+  opacity: 1;
+}
+
+/* Start state */
+body.frag-break #shardFX .shard{
+  opacity: 0.92;
+  animation: shardIdle 120ms steps(2) infinite;
+}
+body.frag-break #shardFX .shard::after{ opacity: 0.18; }
+
+/* Trigger the actual “break apart” */
+body.frag-break.frag-go #shardFX .shard{
+  animation: shardFly 520ms ease-in-out 1 forwards, shardJitter 120ms steps(2) 5;
+}
+body.frag-break.frag-go #shardFX .shard::after{
+  opacity: 0.35;
+  animation: shardNoise 140ms steps(2) 6;
+}
+
+/* micro flicker while waiting */
+@keyframes shardIdle{
+  0%{ filter: contrast(1.0) saturate(1.0) hue-rotate(0deg); }
+  100%{ filter: contrast(1.12) saturate(1.15) hue-rotate(10deg); }
+}
+
+@keyframes shardNoise{
+  0%{ transform: translateY(0); opacity: 0.28; }
+  50%{ transform: translateY(-2px); opacity: 0.45; }
+  100%{ transform: translateY(0); opacity: 0.30; }
+}
+
+@keyframes shardJitter{
+  0%{ clip-path: polygon(0 0,100% 0,100% 100%,0 100%); }
+  25%{ clip-path: polygon(2% 0,100% 2%,98% 100%,0 98%); }
+  50%{ clip-path: polygon(0 3%,97% 0,100% 97%,3% 100%); }
+  75%{ clip-path: polygon(1% 1%,100% 0,99% 99%,0 100%); }
+  100%{ clip-path: polygon(0 0,100% 0,100% 100%,0 100%); }
+}
+
+/* each shard gets its own CSS vars from JS */
+@keyframes shardFly{
+  0%{
+    opacity: 0.96;
+    transform: translate(0,0) rotate(0deg) scale(1);
+    filter: contrast(1.08) saturate(1.15) blur(0px);
+  }
+  35%{
+    opacity: 0.95;
+    transform: translate(calc(var(--dx)*0.35), calc(var(--dy)*0.35)) rotate(calc(var(--dr)*0.35)) scale(1.01);
+    filter: contrast(1.2) saturate(1.2) blur(0.4px);
+  }
+  100%{
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) rotate(var(--dr)) scale(0.98);
+    filter: contrast(1.25) saturate(1.25) blur(1.6px);
+  }
+}
