@@ -196,14 +196,19 @@ body.in-sim #wrap{ display:none; }
   padding: 22px 16px 180px;
   z-index:70;
 }
+
 .simCard{
   width: min(860px, 100%);
   border:1px solid var(--sim-line);
   background: rgba(255,255,255,.04);
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
-.simText{
+
+/* IMPORTANT: style both class and id to avoid mismatches */
+.simText,
+#simText{
   margin:0;
   padding: 12px;
   min-height: 240px;
@@ -218,7 +223,8 @@ body.in-sim #wrap{ display:none; }
   white-space: pre-wrap;
 }
 
-.simChoices{
+.simChoices,
+#simChoices{
   margin-top:12px;
   display:flex;
   gap:10px;
@@ -235,16 +241,24 @@ body.in-sim #wrap{ display:none; }
   padding: 22px 16px 130px;
   z-index:75;
 }
+
 .taskCard{
   width: min(700px, 100%);
   border:1px solid var(--sim-line);
   background: rgba(255,255,255,.04);
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
-.taskDesc{ margin-top:8px; opacity:.85; }
-.taskBody{ margin-top:12px; }
-.taskActions{
+
+.taskDesc,
+#taskDesc{ margin-top:8px; opacity:.85; }
+
+.taskBody,
+#taskBody{ margin-top:12px; }
+
+.taskActions,
+#taskActions{
   margin-top:14px;
   display:flex;
   gap:10px;
@@ -262,6 +276,7 @@ body.in-sim #wrap{ display:none; }
   z-index:100;
   background: rgba(0,0,0,.55);
 }
+
 .resetCard{
   width: min(700px, 100%);
   border:1px solid rgba(255,255,255,.14);
@@ -269,7 +284,9 @@ body.in-sim #wrap{ display:none; }
   color: rgba(232,237,247,.92);
   border-radius: 18px;
 }
-.resetBody{ margin-top:10px; white-space:pre-wrap; opacity:.9; }
+
+.resetBody,
+#resetBody{ margin-top:10px; white-space:pre-wrap; opacity:.9; }
 
 /* ===================== FINAL OVERLAY ===================== */
 #finalOverlay{
@@ -282,6 +299,7 @@ body.in-sim #wrap{ display:none; }
   z-index:120;
   background: rgba(0,0,0,.55);
 }
+
 .finalCard{
   width: min(560px, 100%);
   border:1px solid rgba(255,255,255,.14);
@@ -289,7 +307,9 @@ body.in-sim #wrap{ display:none; }
   color: rgba(232,237,247,.92);
   border-radius: 18px;
 }
-.errText{ margin-top:10px; color: rgba(255,190,190,.95); }
+
+.errText,
+#finalErr{ margin-top:10px; color: rgba(255,190,190,.95); }
 
 /* ===================== SUBTITLES ===================== */
 #subs{
@@ -302,7 +322,9 @@ body.in-sim #wrap{ display:none; }
   pointer-events: none;
   text-align:left;
 }
+
 #subsName{ font-size: 12px; opacity: .75; margin-bottom: 6px; }
+
 #subsText{
   font-size: 14px;
   line-height: 1.25;
@@ -312,8 +334,36 @@ body.in-sim #wrap{ display:none; }
   background: rgba(0,0,0,.28);
   box-shadow: 0 10px 24px rgba(0,0,0,.28);
   color: rgba(232,237,247,.92);
+  transition: border-color 180ms ease, box-shadow 180ms ease, filter 180ms ease;
 }
+
 #subs.calm #subsText{ filter: brightness(1.05); }
+
+/* ===================== PRESSURE TIERS (from main.js) ===================== */
+/* subtle but readable — sells time pressure without being “glitchy” */
+body.pressure1 .simCard,
+body.pressure1 .taskCard{
+  border-color: rgba(255,220,90,.26);
+  box-shadow: 0 10px 26px rgba(0,0,0,.36), 0 0 0 1px rgba(255,220,90,.06);
+}
+
+body.pressure2 .simCard,
+body.pressure2 .taskCard{
+  border-color: rgba(255,80,80,.26);
+  box-shadow: 0 12px 28px rgba(0,0,0,.40), 0 0 0 1px rgba(255,80,80,.08);
+  transform: translateY(-1px);
+}
+
+body.pressure1 #subsText{
+  border-color: rgba(255,220,90,.22);
+  box-shadow: 0 10px 24px rgba(0,0,0,.30), 0 0 0 1px rgba(255,220,90,.05);
+}
+
+body.pressure2 #subsText{
+  border-color: rgba(255,80,80,.22);
+  box-shadow: 0 10px 24px rgba(0,0,0,.32), 0 0 0 1px rgba(255,80,80,.06);
+  filter: saturate(1.05);
+}
 
 /* ===================== HACK ROOM ===================== */
 #hackRoom{
@@ -333,6 +383,7 @@ body.in-sim #wrap{ display:none; }
   top: 18px;
   z-index: 9999;
 }
+
 .adminBox{
   width: 280px;
   border:1px solid rgba(255,255,255,.16);
@@ -342,6 +393,7 @@ body.in-sim #wrap{ display:none; }
   box-shadow: 0 10px 24px rgba(0,0,0,.30);
   color: rgba(232,237,247,.92);
 }
+
 .adminHead{
   display:flex;
   justify-content:space-between;
@@ -349,6 +401,7 @@ body.in-sim #wrap{ display:none; }
   gap:10px;
   user-select:none;
 }
+
 .adminBody{ margin-top:10px; font-size:12px; opacity:.92; line-height:1.35; }
 .adminBtns{ margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
 
@@ -373,5 +426,6 @@ body.into-sim #cracks{
   60%  { opacity:.95; filter:hue-rotate(10deg) brightness(1.15) blur(1.2px); transform: scale(1.015); }
   100% { opacity:0; filter: blur(2px); transform: scale(1.02); }
 }
+
 body.in-sim #cracks{ opacity:0; }
 body.in-sim #glassFX{ opacity:.18; }
