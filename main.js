@@ -149,6 +149,63 @@
         try { window.playSfx(id, opts); } catch {}
       }
     }
+          // ===== TTS parsing + routing =====
+    function parseSpeakerAndText(line) {
+      const raw = String(line || "").replace(/^\s*\[\d{1,4}\]\s*/, "").trim();
+
+      // "Emma (Security): blah" or "System: blah"
+      const m = raw.match(/^([^:]{1,48}):\s*(.*)$/);
+      if (!m) return { speaker: "System", text: raw };
+
+      const speakerRaw = (m[1] || "").trim();
+      const speaker = speakerRaw.split("(")[0].trim() || "System";
+      const text = (m[2] || "").trim();
+      return { speaker, text };
+    }
+
+    // Decide when to use Azure TTS vs VoiceBank.
+    // If a line has an [id], VoiceBank likely has audio -> prefer VoiceBank.
+    function shouldUseAzureTTS(rawLine) {
+      // If no TTS queue exists, nothing to do
+      if (!window.TTS || typeof window.TTS.enqueue !== "function") return false;
+    
+      // If VoiceBank isn't available, use Azure.
+      if (!window.AudioPlayer || typeof window.AudioPlayer.playLine !== "function") return true;
+    
+      // If it starts with [####], try VoiceBank first BUT still allow Azure as fallback
+      // (emitLine already calls both; Azure will just speak if enabled)
+      return true;
+    }
+    
+
+    // ===== TTS helper (packs + dialogue) =====
+    window.TTS_SPEAKERS = window.TTS_SPEAKERS || {
+      System: { voice: "en-US-GuyNeural", style: "", rate: "-6%", pitch: "-2Hz", volume: "+0%" },
+      Emma:   { voice: "en-US-ErinNeural", style: "serious", rate: "-4%", pitch: "-1Hz", volume: "+0%" },
+      Liam:   { voice: "en-US-DavisNeural", style: "calm", rate: "-2%", pitch: "-2Hz", volume: "+0%" },
+    };
+    
+    window.sayLine = function sayLine(speaker, text, extra = {}) {
+      try {
+        const cfg = window.TTS_SPEAKERS?.[speaker] || window.TTS_SPEAKERS?.System || {};
+        const payload = {
+          speaker: String(speaker || "System"),
+          voice: cfg.voice || extra.voice,
+          style: extra.style ?? cfg.style ?? "",
+          rate:  extra.rate  ?? cfg.rate  ?? null,
+          pitch: extra.pitch ?? cfg.pitch ?? null,
+          volume: extra.volume ?? cfg.volume ?? null,
+          text: String(text || "").trim(),
+        };
+        if (!payload.voice || !payload.text) return;
+        window.TTS?.enqueue?.(payload);
+      } catch {}
+    };
+    
+    // Optional convenience:
+    window.saySystem = (text, extra) => window.sayLine("System", text, extra);
+    window.sayEmma   = (text, extra) => window.sayLine("Emma", text, extra);
+    window.sayLiam   = (text, extra) => window.sayLine("Liam", text, extra);
 
     /* ======================
        BUILD: REVISION COUNTER (persists across forced resets)
@@ -353,6 +410,7 @@
 
       // stop audio + timer if any
       try { window.AudioPlayer?.stop?.(); } catch {}
+      try { window.TTS?.stop?.(); } catch {}
       try { taskTimer?.stop?.(); } catch {}
 
       setTimeout(hardReload, 1800);
@@ -750,18 +808,35 @@ Reinitializing…`
       const raw = String(line || "");
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
 
+      // VoiceBank (your existing /audio_player.js system)
       const voPromise =
         window.AudioPlayer && typeof window.AudioPlayer.playLine === "function"
           ? window.AudioPlayer.playLine(raw)
           : Promise.resolve();
 
+      // Azure TTS queue (your /ttsQueue.js + /functions/api/tts.js)
+      let ttsPromise = Promise.resolve();
+      try {
+        if (shouldUseAzureTTS(raw)) {
+          const { speaker, text } = parseSpeakerAndText(raw);
+          // keep your token system working: {breath} {pause=220}
+          ttsPromise = window.TTS?.enqueue?.({
+            speaker,
+            ...(window.TTS_SPEAKERS?.[speaker] || window.TTS_SPEAKERS?.System || {}),
+            text,
+          }) || Promise.resolve();
+        }
+      } catch {}
+
       const typingMs = getTypingMsForLine(raw);
 
       await Promise.all([
         typeLineIntoSim(printed, typingMs),
-        voPromise
+        voPromise,
+        ttsPromise,
       ]);
     }
+
 
     async function playLines(lines) {
       for (const line of lines || []) {
@@ -846,7 +921,13 @@ Resetting simulation…`
         taskPrimary.disabled = false;
 
         els.taskActions?.classList.remove("hidden");
+
+        // --- TTS: announce task (queued, no overlap) ---
+        try {
+          window.saySystem?.(`{breath}${title}. {pause=180}${desc}`);
+        } catch {}
       },
+
 
       doReset,
 
