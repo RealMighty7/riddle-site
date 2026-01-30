@@ -488,27 +488,38 @@
     }
 
     // Auto-continue after a task calls ctx.setAnswer(...)
+    // IMPORTANT: tasks often "await" a click on taskPrimary to resolve.
+    // So we *simulate* that click to unblock the task function.
     let __autoContinueTimer = 0;
     
     function scheduleAutoContinue(delayMs = 550) {
       if (ABORTED) return;
-      if (__autoContinueTimer) clearTimeout(__autoContinueTimer);
     
-      // Hide buttons so it feels "automatic"
-      try { taskPrimary.classList.add("hidden"); } catch {}
-      try { taskSecondary.classList.add("hidden"); } catch {}
+      if (__autoContinueTimer) clearTimeout(__autoContinueTimer);
     
       __autoContinueTimer = setTimeout(() => {
         __autoContinueTimer = 0;
         if (ABORTED) return;
     
-        // Mark task UI "done" if your CSS uses it
-        try { document.body.classList.add("task-done"); } catch {}
+        // Make sure the button is clickable
+        try {
+          taskPrimary.disabled = false;
+          taskPrimary.classList.remove("hidden");
+        } catch {}
     
-        // Nothing else to do: runSteps resumes after fn() returns.
-        // This just adds a beat so it doesn't feel instant.
+        // If the task attached an onclick and is awaiting it, this will resolve it.
+        try {
+          taskPrimary.click();
+          return;
+        } catch {}
+    
+        // Fallback: dispatch a click event
+        try {
+          taskPrimary.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        } catch {}
       }, Math.max(0, delayMs | 0));
     }
+
 
     function glitchPulse() {
       playSfx("glitch1", { volume: 0.55, overlap: true });
@@ -997,9 +1008,9 @@ Resetting simulation…`
       setAnswer(ans) {
         lastAnswer = ans;
         document.dispatchEvent(new CustomEvent("admin:answer", { detail: { answer: ans } }));
-
-        scheduleAutoContinue(550);
+        scheduleAutoContinue(450);
       },
+
 
       getAnswer() { return lastAnswer; },
 
