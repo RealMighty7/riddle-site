@@ -1,4 +1,4 @@
-// main.js (FULL REPLACEMENT)
+// main.js (FULL REPLACEMENT) — PART 1/2
 (() => {
   function boot() {
     if (document.readyState === "loading") {
@@ -6,9 +6,9 @@
       return;
     }
 
-    function clamp(n, a, b) {
-      return Math.max(a, Math.min(b, n));
-    }
+    /* ====================== UTIL ====================== */
+    function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+    function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
     const DIALOGUE = window.DIALOGUE;
     const TASKS = window.TASKS;
@@ -128,12 +128,6 @@
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
 
-    /* ====================== LANDING ASSETS ====================== */
-    const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
-    document.querySelectorAll(".adImg").forEach((img) => {
-      img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
-    });
-
     /* ====================== SFX ====================== */
     function playSfx(name, opts = {}) {
       if (typeof window.playSfx === "function") {
@@ -142,11 +136,43 @@
           glitch2: "glitch",
           static1: "static",
           static2: "staticSoft",
+          mclick: "mclick",
+          glassBreak: "glassBreak",
         };
         const id = map[name] || name;
         try { window.playSfx(id, opts); } catch {}
       }
     }
+
+    /* ======================
+       BUILD: REVISION COUNTER (persists across forced resets)
+    ====================== */
+    const REV_KEY = "tnr_revision_count";
+
+    function getRevisionCount() {
+      const v = Number(localStorage.getItem(REV_KEY));
+      return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+    }
+    function setRevisionCount(n) {
+      const v = Math.max(0, Math.floor(Number(n) || 0));
+      localStorage.setItem(REV_KEY, String(v));
+      return v;
+    }
+    function incRevisionCount() {
+      return setRevisionCount(getRevisionCount() + 1);
+    }
+    function renderRevisionCount() {
+      if (!els.build) return;
+      const n = getRevisionCount();
+      els.build.textContent = `build: revision ${n}`;
+    }
+    renderRevisionCount();
+
+    /* ====================== LANDING ASSETS ====================== */
+    const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
+    document.querySelectorAll(".adImg").forEach((img) => {
+      img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
+    });
 
     /* ====================== VIEWER TOKEN LOCK (until launch) ====================== */
     let launchArmed = false;
@@ -164,9 +190,6 @@
         viewerToken.disabled = false;
         viewerToken.focus();
       }
-
-      // first click also counts toward cracks (your request)
-      // (launch button handler calls registerLandingClick)
     }
 
     /* ======================
@@ -192,7 +215,7 @@
 
     if (viewerToken) {
       viewerToken.addEventListener("input", async () => {
-        if (!launchArmed) return; // ✅ can’t type/use token until launch clicked
+        if (!launchArmed) return;
 
         const v = viewerToken.value.trim();
         if (!v || v.length < 8) return;
@@ -205,7 +228,6 @@
       });
     }
 
-    // global skip flag consumed by the task runner
     window.__ADMIN_FORCE_OK = false;
 
     function initAdminPanel() {
@@ -260,7 +282,6 @@
 
     /* ====================== AUDIO UNLOCK ====================== */
     let audioUnlocked = false;
-
     async function unlockAudio() {
       if (audioUnlocked) return;
       audioUnlocked = true;
@@ -271,13 +292,12 @@
         console.warn("[audio] unlock failed:", e);
       }
     }
-
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
 
     /* ====================== TIMING ====================== */
-    const WPM = 300;
-    const MS_PER_WORD = 60000 / WPM;
+    const BASE_WPM = 300;
+    const MS_PER_WORD = 60000 / BASE_WPM;
 
     function wordsCount(s) {
       return String(s || "").trim().split(/\s+/).filter(Boolean).length;
@@ -289,7 +309,7 @@
     }
 
     /* ====================== STATE ====================== */
-    let stage = 1;          // 1 = landing clickable, 99 = sim
+    let stage = 1; // 1 = landing clickable, 99 = sim
     let clicks = 0;
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
@@ -297,26 +317,27 @@
     const CRACK_AT = [15, 17, 19, 21];
     const SHATTER_AT = 22;
 
-    // Compliance after 10 choices:
-    // comply => +1 compliance
-    // lie    => +1 resistance
-    // run    => +2 resistance
+    // choices: used for "voice+pacing feel"
+    let guidePath = "emma"; // emma / liam / run
+    let paceBias = 0; // -1 calm, 0 normal, +1 tense, +2 urgent
+
+    // compliance/resistance now includes TASK outcomes
     const COMPLIANCE_LIMIT = 0.30;
     const MIN_CHOICES_BEFORE_CHECK = 10;
+
     let choiceTotal = 0;
     let compliancePoints = 0;
     let resistancePoints = 0;
-
-    /* ====================== UTIL ====================== */
-    function wait(ms) {
-      return new Promise((r) => setTimeout(r, ms));
-    }
 
     function hardReload() {
       window.location.href = window.location.href.split("#")[0];
     }
 
     function doReset(reasonTitle, reasonBody) {
+      // forced reset increments revision and persists
+      incRevisionCount();
+      renderRevisionCount();
+
       resetTitle.textContent = reasonTitle || "RESET";
       resetBody.textContent = reasonBody || "";
       resetOverlay.classList.remove("hidden");
@@ -324,9 +345,248 @@
     }
 
     function glitchPulse() {
-      playSfx("glitch", { volume: 0.55, overlap: true });
+      playSfx("glitch1", { volume: 0.55, overlap: true });
       cracks.classList.add("flash");
       setTimeout(() => cracks.classList.remove("flash"), 220);
+    }
+
+    /* ======================
+       DYNAMIC UI: task time bar + resistance meter
+       (no CSS file changes required)
+    ====================== */
+    function makeHud() {
+      // time bar (top)
+      let barWrap = document.getElementById("taskTimeWrap");
+      let barFill = document.getElementById("taskTimeFill");
+
+      if (!barWrap) {
+        barWrap = document.createElement("div");
+        barWrap.id = "taskTimeWrap";
+        barWrap.style.position = "fixed";
+        barWrap.style.left = "0";
+        barWrap.style.top = "0";
+        barWrap.style.width = "100%";
+        barWrap.style.height = "3px";
+        barWrap.style.zIndex = "99999";
+        barWrap.style.pointerEvents = "none";
+        barWrap.style.background = "rgba(255,255,255,0.08)";
+        barWrap.style.opacity = "0";
+        barWrap.style.transition = "opacity 220ms ease";
+
+        barFill = document.createElement("div");
+        barFill.id = "taskTimeFill";
+        barFill.style.height = "100%";
+        barFill.style.width = "100%";
+        barFill.style.background = "rgba(255,255,255,0.95)";
+        barFill.style.transition = "width 80ms linear, background 120ms linear";
+
+        barWrap.appendChild(barFill);
+        document.body.appendChild(barWrap);
+      }
+
+      // resistance meter (small, top-right)
+      let resWrap = document.getElementById("resMeterWrap");
+      let resPip = document.getElementById("resMeterPip");
+      let resTxt = document.getElementById("resMeterTxt");
+
+      if (!resWrap) {
+        resWrap = document.createElement("div");
+        resWrap.id = "resMeterWrap";
+        resWrap.style.position = "fixed";
+        resWrap.style.right = "10px";
+        resWrap.style.top = "10px";
+        resWrap.style.zIndex = "99999";
+        resWrap.style.pointerEvents = "none";
+        resWrap.style.display = "flex";
+        resWrap.style.alignItems = "center";
+        resWrap.style.gap = "8px";
+        resWrap.style.opacity = "0";
+        resWrap.style.transition = "opacity 220ms ease";
+
+        const track = document.createElement("div");
+        track.style.width = "56px";
+        track.style.height = "6px";
+        track.style.borderRadius = "999px";
+        track.style.background = "rgba(255,255,255,0.10)";
+        track.style.overflow = "hidden";
+        track.style.border = "1px solid rgba(255,255,255,0.10)";
+
+        resPip = document.createElement("div");
+        resPip.id = "resMeterPip";
+        resPip.style.height = "100%";
+        resPip.style.width = "0%";
+        resPip.style.background = "rgba(255,255,255,0.75)";
+        resPip.style.transition = "width 160ms ease, background 160ms ease";
+        track.appendChild(resPip);
+
+        resTxt = document.createElement("div");
+        resTxt.id = "resMeterTxt";
+        resTxt.textContent = "resistance: 0";
+        resTxt.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+        resTxt.style.fontSize = "12px";
+        resTxt.style.color = "rgba(255,255,255,0.72)";
+        resTxt.style.textShadow = "0 1px 0 rgba(0,0,0,0.35)";
+
+        resWrap.appendChild(track);
+        resWrap.appendChild(resTxt);
+        document.body.appendChild(resWrap);
+      }
+
+      return { barWrap, barFill, resWrap, resPip, resTxt };
+    }
+
+    const HUD = makeHud();
+
+    /* ======================
+       PRESSURE (tied to task time fraction)
+    ====================== */
+    let pressureTier = 0; // 0 white, 1 yellow, 2 red
+    let pressureHinted = { yellow: false, red: false };
+
+    function setPressureTier(tier) {
+      const next = Math.max(0, Math.min(2, tier | 0));
+      if (next === pressureTier) return;
+      pressureTier = next;
+
+      document.body.classList.toggle("pressure1", pressureTier >= 1);
+      document.body.classList.toggle("pressure2", pressureTier >= 2);
+
+      if (pressureTier === 1) playSfx("static2", { volume: 0.12, overlap: true });
+      if (pressureTier === 2) playSfx("glitch2", { volume: 0.18, overlap: true });
+
+      // stingers (once per task)
+      if (pressureTier === 1 && !pressureHinted.yellow) {
+        pressureHinted.yellow = true;
+        emitLine("System: Time window narrowing.");
+      }
+      if (pressureTier === 2 && !pressureHinted.red) {
+        pressureHinted.red = true;
+        emitLine("System: Do not stall.");
+      }
+    }
+
+    function setTaskTimeBarFrac(frac) {
+      const clampedF = clamp(frac, 0, 1);
+      HUD.barFill.style.width = `${(clampedF * 100).toFixed(2)}%`;
+
+      // color mapping: white -> yellow -> red
+      if (clampedF <= 0.10) {
+        HUD.barFill.style.background = "rgba(255,80,80,0.95)";
+        setPressureTier(2);
+      } else if (clampedF <= 0.30) {
+        HUD.barFill.style.background = "rgba(255,220,90,0.95)";
+        setPressureTier(1);
+      } else {
+        HUD.barFill.style.background = "rgba(255,255,255,0.92)";
+        setPressureTier(0);
+      }
+    }
+
+    function updateResistanceMeter() {
+      // scale: treat 0..30 as 0..100% (clamped)
+      const max = 30;
+      const pct = clamp(resistancePoints / max, 0, 1);
+
+      HUD.resPip.style.width = `${(pct * 100).toFixed(1)}%`;
+      HUD.resTxt.textContent = `resistance: ${resistancePoints}`;
+
+      // subtle color cue: white -> yellow -> red
+      if (pct >= 0.70) HUD.resPip.style.background = "rgba(255,80,80,0.85)";
+      else if (pct >= 0.35) HUD.resPip.style.background = "rgba(255,220,90,0.85)";
+      else HUD.resPip.style.background = "rgba(255,255,255,0.70)";
+    }
+    updateResistanceMeter();
+
+    /* ======================
+       TASK TIMER CONTROLLER
+       - base 5 minutes
+       - each resistance reduces limit by 1.5% (fits "1–2%" request)
+       - wrong attempts speed drain (no reset)
+       - timeout => forced reset (revision++)
+    ====================== */
+    function calcTaskLimitMs() {
+      const base = 5 * 60 * 1000;
+      const perRes = 0.015; // 1.5% per resistance
+      const mult = clamp(1 - resistancePoints * perRes, 0.35, 1.0);
+      return Math.floor(base * mult);
+    }
+
+    function createTaskTimerController() {
+      let totalMs = calcTaskLimitMs();
+      let leftMs = totalMs;
+      let running = false;
+      let raf = 0;
+      let lastT = 0;
+      let drainMult = 1.0;
+
+      const api = {
+        show() {
+          HUD.barWrap.style.opacity = "1";
+          HUD.resWrap.style.opacity = "1";
+          setTaskTimeBarFrac(1);
+          updateResistanceMeter();
+        },
+        hide() {
+          HUD.barWrap.style.opacity = "0";
+          // keep resistance visible in sim; if you want it hidden outside tasks, set 0 here
+        },
+        start() {
+          if (running) return;
+          running = true;
+          lastT = performance.now();
+          loop();
+        },
+        stop() {
+          running = false;
+          if (raf) cancelAnimationFrame(raf);
+          raf = 0;
+        },
+        bumpDrain(multAdd) {
+          drainMult = clamp(drainMult + (multAdd || 0), 1.0, 4.0);
+        },
+        onWrong() {
+          // wrong attempt: speeds drain a bit (and stays faster)
+          api.bumpDrain(0.25);
+        },
+        resetForNewTask() {
+          totalMs = calcTaskLimitMs();
+          leftMs = totalMs;
+          drainMult = 1.0;
+          setTaskTimeBarFrac(1);
+        },
+        getLeftMs() { return leftMs; },
+        getTotalMs() { return totalMs; },
+      };
+
+      function loop() {
+        if (!running) return;
+        const now = performance.now();
+        const dt = Math.max(0, now - lastT);
+        lastT = now;
+
+        leftMs -= dt * drainMult;
+        const frac = leftMs / totalMs;
+        setTaskTimeBarFrac(frac);
+
+        if (leftMs <= 0) {
+          running = false;
+          api.stop();
+          doReset(
+            "TIMEOUT",
+            `Time limit exceeded.
+
+resistance: ${resistancePoints}
+build: revision ${getRevisionCount()}
+
+Reinitializing…`
+          );
+          return;
+        }
+
+        raf = requestAnimationFrame(loop);
+      }
+
+      return api;
     }
 
     /* ======================
@@ -336,7 +596,7 @@
     let VO_READY = false;
 
     function handleVoiceTag(tag) {
-      if (tag === "breath") playSfx("static", { volume: 0.08, overlap: true });
+      if (tag === "breath") playSfx("static1", { volume: 0.08, overlap: true });
       if (tag === "calm") {
         if (subs) subs.classList.add("calm");
         setTimeout(() => subs && subs.classList.remove("calm"), 900);
@@ -433,7 +693,17 @@
       }
 
       const minMs = 450;
-      const total = Math.max(minMs, ms | 0);
+
+      // pace influenced by: choice bias + pressure
+      // (pressure makes everything feel tighter; run path makes it sharper)
+      const pressureMult = (pressureTier === 2) ? 0.62 : (pressureTier === 1) ? 0.78 : 1.0;
+      const biasMult =
+        (paceBias >= 2) ? 0.70 :
+        (paceBias === 1) ? 0.85 :
+        (paceBias === -1) ? 1.10 :
+        1.0;
+
+      const total = Math.max(minMs, Math.floor((ms | 0) * pressureMult * biasMult));
       const chars = [...s];
       const per = total / Math.max(1, chars.length);
 
@@ -478,7 +748,13 @@
     async function playLines(lines) {
       for (const line of lines || []) {
         await emitLine(line);
-        await wait(80);
+        const gap =
+          (pressureTier === 2) ? 20 :
+          (pressureTier === 1) ? 45 :
+          (paceBias >= 2) ? 35 :
+          (paceBias === 1) ? 55 :
+          80;
+        await wait(gap);
       }
     }
 
@@ -486,6 +762,42 @@
        TASK CONTEXT + ANSWER HOOK
     ====================== */
     let lastAnswer = null;
+
+    // per-task tracking for haywire rule
+    let activeTaskId = null;
+    let taskWrongCount = 0;
+    let taskTimer = null;
+
+    function recordWrongAttempt(reason) {
+      // +3 resistance on wrong attempt
+      resistancePoints += 3;
+      updateResistanceMeter();
+
+      // speed drain a bit; timer never resets
+      taskTimer?.onWrong?.();
+
+      taskWrongCount++;
+
+      // haywire on 3 wrong attempts within same task
+      if (taskWrongCount >= 3) {
+        doReset(
+          "SYSTEM HAYWIRE",
+          `Anomalous input density detected.
+
+task: ${activeTaskId || "unknown"}
+wrong attempts: ${taskWrongCount}
+resistance: ${resistancePoints}
+
+Resetting simulation…`
+        );
+        return;
+      }
+
+      // small stinger at wrongs (keeps it cinematic)
+      if (taskWrongCount === 1) emitLine("System: Incorrect.");
+      else if (taskWrongCount === 2) emitLine("System: Stop guessing.");
+      else emitLine("System: Input rejected.");
+    }
 
     const taskContext = {
       taskPrimary,
@@ -513,8 +825,14 @@
         els.taskActions?.classList.remove("hidden");
       },
       doReset,
-      difficultyBoost() { return 0; }, // (your packs can ignore or overwrite later)
-      penalize() {},
+      difficultyBoost() { return resistancePoints >= 10 ? 1 : 0; },
+
+      // IMPORTANT: packs should call ctx.penalize() on wrong inputs for scoring/timer.
+      penalize(n = 1, reason = "") {
+        // treat ANY penalize as a wrong attempt event
+        recordWrongAttempt(reason || "penalty");
+      },
+
       glitch: glitchPulse,
     };
 
@@ -579,10 +897,20 @@ Reinitializing simulation…`
           simChoices.classList.add("hidden");
 
           choiceTotal++;
-          if (choice === "comply") compliancePoints += 1;
-          else if (choice === "lie") resistancePoints += 1;
-          else resistancePoints += 2;
+          if (choice === "comply") {
+            resistancePoints += 0; // choices don't add resistance directly (tasks do)
+            guidePath = "emma";
+            paceBias = -1;
+          } else if (choice === "lie") {
+            guidePath = "liam";
+            paceBias = 1;
+          } else {
+            guidePath = "run";
+            paceBias = 2;
+            resistancePoints += 1; // small nudge for run path
+          }
 
+          updateResistanceMeter();
           if (!checkComplianceOrReset()) return;
           continue;
         }
@@ -604,16 +932,44 @@ Reinitializing simulation…`
             continue;
           }
 
+          // open task UI
           document.body.classList.add("task-open");
           simRoom.classList.add("hidden");
           simChoices.classList.add("hidden");
 
+          // per-task init
+          activeTaskId = step.task;
+          taskWrongCount = 0;
+
+          pressureHinted = { yellow: false, red: false };
+          setPressureTier(0);
+
           lastAnswer = null;
+
+          // start timer (5min base, modified by resistance)
+          taskTimer = createTaskTimerController();
+          taskTimer.resetForNewTask();
+          taskTimer.show();
+          taskTimer.start();
+
+          // run task
           const res = await fn(taskContext, step.args || {});
           if (res && typeof res === "object" && "answer" in res && lastAnswer == null) {
             taskContext.setAnswer(res.answer);
           }
 
+          // task completed successfully => +1 compliance
+          compliancePoints += 1;
+
+          // stop timer (next task gets a new limit; wrong attempts never reset it during the task)
+          taskTimer.stop();
+          taskTimer.hide();
+          taskTimer = null;
+
+          // compliance check (uses both)
+          if (!checkComplianceOrReset()) return;
+
+          // close task UI
           taskUI.classList.add("hidden");
           document.body.classList.remove("task-open");
           simRoom.classList.remove("hidden");
@@ -622,26 +978,29 @@ Reinitializing simulation…`
           continue;
         }
 
-        // When a step is { filler: { pool:"AUTO", count:N, meta:{...} } }
+        // filler
         if (step.filler) {
           const count = step.filler.count ?? 1;
           const pool = step.filler.pool ?? "AUTO";
           const meta = step.filler.meta ?? {};
-        
+
           for (let i = 0; i < count; i++) {
             let line = "";
             if (pool === "AUTO" && window.DIALOGUE_HELPERS?.autoFiller) {
-              // You can pass real values here if you track them:
-              // meta.path = state.guidePath; meta.loopIndex = state.loopIndex; meta.pressure = state.pressure;
-              line = window.DIALOGUE_HELPERS.autoFiller(meta);
+              line = window.DIALOGUE_HELPERS.autoFiller({
+                ...meta,
+                path: guidePath,
+                pressure: pressureTier,
+                resistance: resistancePoints,
+                compliance: compliancePoints,
+              });
             } else {
-              // fallback if you still support named pools
-              line = `(filler:${pool})`;
+              line = "System: Buffering…";
             }
-            // push/show line like you do for say lines
-            enqueueLine(line);
+            await emitLine(line);
+            await wait(30);
           }
-          continue; // advance to next step
+          continue;
         }
       }
     }
@@ -663,6 +1022,9 @@ Reinitializing simulation…`
       simText.textContent = "";
       playSfx("static1", { volume: 0.25, overlap: false });
 
+      HUD.resWrap.style.opacity = "1";
+      updateResistanceMeter();
+
       await playLines(DIALOGUE.intro);
       await runSteps(DIALOGUE.steps);
     }
@@ -673,8 +1035,7 @@ Reinitializing simulation…`
     let crackStage = 0;
     let crackSeed = 0;
     let crackRng = null;
-
-    const endpoints = []; // {x,y} where we can branch next
+    const endpoints = [];
 
     function rngFactory(seed) {
       let t = seed >>> 0;
@@ -701,7 +1062,6 @@ Reinitializing simulation…`
     function makeBranchPath(start, steps, stepLen, jitter) {
       let x = start.x, y = start.y;
       let ang = crackRng() * Math.PI * 2;
-
       const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
 
       for (let i = 0; i < steps; i++) {
@@ -713,226 +1073,205 @@ Reinitializing simulation…`
         pts.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
       }
 
-      // last point becomes a new endpoint we can branch from
       endpoints.push({ x, y });
-
       return pts.join(" ");
     }
 
     function addSeg(svg, d) {
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
       g.setAttribute("class", "seg");
-    
+
       const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
       pUnder.setAttribute("d", d);
       pUnder.setAttribute("class", "crack-path crack-under");
-    
+
       const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
       pLine.setAttribute("d", d);
       pLine.setAttribute("class", "crack-path crack-line");
-    
+
       const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
       pGlint.setAttribute("d", d);
       pGlint.setAttribute("class", "crack-path crack-glint");
       pGlint.style.opacity = crackRng() < 0.35 ? "0.85" : "0.0";
-    
+
       g.appendChild(pUnder);
       g.appendChild(pLine);
       g.appendChild(pGlint);
       svg.appendChild(g);
-    
-      // draw-on animation (uses dash)
+
       [pUnder, pLine, pGlint].forEach((p) => {
         try {
           const len = p.getTotalLength();
           p.style.strokeDasharray = String(len);
           p.style.strokeDashoffset = String(len);
-          requestAnimationFrame(() => {
-            p.style.strokeDashoffset = "0";
-          });
+          requestAnimationFrame(() => { p.style.strokeDashoffset = "0"; });
         } catch {}
       });
     }
 
     function ensureCracks() {
       if (crackRng) return;
-    
+
       crackSeed = (Date.now() ^ ((Math.random() * 1e9) | 0)) >>> 0;
       crackRng = rngFactory(crackSeed);
-    
-      // Make sure the SVG has the right viewbox but DON'T clear it again later.
+
       try {
         cracks.setAttribute("viewBox", "0 0 1000 1000");
         cracks.setAttribute("preserveAspectRatio", "none");
       } catch {}
-    
+
       endpoints.length = 0;
-    
-      // seed a few “spines” so later stages can branch off them
+
       const seeds = [
         { x: 320 + crackRng() * 90, y: 280 + crackRng() * 90 },
         { x: 680 + crackRng() * 90, y: 320 + crackRng() * 90 },
         { x: 360 + crackRng() * 90, y: 720 + crackRng() * 90 },
         { x: 720 + crackRng() * 90, y: 740 + crackRng() * 90 },
       ];
-    
+
       for (const s of seeds) {
-        const d = makeBranchPath(s, 10 + Math.floor(crackRng() * 8), 22 + crackRng() * 14, 1.25 + crackRng() * 0.8);
+        const d = makeBranchPath(
+          s,
+          10 + Math.floor(crackRng() * 8),
+          22 + crackRng() * 14,
+          1.25 + crackRng() * 0.8
+        );
         addSeg(cracks, d);
       }
-    
-      // a couple small interior fractures (still fixed, not re-randomized)
+
       for (let i = 0; i < 6; i++) {
         const s = { x: 140 + crackRng() * 720, y: 140 + crackRng() * 720 };
-        const d = makeBranchPath(s, 4 + Math.floor(crackRng() * 4), 10 + crackRng() * 10, 2.1 + crackRng() * 1.1);
+        const d = makeBranchPath(
+          s,
+          4 + Math.floor(crackRng() * 4),
+          10 + crackRng() * 10,
+          2.1 + crackRng() * 1.1
+        );
         addSeg(cracks, d);
       }
     }
 
     function setCrackStage(n) {
       crackStage = clamp(n, 0, 4);
-    
+
       document.body.classList.toggle("crack1", crackStage >= 1);
       document.body.classList.toggle("crack2", crackStage >= 2);
       document.body.classList.toggle("crack3", crackStage >= 3);
       document.body.classList.toggle("crack4", crackStage >= 4);
-    
+
       try { cracks.setAttribute("data-stage", String(crackStage)); } catch {}
       try { glassFX?.setAttribute("data-stage", String(crackStage)); } catch {}
     }
 
-// ✅ this is the “build off existing cracks” behavior:
-// each stage adds NEW branches from existing endpoints; nothing is cleared or moved.
-function growCracksForStage(stageToAdd) {
-  ensureCracks();
+    function growCracksForStage(stageToAdd) {
+      ensureCracks();
 
-  // branch count per stage (tweakable)
-  const addCount =
-    stageToAdd === 1 ? 10 :
-    stageToAdd === 2 ? 14 :
-    stageToAdd === 3 ? 18 :
-    22;
+      const addCount =
+        stageToAdd === 1 ? 10 :
+        stageToAdd === 2 ? 14 :
+        stageToAdd === 3 ? 18 :
+        22;
 
-  for (let i = 0; i < addCount; i++) {
-    const base = pickEndpoint();
-    // slight offset so it looks like it *continues* rather than restarts
-    const start = {
-      x: base.x + (crackRng() - 0.5) * 24,
-      y: base.y + (crackRng() - 0.5) * 24,
-    };
+      for (let i = 0; i < addCount; i++) {
+        const base = pickEndpoint();
+        const start = {
+          x: base.x + (crackRng() - 0.5) * 24,
+          y: base.y + (crackRng() - 0.5) * 24,
+        };
 
-    const steps = 4 + Math.floor(crackRng() * (stageToAdd + 3));
-    const stepLen = 10 + crackRng() * (10 + stageToAdd * 6);
-    const jitter = 1.5 + crackRng() * (1.0 + stageToAdd * 0.35);
+        const steps = 4 + Math.floor(crackRng() * (stageToAdd + 3));
+        const stepLen = 10 + crackRng() * (10 + stageToAdd * 6);
+        const jitter = 1.5 + crackRng() * (1.0 + stageToAdd * 0.35);
 
-    const d = makeBranchPath(start, steps, stepLen, jitter);
-    addSeg(cracks, d);
-  }
-}
+        const d = makeBranchPath(start, steps, stepLen, jitter);
+        addSeg(cracks, d);
+      }
+    }
 
-function maybeAdvanceCracks() {
-  const next =
-    clicks >= CRACK_AT[3] ? 4 :
-    clicks >= CRACK_AT[2] ? 3 :
-    clicks >= CRACK_AT[1] ? 2 :
-    clicks >= CRACK_AT[0] ? 1 : 0;
+    function maybeAdvanceCracks() {
+      const next =
+        clicks >= CRACK_AT[3] ? 4 :
+        clicks >= CRACK_AT[2] ? 3 :
+        clicks >= CRACK_AT[1] ? 2 :
+        clicks >= CRACK_AT[0] ? 1 : 0;
 
-  if (next <= crackStage) return;
+      if (next <= crackStage) return;
 
-  // advance one stage at a time so growth feels progressive
-  for (let s = crackStage + 1; s <= next; s++) {
-    setCrackStage(s);
-    growCracksForStage(s);
-  }
+      for (let s = crackStage + 1; s <= next; s++) {
+        setCrackStage(s);
+        growCracksForStage(s);
+      }
 
-  playSfx("glitch1", { volume: 0.22, overlap: true });
-  cracks.classList.add("pulse");
-  setTimeout(() => cracks.classList.remove("pulse"), 220);
-}
+      playSfx("glitch1", { volume: 0.22, overlap: true });
+      cracks.classList.add("pulse");
+      setTimeout(() => cracks.classList.remove("pulse"), 220);
+    }
 
-/* ======================
-   TRANSITION: SHATTER -> SIM
-====================== */
-async function shatterAndEnterSim() {
-  if (document.body.classList.contains("sim-transition")) return;
+    async function shatterAndEnterSim() {
+      if (document.body.classList.contains("sim-transition")) return;
 
-  document.body.classList.add("sim-transition");
+      document.body.classList.add("sim-transition");
 
-  // ensure cracks are visible for the warp
-  ensureCracks();
-  cracks.style.opacity = "1";
+      ensureCracks();
+      cracks.style.opacity = "1";
 
-  playSfx("glassBreak", { volume: 0.65, overlap: false });
+      playSfx("glassBreak", { volume: 0.65, overlap: false });
+      document.body.classList.add("into-sim");
 
-  // between-state animation (styles.css uses body.into-sim)
-  document.body.classList.add("into-sim");
+      await wait(900);
+      await openSimRoom();
 
-  // hold long enough to SEE it
-  await wait(900);
+      document.body.classList.remove("into-sim");
+    }
 
-  await openSimRoom();
+    function isClickableTarget(e) {
+      const t = e.target;
+      if (!t) return true;
+      if (t.closest && t.closest("input, textarea, select, button, a, label")) return false;
+      if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
+      return true;
+    }
 
-  // cleanup
-  document.body.classList.remove("into-sim");
-}
+    function registerLandingClick(e) {
+      if (stage !== 1) return;
+      if (document.body.classList.contains("sim-transition")) return;
+      if (!isClickableTarget(e)) return;
 
-/* ======================
-   LANDING CLICK REGISTRATION
-====================== */
-function isClickableTarget(e) {
-  const t = e.target;
-  if (!t) return true;
-  if (t.closest && t.closest("input, textarea, select, button, a, label")) return false;
-  if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
-  return true;
-}
+      const now = Date.now();
+      if (now - lastClick < CLICK_COOLDOWN) return;
+      lastClick = now;
 
-function registerLandingClick(e) {
-  if (stage !== 1) return;
-  if (document.body.classList.contains("sim-transition")) return;
-  if (!isClickableTarget(e)) return;
+      ensureCracks();
 
-  const now = Date.now();
-  if (now - lastClick < CLICK_COOLDOWN) return;
-  lastClick = now;
+      clicks++;
+      playSfx("mclick", { volume: 0.35, overlap: true });
 
-  ensureCracks();
+      maybeAdvanceCracks();
 
-  clicks++;
-  playSfx("mclick", { volume: 0.35, overlap: true });
+      if (clicks >= SHATTER_AT) {
+        shatterAndEnterSim();
+      }
+    }
 
-  maybeAdvanceCracks();
+    // Prime crack seed
+    ensureCracks();
+    document.addEventListener("pointerdown", registerLandingClick, { passive: true });
 
-  if (clicks >= SHATTER_AT) {
-    shatterAndEnterSim();
-  }
-}
+    els.launchBtn?.addEventListener("click", (e) => {
+      armLaunch();
+      registerLandingClick(e);
+    });
 
-// Prime crack seed so it stays consistent (but stage 0 still invisible)
-ensureCracks();
+    if (els.timestamp) {
+      const tick = () => {
+        const d = new Date();
+        els.timestamp.textContent = "timestamp: " + d.toLocaleString();
+      };
+      tick();
+      setInterval(tick, 1000);
+    }
 
-// Register clicks anywhere on landing
-document.addEventListener("pointerdown", registerLandingClick, { passive: true });
-
-/* ====================== BOOT UI ====================== */
-els.launchBtn?.addEventListener("click", (e) => {
-  armLaunch();           // ✅ unlock viewer token typing
-  registerLandingClick(e); // ✅ also counts as a click toward cracks
-});
-
-// Timestamp tick (index also has an inline script; this keeps it consistent)
-if (els.timestamp) {
-  const tick = () => {
-    const d = new Date();
-    els.timestamp.textContent = "timestamp: " + d.toLocaleString();
-  };
-  tick();
-  setInterval(tick, 1000);
-}
-
-// Start in landing mode
-stage = 1;
-
+    stage = 1;
   }
 
   boot();
