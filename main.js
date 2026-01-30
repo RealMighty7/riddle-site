@@ -1389,6 +1389,14 @@ Reinitializing simulation…`
     els.launchBtn?.addEventListener("click", (e) => {
       armLaunch();
       registerLandingClick(e);
+      // Bias endpoints toward the click position (impact point)
+      try {
+        const r = cracks.getBoundingClientRect();
+        const x = ((e.clientX - r.left) / r.width) * 1000;
+        const y = ((e.clientY - r.top) / r.height) * 1000;
+        endpoints.push({ x, y });
+        if (endpoints.length > 140) endpoints.splice(0, endpoints.length - 140);
+      } catch {}
     });
 
     if (els.timestamp) {
