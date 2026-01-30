@@ -163,21 +163,6 @@
       return { speaker, text };
     }
 
-    // Decide when to use Azure TTS vs VoiceBank.
-    // If a line has an [id], VoiceBank likely has audio -> prefer VoiceBank.
-    function shouldUseAzureTTS(rawLine) {
-      // If no TTS queue exists, nothing to do
-      if (!window.TTS || typeof window.TTS.enqueue !== "function") return false;
-    
-      // If VoiceBank isn't available, use Azure.
-      if (!window.AudioPlayer || typeof window.AudioPlayer.playLine !== "function") return true;
-    
-      // If it starts with [####], try VoiceBank first BUT still allow Azure as fallback
-      // (emitLine already calls both; Azure will just speak if enabled)
-      return true;
-    }
-    
-
     // ===== TTS helper (packs + dialogue) =====
     window.TTS_SPEAKERS = window.TTS_SPEAKERS || {
       System: { voice: "en-US-GuyNeural", style: "", rate: "-6%", pitch: "-2Hz", volume: "+0%" },
