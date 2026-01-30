@@ -401,6 +401,29 @@
       setTimeout(hardReload, 1800);
     }
 
+    // Auto-continue after a task calls ctx.setAnswer(...)
+    let __autoContinueTimer = 0;
+    
+    function scheduleAutoContinue(delayMs = 550) {
+      if (ABORTED) return;
+      if (__autoContinueTimer) clearTimeout(__autoContinueTimer);
+    
+      // Hide buttons so it feels "automatic"
+      try { taskPrimary.classList.add("hidden"); } catch {}
+      try { taskSecondary.classList.add("hidden"); } catch {}
+    
+      __autoContinueTimer = setTimeout(() => {
+        __autoContinueTimer = 0;
+        if (ABORTED) return;
+    
+        // Mark task UI "done" if your CSS uses it
+        try { document.body.classList.add("task-done"); } catch {}
+    
+        // Nothing else to do: runSteps resumes after fn() returns.
+        // This just adds a beat so it doesn't feel instant.
+      }, Math.max(0, delayMs | 0));
+    }
+
     function glitchPulse() {
       playSfx("glitch1", { volume: 0.55, overlap: true });
       cracks.classList.add("flash");
@@ -888,7 +911,10 @@ Resetting simulation…`
       setAnswer(ans) {
         lastAnswer = ans;
         document.dispatchEvent(new CustomEvent("admin:answer", { detail: { answer: ans } }));
+
+        scheduleAutoContinue(550);
       },
+
       getAnswer() { return lastAnswer; },
 
       showTaskUI(title, desc) {
@@ -904,6 +930,8 @@ Resetting simulation…`
 
         taskSecondary.classList.add("hidden");
         taskPrimary.disabled = false;
+        taskPrimary.onclick = null;
+        taskSecondary.onclick = null;
 
         els.taskActions?.classList.remove("hidden");
 
