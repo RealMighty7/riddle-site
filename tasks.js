@@ -198,25 +198,23 @@
       // Admin skip mid-task
       if (window.__ADMIN_FORCE_OK) {
         window.__ADMIN_FORCE_OK = false;
-        ctx?.success?.("Ok.");
+        ctx.success?.("Ok.");
         return { ok: true, answer: phrase };
       }
 
       if (val.toLowerCase() === phrase.toLowerCase()) {
         msg.style.color = "rgba(30,140,70,.92)";
         msg.textContent = "ok";
-        await sleep(220);
-        ctx?.success?.("Ok.");
-        return { ok: true, answer: phrase };
+        ctx.success?.("Ok.");
+        return { ok: true };
       }
 
       msg.style.color = "rgba(210,40,40,.92)";
       msg.textContent = "bad checksum";
 
-      // This is the ONLY place we count a wrong attempt
-      ctx?.penalize?.();
+      ctx.penalize?.(1, "checksum failed");
+      return { ok: false };
 
-      // small delay so it feels responsive but not instant
       await sleep(280);
     }
   };
