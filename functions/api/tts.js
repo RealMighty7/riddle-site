@@ -1,6 +1,13 @@
 // /functions/api/tts.js
 // Cloudflare Pages Functions endpoint
 // POST JSON -> returns audio/mpeg
+//
+// Required env vars:
+// - AZURE_SPEECH_KEY
+// - AZURE_SPEECH_REGION
+//
+// Optional env vars:
+// - TTS_DEFAULT_FORMAT (ex: "audio-24khz-48kbitrate-mono-mp3")
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -22,6 +29,7 @@ function escapeXml(s) {
     .replace(/'/g, "&apos;");
 }
 
+// Convert simple tokens into SSML breaks.
 // Supports: {breath}, {beat}, {pause=300}, {pause 300}
 function tokensToSsmlText(raw) {
   const s = String(raw || "");
@@ -38,6 +46,9 @@ function clampNum(n, a, b) {
   return Math.max(a, Math.min(b, n));
 }
 
+// Accept rate like "-1%" or number (-35..+35)
+// Accept pitch like "-1Hz" or number (-80..+80)
+// Accept volume like "+0%" or number (-60..+60)
 function normalizeProsody({ rate, pitch, volume } = {}) {
   const out = {};
 
@@ -149,12 +160,19 @@ export async function onRequestPost({ request, env }) {
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       return json(
-        { error: "Azure TTS failed", status: res.status, details: errText.slice(0, 800), voice },
+        {
+          error: "Azure TTS failed",
+          status: res.status,
+          details: errText.slice(0, 800),
+          voice,
+          style,
+        },
         502
       );
     }
 
     const audio = await res.arrayBuffer();
+
     return new Response(audio, {
       status: 200,
       headers: {
