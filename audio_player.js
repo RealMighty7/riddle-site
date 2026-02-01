@@ -89,10 +89,10 @@ class VoiceBank {
     this.subtitleEl = null;
     this.nameEl = null;
 
-   this._currentAudio = null;
-   this._activeAudios = new Set();
-   this._playToken = 0;
-   this._unlocked = false;
+    this._currentAudio = null;
+    this._activeAudios = new Set();
+    this._playToken = 0;
+    this._unlocked = false;
   }
 
   bindSubtitleUI({ nameEl, subtitleEl }) {
@@ -107,7 +107,6 @@ class VoiceBank {
     if (!res.ok) throw new Error(`Failed to load voices.json (${res.status})`);
 
     const ct = (res.headers.get("content-type") || "").toLowerCase();
-    // Some hosts return application/json; charset=utf-8, so includes() is correct.
     if (!ct.includes("application/json")) {
       const preview = (await res.text()).slice(0, 120);
       throw new Error(`voices.json is not JSON: ${preview}`);
@@ -161,28 +160,30 @@ class VoiceBank {
     } catch {}
   }
 
-   stopCurrent() {
-     // Stop *all* active audios (important when stopPrevious:false was used)
-     try {
-       for (const a of this._activeAudios) {
-         try { a.pause(); } catch {}
-         try { a.currentTime = 0; } catch {}
-       }
-     } catch {}
-   
-     this._activeAudios.clear();
-   
-     try {
-       if (this._currentAudio) {
-         try { this._currentAudio.pause(); } catch {}
-         try { this._currentAudio.currentTime = 0; } catch {}
-       }
-     } catch {}
-   
-     this._currentAudio = null;
-   }
+  stopCurrent() {
+    // Stop *all* active audios (important when stopPrevious:false was used)
+    try {
+      for (const a of this._activeAudios) {
+        try { a.pause(); } catch {}
+        try { a.currentTime = 0; } catch {}
+      }
+    } catch {}
 
+    this._activeAudios.clear();
 
+    try {
+      if (this._currentAudio) {
+        try { this._currentAudio.pause(); } catch {}
+        try { this._currentAudio.currentTime = 0; } catch {}
+      }
+    } catch {}
+
+    this._currentAudio = null;
+  }
+
+  // ✅ Returns Promise<boolean>
+  // true  => likely played (ended fired)
+  // false => missing/blocked/error
   async playById(id, opts = {}) {
     await this.load();
 
@@ -190,7 +191,7 @@ class VoiceBank {
     const line = this.byId.get(key);
     if (!line) {
       console.warn("[VoiceBank] missing line", key);
-      return;
+      return false;
     }
 
     const token = ++this._playToken;
@@ -209,14 +210,12 @@ class VoiceBank {
       }
     }
 
-    // audio src (folder must be safe)
     const folder = speakerToFolder(line.speaker || "system");
     const src = `/audio/${folder}/${key}.wav`;
+
     const audio = new Audio(src);
     this._currentAudio = audio;
-   
     this._activeAudios.add(audio);
-
 
     if (typeof opts.volume === "number") audio.volume = clamp01(opts.volume);
     if (typeof opts.rate === "number") audio.playbackRate = clampRate(opts.rate);
@@ -225,24 +224,32 @@ class VoiceBank {
     const holdMs = Number.isFinite(baseHoldMs) ? Math.max(0, baseHoldMs) : 0;
 
     return new Promise((resolve) => {
-      const finish = () => {
-        // Always untrack this audio
+      let ok = false;
+
+      const cleanup = () => {
         try { this._activeAudios.delete(audio); } catch {}
-      
-        if (token !== this._playToken) return resolve(); // replaced by newer line
-      
-        // Only clear currentAudio if this one is the "current"
-        if (this._currentAudio === audio) this._currentAudio = null;
-      
-        if (holdMs) setTimeout(resolve, holdMs);
-        else resolve();
+        if (token === this._playToken && this._currentAudio === audio) this._currentAudio = null;
       };
 
-      audio.addEventListener("ended", finish, { once: true });
-      audio.addEventListener("error", finish, { once: true });
+      const finish = () => {
+        cleanup();
+        if (token !== this._playToken) return resolve(false); // replaced by newer line
+        if (holdMs) setTimeout(() => resolve(ok), holdMs);
+        else resolve(ok);
+      };
+
+      audio.addEventListener("ended", () => {
+        ok = true;
+        finish();
+      }, { once: true });
+
+      audio.addEventListener("error", () => {
+        ok = false;
+        finish();
+      }, { once: true });
 
       audio.play().catch(() => {
-        // Autoplay block or missing file
+        ok = false;
         finish();
       });
     });
@@ -251,3 +258,98 @@ class VoiceBank {
 
 // expose globally
 window.VoiceBank = VoiceBank;
+
+/* =========================================================
+   AudioPlayer wrapper (WHAT main.js needs)
+   - playLine(rawLine) => Promise<boolean>
+========================================================= */
+
+(() => {
+  const AP = (window.AudioPlayer = window.AudioPlayer || {});
+  let VO = null;
+  let READY = false;
+
+  function normalizeForMatch(s) {
+    return String(s || "")
+      .replace(/\{[a-zA-Z0-9_]+\}/g, "")
+      .replace(/^\s*\[\d{1,4}\]\s*/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  }
+
+  function stripSpeakerPrefix(s) {
+    return String(s || "").replace(/^\s*[^:]{1,48}:\s*/, "");
+  }
+
+  function getIdFromLine(rawLine) {
+    const raw = String(rawLine || "");
+
+    // explicit [####]
+    const m = raw.match(/^\s*\[(\d{1,4})\]\s*/);
+    if (m) return String(m[1]).padStart(4, "0");
+
+    if (!VO || !VO.byId) return null;
+
+    const targetA = normalizeForMatch(raw);
+    const targetB = normalizeForMatch(stripSpeakerPrefix(raw));
+
+    for (const [id, line] of VO.byId.entries()) {
+      const textRaw = line.text_raw ?? line.text ?? "";
+      const candA = normalizeForMatch(textRaw);
+      const candB = normalizeForMatch(stripSpeakerPrefix(textRaw));
+      if (candA === targetA || candA === targetB || candB === targetA || candB === targetB) {
+        return String(id).padStart(4, "0");
+      }
+    }
+
+    return null;
+  }
+
+  AP.init = async function init() {
+    if (READY) return;
+    if (!window.VoiceBank) return;
+
+    VO = new window.VoiceBank({
+      voicesUrl: "/audio/data/voices.json",
+      onTag: () => {},
+    });
+
+    // main.js will bind subtitles too, but doing it here is harmless if they re-bind later
+    try {
+      const nameEl = document.getElementById("subsName");
+      const subtitleEl = document.getElementById("subsText");
+      if (nameEl || subtitleEl) VO.bindSubtitleUI({ nameEl, subtitleEl });
+    } catch {}
+
+    await VO.load();
+    READY = true;
+  };
+
+  AP.unlock = async function unlock() {
+    try {
+      await AP.init();
+      await VO?.unlockAudio?.();
+    } catch {}
+  };
+
+  // ✅ Returns boolean: true if WAV likely played, false if no match / missing / blocked
+  AP.playLine = async function playLine(rawLine) {
+    try {
+      await AP.init();
+      if (!VO) return false;
+
+      const id = getIdFromLine(rawLine);
+      if (!id) return false;
+
+      const ok = await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false });
+      return ok === true;
+    } catch {
+      return false;
+    }
+  };
+
+  AP.stop = function stop() {
+    try { VO?.stopCurrent?.(); } catch {}
+  };
+})();
