@@ -1,5 +1,5 @@
 // ttsQueue.js (NON-module)
-// Queue-based Azure TTS player via /functions/api/tts
+// Queue-based Azure TTS player via /functions/api/tts.js
 (() => {
   const API_URL = "/functions/api/tts";
 
@@ -18,6 +18,7 @@
       if (this._unlocked) return;
       this._unlocked = true;
 
+      // best effort: tiny muted play
       try {
         const a = new Audio();
         a.muted = true;
@@ -41,6 +42,7 @@
     }
 
     enqueue(payload) {
+      // payload: { voice, text, style?, rate?, pitch?, volume? }
       const item = { ...payload };
       if (!item || !item.voice || !String(item.text || "").trim()) return Promise.resolve();
 
