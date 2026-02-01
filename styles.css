@@ -24,6 +24,9 @@ body{
   overflow-x:hidden;
 }
 
+.hidden{ display:none !important; }
+.muted{ opacity:.82; color: var(--muted); }
+
 /* ===================== OVERLAYS ===================== */
 #glassFX{
   position:fixed;
@@ -52,21 +55,17 @@ body{
   opacity:1;
   transform:none;
   filter:
-    drop-shadow(0 0 2px rgba(0,0,0,.25))
-    drop-shadow(0 0 14px rgba(0,0,0,.18));
+    drop-shadow(0 0 2px rgba(0,0,0,.22))
+    drop-shadow(0 0 14px rgba(0,0,0,.14));
 }
 
 /* when cracks start showing */
 body.crack1 #cracks,
 body.crack2 #cracks,
-body.crack3 #cracks{
-  opacity:1;
-}
+body.crack3 #cracks{ opacity:1; }
 
 /* hide cracks once in sim */
-body.in-sim #cracks{
-  opacity:0 !important;
-}
+body.in-sim #cracks{ opacity:0 !important; }
 
 /* cinematic shatter helpers */
 body.sim-transition #glassFX{
@@ -123,8 +122,6 @@ body.shatter-cine #flashFX{
 }
 body.cut-black #cutBlack{ opacity:1; }
 
-.hidden{ display:none !important; }
-
 /* ===================== LAYOUT ===================== */
 #wrap{
   max-width: 980px;
@@ -150,6 +147,8 @@ h1{
   opacity:.92;
 }
 
+.row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+
 .sim-btn{
   border:1px solid rgba(0,0,0,.14);
   background: rgba(255,255,255,.86);
@@ -161,7 +160,7 @@ h1{
 }
 .sim-btn:hover{ background: rgba(255,255,255,.95); }
 .sim-btn:active{ transform: translateY(1px); }
-.sim-btn:disabled{ cursor:not-allowed; opacity:.5; }
+.sim-btn:disabled{ cursor:not-allowed; opacity:.55; }
 
 /* ===================== SIM (dark) ===================== */
 body.in-sim{
@@ -239,6 +238,96 @@ body.in-sim #wrap{ display:none; }
   flex-wrap:wrap;
 }
 
+/* ===================== HACK ROOM ===================== */
+#hackRoom{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding: 22px 16px 130px;
+  z-index:76; /* above sim/task */
+}
+
+.hackCard{
+  width: min(900px, 100%);
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.045);
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.40);
+  color: rgba(232,237,247,.92);
+}
+
+.hackTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.hackTitle{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  opacity:.85;
+}
+
+.hackPills{ display:flex; gap:8px; flex-wrap:wrap; }
+.pill{
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.18);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  opacity:.78;
+}
+
+.hackGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+}
+
+.hackSpan2{ grid-column: span 2; }
+
+.hackField .lab{
+  font-size: 12px;
+  opacity:.75;
+  margin-bottom:6px;
+}
+
+.hackInput, .hackArea{
+  width:100%;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.22);
+  color: rgba(232,237,247,.92);
+  border-radius: 12px;
+  padding: 10px 12px;
+  outline:none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+}
+
+.hackArea{
+  min-height: 260px;
+  resize: vertical;
+  white-space: pre;
+}
+
+.hackActions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:14px;
+}
+
+.hackStatus{
+  margin-top: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  opacity:.78;
+}
+
 /* ===================== SUBTITLES ===================== */
 #subs{
   position: fixed;
@@ -264,7 +353,7 @@ body.in-sim #wrap{ display:none; }
   color: rgba(232,237,247,.92);
 }
 
-/* RESET + FINAL (keep simple) */
+/* RESET + FINAL */
 #resetOverlay, #finalOverlay{
   position:fixed;
   inset:0;
