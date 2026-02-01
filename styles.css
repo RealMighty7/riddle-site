@@ -1,17 +1,12 @@
-/* styles.css (FULL REPLACEMENT) */
-
 :root{
   --ink: #111318;
   --muted: rgba(17,19,24,.62);
   --line: rgba(17,19,24,.14);
   --panel: rgba(255,255,255,.72);
-  --panel2: rgba(255,255,255,.88);
 
   --sim-bg: #07090d;
   --sim-fg: rgba(232,237,247,.92);
-  --sim-muted: rgba(232,237,247,.70);
   --sim-line: rgba(255,255,255,.14);
-  --sim-panel: rgba(255,255,255,.06);
 
   --bad: rgba(210,40,40,.92);
   --ok: rgba(30,140,70,.92);
@@ -19,14 +14,13 @@
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
-
 html{ background:#f6f7fb; }
+
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
   color: var(--ink);
-  background:
-    linear-gradient(180deg, #fbfcff 0%, #f4f6fb 100%);
+  background: linear-gradient(180deg, #fbfcff 0%, #f4f6fb 100%);
   overflow-x:hidden;
 }
 
@@ -40,52 +34,96 @@ body{
   z-index:80;
 }
 
-/* CRACKS always above everything */
+/* PNG CRACK OVERLAY */
 #cracks{
   position:fixed;
   inset:0;
+  z-index:95;
+  pointer-events:none;
+  opacity:0;
+  transition: opacity 180ms ease;
+}
+
+#cracksImg{
   width:100%;
   height:100%;
-  pointer-events:none;
-  z-index:95;
-  opacity:0;
+  object-fit: fill; /* stretch/squish OK */
+  display:block;
+  opacity:1;
+  transform:none;
+  filter:
+    drop-shadow(0 0 2px rgba(0,0,0,.25))
+    drop-shadow(0 0 14px rgba(0,0,0,.18));
 }
 
-#cracks .crack-path{
-  fill:none;
-  stroke-linecap:round;
-  stroke-linejoin:round;
-  vector-effect: non-scaling-stroke;
-}
-/* required: give the crack layers actual stroke colors */
-#cracks .crack-under{
-  stroke: rgba(20,30,60,.18);
-  stroke-width: 10;
-  filter: blur(1.2px);
-}
-#cracks .crack-line{
-  stroke: rgba(30,40,80,.55);
-  stroke-width: 2.2;
-}
-#cracks .crack-glint{
-  stroke: rgba(40,60,120,.65);
-  stroke-width: 1.3;
-  filter: drop-shadow(0 0 10px rgba(40,70,140,.18));
-}
-
-/* makes your JS dashoffset animation actually animate */
-#cracks .crack-path{
-  transition: stroke-dashoffset 680ms ease, opacity 240ms ease;
-}
-
-
-#cracks.flash{ filter: brightness(1.2) contrast(1.05); }
-.hidden{ display:none !important; }
-
+/* when cracks start showing */
 body.crack1 #cracks,
 body.crack2 #cracks,
-body.crack3 #cracks,
-body.crack4 #cracks{ opacity:1; }
+body.crack3 #cracks{
+  opacity:1;
+}
+
+/* hide cracks once in sim */
+body.in-sim #cracks{
+  opacity:0 !important;
+}
+
+/* cinematic shatter helpers */
+body.sim-transition #glassFX{
+  opacity: .18;
+  animation: glass_ripple 780ms ease forwards;
+}
+@keyframes glass_ripple{
+  0%   { opacity:.18; filter: blur(0px); }
+  45%  { opacity:.28; filter: blur(0.8px); }
+  100% { opacity:.18; filter: blur(0px); }
+}
+
+body.shatter-cine{
+  cursor:none;
+  animation: shatterShake 520ms ease-in-out 1;
+}
+@keyframes shatterShake{
+  0%{ transform: translate(0,0); }
+  12%{ transform: translate(-10px,6px); }
+  24%{ transform: translate(10px,-6px); }
+  36%{ transform: translate(-6px,-10px); }
+  48%{ transform: translate(6px,10px); }
+  62%{ transform: translate(-6px,4px); }
+  76%{ transform: translate(4px,-4px); }
+  100%{ transform: translate(0,0); }
+}
+
+#flashFX{
+  position:fixed;
+  inset:0;
+  z-index:100000;
+  pointer-events:none;
+  opacity:0;
+  background: rgba(255,255,255,0.0);
+}
+body.shatter-cine #flashFX{
+  animation: flashPop 360ms ease-out 1;
+}
+@keyframes flashPop{
+  0%{ opacity:0; background: rgba(255,255,255,0.00); }
+  18%{ opacity:1; background: rgba(255,255,255,0.75); }
+  40%{ opacity:.35; background: rgba(255,255,255,0.15); }
+  100%{ opacity:0; background: rgba(255,255,255,0.00); }
+}
+
+#cutBlack{
+  position:fixed;
+  inset:0;
+  z-index:100001;
+  pointer-events:none;
+  background:#000;
+  opacity:0;
+  transition: opacity 120ms linear;
+}
+body.cut-black #cutBlack{ opacity:1; }
+
+.hidden{ display:none !important; }
 
 /* ===================== LAYOUT ===================== */
 #wrap{
@@ -109,92 +147,9 @@ h1{
   margin:0 0 10px 0;
   font-size: 20px;
   font-weight: 700;
-  letter-spacing:.2px;
   opacity:.92;
 }
 
-.pill{
-  display:inline-block;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.85);
-  color: rgba(17,19,24,.70);
-  font-size: 12px;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-input#viewerToken,
-input#finalDiscord{
-  padding: 10px 12px;
-  border-radius: 12px;
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.9);
-  color: var(--ink);
-  outline: none;
-  min-width: 220px;
-}
-
-input[disabled]{
-  opacity:.55;
-  filter: grayscale(.2);
-}
-
-.topRow{
-  margin-top:12px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-}
-
-.grid{
-  margin-top: 14px;
-  display:grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-@media (max-width: 760px){
-  .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-.adImg{
-  width:100%;
-  height: 130px;
-  object-fit: cover;
-  border-radius: 14px;
-  border:1px solid rgba(0,0,0,.10);
-  background: rgba(0,0,0,.03);
-  display:block;
-}
-
-.btnRow{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  align-items:center;
-}
-
-.smallNote{
-  margin-top:12px;
-  opacity:.72;
-  font-size:13px;
-  line-height:1.25;
-}
-/* Hide cracks once the sim is active */
-body.in-sim #cracks{
-  opacity: 0 !important;
-  display: none !important;
-}
-
-/* Also hide cracks after the cinematic transition finishes */
-body.in-sim #cracks,
-body.sim-visible #cracks{
-  opacity: 0 !important;
-}
-
-/* ===================== BUTTONS ===================== */
 .sim-btn{
   border:1px solid rgba(0,0,0,.14);
   background: rgba(255,255,255,.86);
@@ -231,11 +186,8 @@ body.in-sim #wrap{ display:none; }
   background: rgba(255,255,255,.04);
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
-  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
-/* IMPORTANT: style both class and id to avoid mismatches */
-.simText,
 #simText{
   margin:0;
   padding: 12px;
@@ -251,7 +203,6 @@ body.in-sim #wrap{ display:none; }
   white-space: pre-wrap;
 }
 
-.simChoices,
 #simChoices{
   margin-top:12px;
   display:flex;
@@ -276,68 +227,17 @@ body.in-sim #wrap{ display:none; }
   background: rgba(255,255,255,.04);
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
-  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
-.taskDesc,
 #taskDesc{ margin-top:8px; opacity:.85; }
-
-.taskBody,
 #taskBody{ margin-top:12px; }
 
-.taskActions,
 #taskActions{
   margin-top:14px;
   display:flex;
   gap:10px;
   flex-wrap:wrap;
 }
-
-/* ===================== RESET OVERLAY ===================== */
-#resetOverlay{
-  position:fixed;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 22px 16px;
-  z-index:100;
-  background: rgba(0,0,0,.55);
-}
-
-.resetCard{
-  width: min(700px, 100%);
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(10,12,18,.78);
-  color: rgba(232,237,247,.92);
-  border-radius: 18px;
-}
-
-.resetBody,
-#resetBody{ margin-top:10px; white-space:pre-wrap; opacity:.9; }
-
-/* ===================== FINAL OVERLAY ===================== */
-#finalOverlay{
-  position:fixed;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 22px 16px;
-  z-index:120;
-  background: rgba(0,0,0,.55);
-}
-
-.finalCard{
-  width: min(560px, 100%);
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(10,12,18,.78);
-  color: rgba(232,237,247,.92);
-  border-radius: 18px;
-}
-
-.errText,
-#finalErr{ margin-top:10px; color: rgba(255,190,190,.95); }
 
 /* ===================== SUBTITLES ===================== */
 #subs{
@@ -362,346 +262,18 @@ body.in-sim #wrap{ display:none; }
   background: rgba(0,0,0,.28);
   box-shadow: 0 10px 24px rgba(0,0,0,.28);
   color: rgba(232,237,247,.92);
-  transition: border-color 180ms ease, box-shadow 180ms ease, filter 180ms ease;
 }
 
-#subs.calm #subsText{ filter: brightness(1.05); }
-
-/* ===================== PRESSURE TIERS (from main.js) ===================== */
-/* subtle but readable — sells time pressure without being “glitchy” */
-body.pressure1 .simCard,
-body.pressure1 .taskCard{
-  border-color: rgba(255,220,90,.26);
-  box-shadow: 0 10px 26px rgba(0,0,0,.36), 0 0 0 1px rgba(255,220,90,.06);
-}
-
-body.pressure2 .simCard,
-body.pressure2 .taskCard{
-  border-color: rgba(255,80,80,.26);
-  box-shadow: 0 12px 28px rgba(0,0,0,.40), 0 0 0 1px rgba(255,80,80,.08);
-  transform: translateY(-1px);
-}
-
-body.pressure1 #subsText{
-  border-color: rgba(255,220,90,.22);
-  box-shadow: 0 10px 24px rgba(0,0,0,.30), 0 0 0 1px rgba(255,220,90,.05);
-}
-
-body.pressure2 #subsText{
-  border-color: rgba(255,80,80,.22);
-  box-shadow: 0 10px 24px rgba(0,0,0,.32), 0 0 0 1px rgba(255,80,80,.06);
-  filter: saturate(1.05);
-}
-
-/* ===================== HACK ROOM ===================== */
-#hackRoom{
+/* RESET + FINAL (keep simple) */
+#resetOverlay, #finalOverlay{
   position:fixed;
   inset:0;
-  z-index:2000;
-  background: rgba(0,0,0,.75);
-  padding: 16px;
-  overflow:auto;
-  color: rgba(232,237,247,.92);
-}
-
-/* ===================== ADMIN PANEL ===================== */
-#adminPanel{
-  position: fixed;
-  left: 18px;
-  top: 18px;
-  z-index: 9999;
-}
-
-.adminBox{
-  width: 280px;
-  border:1px solid rgba(255,255,255,.16);
-  background: rgba(10,12,18,.70);
-  border-radius: 18px;
-  padding: 12px;
-  box-shadow: 0 10px 24px rgba(0,0,0,.30);
-  color: rgba(232,237,247,.92);
-}
-
-.adminHead{
   display:flex;
-  justify-content:space-between;
   align-items:center;
-  gap:10px;
-  user-select:none;
+  justify-content:center;
+  padding:22px 16px;
+  background: rgba(0,0,0,.55);
 }
 
-.adminBody{ margin-top:10px; font-size:12px; opacity:.92; line-height:1.35; }
-.adminBtns{ margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
-
-/* ===================== TRANSITION ===================== */
-body.sim-transition #glassFX{
-  opacity: .18;
-  animation: glass_ripple 780ms ease forwards;
-}
-@keyframes glass_ripple{
-  0%   { opacity:.18; filter: blur(0px); }
-  45%  { opacity:.28; filter: blur(0.8px); }
-  100% { opacity:.18; filter: blur(0px); }
-}
-body.in-sim #glassFX{ opacity:.18; }
-/* =========================
-   FRAGMENT SHARDS (transition)
-   ========================= */
-#fragFX{
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 99998; /* under flash/cutBlack, above page */
-  overflow: hidden;
-  opacity: 0;
-}
-
-body.shatter-cine #fragFX{ opacity: 1; }
-
-.fragShard{
-  position: absolute;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.04);
-  box-shadow: 0 10px 24px rgba(0,0,0,.35);
-  backdrop-filter: blur(6px);
-  transform: translate(0,0) rotate(0deg);
-  opacity: 0.95;
-  animation: shardFly 520ms ease-in-out 1 forwards;
-}
-
-.fragShard::after{
-  content:"";
-  position:absolute;
-  inset:-2px;
-  border-radius: 10px;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      rgba(255,255,255,.08) 0px,
-      rgba(255,255,255,.08) 6px,
-      rgba(255,255,255,0) 12px,
-      rgba(255,255,255,0) 18px
-    );
-  mix-blend-mode: screen;
-  opacity: .18;
-  filter: blur(.3px);
-}
-
-@keyframes shardFly{
-  0%   { transform: translate(0,0) rotate(0deg) scale(1); filter: none; }
-  35%  { filter: blur(.6px) contrast(1.1); }
-  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--dr)) scale(.92); opacity: 0; filter: blur(1.2px); }
-}
-
-/* =========================
-   CINEMATIC SHATTER PASS
-   ========================= */
-
-:root{
-  --shakeA: 10px;
-  --shakeB: 6px;
-}
-
-/* Keep cracks crisp */
-#cracks {
-  opacity: 0;
-  transform: none !important;
-  filter: none;
-  transition: opacity 180ms ease;
-}
-
-/* When cracks start showing */
-body.crack1 #cracks,
-body.crack2 #cracks,
-body.crack3 #cracks,
-body.crack4 #cracks {
-  opacity: 1;
-}
-
-#cracks .crack-under { stroke-width: 5 !important; opacity: 0.45 !important; }
-#cracks .crack-line  { stroke-width: 1.8 !important; opacity: 0.90 !important; }
-#cracks .crack-glint { stroke-width: 1.0 !important; opacity: 0.75 !important; }
-
-/* Cinematic shatter state */
-body.sim-transition #cracks {
-  opacity: 1;
-}
-
-body.shatter-cine {
-  cursor: none;
-}
-
-/* Screen shake (applies to whole page) */
-body.shatter-cine {
-  animation: shatterShake 520ms ease-in-out 1;
-}
-
-@keyframes shatterShake {
-  0%   { transform: translate(0,0); }
-  12%  { transform: translate(calc(var(--shakeA) * -1), var(--shakeB)); }
-  24%  { transform: translate(var(--shakeA), calc(var(--shakeB) * -1)); }
-  36%  { transform: translate(calc(var(--shakeB) * -1), calc(var(--shakeA) * -1)); }
-  48%  { transform: translate(var(--shakeB), var(--shakeA)); }
-  62%  { transform: translate(calc(var(--shakeA) * -0.6), calc(var(--shakeB) * 0.6)); }
-  76%  { transform: translate(calc(var(--shakeB) * 0.5), calc(var(--shakeA) * -0.4)); }
-  100% { transform: translate(0,0); }
-}
-
-/* Flash overlay (main.js creates #flashFX) */
-#flashFX {
-  position: fixed;
-  inset: 0;
-  z-index: 100000;
-  pointer-events: none;
-  opacity: 0;
-  background: rgba(255,255,255,0.0);
-}
-
-body.shatter-cine #flashFX {
-  animation: flashPop 360ms ease-out 1;
-}
-
-@keyframes flashPop {
-  0%   { opacity: 0; background: rgba(255,255,255,0.00); }
-  18%  { opacity: 1; background: rgba(255,255,255,0.85); }
-  40%  { opacity: 0.35; background: rgba(255,255,255,0.15); }
-  100% { opacity: 0; background: rgba(255,255,255,0.00); }
-}
-
-/* Hard cut to sim (main.js toggles .cut-black briefly) */
-#cutBlack {
-  position: fixed;
-  inset: 0;
-  z-index: 100001;
-  pointer-events: none;
-  background: #000;
-  opacity: 0;
-  transition: opacity 120ms linear;
-}
-
-body.cut-black #cutBlack { opacity: 1; }
-
-/* Optional: make cracks "glow" right at shatter */
-body.shatter-cine #cracks .crack-glint {
-  animation: glintFlicker 520ms ease-in-out 1;
-}
-
-@keyframes glintFlicker {
-  0% { opacity: 0.0; }
-  22% { opacity: 0.95; }
-  45% { opacity: 0.15; }
-  70% { opacity: 0.85; }
-  100% { opacity: 0.25; }
-}
-/* =========================
-   FRAGMENT BREAK (landing shards reveal sim)
-   ========================= */
-
-#shardFX{
-  position: fixed;
-  inset: 0;
-  z-index: 99998; /* below flash/cutBlack, above page */
-  pointer-events: none;
-  overflow: hidden;
-}
-
-#shardFX .shard{
-  position: absolute;
-  overflow: hidden;
-  border-radius: 10px;
-  transform: translateZ(0);
-  opacity: 0.0;
-  filter: contrast(1.05) saturate(1.05);
-  will-change: transform, opacity, filter, clip-path;
-  mix-blend-mode: screen; /* feels “glitchy” on light bg */
-}
-
-#shardFX .shard::after{
-  /* scanline/static overlay inside each shard */
-  content:"";
-  position:absolute;
-  inset:-30px;
-  background:
-    repeating-linear-gradient(
-      180deg,
-      rgba(255,255,255,0.00) 0px,
-      rgba(255,255,255,0.00) 2px,
-      rgba(255,255,255,0.05) 3px,
-      rgba(255,255,255,0.00) 5px
-    );
-  opacity: 0;
-  mix-blend-mode: overlay;
-}
-
-#shardFX .shard .inner{
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform: translateZ(0);
-  filter: none;
-}
-
-/* Sim fades in underneath while shards break */
-body.reveal-sim #simRoom{
-  opacity: 0;
-  transition: opacity 240ms ease;
-}
-body.reveal-sim.sim-visible #simRoom{
-  opacity: 1;
-}
-
-/* Start state */
-body.frag-break #shardFX .shard{
-  opacity: 0.92;
-  animation: shardIdle 120ms steps(2) infinite;
-}
-body.frag-break #shardFX .shard::after{ opacity: 0.18; }
-
-/* Trigger the actual “break apart” */
-body.frag-break.frag-go #shardFX .shard{
-  animation: shardFly 520ms ease-in-out 1 forwards, shardJitter 120ms steps(2) 5;
-}
-body.frag-break.frag-go #shardFX .shard::after{
-  opacity: 0.35;
-  animation: shardNoise 140ms steps(2) 6;
-}
-
-/* micro flicker while waiting */
-@keyframes shardIdle{
-  0%{ filter: contrast(1.0) saturate(1.0) hue-rotate(0deg); }
-  100%{ filter: contrast(1.12) saturate(1.15) hue-rotate(10deg); }
-}
-
-@keyframes shardNoise{
-  0%{ transform: translateY(0); opacity: 0.28; }
-  50%{ transform: translateY(-2px); opacity: 0.45; }
-  100%{ transform: translateY(0); opacity: 0.30; }
-}
-
-@keyframes shardJitter{
-  0%{ clip-path: polygon(0 0,100% 0,100% 100%,0 100%); }
-  25%{ clip-path: polygon(2% 0,100% 2%,98% 100%,0 98%); }
-  50%{ clip-path: polygon(0 3%,97% 0,100% 97%,3% 100%); }
-  75%{ clip-path: polygon(1% 1%,100% 0,99% 99%,0 100%); }
-  100%{ clip-path: polygon(0 0,100% 0,100% 100%,0 100%); }
-}
-
-/* each shard gets its own CSS vars from JS */
-@keyframes shardFly{
-  0%{
-    opacity: 0.96;
-    transform: translate(0,0) rotate(0deg) scale(1);
-    filter: contrast(1.08) saturate(1.15) blur(0px);
-  }
-  35%{
-    opacity: 0.95;
-    transform: translate(calc(var(--dx)*0.35), calc(var(--dy)*0.35)) rotate(calc(var(--dr)*0.35)) scale(1.01);
-    filter: contrast(1.2) saturate(1.2) blur(0.4px);
-  }
-  100%{
-    opacity: 0;
-    transform: translate(var(--dx), var(--dy)) rotate(var(--dr)) scale(0.98);
-    filter: contrast(1.25) saturate(1.25) blur(1.6px);
-  }
-}
+#resetOverlay{ z-index:100; }
+#finalOverlay{ z-index:120; }
