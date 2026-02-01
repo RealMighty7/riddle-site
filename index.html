@@ -6,10 +6,13 @@
   <title>index</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-  <link rel="stylesheet" href="/styles.css?v=211" />
+  <link rel="stylesheet" href="/styles.css?v=999" />
 </head>
 
 <body>
+  <!-- required by main.js -->
+  <div id="system" class="hidden" aria-hidden="true"></div>
+
   <!-- overlays -->
   <div id="glassFX"></div>
 
@@ -19,16 +22,11 @@
   </div>
 
   <main id="wrap">
-    <!-- ===== LANDING UI (sparse / “under revision”) ===== -->
+    <!-- ===== LANDING UI (keep it sparse / “under revision”) ===== -->
     <header class="card">
       <h1>launch_campaign</h1>
-
-      <!-- REQUIRED by main.js -->
-      <div id="system" class="muted" style="margin: 6px 0 10px;">
-        This page is currently under revision.
-      </div>
-
       <p class="muted">
+        This page is currently under revision.<br><br>
         Notice: this endpoint is not intended for external access.<br>
         Functionality may be incomplete. Do not rely on output.
       </p>
@@ -44,10 +42,32 @@
       <div id="launchStatus" class="muted" style="margin-top:10px;">status: idle</div>
       <div id="timestamp" class="muted" style="margin-top:6px;"></div>
       <div id="build" class="muted" style="margin-top:6px;"></div>
+
+      <!-- viewer box (wired by main.js) -->
+      <div id="viewerToken" class="viewerBox hidden" aria-live="polite">
+        <div class="viewerBoxTop">
+          <div class="viewerBoxTitle">viewer</div>
+          <button id="viewerCopy" class="sim-btn" type="button">copy</button>
+        </div>
+        <div id="viewerTokenValue" class="viewerBoxValue">token: (unassigned)</div>
+      </div>
     </header>
 
-    <!-- optional admin panel container -->
-    <section id="adminPanel" class="hidden"></section>
+    <!-- optional admin panel container (kept) -->
+    <section id="adminPanel" class="hidden">
+      <div class="card" style="margin-top:14px;">
+        <div class="muted">admin: restricted</div>
+        <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+          <button id="adminToggle" class="sim-btn" type="button">hide</button>
+          <button id="adminSkip" class="sim-btn" type="button">skip</button>
+        </div>
+        <div style="margin-top:10px; display:grid; gap:8px;">
+          <div class="muted">task: <span id="adminTask">—</span></div>
+          <div class="muted">args: <span id="adminAnswer">—</span></div>
+          <div class="muted">answer: <span id="adminStoredAnswer">—</span></div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- SIM -->
@@ -77,7 +97,7 @@
     </div>
   </section>
 
-  <!-- HACK ROOM (wired + required IDs exist) -->
+  <!-- HACK ROOM (deliberate + required IDs exist) -->
   <section id="hackRoom" class="hidden">
     <div class="hackCard card">
       <div class="hackTop">
@@ -155,12 +175,12 @@
   </section>
 
   <!-- IMPORTANT script order -->
-  <script src="/dialogue.js?v=211"></script>
-  <script src="/tasks.js?v=211"></script>
+  <script src="/dialogue.js?v=999"></script>
+  <script src="/tasks.js?v=999"></script>
 
-  <script src="/audio_player.js?v=211"></script>
-  <script src="/ttsQueue.js?v=211"></script>
+  <script src="/audio_player.js?v=999"></script>
+  <script src="/ttsQueue.js?v=999"></script>
 
-  <script src="/main.js?v=211"></script>
+  <script src="/main.js?v=999"></script>
 </body>
 </html>
