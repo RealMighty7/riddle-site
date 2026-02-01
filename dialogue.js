@@ -351,6 +351,34 @@
       { say: ["System: Checksum required.", "System: Do not guess quickly."] },
       { choice: { complyLabel: "Understood.", lieLabel: "I already did.", runLabel: "Run." } },
       { task: "checksum", args: { phrase: "echostatic07vault" } },
+      // HACK BEAT (deliberate)
+      { say: [
+        "System: Secondary channel exposed.",
+        "Emma (Security): Don’t touch it.",
+        "Liam (Worker): If you touch it… do it like you’re cleaning.",
+        "System: Presenting internal console."
+      ]},
+      { hack: {
+        user: "viewer",
+        target: "telemetry",
+        filename: "campaign_manifest.log",
+        lines: [
+          "[00] pipeline init",
+          "[01] fetch: campaign_manifest.log",
+          "[02] verify: checksum accepted",
+          "[03] trace: active",
+          "[04] notice: endpoint not intended for external access",
+          "[05] queue: ads_pipeline -> pending",
+          "[06] retention: window narrowing",
+          "[07] anomaly: reflection mismatch",
+        ],
+      }},
+      { say: [
+        "System: Channel closed.",
+        "Emma (Security): You got lucky.",
+        "Liam (Worker): Or you made it worse. Hard to tell."
+      ]},
+      
 
       // LOOP 4
       { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 4 } } },
