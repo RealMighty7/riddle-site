@@ -6,7 +6,6 @@
       return;
     }
 
-    /* ====================== UTIL ====================== */
     function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
     function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
@@ -22,6 +21,7 @@
     const REQUIRED_IDS = [
       "system",
       "cracks",
+      "cracksImg",
       "glassFX",
       "subs",
       "subsName",
@@ -83,6 +83,7 @@
 
     const systemBox = els.system;
     const cracks = els.cracks;
+    const cracksImg = els.cracksImg;
     const glassFX = els.glassFX;
 
     const simRoom = els.simRoom;
@@ -129,10 +130,9 @@
     systemBox.textContent = "This page is currently under revision.";
 
     /* ======================
-       GLOBAL ABORT FLAG (prevents post-reset logic)
+       ABORT FLAG
     ====================== */
     let ABORTED = false;
-    const abortIfNeeded = () => ABORTED || document.body.classList.contains("sim-transition");
 
     /* ====================== SFX ====================== */
     function playSfx(name, opts = {}) {
@@ -149,140 +149,11 @@
         try { window.playSfx(id, opts); } catch {}
       }
     }
-          // ===== TTS parsing + routing =====
-    function parseSpeakerAndText(line) {
-      const raw = String(line || "").replace(/^\s*\[\d{1,4}\]\s*/, "").trim();
-
-      // "Emma (Security): blah" or "System: blah"
-      const m = raw.match(/^([^:]{1,48}):\s*(.*)$/);
-      if (!m) return { speaker: "System", text: raw };
-
-      const speakerRaw = (m[1] || "").trim();
-      const speaker = speakerRaw.split("(")[0].trim() || "System";
-      const text = (m[2] || "").trim();
-      return { speaker, text };
-    }
-
-    // ===== TTS helper (packs + dialogue) =====
-    window.TTS_SPEAKERS = window.TTS_SPEAKERS || {
-      System: { voice: "en-US-GuyNeural", style: "", rate: "-6%", pitch: "-2Hz", volume: "+0%" },
-      Emma:   { voice: "en-US-ErinNeural", style: "serious", rate: "-4%", pitch: "-1Hz", volume: "+0%" },
-      Liam:   { voice: "en-US-DavisNeural", style: "calm", rate: "-2%", pitch: "-2Hz", volume: "+0%" },
-    };
-    
-    window.sayLine = function sayLine(speaker, text, extra = {}) {
-      try {
-        const cfg = window.TTS_SPEAKERS?.[speaker] || window.TTS_SPEAKERS?.System || {};
-        const payload = {
-          speaker: String(speaker || "System"),
-          voice: cfg.voice || extra.voice,
-          style: extra.style ?? cfg.style ?? "",
-          rate:  extra.rate  ?? cfg.rate  ?? null,
-          pitch: extra.pitch ?? cfg.pitch ?? null,
-          volume: extra.volume ?? cfg.volume ?? null,
-          text: String(text || "").trim(),
-        };
-        if (!payload.voice || !payload.text) return;
-        window.TTS?.enqueue?.(payload);
-      } catch {}
-    };
-    
-    // Optional convenience:
-    window.saySystem = (text, extra) => window.sayLine("System", text, extra);
-    window.sayEmma   = (text, extra) => window.sayLine("Emma", text, extra);
-    window.sayLiam   = (text, extra) => window.sayLine("Liam", text, extra);
-
-    function stripIdsDeep(node) {
-      try {
-        if (node.nodeType !== 1) return;
-        if (node.hasAttribute("id")) node.removeAttribute("id");
-        const kids = node.children;
-        for (let i = 0; i < kids.length; i++) stripIdsDeep(kids[i]);
-      } catch {}
-    }
-    
-    function buildShardFX() {
-      const old = document.getElementById("shardFX");
-      if (old) old.remove();
-    
-      const wrap = document.getElementById("wrap");
-      if (!wrap) return null;
-    
-      const fx = document.createElement("div");
-      fx.id = "shardFX";
-    
-      const W = window.innerWidth;
-      const H = window.innerHeight;
-    
-      // one clean clone we can reuse per shard
-      const baseClone = wrap.cloneNode(true);
-      stripIdsDeep(baseClone);
-      baseClone.style.margin = "0";
-      baseClone.style.maxWidth = "none";
-      baseClone.style.width = wrap.getBoundingClientRect().width + "px";
-      baseClone.style.height = wrap.getBoundingClientRect().height + "px";
-    
-      const wrapRect = wrap.getBoundingClientRect();
-    
-      const shardCount = 25; // tweak
-      for (let i = 0; i < shardCount; i++) {
-        const shard = document.createElement("div");
-        shard.className = "shard";
-    
-        // random-ish rectangles across viewport
-        const w = 140 + Math.random() * 260;
-        const h = 90 + Math.random() * 220;
-        const x = Math.random() * (W - w);
-        const y = Math.random() * (H - h);
-    
-        shard.style.left = x + "px";
-        shard.style.top = y + "px";
-        shard.style.width = w + "px";
-        shard.style.height = h + "px";
-    
-        // fly direction + rotation
-        const dx = (Math.random() - 0.5) * 520;
-        const dy = (Math.random() - 0.5) * 420;
-        const dr = (Math.random() - 0.5) * 26;
-    
-        shard.style.setProperty("--dx", dx.toFixed(1) + "px");
-        shard.style.setProperty("--dy", dy.toFixed(1) + "px");
-        shard.style.setProperty("--dr", dr.toFixed(1) + "deg");
-    
-        // jagged-ish clip polygon
-        const j = () => (Math.random() * 6).toFixed(1) + "%";
-        shard.style.clipPath = `polygon(${j()} ${j()}, ${100 - Math.random()*6}% ${j()}, ${100 - Math.random()*6}% ${100 - Math.random()*6}%, ${j()} ${100 - Math.random()*6}%)`;
-    
-        // inner is a fresh clone so each shard can position it independently
-        const inner = baseClone.cloneNode(true);
-        inner.className = "inner";
-        stripIdsDeep(inner);
-    
-        // align clone so shard shows the correct “slice” of the landing UI
-        // shift relative to wrap position on screen
-        const offsetX = -(x - wrapRect.left);
-        const offsetY = -(y - wrapRect.top);
-        inner.style.left = offsetX + "px";
-        inner.style.top = offsetY + "px";
-    
-        shard.appendChild(inner);
-        fx.appendChild(shard);
-      }
-    
-      document.body.appendChild(fx);
-      return fx;
-    }
-    
-    function removeShardFX() {
-      const fx = document.getElementById("shardFX");
-      if (fx) fx.remove();
-    }
 
     /* ======================
-       BUILD: REVISION COUNTER (persists across forced resets)
+       REVISION COUNTER
     ====================== */
     const REV_KEY = "tnr_revision_count";
-
     function getRevisionCount() {
       const v = Number(localStorage.getItem(REV_KEY));
       return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
@@ -297,139 +168,47 @@
     }
     function renderRevisionCount() {
       if (!els.build) return;
-      const n = getRevisionCount();
-      els.build.textContent = `build: revision ${n}`;
+      els.build.textContent = `build: revision ${getRevisionCount()}`;
     }
     renderRevisionCount();
 
-    /* ====================== LANDING ASSETS ====================== */
-    const IMAGE_POOL = Array.from({ length: 12 }, (_, i) => `/assets/img${i + 1}.jpg`);
-    document.querySelectorAll(".adImg").forEach((img) => {
-      img.src = IMAGE_POOL[Math.floor(Math.random() * IMAGE_POOL.length)];
-    });
-
-    /* ====================== VIEWER TOKEN LOCK (until launch) ====================== */
-    let launchArmed = false;
-
-    if (viewerToken) {
-      viewerToken.disabled = true;
-      viewerToken.value = "";
+    function hardReload() {
+      window.location.href = window.location.href.split("#")[0];
     }
 
-    function armLaunch() {
-      if (launchArmed) return;
-      launchArmed = true;
+    function doReset(reasonTitle, reasonBody) {
+      if (ABORTED) return;
+      ABORTED = true;
 
-      if (viewerToken) {
-        viewerToken.disabled = false;
-        viewerToken.focus();
-      }
+      incRevisionCount();
+      renderRevisionCount();
+
+      resetTitle.textContent = reasonTitle || "RESET";
+      resetBody.textContent = reasonBody || "";
+      resetOverlay.classList.remove("hidden");
+
+      try { window.AudioPlayer?.stop?.(); } catch {}
+      try { window.TTS?.stop?.(); } catch {}
+
+      setTimeout(hardReload, 1800);
     }
 
     /* ======================
-       ADMIN ACCESS (SHA-256)
+       AUDIO UNLOCK
     ====================== */
-    const ADMIN_HASH =
-      "27fedb02589c0bacf10ecdda0d63486573fa76350d2edf7ee6e6e6cc35858c44";
-
-    async function sha256(str) {
-      const buf = new TextEncoder().encode(str);
-      const hash = await crypto.subtle.digest("SHA-256", buf);
-      return [...new Uint8Array(hash)]
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-    }
-
-    function grantAdmin() {
-      if (document.body.classList.contains("admin")) return;
-      document.body.classList.add("admin");
-      console.log("%c[admin] elevated access granted", "color:#8cbcff");
-      document.dispatchEvent(new CustomEvent("admin:enabled"));
-    }
-
-    if (viewerToken) {
-      viewerToken.addEventListener("input", async () => {
-        if (!launchArmed) return;
-
-        const v = viewerToken.value.trim();
-        if (!v || v.length < 8) return;
-
-        let h = "";
-        try { h = await sha256(v); }
-        catch (e) { console.warn("[admin] sha256 failed", e); return; }
-
-        if (h === ADMIN_HASH) grantAdmin();
-      });
-    }
-
-    window.__ADMIN_FORCE_OK = false;
-
-    function initAdminPanel() {
-      const panel = document.getElementById("adminPanel");
-      if (!panel) return;
-      panel.classList.remove("hidden");
-
-      if (panel.parentElement !== document.body) document.body.appendChild(panel);
-
-      const elTask = document.getElementById("adminTask");
-      const elArgs = document.getElementById("adminAnswer");
-      const elStored = document.getElementById("adminStoredAnswer");
-      const btnSkip = document.getElementById("adminSkip");
-      const btnToggle = document.getElementById("adminToggle");
-
-      btnToggle?.addEventListener("click", () => {
-        const willHide = !panel.classList.contains("hidden");
-        if (willHide) {
-          try { document.activeElement?.blur?.(); } catch {}
-        }
-        panel.classList.toggle("hidden");
-        panel.setAttribute("aria-hidden", panel.classList.contains("hidden") ? "true" : "false");
-        btnToggle.textContent = panel.classList.contains("hidden") ? "show" : "hide";
-      });
-
-      btnSkip?.addEventListener("click", () => {
-        window.__ADMIN_FORCE_OK = true;
-        document.dispatchEvent(new CustomEvent("admin:skip", { bubbles: true }));
-        panel.setAttribute("aria-hidden", "false");
-        try { document.activeElement?.blur?.(); } catch {}
-      });
-
-      document.addEventListener("admin:task", (e) => {
-        const id = e?.detail?.taskId || "—";
-        const args = e?.detail?.args ? JSON.stringify(e.detail.args) : "—";
-        if (elTask) elTask.textContent = id;
-        if (elArgs) elArgs.textContent = args;
-      });
-
-      document.addEventListener("admin:answer", (e) => {
-        const ans = e?.detail?.answer;
-        if (!elStored) return;
-        elStored.textContent = ans == null ? "—" : String(ans);
-      });
-    }
-
-    document.addEventListener("admin:enabled", () => {
-      const sys = document.getElementById("system");
-      if (sys) sys.textContent = "admin context detected.";
-      initAdminPanel();
-    });
-
-    /* ====================== AUDIO UNLOCK ====================== */
     let audioUnlocked = false;
     async function unlockAudio() {
       if (audioUnlocked) return;
       audioUnlocked = true;
-
-      try {
-        if (window.AudioPlayer?.unlock) await window.AudioPlayer.unlock();
-      } catch (e) {
-        console.warn("[audio] unlock failed:", e);
-      }
+      try { await window.AudioPlayer?.unlock?.(); } catch {}
+      try { await window.TTS?.unlock?.(); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
 
-    /* ====================== TIMING ====================== */
+    /* ======================
+       TIMING (text typing)
+    ====================== */
     const BASE_WPM = 300;
     const MS_PER_WORD = 60000 / BASE_WPM;
 
@@ -442,20 +221,21 @@
       return Math.max(1100, w * MS_PER_WORD + 650);
     }
 
-    /* ====================== STATE ====================== */
-    let stage = 1; // 1 = landing clickable, 99 = sim
+    /* ======================
+       STATE
+    ====================== */
+    let stage = 1;
     let clicks = 0;
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
 
-    const CRACK_AT = [15, 17, 19, 21];
+    // 3 crack stages now (your PNGs)
+    const CRACK_AT = [15, 18, 21];
     const SHATTER_AT = 22;
 
-    // choices: used for "voice+pacing feel"
-    let guidePath = "emma"; // emma / liam / run
-    let paceBias = 0; // -1 calm, 0 normal, +1 tense, +2 urgent
+    let guidePath = "emma";
+    let paceBias = 0;
 
-    // compliance/resistance now includes TASK outcomes
     const COMPLIANCE_LIMIT = 0.30;
     const MIN_CHOICES_BEFORE_CHECK = 10;
 
@@ -463,65 +243,121 @@
     let compliancePoints = 0;
     let resistancePoints = 0;
 
-    function hardReload() {
-      window.location.href = window.location.href.split("#")[0];
+    /* ======================
+       PNG CRACK OVERLAYS
+    ====================== */
+    const CRACK_PNGS = [
+      "", // stage 0 = none
+      "/assets/Cracks1.png",
+      "/assets/Cracks2.png",
+      "/assets/Cracks3.png",
+    ];
+
+    let crackStage = 0;
+
+    function setCrackStage(n) {
+      crackStage = clamp(n, 0, 3);
+
+      document.body.classList.toggle("crack1", crackStage >= 1);
+      document.body.classList.toggle("crack2", crackStage >= 2);
+      document.body.classList.toggle("crack3", crackStage >= 3);
+
+      const src = CRACK_PNGS[crackStage] || "";
+      if (src) {
+        // swap with no flash
+        cracksImg.style.opacity = "0";
+        requestAnimationFrame(() => {
+          cracksImg.src = src;
+          cracksImg.onload = () => { cracksImg.style.opacity = "1"; };
+          // if cached load doesn't fire consistently:
+          setTimeout(() => { cracksImg.style.opacity = "1"; }, 60);
+        });
+      } else {
+        cracksImg.removeAttribute("src");
+      }
     }
 
-    function doReset(reasonTitle, reasonBody) {
-      if (ABORTED) return;
-      ABORTED = true;
+    function maybeAdvanceCracks() {
+      const next =
+        clicks >= CRACK_AT[2] ? 3 :
+        clicks >= CRACK_AT[1] ? 2 :
+        clicks >= CRACK_AT[0] ? 1 : 0;
 
-      // forced reset increments revision and persists
-      incRevisionCount();
-      renderRevisionCount();
+      if (next <= crackStage) return;
+      setCrackStage(next);
 
-      resetTitle.textContent = reasonTitle || "RESET";
-      resetBody.textContent = reasonBody || "";
-      resetOverlay.classList.remove("hidden");
-
-      // stop audio + timer if any
-      try { window.AudioPlayer?.stop?.(); } catch {}
-      try { window.TTS?.stop?.(); } catch {}
-      try { taskTimer?.stop?.(); } catch {}
-
-      setTimeout(hardReload, 1800);
+      playSfx("glitch1", { volume: 0.18, overlap: true });
     }
 
-    // ===== TASK COMPLETION GATE (auto-continue that actually advances) =====
-    let __autoContinueTimer = 0;
-    let __taskDoneResolve = null;
-    
-    function scheduleAutoContinue(delayMs = 550) {
-      if (ABORTED) return;
-      if (__autoContinueTimer) clearTimeout(__autoContinueTimer);
-    
-      __autoContinueTimer = setTimeout(() => {
-        __autoContinueTimer = 0;
-        if (ABORTED) return;
-    
-        // Resolve the task gate (this is the real "continue")
-        if (typeof __taskDoneResolve === "function") {
-          const r = __taskDoneResolve;
-          __taskDoneResolve = null;
-          r();
-        }
-      }, Math.max(0, delayMs | 0));
+    async function shatterAndEnterSim() {
+      if (document.body.classList.contains("sim-transition")) return;
+
+      document.body.classList.add("sim-transition");
+
+      // overlays once
+      if (!document.getElementById("flashFX")) {
+        const fx = document.createElement("div");
+        fx.id = "flashFX";
+        document.body.appendChild(fx);
+      }
+      if (!document.getElementById("cutBlack")) {
+        const cb = document.createElement("div");
+        cb.id = "cutBlack";
+        document.body.appendChild(cb);
+      }
+
+      // force final crack stage before impact
+      setCrackStage(3);
+      cracks.style.opacity = "1";
+
+      document.body.classList.add("shatter-cine");
+
+      playSfx("glassBreak", { volume: 0.75, overlap: false });
+      playSfx("glitch2", { volume: 0.20, overlap: true });
+      setTimeout(() => playSfx("static1", { volume: 0.16, overlap: true }), 120);
+
+      await wait(420);
+      document.body.classList.add("cut-black");
+      await wait(160);
+
+      await openSimRoom();
+
+      document.body.classList.remove("cut-black");
+      document.body.classList.remove("shatter-cine");
+      document.body.classList.remove("sim-transition");
     }
 
-
-
-    function glitchPulse() {
-      playSfx("glitch1", { volume: 0.55, overlap: true });
-      cracks.classList.add("flash");
-      setTimeout(() => cracks.classList.remove("flash"), 220);
+    function isClickableTarget(e) {
+      const t = e.target;
+      if (!t) return true;
+      if (t.closest && t.closest("input, textarea, select, button, a, label")) return false;
+      if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
+      return true;
     }
+
+    function registerLandingClick(e) {
+      if (stage !== 1) return;
+      if (document.body.classList.contains("sim-transition")) return;
+      if (!isClickableTarget(e)) return;
+
+      const now = Date.now();
+      if (now - lastClick < CLICK_COOLDOWN) return;
+      lastClick = now;
+
+      clicks++;
+      playSfx("mclick", { volume: 0.30, overlap: true });
+
+      maybeAdvanceCracks();
+
+      if (clicks >= SHATTER_AT) shatterAndEnterSim();
+    }
+
+    document.addEventListener("pointerdown", registerLandingClick, { passive: true });
 
     /* ======================
-       DYNAMIC UI: task time bar + resistance meter
-       (no CSS file changes required)
+       TASK TIMER HUD
     ====================== */
     function makeHud() {
-      // time bar (top)
       let barWrap = document.getElementById("taskTimeWrap");
       let barFill = document.getElementById("taskTimeFill");
 
@@ -550,7 +386,6 @@
         document.body.appendChild(barWrap);
       }
 
-      // resistance meter (small, top-right)
       let resWrap = document.getElementById("resMeterWrap");
       let resPip = document.getElementById("resMeterPip");
       let resTxt = document.getElementById("resMeterTxt");
@@ -604,77 +439,31 @@
 
     const HUD = makeHud();
 
-    /* ======================
-       PRESSURE (tied to task time fraction)
-    ====================== */
-    let pressureTier = 0; // 0 white, 1 yellow, 2 red
-    let pressureHinted = { yellow: false, red: false };
-
-    function setPressureTier(tier) {
-      const next = Math.max(0, Math.min(2, tier | 0));
-      if (next === pressureTier) return;
-      pressureTier = next;
-
-      document.body.classList.toggle("pressure1", pressureTier >= 1);
-      document.body.classList.toggle("pressure2", pressureTier >= 2);
-
-      if (pressureTier === 1) playSfx("static2", { volume: 0.12, overlap: true });
-      if (pressureTier === 2) playSfx("glitch2", { volume: 0.18, overlap: true });
-
-      // stingers (once per task)
-      if (pressureTier === 1 && !pressureHinted.yellow) {
-        pressureHinted.yellow = true;
-        void emitLine("System: Time window narrowing.");
-      }
-      if (pressureTier === 2 && !pressureHinted.red) {
-        pressureHinted.red = true;
-        void emitLine("System: Do not stall.");
-      }
-    }
-
-    function setTaskTimeBarFrac(frac) {
-      const clampedF = clamp(frac, 0, 1);
-      HUD.barFill.style.width = `${(clampedF * 100).toFixed(2)}%`;
-
-      // color mapping: white -> yellow -> red
-      if (clampedF <= 0.10) {
-        HUD.barFill.style.background = "rgba(255,80,80,0.95)";
-        setPressureTier(2);
-      } else if (clampedF <= 0.30) {
-        HUD.barFill.style.background = "rgba(255,220,90,0.95)";
-        setPressureTier(1);
-      } else {
-        HUD.barFill.style.background = "rgba(255,255,255,0.92)";
-        setPressureTier(0);
-      }
-    }
-
     function updateResistanceMeter() {
-      // scale: treat 0..30 as 0..100% (clamped)
       const max = 30;
       const pct = clamp(resistancePoints / max, 0, 1);
-
       HUD.resPip.style.width = `${(pct * 100).toFixed(1)}%`;
       HUD.resTxt.textContent = `resistance: ${resistancePoints}`;
 
-      // subtle color cue: white -> yellow -> red
       if (pct >= 0.70) HUD.resPip.style.background = "rgba(255,80,80,0.85)";
       else if (pct >= 0.35) HUD.resPip.style.background = "rgba(255,220,90,0.85)";
       else HUD.resPip.style.background = "rgba(255,255,255,0.70)";
     }
-    updateResistanceMeter();
 
-    /* ======================
-       TASK TIMER CONTROLLER
-       - base 5 minutes
-       - each resistance reduces limit by 1.5% (fits "1–2%" request)
-       - wrong attempts speed drain (no reset)
-       - timeout => forced reset (revision++)
-    ====================== */
+    function setTaskTimeBarFrac(frac) {
+      const f = clamp(frac, 0, 1);
+      HUD.barFill.style.width = `${(f * 100).toFixed(2)}%`;
+
+      if (f <= 0.10) HUD.barFill.style.background = "rgba(255,80,80,0.95)";
+      else if (f <= 0.30) HUD.barFill.style.background = "rgba(255,220,90,0.95)";
+      else HUD.barFill.style.background = "rgba(255,255,255,0.92)";
+    }
+
+    // 2 minutes base; each resistance reduces by 5%
     function calcTaskLimitMs() {
-      const base = 5 * 60 * 1000;
-      const perRes = 0.015; // 1.5% per resistance
-      const mult = clamp(1 - resistancePoints * perRes, 0.35, 1.0);
+      const base = 2 * 60 * 1000;
+      const perRes = 0.05;
+      const mult = clamp(1 - resistancePoints * perRes, 0.20, 1.0);
       return Math.floor(base * mult);
     }
 
@@ -719,8 +508,6 @@
           drainMult = 1.0;
           setTaskTimeBarFrac(1);
         },
-        getLeftMs() { return leftMs; },
-        getTotalMs() { return totalMs; },
       };
 
       function loop() {
@@ -731,20 +518,14 @@
         lastT = now;
 
         leftMs -= dt * drainMult;
-        const frac = leftMs / totalMs;
-        setTaskTimeBarFrac(frac);
+        setTaskTimeBarFrac(leftMs / totalMs);
 
         if (leftMs <= 0) {
           running = false;
           api.stop();
           doReset(
             "TIMEOUT",
-            `Time limit exceeded.
-
-resistance: ${resistancePoints}
-build: revision ${getRevisionCount()}
-
-Reinitializing…`
+            `Time limit exceeded.\n\nresistance: ${resistancePoints}\nbuild: revision ${getRevisionCount()}\n\nReinitializing…`
           );
           return;
         }
@@ -756,17 +537,16 @@ Reinitializing…`
     }
 
     /* ======================
-       VOICE LAYER (your existing audio_player.js)
+       VOICE: WAV if possible, otherwise Azure TTS
     ====================== */
-    let VO = null;
-    let VO_READY = false;
-
-    function handleVoiceTag(tag) {
-      if (tag === "breath") playSfx("static1", { volume: 0.08, overlap: true });
-      if (tag === "calm") {
-        if (subs) subs.classList.add("calm");
-        setTimeout(() => subs && subs.classList.remove("calm"), 900);
-      }
+    function parseSpeakerAndText(line) {
+      const raw = String(line || "").replace(/^\s*\[\d{1,4}\]\s*/, "").trim();
+      const m = raw.match(/^([^:]{1,48}):\s*(.*)$/);
+      if (!m) return { speaker: "System", text: raw };
+      const speakerRaw = (m[1] || "").trim();
+      const speaker = speakerRaw.split("(")[0].trim() || "System";
+      const text = (m[2] || "").trim();
+      return { speaker, text };
     }
 
     function stripSpeakerPrefix(s) {
@@ -781,6 +561,9 @@ Reinitializing…`
         .trim()
         .toLowerCase();
     }
+
+    let VO = null;
+    let VO_READY = false;
 
     function getIdFromLine(rawLine) {
       const raw = String(rawLine || "");
@@ -803,53 +586,64 @@ Reinitializing…`
       return null;
     }
 
-    window.AudioPlayer = {
-      _audioChain: Promise.resolve(),
-      async init() {
-        if (VO_READY) return;
-        if (!window.VoiceBank) {
-          console.warn("VoiceBank not found. Make sure /audio_player.js loads before /main.js.");
-          return;
-        }
+    window.AudioPlayer = window.AudioPlayer || {};
+    const _AudioPlayer = window.AudioPlayer;
 
-        VO = new window.VoiceBank({
-          voicesUrl: "/audio/data/voices.json",
-          onTag: (tagName) => handleVoiceTag(tagName),
-        });
+    // If your audio_player.js defines these, this just uses them.
+    async function ensureVoiceBank() {
+      if (VO_READY) return;
+      if (!window.VoiceBank) return;
+      VO = new window.VoiceBank({
+        voicesUrl: "/audio/data/voices.json",
+        onTag: () => {},
+      });
+      VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
+      await VO.load();
+      VO_READY = true;
+    }
 
-        VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
-        await VO.load();
-        VO_READY = true;
-      },
-
-      async unlock() {
-        try {
-          await this.init();
-          if (VO && VO.unlockAudio) await VO.unlockAudio();
-        } catch (e) {
-          console.warn("AudioPlayer.unlock failed:", e);
-        }
-      },
-
-      async playLine(rawLine) {
-        await this.init();
-        if (!VO || ABORTED) return Promise.resolve();
-
-        const id = getIdFromLine(rawLine);
-        if (!id) return Promise.resolve();
-
-        this._audioChain = this._audioChain
-          .then(() => (ABORTED ? null : VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false })))
-          .catch(() => {});
-        return this._audioChain;
-      },
-
-      stop() {
-        try { VO?.stopCurrent?.(); } catch {}
-      },
+    // speaker configs for Azure
+    window.TTS_SPEAKERS = window.TTS_SPEAKERS || {
+      System: { voice: "en-US-GuyNeural", style: "", rate: "-6%", pitch: "-2Hz", volume: 1 },
+      Emma:   { voice: "en-US-ErinNeural", style: "serious", rate: "-4%", pitch: "-1Hz", volume: 1 },
+      Liam:   { voice: "en-US-DavisNeural", style: "calm", rate: "-2%", pitch: "-2Hz", volume: 1 },
     };
 
-    /* ====================== OUTPUT PIPE ====================== */
+    async function playVoiceWavIfExists(rawLine) {
+      await ensureVoiceBank();
+      const id = getIdFromLine(rawLine);
+      if (!id || !VO) return false;
+
+      try {
+        // playById is async; we don't want it to block typing forever if it errors
+        await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function shouldUseAzureTTS(rawLine) {
+      // Use Azure when:
+      // - no [####] id AND
+      // - VoiceBank can't match the line to an id
+      const id = getIdFromLine(rawLine);
+      return !id;
+    }
+
+    function getTypingMsForLine(rawLine) {
+      // If we have an id and duration metadata, use it; else fallback to WPM estimate
+      try {
+        const id = getIdFromLine(rawLine);
+        if (id && VO && VO.byId) {
+          const meta = VO.byId.get(id);
+          const d = Number(meta?.duration_sec ?? meta?.durationSec ?? meta?.duration ?? 0);
+          if (Number.isFinite(d) && d > 0) return Math.floor(d * 1000);
+        }
+      } catch {}
+      return msToRead(rawLine);
+    }
+
     async function typeLineIntoSim(text, ms) {
       if (ABORTED) return;
 
@@ -861,16 +655,7 @@ Reinitializing…`
       }
 
       const minMs = 450;
-
-      // pace influenced by: choice bias + pressure
-      const pressureMult = (pressureTier === 2) ? 0.62 : (pressureTier === 1) ? 0.78 : 1.0;
-      const biasMult =
-        (paceBias >= 2) ? 0.70 :
-        (paceBias === 1) ? 0.85 :
-        (paceBias === -1) ? 1.10 :
-        1.0;
-
-      const total = Math.max(minMs, Math.floor((ms | 0) * pressureMult * biasMult));
+      const total = Math.max(minMs, Math.floor(ms || 900));
       const chars = [...s];
       const per = total / Math.max(1, chars.length);
 
@@ -884,174 +669,57 @@ Reinitializing…`
       simText.scrollTop = simText.scrollHeight;
     }
 
-    function getTypingMsForLine(rawLine) {
-      try {
-        const id = getIdFromLine(rawLine);
-        if (id && VO && VO.byId) {
-          const meta = VO.byId.get(id);
-          const d = Number(meta?.duration_sec ?? meta?.durationSec ?? meta?.duration ?? 0);
-          if (Number.isFinite(d) && d > 0) return Math.floor(d * 1000);
-        }
-      } catch {}
-      return msToRead(rawLine);
-    }
-
-    function shouldUseAzureTTS(rawLine) {
-      try {
-        if (!window.TTS?.enqueue) return false;
-        const id = getIdFromLine(rawLine);
-        return !id; // only when no local audio file exists
-      } catch {
-        return false;
-      }
-    }
-
     async function emitLine(line) {
       if (ABORTED) return;
 
       const raw = String(line || "");
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
 
-      // VoiceBank (your existing /audio_player.js system)
-      const voPromise =
-        window.AudioPlayer && typeof window.AudioPlayer.playLine === "function"
-          ? window.AudioPlayer.playLine(raw)
-          : Promise.resolve();
-
-      // Azure TTS queue (your /ttsQueue.js + /functions/api/tts.js)
-      let ttsPromise = Promise.resolve();
-      try {
-        if (shouldUseAzureTTS(raw)) {
-          const { speaker, text } = parseSpeakerAndText(raw);
-          // keep your token system working: {breath} {pause=220}
-          ttsPromise = window.TTS?.enqueue?.({
-            speaker,
-            ...(window.TTS_SPEAKERS?.[speaker] || window.TTS_SPEAKERS?.System || {}),
-            text,
-          }) || Promise.resolve();
-        }
-      } catch {}
-
+      // 1) Always type text (this is the "source of truth" for pacing)
       const typingMs = getTypingMsForLine(raw);
+      const typingPromise = typeLineIntoSim(printed, typingMs);
 
-      await Promise.all([
-        typeLineIntoSim(printed, typingMs),
-        voPromise,
-        ttsPromise,
-      ]);
+      // 2) Try pre-uploaded WAV first; if it doesn't exist, use Azure TTS queue
+      const audioPromise = (async () => {
+        // If VoiceBank exists and can play this line, do that.
+        const playedWav = await playVoiceWavIfExists(raw);
+        if (playedWav) return;
+
+        // Else, fall back to Azure TTS (your /functions/api/tts)
+        try {
+          if (!window.TTS || !shouldUseAzureTTS(raw)) return;
+
+          const { speaker, text } = parseSpeakerAndText(raw);
+          const cfg =
+            window.TTS_SPEAKERS?.[speaker] ||
+            window.TTS_SPEAKERS?.System ||
+            window.TTS_SPEAKERS?.System;
+
+          await window.TTS.enqueue({
+            voice: cfg.voice,
+            style: cfg.style ?? "",
+            rate: cfg.rate ?? null,
+            pitch: cfg.pitch ?? null,
+            // volume in ttsQueue is 0..1
+            volume: cfg.volume ?? 1,
+            text: String(text || "").trim(),
+          });
+        } catch {}
+      })();
+
+      await Promise.all([typingPromise, audioPromise]);
     }
-
 
     async function playLines(lines) {
       for (const line of lines || []) {
         if (ABORTED) return;
         await emitLine(line);
-        const gap =
-          (pressureTier === 2) ? 20 :
-          (pressureTier === 1) ? 45 :
-          (paceBias >= 2) ? 35 :
-          (paceBias === 1) ? 55 :
-          80;
-        await wait(gap);
+        await wait(70);
       }
     }
 
     /* ======================
-       TASK CONTEXT + ANSWER HOOK
-    ====================== */
-    let lastAnswer = null;
-
-    // per-task tracking for haywire rule
-    let activeTaskId = null;
-    let taskWrongCount = 0;
-    let taskTimer = null;
-
-    function recordWrongAttempt(reason) {
-      if (ABORTED) return;
-
-      // +3 resistance on wrong attempt
-      resistancePoints += 3;
-      updateResistanceMeter();
-
-      // speed drain a bit; timer never resets
-      taskTimer?.onWrong?.();
-
-      taskWrongCount++;
-
-      // haywire on 3 wrong attempts within same task
-      if (taskWrongCount >= 3) {
-        doReset(
-          "SYSTEM HAYWIRE",
-          `Anomalous input density detected.
-
-task: ${activeTaskId || "unknown"}
-wrong attempts: ${taskWrongCount}
-resistance: ${resistancePoints}
-
-Resetting simulation…`
-        );
-        return;
-      }
-
-      // stingers
-      if (taskWrongCount === 1) void emitLine("System: Incorrect.");
-      else if (taskWrongCount === 2) void emitLine("System: Stop guessing.");
-      else void emitLine("System: Input rejected.");
-    }
-
-    const taskContext = {
-      taskPrimary,
-      taskSecondary,
-      taskBody,
-
-      setAnswer(ans) {
-        lastAnswer = ans;
-        document.dispatchEvent(new CustomEvent("admin:answer", { detail: { answer: ans } }));
-        scheduleAutoContinue(450);
-      },
-
-
-      getAnswer() { return lastAnswer; },
-
-      showTaskUI(title, desc) {
-        if (ABORTED) return;
-
-        document.body.classList.add("task-open");
-        simRoom.classList.add("hidden");
-
-        taskUI.classList.remove("hidden");
-        taskTitle.textContent = title;
-        taskDesc.textContent = desc;
-        taskBody.innerHTML = "";
-
-        taskSecondary.classList.add("hidden");
-        taskPrimary.disabled = false;
-        taskPrimary.onclick = null;
-        taskSecondary.onclick = null;
-
-        els.taskActions?.classList.remove("hidden");
-
-        // --- TTS: announce task (queued, no overlap) ---
-        try {
-          window.saySystem?.(`{breath}${title}. {pause=180}${desc}`);
-        } catch {}
-      },
-
-
-      doReset,
-
-      difficultyBoost() { return resistancePoints >= 10 ? 1 : 0; },
-
-      // Packs MUST call ctx.penalize() for wrong attempts to count as resistance.
-      penalize(n = 1, reason = "") {
-        recordWrongAttempt(reason || "penalty");
-      },
-
-      glitch: glitchPulse,
-    };
-
-    /* ======================
-       CHOICE HANDLING + COMPLIANCE CHECK
+       CHOICE HANDLING
     ====================== */
     function checkComplianceOrReset() {
       if (choiceTotal < MIN_CHOICES_BEFORE_CHECK) return true;
@@ -1062,13 +730,7 @@ Resetting simulation…`
       if (ratio >= COMPLIANCE_LIMIT) {
         doReset(
           "TOO COMPLIANT",
-          `Compliance threshold exceeded.
-
-compliance: ${compliancePoints}
-resistance: ${resistancePoints}
-ratio: ${(ratio * 100).toFixed(0)}%
-
-Reinitializing simulation…`
+          `Compliance threshold exceeded.\n\ncompliance: ${compliancePoints}\nresistance: ${resistancePoints}\nratio: ${(ratio * 100).toFixed(0)}%\n\nReinitializing simulation…`
         );
         return false;
       }
@@ -1087,6 +749,111 @@ Reinitializing simulation…`
         choiceRun.onclick = () => { cleanup(); resolve("run"); };
       });
     }
+
+    /* ======================
+       TASK FLOW (AUTO-CONTINUE DONE RIGHT)
+       - No "phantom wrong"
+       - No hanging on "Ok."
+       - Fallback Continue button appears if success doesn't resolve
+    ====================== */
+    let activeTaskId = null;
+    let taskWrongCount = 0;
+    let taskTimer = null;
+
+    function recordWrongAttempt() {
+      if (ABORTED) return;
+
+      resistancePoints += 3;
+      updateResistanceMeter();
+      taskTimer?.onWrong?.();
+
+      taskWrongCount++;
+
+      if (taskWrongCount >= 3) {
+        doReset(
+          "SYSTEM HAYWIRE",
+          `Anomalous input density detected.\n\ntask: ${activeTaskId || "unknown"}\nwrong attempts: ${taskWrongCount}\nresistance: ${resistancePoints}\n\nResetting simulation…`
+        );
+        return;
+      }
+
+      if (taskWrongCount === 1) void emitLine("System: Incorrect.");
+      else if (taskWrongCount === 2) void emitLine("System: Stop guessing.");
+      else void emitLine("System: Input rejected.");
+    }
+
+    // per-task promise controls:
+    let _taskResolve = null;
+    let _taskDone = false;
+    let _taskSuccess = false;
+
+    function beginTaskGate() {
+      _taskDone = false;
+      _taskSuccess = false;
+      _taskResolve = null;
+      return new Promise((resolve) => { _taskResolve = resolve; });
+    }
+
+    function finishTaskGate(ok) {
+      if (_taskDone) return;
+      _taskDone = true;
+      _taskSuccess = !!ok;
+      try { _taskResolve?.(_taskSuccess); } catch {}
+    }
+
+    function showFallbackContinue() {
+      // This button is ONLY a failsafe (if a pack forgets ctx.success())
+      taskPrimary.classList.remove("hidden");
+      taskPrimary.disabled = false;
+      taskPrimary.textContent = "Continue";
+      taskPrimary.onclick = () => finishTaskGate(true);
+
+      taskSecondary.classList.add("hidden");
+    }
+
+    const taskContext = {
+      taskPrimary,
+      taskSecondary,
+      taskBody,
+
+      // Packs should call success() when verified correct
+      success(msg = "Ok.") {
+        // Show a tiny acknowledgement in the task UI, then auto-continue
+        try {
+          const p = document.createElement("div");
+          p.style.marginTop = "10px";
+          p.style.opacity = "0.85";
+          p.textContent = msg;
+          taskBody.appendChild(p);
+        } catch {}
+
+        // Auto-finish soon (keeps the “Ok.” beat)
+        setTimeout(() => finishTaskGate(true), 380);
+
+        // Fallback button appears after 1.5s if something stalls
+        setTimeout(() => {
+          if (!_taskDone) showFallbackContinue();
+        }, 1500);
+      },
+
+      // Packs can call fail() when they want to show an error but NOT penalize
+      fail(msg = "Not accepted.") {
+        try {
+          const p = document.createElement("div");
+          p.style.marginTop = "10px";
+          p.style.opacity = "0.85";
+          p.textContent = msg;
+          taskBody.appendChild(p);
+        } catch {}
+      },
+
+      // This is the ONLY way a wrong attempt should add resistance:
+      penalize() {
+        recordWrongAttempt();
+      },
+
+      doReset,
+    };
 
     async function runSteps(steps) {
       for (const step of steps) {
@@ -1109,8 +876,8 @@ Reinitializing simulation…`
           if (labels?.complyLabel) choiceNeed.textContent = labels.complyLabel;
           if (labels?.lieLabel) choiceLie.textContent = labels.lieLabel;
           if (labels?.runLabel) choiceRun.textContent = labels.runLabel;
-          simChoices.classList.remove("hidden");
 
+          simChoices.classList.remove("hidden");
           const choice = await waitForChoice();
           simChoices.classList.add("hidden");
 
@@ -1125,26 +892,15 @@ Reinitializing simulation…`
           } else {
             guidePath = "run";
             paceBias = 2;
-            resistancePoints += 1; // small nudge for run path
+            resistancePoints += 1;
+            updateResistanceMeter();
           }
-
-          updateResistanceMeter();
 
           if (!checkComplianceOrReset()) return;
           continue;
         }
 
         if (step.task) {
-          document.dispatchEvent(new CustomEvent("admin:task", {
-            detail: { taskId: step.task, args: step.args || null }
-          }));
-
-          if (window.__ADMIN_FORCE_OK) {
-            window.__ADMIN_FORCE_OK = false;
-            await wait(200);
-            continue;
-          }
-
           const fn = TASKS[step.task];
           if (!fn) {
             await playLines([`System: PROCEDURE MISSING (${step.task}).`]);
@@ -1156,64 +912,61 @@ Reinitializing simulation…`
           simRoom.classList.add("hidden");
           simChoices.classList.add("hidden");
 
+          taskUI.classList.remove("hidden");
+          taskBody.innerHTML = "";
+
           // per-task init
           activeTaskId = step.task;
           taskWrongCount = 0;
 
-          pressureHinted = { yellow: false, red: false };
-          setPressureTier(0);
-
-          lastAnswer = null;
-
-          // start timer
+          // show timer
           taskTimer = createTaskTimerController();
           taskTimer.resetForNewTask();
           taskTimer.show();
           taskTimer.start();
 
-          // run task
+          // IMPORTANT:
+          // Start a "gate" promise that resolves ONLY when ctx.success() is called
+          const gate = beginTaskGate();
+
+          // Run task pack (packs should call ctx.success() once verified)
           await fn(taskContext, step.args || {});
           if (ABORTED) return;
 
-          // completed => +1 compliance
-          compliancePoints += 1;
+          // If the task pack forgot to call ctx.success(),
+          // show fallback after a short delay.
+          setTimeout(() => {
+            if (!_taskDone) showFallbackContinue();
+          }, 800);
+
+          const ok = await gate;
+          if (ABORTED) return;
 
           // stop timer
           taskTimer.stop();
           taskTimer.hide();
           taskTimer = null;
 
+          if (ok) {
+            compliancePoints += 1;
+          }
+
           if (!checkComplianceOrReset()) return;
 
-          // close task UI
+          // close task UI and continue sim
           taskUI.classList.add("hidden");
           document.body.classList.remove("task-open");
           simRoom.classList.remove("hidden");
 
-          await wait(250);
+          await wait(220);
           continue;
         }
 
         if (step.filler) {
           const count = step.filler.count ?? 1;
-          const pool = step.filler.pool ?? "AUTO";
-          const meta = step.filler.meta ?? {};
-
           for (let i = 0; i < count; i++) {
             if (ABORTED) return;
-            let line = "";
-            if (pool === "AUTO" && window.DIALOGUE_HELPERS?.autoFiller) {
-              line = window.DIALOGUE_HELPERS.autoFiller({
-                ...meta,
-                path: guidePath,
-                pressure: pressureTier,
-                resistance: resistancePoints,
-                compliance: compliancePoints,
-              });
-            } else {
-              line = "System: Buffering…";
-            }
-            await emitLine(line);
+            await emitLine("System: Buffering…");
             await wait(30);
           }
           continue;
@@ -1221,26 +974,25 @@ Reinitializing simulation…`
       }
     }
 
-    /* ====================== SIM FLOW ====================== */
+    /* ======================
+       SIM FLOW
+    ====================== */
     async function openSimRoom() {
       stage = 99;
-            // ensure cracks don't remain over sim
-      setCrackStage(0);
-      cracks.style.opacity = "0";
-      document.body.classList.remove("cut-black");
-      document.body.classList.remove("shatter-cine");
-      document.body.classList.remove("into-sim");
-      document.body.classList.remove("sim-transition");
+
       await unlockAudio();
+
       document.body.classList.add("in-sim");
       subs?.classList.remove("hidden");
+
+      // IMPORTANT: cracks are hidden in sim by CSS now
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
       simChoices.classList.add("hidden");
       hackRoom.classList.add("hidden");
 
       simText.textContent = "";
-      playSfx("static1", { volume: 0.25, overlap: false });
+      playSfx("static1", { volume: 0.22, overlap: false });
 
       HUD.resWrap.style.opacity = "1";
       updateResistanceMeter();
@@ -1250,370 +1002,8 @@ Reinitializing simulation…`
     }
 
     /* ======================
-       CRACKS: progressive, builds off existing (no shifting)
+       LANDING: optional timestamp tick
     ====================== */
-    let crackStage = 0;
-    let crackSeed = 0;
-    let crackRng = null;
-    const endpoints = [];
-
-    function rngFactory(seed) {
-      let t = seed >>> 0;
-      return () => {
-        t += 0x6d2b79f5;
-        let x = Math.imul(t ^ (t >>> 15), 1 | t);
-        x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
-        return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-      };
-    }
-
-    function pickEndpoint() {
-      if (!endpoints.length) return { x: 500, y: 500 };
-      return endpoints[Math.floor(crackRng() * endpoints.length)];
-    }
-
-    function clampPt(p) {
-      return {
-        x: Math.max(-60, Math.min(1060, p.x)),
-        y: Math.max(-60, Math.min(1060, p.y)),
-      };
-    }
-
-    function makeBranchPath(start, steps, stepLen, jitter) {
-      let x = start.x, y = start.y;
-      let ang = crackRng() * Math.PI * 2;
-      const pts = [`M ${x.toFixed(1)} ${y.toFixed(1)}`];
-
-      for (let i = 0; i < steps; i++) {
-        ang += (crackRng() - 0.5) * jitter;
-        x += Math.cos(ang) * stepLen * (0.75 + crackRng() * 0.7);
-        y += Math.sin(ang) * stepLen * (0.75 + crackRng() * 0.7);
-        const p = clampPt({ x, y });
-        x = p.x; y = p.y;
-        pts.push(`L ${x.toFixed(1)} ${y.toFixed(1)}`);
-      }
-
-      endpoints.push({ x, y });
-      return pts.join(" ");
-    }
-
-    function addSeg(svg, d) {
-      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      g.setAttribute("class", "seg");
-
-      const pUnder = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pUnder.setAttribute("d", d);
-      pUnder.setAttribute("class", "crack-path crack-under");
-
-      const pLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pLine.setAttribute("d", d);
-      pLine.setAttribute("class", "crack-path crack-line");
-
-      const pGlint = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      pGlint.setAttribute("d", d);
-      pGlint.setAttribute("class", "crack-path crack-glint");
-      pGlint.style.opacity = crackRng() < 0.35 ? "0.85" : "0.0";
-
-      g.appendChild(pUnder);
-      g.appendChild(pLine);
-      g.appendChild(pGlint);
-      svg.appendChild(g);
-
-      [pUnder, pLine, pGlint].forEach((p) => {
-        try {
-          const len = p.getTotalLength();
-          p.style.strokeDasharray = String(len);
-          p.style.strokeDashoffset = String(len);
-          const delay = Math.floor(crackRng() * 110); // stagger
-          setTimeout(() => {
-            requestAnimationFrame(() => { p.style.strokeDashoffset = "0"; });
-          }, delay);
-        } catch {}
-      });
-    }
-
-    function ensureCracks() {
-      if (crackRng) return;
-
-      crackSeed = (Date.now() ^ ((Math.random() * 1e9) | 0)) >>> 0;
-      crackRng = rngFactory(crackSeed);
-
-      try {
-        cracks.setAttribute("viewBox", "0 0 1000 1000");
-        cracks.setAttribute("preserveAspectRatio", "none");
-      } catch {}
-
-      endpoints.length = 0;
-
-      const seeds = [
-        { x: 320 + crackRng() * 90, y: 280 + crackRng() * 90 },
-        { x: 680 + crackRng() * 90, y: 320 + crackRng() * 90 },
-        { x: 360 + crackRng() * 90, y: 720 + crackRng() * 90 },
-        { x: 720 + crackRng() * 90, y: 740 + crackRng() * 90 },
-      ];
-
-      for (const s of seeds) {
-        const d = makeBranchPath(
-          s,
-          10 + Math.floor(crackRng() * 8),
-          22 + crackRng() * 14,
-          1.25 + crackRng() * 0.8
-        );
-        addSeg(cracks, d);
-      }
-
-      for (let i = 0; i < 6; i++) {
-        const s = { x: 140 + crackRng() * 720, y: 140 + crackRng() * 720 };
-        const d = makeBranchPath(
-          s,
-          4 + Math.floor(crackRng() * 4),
-          10 + crackRng() * 10,
-          2.1 + crackRng() * 1.1
-        );
-        addSeg(cracks, d);
-      }
-    }
-
-    function setCrackStage(n) {
-      crackStage = clamp(n, 0, 4);
-
-      document.body.classList.toggle("crack1", crackStage >= 1);
-      document.body.classList.toggle("crack2", crackStage >= 2);
-      document.body.classList.toggle("crack3", crackStage >= 3);
-      document.body.classList.toggle("crack4", crackStage >= 4);
-
-      try { cracks.setAttribute("data-stage", String(crackStage)); } catch {}
-      try { glassFX?.setAttribute("data-stage", String(crackStage)); } catch {}
-    }
-
-    function growCracksForStage(stageToAdd) {
-      ensureCracks();
-
-      const addCount =
-        stageToAdd === 1 ? 13 :
-        stageToAdd === 2 ? 20 :
-        stageToAdd === 3 ? 27 :
-        34;
-
-
-      for (let i = 0; i < addCount; i++) {
-        const base = pickEndpoint();
-        const start = {
-          x: base.x + (crackRng() - 0.5) * 24,
-          y: base.y + (crackRng() - 0.5) * 24,
-        };
-
-          const steps = 6 + Math.floor(crackRng() * (stageToAdd * 4 + 6));
-          const stepLen = 14 + crackRng() * (14 + stageToAdd * 9);
-          const jitter = 1.8 + crackRng() * (1.2 + stageToAdd * 0.45);
-
-        const d = makeBranchPath(start, steps, stepLen, jitter);
-        addSeg(cracks, d);
-      }
-    }
-
-    function maybeAdvanceCracks() {
-      const next =
-        clicks >= CRACK_AT[3] ? 4 :
-        clicks >= CRACK_AT[2] ? 3 :
-        clicks >= CRACK_AT[1] ? 2 :
-        clicks >= CRACK_AT[0] ? 1 : 0;
-
-      if (next <= crackStage) return;
-
-      for (let s = crackStage + 1; s <= next; s++) {
-        setCrackStage(s);
-        growCracksForStage(s);
-      }
-
-      playSfx("glitch1", { volume: 0.22, overlap: true });
-      cracks.classList.add("pulse");
-      setTimeout(() => cracks.classList.remove("pulse"), 220);
-    }
-
-    function ensureFragFX() {
-      let fx = document.getElementById("fragFX");
-      if (fx) return fx;
-    
-      fx = document.createElement("div");
-      fx.id = "fragFX";
-      document.body.appendChild(fx);
-      return fx;
-    }
-    
-    function spawnShards() {
-      const fx = ensureFragFX();
-      fx.innerHTML = "";
-    
-      // Shards roughly mimic UI panels breaking apart
-      const count = 18;
-      for (let i = 0; i < count; i++) {
-        const d = document.createElement("div");
-        d.className = "fragShard";
-    
-        const w = 120 + Math.random() * 220;
-        const h = 60 + Math.random() * 160;
-    
-        const x = Math.random() * (window.innerWidth - w);
-        const y = 40 + Math.random() * (Math.min(window.innerHeight, 520) - h);
-    
-        const dx = (Math.random() - 0.5) * 520;
-        const dy = (Math.random() - 0.3) * 420;
-        const dr = (Math.random() - 0.5) * 40;
-    
-        d.style.left = `${x}px`;
-        d.style.top = `${y}px`;
-        d.style.width = `${w}px`;
-        d.style.height = `${h}px`;
-        d.style.setProperty("--dx", `${dx}px`);
-        d.style.setProperty("--dy", `${dy}px`);
-        d.style.setProperty("--dr", `${dr}deg`);
-    
-        // Random “broken” silhouette
-        const clip = [
-          `${10 + Math.random()*20}% ${0 + Math.random()*10}%`,
-          `${80 + Math.random()*15}% ${0 + Math.random()*10}%`,
-          `${100}% ${20 + Math.random()*30}%`,
-          `${90 + Math.random()*10}% ${90 + Math.random()*10}%`,
-          `${20 + Math.random()*25}% ${100}%`,
-          `${0}% ${70 + Math.random()*20}%`,
-          `${0}% ${20 + Math.random()*30}%`,
-        ].join(", ");
-        d.style.clipPath = `polygon(${clip})`;
-    
-        fx.appendChild(d);
-      }
-    
-      // Clean up after animation
-      setTimeout(() => {
-        const node = document.getElementById("fragFX");
-        if (node) node.innerHTML = "";
-      }, 620);
-    }
-
-    async function shatterAndEnterSim() {
-      if (document.body.classList.contains("sim-transition")) return;
-    
-      document.body.classList.add("sim-transition");
-    
-      ensureCracks();
-      cracks.style.opacity = "1";
-    
-      // Create overlays once
-      if (!document.getElementById("flashFX")) {
-        const fx = document.createElement("div");
-        fx.id = "flashFX";
-        document.body.appendChild(fx);
-      }
-      if (!document.getElementById("cutBlack")) {
-        const cb = document.createElement("div");
-        cb.id = "cutBlack";
-        document.body.appendChild(cb);
-      }
-    
-      // --- NEW: build fragment overlay of the landing UI ---
-      buildShardFX();
-      document.body.classList.add("frag-break");
-    
-      // Make sim room exist under everything (but fade it in)
-      simRoom.classList.remove("hidden");
-      document.body.classList.add("reveal-sim");
-    
-      // Start cinematic pass
-      document.body.classList.add("shatter-cine");
-      spawnShards();
-    
-      // Audio + small extra glitch pulses
-      playSfx("glassBreak", { volume: 0.75, overlap: false });
-      playSfx("glitch2", { volume: 0.22, overlap: true });
-      setTimeout(() => playSfx("glitch1", { volume: 0.20, overlap: true }), 90);
-      setTimeout(() => playSfx("static1", { volume: 0.18, overlap: true }), 150);
-    
-      // final crack burst right at impact
-      for (let s = crackStage + 1; s <= 4; s++) {
-        setCrackStage(s);
-        growCracksForStage(s);
-      }
-    
-      // Let shards “stutter” for a beat, then explode outward
-      await wait(140);
-      document.body.classList.add("frag-go");
-    
-      // Fade sim in while shards leave
-      await wait(120);
-      document.body.classList.add("sim-visible");
-    
-      // Short shutter cut (optional, keeps your cinematic snap)
-      await wait(200);
-      document.body.classList.add("cut-black");
-      await wait(120);
-      document.body.classList.remove("cut-black");
-    
-      // Now enter sim (this clears cut-black immediately too, from your prior fix)
-      await openSimRoom();
-    
-      // Cleanup transition states
-      document.body.classList.remove("shatter-cine");
-      document.body.classList.remove("into-sim");
-      document.body.classList.remove("sim-transition");
-    
-      document.body.classList.remove("frag-go");
-      document.body.classList.remove("frag-break");
-      document.body.classList.remove("reveal-sim");
-      document.body.classList.remove("sim-visible");
-      removeShardFX();
-      // hard-hide cracks now that we are inside sim
-      setCrackStage(0);
-      cracks.style.opacity = "0";
-    }
-
-
-    function isClickableTarget(e) {
-      const t = e.target;
-      if (!t) return true;
-      if (t.closest && t.closest("input, textarea, select, button, a, label")) return false;
-      if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
-      return true;
-    }
-
-    function registerLandingClick(e, force = false) {
-      if (stage !== 1) return;
-      if (document.body.classList.contains("sim-transition")) return;
-      if (!force && !isClickableTarget(e)) return;
-    
-      const now = Date.now();
-      if (now - lastClick < CLICK_COOLDOWN) return;
-      lastClick = now;
-    
-      ensureCracks();
-    
-      clicks++;
-      playSfx("mclick", { volume: 0.35, overlap: true });
-    
-      maybeAdvanceCracks();
-    
-      if (clicks >= SHATTER_AT) {
-        shatterAndEnterSim();
-      }
-    }
-    
-    // Prime crack seed
-    ensureCracks();
-    document.addEventListener("pointerdown", registerLandingClick, { passive: true });
-
-    els.launchBtn?.addEventListener("click", (e) => {
-      armLaunch();
-      registerLandingClick(e, true);
-      // Bias endpoints toward the click position (impact point)
-      try {
-        const r = cracks.getBoundingClientRect();
-        const x = ((e.clientX - r.left) / r.width) * 1000;
-        const y = ((e.clientY - r.top) / r.height) * 1000;
-        endpoints.push({ x, y });
-        if (endpoints.length > 140) endpoints.splice(0, endpoints.length - 140);
-      } catch {}
-    });
-
     if (els.timestamp) {
       const tick = () => {
         const d = new Date();
@@ -1623,7 +1013,9 @@ Reinitializing simulation…`
       setInterval(tick, 1000);
     }
 
+    // start
     stage = 1;
+    setCrackStage(0);
   }
 
   boot();
