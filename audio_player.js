@@ -36,10 +36,7 @@ function playSfx(id, opts = {}) {
     playSfx._single ??= {};
     const prev = playSfx._single[id];
     if (prev) {
-      try {
-        prev.pause();
-        prev.currentTime = 0;
-      } catch {}
+      try { prev.pause(); prev.currentTime = 0; } catch {}
     }
     const a = new Audio(src);
     playSfx._single[id] = a;
@@ -55,7 +52,6 @@ function playSfx(id, opts = {}) {
   a.play().catch(() => {});
 }
 
-// expose globally (main.js relies on this)
 window.playSfx = playSfx;
 
 /* =========================================================
@@ -63,17 +59,12 @@ window.playSfx = playSfx;
 ========================================================= */
 
 function speakerToFolder(speaker) {
-  // Goal: map "Emma (Security)" -> "emma", "Liam (Worker)" -> "liam", "System" -> "system"
   const s = String(speaker || "system").trim().toLowerCase();
   if (!s) return "system";
-
-  // fast path for common speakers
   if (s.startsWith("emma")) return "emma";
   if (s.startsWith("liam")) return "liam";
   if (s.startsWith("system")) return "system";
   if (s.startsWith("you")) return "you";
-
-  // generic sanitize: keep first alnum token
   const token = (s.match(/[a-z0-9]+/) || [])[0];
   return token || "system";
 }
@@ -129,7 +120,6 @@ class VoiceBank {
     if (this._unlocked) return;
     this._unlocked = true;
 
-    // Best-effort unlock across browsers
     try {
       if (window.AudioContext || window.webkitAudioContext) {
         const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -142,26 +132,21 @@ class VoiceBank {
         o.start();
         o.stop(ctx.currentTime + 0.01);
         await ctx.resume().catch(() => {});
-        setTimeout(() => {
-          try { ctx.close(); } catch {}
-        }, 50);
+        setTimeout(() => { try { ctx.close(); } catch {} }, 50);
         return;
       }
     } catch {}
 
-    // Fallback: play a muted element briefly
     try {
       const a = new Audio();
       a.muted = true;
-      a.src =
-        "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=";
+      a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=";
       await a.play().catch(() => {});
       a.pause();
     } catch {}
   }
 
   stopCurrent() {
-    // Stop *all* active audios (important when stopPrevious:false was used)
     try {
       for (const a of this._activeAudios) {
         try { a.pause(); } catch {}
@@ -181,29 +166,21 @@ class VoiceBank {
     this._currentAudio = null;
   }
 
-  // ✅ Returns Promise<boolean>
-  // true  => likely played (ended fired)
-  // false => missing/blocked/error
   async playById(id, opts = {}) {
     await this.load();
 
     const key = String(id).padStart(4, "0");
     const line = this.byId.get(key);
-    if (!line) {
-      console.warn("[VoiceBank] missing line", key);
-      return false;
-    }
+    if (!line) return;
 
     const token = ++this._playToken;
 
-    const stopPrevious = opts.stopPrevious !== false; // default true
+    const stopPrevious = opts.stopPrevious !== false;
     if (stopPrevious) this.stopCurrent();
 
-    // UI text
     if (this.nameEl) this.nameEl.textContent = line.speaker || "";
     if (this.subtitleEl) this.subtitleEl.textContent = line.text || "";
 
-    // tag hooks
     if (Array.isArray(line.tags) && this.onTag) {
       for (const tag of line.tags) {
         try { this.onTag(tag, line); } catch {}
@@ -212,8 +189,8 @@ class VoiceBank {
 
     const folder = speakerToFolder(line.speaker || "system");
     const src = `/audio/${folder}/${key}.wav`;
-
     const audio = new Audio(src);
+
     this._currentAudio = audio;
     this._activeAudios.add(audio);
 
@@ -224,132 +201,31 @@ class VoiceBank {
     const holdMs = Number.isFinite(baseHoldMs) ? Math.max(0, baseHoldMs) : 0;
 
     return new Promise((resolve) => {
-      let ok = false;
-
-      const cleanup = () => {
-        try { this._activeAudios.delete(audio); } catch {}
-        if (token === this._playToken && this._currentAudio === audio) this._currentAudio = null;
-      };
-
       const finish = () => {
-        cleanup();
-        if (token !== this._playToken) return resolve(false); // replaced by newer line
-        if (holdMs) setTimeout(() => resolve(ok), holdMs);
-        else resolve(ok);
+        try { this._activeAudios.delete(audio); } catch {}
+        if (token !== this._playToken) return resolve();
+        if (this._currentAudio === audio) this._currentAudio = null;
+        if (holdMs) setTimeout(resolve, holdMs);
+        else resolve();
       };
 
-      audio.addEventListener("ended", () => {
-        ok = true;
-        finish();
-      }, { once: true });
+      audio.addEventListener("ended", finish, { once:true });
+      audio.addEventListener("error", finish, { once:true });
 
-      audio.addEventListener("error", () => {
-        ok = false;
-        finish();
-      }, { once: true });
-
-      audio.play().catch(() => {
-        ok = false;
-        finish();
-      });
+      audio.play().catch(finish);
     });
   }
 }
 
-// expose globally
 window.VoiceBank = VoiceBank;
 
 /* =========================================================
-   AudioPlayer wrapper (WHAT main.js needs)
-   - playLine(rawLine) => Promise<boolean>
+   BRIDGE: main.js expects AudioPlayer.unlock() / stop()
 ========================================================= */
-
-(() => {
-  const AP = (window.AudioPlayer = window.AudioPlayer || {});
-  let VO = null;
-  let READY = false;
-
-  function normalizeForMatch(s) {
-    return String(s || "")
-      .replace(/\{[a-zA-Z0-9_]+\}/g, "")
-      .replace(/^\s*\[\d{1,4}\]\s*/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
-  }
-
-  function stripSpeakerPrefix(s) {
-    return String(s || "").replace(/^\s*[^:]{1,48}:\s*/, "");
-  }
-
-  function getIdFromLine(rawLine) {
-    const raw = String(rawLine || "");
-
-    // explicit [####]
-    const m = raw.match(/^\s*\[(\d{1,4})\]\s*/);
-    if (m) return String(m[1]).padStart(4, "0");
-
-    if (!VO || !VO.byId) return null;
-
-    const targetA = normalizeForMatch(raw);
-    const targetB = normalizeForMatch(stripSpeakerPrefix(raw));
-
-    for (const [id, line] of VO.byId.entries()) {
-      const textRaw = line.text_raw ?? line.text ?? "";
-      const candA = normalizeForMatch(textRaw);
-      const candB = normalizeForMatch(stripSpeakerPrefix(textRaw));
-      if (candA === targetA || candA === targetB || candB === targetA || candB === targetB) {
-        return String(id).padStart(4, "0");
-      }
-    }
-
-    return null;
-  }
-
-  AP.init = async function init() {
-    if (READY) return;
-    if (!window.VoiceBank) return;
-
-    VO = new window.VoiceBank({
-      voicesUrl: "/audio/data/voices.json",
-      onTag: () => {},
-    });
-
-    // main.js will bind subtitles too, but doing it here is harmless if they re-bind later
-    try {
-      const nameEl = document.getElementById("subsName");
-      const subtitleEl = document.getElementById("subsText");
-      if (nameEl || subtitleEl) VO.bindSubtitleUI({ nameEl, subtitleEl });
-    } catch {}
-
-    await VO.load();
-    READY = true;
-  };
-
-  AP.unlock = async function unlock() {
-    try {
-      await AP.init();
-      await VO?.unlockAudio?.();
-    } catch {}
-  };
-
-  // ✅ Returns boolean: true if WAV likely played, false if no match / missing / blocked
-  AP.playLine = async function playLine(rawLine) {
-    try {
-      await AP.init();
-      if (!VO) return false;
-
-      const id = getIdFromLine(rawLine);
-      if (!id) return false;
-
-      const ok = await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false });
-      return ok === true;
-    } catch {
-      return false;
-    }
-  };
-
-  AP.stop = function stop() {
-    try { VO?.stopCurrent?.(); } catch {}
-  };
-})();
+window.AudioPlayer = window.AudioPlayer || {};
+window.AudioPlayer.unlock = async () => {
+  try { await window.__VOICEBANK_INSTANCE__?.unlockAudio?.(); } catch {}
+};
+window.AudioPlayer.stop = () => {
+  try { window.__VOICEBANK_INSTANCE__?.stopCurrent?.(); } catch {}
+};
