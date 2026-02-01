@@ -1,4 +1,4 @@
-// tasks.js (FULL REPLACEMENT: loader + answer plumbing + core tasks)
+// tasks.js (FULL REPLACEMENT: loader + task plumbing + core tasks)
 (() => {
   const TASKS = (window.TASKS = window.TASKS || {});
 
@@ -32,9 +32,45 @@
     pack5: [],
   };
 
-  // -----------------------------
-  // CORE TASKS
-  // -----------------------------
+  /* =========================================================
+     Small UI helpers (works with BOTH old + new main.js)
+  ========================================================= */
+
+  function setTaskHeaderFallback(title, desc) {
+    const t = document.getElementById("taskTitle");
+    const d = document.getElementById("taskDesc");
+    const ui = document.getElementById("taskUI");
+
+    if (ui) ui.classList.remove("hidden");
+    if (t) t.textContent = title || "";
+    if (d) d.textContent = desc || "";
+  }
+
+  function showTask(ctx, title, desc) {
+    if (ctx && typeof ctx.showTaskUI === "function") {
+      ctx.showTaskUI(title, desc);
+    } else {
+      setTaskHeaderFallback(title, desc);
+      // clear body if available
+      if (ctx?.taskBody) ctx.taskBody.innerHTML = "";
+    }
+  }
+
+  function sleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  function adminSetExpectedAnswer(ans) {
+    try {
+      document.dispatchEvent(
+        new CustomEvent("admin:answer", { detail: { answer: ans } })
+      );
+    } catch {}
+  }
+
+  /* =========================================================
+     CORE TASKS
+  ========================================================= */
 
   // random: picks a random task from pools
   TASKS.random = async (ctx, args = {}) => {
@@ -53,44 +89,35 @@
     }
 
     if (!candidates.length) {
-      ctx.showTaskUI("TASK", "No procedures available.");
-      ctx.taskBody.textContent = "System: PROCEDURE MISSING (pool empty).";
-      // Optional: count as a wrong attempt? (keeping it neutral for now)
-      return { answer: ctx.getAnswer?.() ?? null };
+      showTask(ctx, "TASK", "No procedures available.");
+      if (ctx?.taskBody) ctx.taskBody.textContent = "System: PROCEDURE MISSING (pool empty).";
+      // do not penalize; let fallback Continue happen
+      return { ok: false };
     }
 
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     const fn = TASKS[pick];
 
     if (typeof fn !== "function") {
-      ctx.showTaskUI("TASK", "Procedure missing.");
-      ctx.taskBody.textContent = `System: PROCEDURE MISSING (${pick}).`;
-      return { answer: ctx.getAnswer?.() ?? null };
+      showTask(ctx, "TASK", "Procedure missing.");
+      if (ctx?.taskBody) ctx.taskBody.textContent = `System: PROCEDURE MISSING (${pick}).`;
+      return { ok: false };
     }
 
-    // Note: main.js already dispatches admin:task for every step.task,
-    // so do NOT dispatch it here (avoids duplicates).
-
-    // Let task return an answer object OR call ctx.setAnswer itself
-    const before = ctx.getAnswer?.() ?? null;
     const res = await fn(ctx, args.args || {});
-    const after = ctx.getAnswer?.() ?? null;
-
-    // If it returned an answer and didn’t set it, set it.
-    if (res && typeof res === "object" && "answer" in res && after == null) {
-      ctx.setAnswer?.(res.answer);
+    // If nested task returns ok:true but forgot ctx.success(), we can still end cleanly:
+    if (res && res.ok === true && typeof ctx?.success === "function") {
+      ctx.success("Ok.");
     }
-
-    // Return whatever the nested task returned (useful for future hooks/debug)
-    return res ?? { answer: ctx.getAnswer?.() ?? null };
+    return res || { ok: false };
   };
 
-  // checksum: simple input gate (exposes phrase as admin answer)
+  // checksum: input gate, loops until correct (wrong attempts = ctx.penalize)
   TASKS.checksum = async (ctx, args = {}) => {
     const phrase = String(args.phrase || "").trim();
-    ctx.setAnswer?.(phrase); // admin can see expected phrase
+    adminSetExpectedAnswer(phrase || "—");
 
-    ctx.showTaskUI("checksum", "enter checksum phrase to continue");
+    showTask(ctx, "checksum", "enter checksum phrase to continue");
 
     const wrap = document.createElement("div");
     wrap.style.display = "flex";
@@ -107,48 +134,90 @@
     inp.style.minWidth = "240px";
 
     const msg = document.createElement("div");
-    msg.style.opacity = ".85";
+    msg.style.opacity = ".9";
+    msg.style.marginTop = "10px";
 
     wrap.appendChild(inp);
     ctx.taskBody.appendChild(wrap);
     ctx.taskBody.appendChild(msg);
 
-    const val = await new Promise((resolve) => {
-      let done = false;
-      const finish = (v) => {
-        if (done) return;
-        done = true;
-        resolve(String(v || "").trim());
-      };
-
+    // Primary button = submit
+    if (ctx?.taskPrimary) {
+      ctx.taskPrimary.classList.remove("hidden");
+      ctx.taskPrimary.disabled = false;
       ctx.taskPrimary.textContent = "submit";
-      ctx.taskPrimary.onclick = () => finish(inp.value);
+    }
+    if (ctx?.taskSecondary) {
+      ctx.taskSecondary.classList.add("hidden");
+    }
 
-      inp.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") finish(inp.value);
-      });
-
-      inp.focus();
-    });
-
+    // Allow admin skip to pass instantly
     if (window.__ADMIN_FORCE_OK) {
       window.__ADMIN_FORCE_OK = false;
-      return { answer: phrase };
+      ctx?.success?.("Ok.");
+      return { ok: true, answer: phrase };
     }
 
-    if (!phrase) return { answer: "" };
-
-    if (val.toLowerCase() === phrase.toLowerCase()) {
-      msg.style.color = "rgba(30,140,70,.92)";
-      msg.textContent = "ok";
-      await new Promise((r) => setTimeout(r, 250));
-      return { answer: phrase };
+    if (!phrase) {
+      // Nothing to verify, let it pass
+      ctx?.success?.("Ok.");
+      return { ok: true, answer: "" };
     }
 
-    msg.style.color = "rgba(210,40,40,.92)";
-    msg.textContent = "bad checksum";
-    ctx.penalize?.(1, "checksum failed");
-    await new Promise((r) => setTimeout(r, 450));
-    return { answer: phrase };
+    // submit gate (re-used each attempt)
+    const readSubmit = () =>
+      new Promise((resolve) => {
+        let done = false;
+        const finish = (v) => {
+          if (done) return;
+          done = true;
+          resolve(String(v || "").trim());
+        };
+
+        const onEnter = (e) => {
+          if (e.key === "Enter") finish(inp.value);
+        };
+
+        inp.addEventListener("keydown", onEnter, { once: true });
+
+        if (ctx?.taskPrimary) {
+          ctx.taskPrimary.onclick = () => finish(inp.value);
+        }
+
+        // focus each attempt
+        try { inp.focus(); inp.select?.(); } catch {}
+      });
+
+    // Loop until correct (your main.js haywire rule will reset after 3 penalize calls)
+    while (true) {
+      msg.style.color = "rgba(232,237,247,.85)";
+      msg.textContent = "";
+
+      const val = await readSubmit();
+
+      // Admin skip mid-task
+      if (window.__ADMIN_FORCE_OK) {
+        window.__ADMIN_FORCE_OK = false;
+        ctx?.success?.("Ok.");
+        return { ok: true, answer: phrase };
+      }
+
+      if (val.toLowerCase() === phrase.toLowerCase()) {
+        msg.style.color = "rgba(30,140,70,.92)";
+        msg.textContent = "ok";
+        await sleep(220);
+        ctx?.success?.("Ok.");
+        return { ok: true, answer: phrase };
+      }
+
+      msg.style.color = "rgba(210,40,40,.92)";
+      msg.textContent = "bad checksum";
+
+      // This is the ONLY place we count a wrong attempt
+      ctx?.penalize?.();
+
+      // small delay so it feels responsive but not instant
+      await sleep(280);
+    }
   };
 })();
