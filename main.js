@@ -668,7 +668,19 @@
       simText.textContent += "\n";
       simText.scrollTop = simText.scrollHeight;
     }
-
+    // ===== Azure TTS routing =====
+    // Use Azure when:
+    // - VoiceBank has no matching pre-rendered line id, OR
+    // - the line explicitly includes tokens like {pause}/{breath}/{beat}
+    function shouldUseAzureTTS(rawLine) {
+      const raw = String(rawLine || "");
+      // If it contains SSML-like tokens, prefer Azure
+      if (/\{(pause|breath|beat)(?:\s*[= ]\s*\d{1,4})?\}/i.test(raw)) return true;
+    
+      // If VoiceBank doesn't have an id for this line, use Azure
+      const id = getIdFromLine(raw);
+      return !id;
+    }
     async function emitLine(line) {
       if (ABORTED) return;
 
