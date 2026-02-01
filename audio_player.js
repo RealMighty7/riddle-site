@@ -36,7 +36,10 @@ function playSfx(id, opts = {}) {
     playSfx._single ??= {};
     const prev = playSfx._single[id];
     if (prev) {
-      try { prev.pause(); prev.currentTime = 0; } catch {}
+      try {
+        prev.pause();
+        prev.currentTime = 0;
+      } catch {}
     }
     const a = new Audio(src);
     playSfx._single[id] = a;
@@ -52,19 +55,39 @@ function playSfx(id, opts = {}) {
   a.play().catch(() => {});
 }
 
+// expose globally (main.js relies on this)
 window.playSfx = playSfx;
+
+// Provide a tiny helper object main.js can call
+window.AudioPlayer = window.AudioPlayer || {};
+window.AudioPlayer.unlock = async () => {
+  // best-effort "unlock": play muted tiny audio once
+  try {
+    const a = new Audio();
+    a.muted = true;
+    a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=";
+    await a.play().catch(() => {});
+    a.pause();
+  } catch {}
+};
+window.AudioPlayer.stop = () => {
+  // SFX uses short-lived Audio objects; nothing persistent to stop here.
+};
 
 /* =========================================================
    VOICE BANK (dialogue playback)
 ========================================================= */
 
 function speakerToFolder(speaker) {
+  // Map "Emma (Security)" -> "emma", "Liam (Worker)" -> "liam", "System" -> "system"
   const s = String(speaker || "system").trim().toLowerCase();
   if (!s) return "system";
+
   if (s.startsWith("emma")) return "emma";
   if (s.startsWith("liam")) return "liam";
   if (s.startsWith("system")) return "system";
   if (s.startsWith("you")) return "you";
+
   const token = (s.match(/[a-z0-9]+/) || [])[0];
   return token || "system";
 }
@@ -120,6 +143,7 @@ class VoiceBank {
     if (this._unlocked) return;
     this._unlocked = true;
 
+    // Best-effort unlock across browsers
     try {
       if (window.AudioContext || window.webkitAudioContext) {
         const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -171,11 +195,14 @@ class VoiceBank {
 
     const key = String(id).padStart(4, "0");
     const line = this.byId.get(key);
-    if (!line) return;
+    if (!line) {
+      console.warn("[VoiceBank] missing line", key);
+      return;
+    }
 
     const token = ++this._playToken;
 
-    const stopPrevious = opts.stopPrevious !== false;
+    const stopPrevious = opts.stopPrevious !== false; // default true
     if (stopPrevious) this.stopCurrent();
 
     if (this.nameEl) this.nameEl.textContent = line.speaker || "";
@@ -190,7 +217,6 @@ class VoiceBank {
     const folder = speakerToFolder(line.speaker || "system");
     const src = `/audio/${folder}/${key}.wav`;
     const audio = new Audio(src);
-
     this._currentAudio = audio;
     this._activeAudios.add(audio);
 
@@ -203,29 +229,23 @@ class VoiceBank {
     return new Promise((resolve) => {
       const finish = () => {
         try { this._activeAudios.delete(audio); } catch {}
+
         if (token !== this._playToken) return resolve();
+
         if (this._currentAudio === audio) this._currentAudio = null;
+
         if (holdMs) setTimeout(resolve, holdMs);
         else resolve();
       };
 
-      audio.addEventListener("ended", finish, { once:true });
-      audio.addEventListener("error", finish, { once:true });
+      audio.addEventListener("ended", finish, { once: true });
+      audio.addEventListener("error", finish, { once: true });
 
-      audio.play().catch(finish);
+      audio.play().catch(() => {
+        finish();
+      });
     });
   }
 }
 
 window.VoiceBank = VoiceBank;
-
-/* =========================================================
-   BRIDGE: main.js expects AudioPlayer.unlock() / stop()
-========================================================= */
-window.AudioPlayer = window.AudioPlayer || {};
-window.AudioPlayer.unlock = async () => {
-  try { await window.__VOICEBANK_INSTANCE__?.unlockAudio?.(); } catch {}
-};
-window.AudioPlayer.stop = () => {
-  try { window.__VOICEBANK_INSTANCE__?.stopCurrent?.(); } catch {}
-};
