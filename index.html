@@ -6,7 +6,7 @@
   <title>index</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-  <link rel="stylesheet" href="/styles.css?v=210" />
+  <link rel="stylesheet" href="/styles.css?v=211" />
 </head>
 
 <body>
@@ -19,9 +19,15 @@
   </div>
 
   <main id="wrap">
-    <!-- ===== LANDING UI (keep it sparse / “under revision”) ===== -->
+    <!-- ===== LANDING UI (sparse / “under revision”) ===== -->
     <header class="card">
       <h1>launch_campaign</h1>
+
+      <!-- REQUIRED by main.js -->
+      <div id="system" class="muted" style="margin: 6px 0 10px;">
+        This page is currently under revision.
+      </div>
+
       <p class="muted">
         Notice: this endpoint is not intended for external access.<br>
         Functionality may be incomplete. Do not rely on output.
@@ -40,7 +46,7 @@
       <div id="build" class="muted" style="margin-top:6px;"></div>
     </header>
 
-    <!-- optional admin panel container (your real admin markup can replace this later) -->
+    <!-- optional admin panel container -->
     <section id="adminPanel" class="hidden"></section>
   </main>
 
@@ -71,7 +77,7 @@
     </div>
   </section>
 
-  <!-- HACK ROOM (deliberate + required IDs exist) -->
+  <!-- HACK ROOM (wired + required IDs exist) -->
   <section id="hackRoom" class="hidden">
     <div class="hackCard card">
       <div class="hackTop">
@@ -149,12 +155,12 @@
   </section>
 
   <!-- IMPORTANT script order -->
-  <script src="/dialogue.js?v=210"></script>
-  <script src="/tasks.js?v=210"></script>
+  <script src="/dialogue.js?v=211"></script>
+  <script src="/tasks.js?v=211"></script>
 
-  <script src="/audio_player.js?v=210"></script>
-  <script src="/ttsQueue.js?v=210"></script>
+  <script src="/audio_player.js?v=211"></script>
+  <script src="/ttsQueue.js?v=211"></script>
 
-  <script src="/main.js?v=210"></script>
+  <script src="/main.js?v=211"></script>
 </body>
 </html>
