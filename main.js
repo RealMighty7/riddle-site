@@ -574,36 +574,38 @@
       const typingPromise = typeLineIntoSim(printed, typingMs);
 
       const audioPromise = (async () => {
-        // Try preuploaded WAV via your AudioPlayer first
-        let wavAttempted = false;
+        const rawStr = String(raw || "");
+      
+        // Try pre-uploaded WAV first
+        let wavPlayed = false;
         try {
           if (window.AudioPlayer?.playLine) {
-            wavAttempted = true;
-            await window.AudioPlayer.playLine(raw);
+            const r = await window.AudioPlayer.playLine(rawStr);
+            wavPlayed = (r === true); // our patched return value
           }
         } catch {}
-
-        // If that line has explicit id, we assume WAV is intended; don't double-speak unless tokenized
-        const hasExplicitId = /^\s*\[\d{1,4}\]\s*/.test(raw);
-        if (hasExplicitId && !/\{(pause|breath|beat)/i.test(raw)) return;
-
-        // If no WAV system exists, or line isn't an id-based line, use Azure
+      
+        // If WAV played, stop here unless you explicitly want Azure too
+        if (wavPlayed) return;
+      
+        // Fallback to Azure TTS
         try {
           if (!window.TTS) return;
-          if (!wavAttempted || shouldUseAzureTTS(raw)) {
-            const { speaker, text } = parseSpeakerAndText(raw);
-            const cfg = window.TTS_SPEAKERS?.[speaker] || window.TTS_SPEAKERS?.System || {};
-            await window.TTS.enqueue({
-              voice: cfg.voice,
-              style: cfg.style ?? "",
-              rate: cfg.rate ?? null,
-              pitch: cfg.pitch ?? null,
-              volume: cfg.volume ?? 1,
-              text: String(text || "").trim(),
-            });
-          }
+      
+          const { speaker, text } = parseSpeakerAndText(rawStr);
+          const cfg = window.TTS_SPEAKERS?.[speaker] || window.TTS_SPEAKERS?.System || {};
+      
+          await window.TTS.enqueue({
+            voice: cfg.voice,
+            style: cfg.style ?? "",
+            rate: cfg.rate ?? null,
+            pitch: cfg.pitch ?? null,
+            volume: cfg.volume ?? 1,
+            text: String(text || "").trim(),
+          });
         } catch {}
       })();
+
 
       await Promise.all([typingPromise, audioPromise]);
     }
@@ -832,18 +834,14 @@
           }
 
           if (ABORTED) return;
-
-          // Legacy support: if task returns { ok:true } or { answer:... } and no penalty happened, allow success.
+          
           if (!_taskDone) {
             if (res && typeof res === "object") {
-              if (res.ok === true) {
-                finishTaskGate(true);
-              } else if ("answer" in res && !_taskPenalized) {
-                // Some older tasks return {answer: expected} on success too.
-                finishTaskGate(true);
-              }
+              if (res.ok === true) finishTaskGate(true);
+              // DO NOT treat {answer: ...} as success — tasks may return it on failure.
             }
           }
+
 
           // If still not done, show fallback continue
           setTimeout(() => { if (!_taskDone) showFallbackContinue(); }, 800);
