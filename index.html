@@ -6,7 +6,7 @@
   <title>index</title>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-  <link rel="stylesheet" href="/styles.css?v=200" />
+  <link rel="stylesheet" href="/styles.css?v=210" />
 </head>
 
 <body>
@@ -19,14 +19,36 @@
   </div>
 
   <main id="wrap">
-    <!-- your landing UI -->
-    <!-- (keep your existing content here) -->
+    <!-- ===== LANDING UI (keep it sparse / “under revision”) ===== -->
+    <header class="card">
+      <h1>launch_campaign</h1>
+      <p class="muted">
+        Notice: this endpoint is not intended for external access.<br>
+        Functionality may be incomplete. Do not rely on output.
+      </p>
+
+      <div class="row">
+        <button id="launchBtn" class="sim-btn">launch campaign</button>
+        <button class="sim-btn" disabled>billing</button>
+        <button class="sim-btn" disabled>assets</button>
+        <button class="sim-btn" disabled>export</button>
+        <button class="sim-btn" id="reportBtn" disabled>report issue</button>
+      </div>
+
+      <div id="launchStatus" class="muted" style="margin-top:10px;">status: idle</div>
+      <div id="timestamp" class="muted" style="margin-top:6px;"></div>
+      <div id="build" class="muted" style="margin-top:6px;"></div>
+    </header>
+
+    <!-- optional admin panel container (your real admin markup can replace this later) -->
+    <section id="adminPanel" class="hidden"></section>
   </main>
 
   <!-- SIM -->
   <section id="simRoom" class="hidden">
     <div class="simCard card">
       <pre id="simText" class="simText"></pre>
+
       <div id="simChoices" class="simChoices hidden">
         <button id="choiceNeed" class="sim-btn">Okay.</button>
         <button id="choiceLie" class="sim-btn">Sure.</button>
@@ -41,10 +63,59 @@
       <h1 id="taskTitle">TASK</h1>
       <p id="taskDesc" class="taskDesc"></p>
       <div id="taskBody" class="taskBody"></div>
+
       <div id="taskActions" class="taskActions">
         <button id="taskPrimary" class="sim-btn">Continue</button>
         <button id="taskSecondary" class="sim-btn hidden">Alt</button>
       </div>
+    </div>
+  </section>
+
+  <!-- HACK ROOM (deliberate + required IDs exist) -->
+  <section id="hackRoom" class="hidden">
+    <div class="hackCard card">
+      <div class="hackTop">
+        <div class="hackTitle">internal_file_console</div>
+        <div class="hackPills">
+          <span class="pill">restricted</span>
+          <span class="pill">read/write</span>
+          <span class="pill">trace: enabled</span>
+        </div>
+      </div>
+
+      <div class="hackGrid">
+        <label class="hackField">
+          <div class="lab">actor</div>
+          <input id="hackUser" class="hackInput" value="viewer" autocomplete="off" spellcheck="false">
+        </label>
+
+        <label class="hackField">
+          <div class="lab">target</div>
+          <select id="hackTargets" class="hackInput">
+            <option value="ads">ads_pipeline</option>
+            <option value="cdn">cdn_cache</option>
+            <option value="billing">billing_stub</option>
+            <option value="telemetry">telemetry</option>
+          </select>
+        </label>
+
+        <label class="hackField hackSpan2">
+          <div class="lab">filename</div>
+          <input id="hackFilename" class="hackInput" value="campaign_manifest.log" autocomplete="off" spellcheck="false">
+        </label>
+
+        <label class="hackField hackSpan2">
+          <div class="lab">buffer</div>
+          <textarea id="hackLines" class="hackArea" spellcheck="false"></textarea>
+        </label>
+      </div>
+
+      <div class="hackActions">
+        <button id="hackDelete" class="sim-btn">delete selected lines</button>
+        <button id="hackReset" class="sim-btn">exit</button>
+      </div>
+
+      <div id="hackStatus" class="hackStatus">status: standby</div>
     </div>
   </section>
 
@@ -61,10 +132,12 @@
     <div class="finalCard card">
       <input id="finalDiscord" placeholder="discord" />
       <div id="turnstileBox"></div>
+
       <div class="btnRow">
         <button id="finalVerify" class="sim-btn">verify</button>
         <button id="finalCancel" class="sim-btn">cancel</button>
       </div>
+
       <div id="finalErr" class="errText"></div>
     </div>
   </section>
@@ -75,17 +148,13 @@
     <div id="subsText"></div>
   </section>
 
-  <!-- admin / hack rooms (keep your existing markup + ids) -->
-  <section id="hackRoom" class="hidden"></section>
-  <section id="adminPanel" class="hidden"></section>
-
   <!-- IMPORTANT script order -->
-  <script src="/dialogue.js?v=200"></script>
-  <script src="/tasks.js?v=200"></script>
+  <script src="/dialogue.js?v=210"></script>
+  <script src="/tasks.js?v=210"></script>
 
-  <script src="/audio_player.js?v=200"></script>
-  <script src="/ttsQueue.js?v=200"></script>
+  <script src="/audio_player.js?v=210"></script>
+  <script src="/ttsQueue.js?v=210"></script>
 
-  <script src="/main.js?v=200"></script>
+  <script src="/main.js?v=210"></script>
 </body>
 </html>
