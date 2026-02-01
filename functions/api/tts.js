@@ -1,13 +1,6 @@
 // /functions/api/tts.js
 // Cloudflare Pages Functions endpoint
-// POST JSON -> returns audio bytes
-//
-// Required env vars:
-// - AZURE_SPEECH_KEY
-// - AZURE_SPEECH_REGION
-//
-// Optional env vars:
-// - TTS_DEFAULT_FORMAT (ex: "audio-24khz-48kbitrate-mono-mp3")
+// POST JSON -> returns audio/mpeg
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -80,15 +73,6 @@ function normalizeProsody({ rate, pitch, volume } = {}) {
   return out;
 }
 
-function guessMimeFromFormat(fmt) {
-  const f = String(fmt || "").toLowerCase();
-  if (f.includes("mp3")) return "audio/mpeg";
-  if (f.includes("ogg")) return "audio/ogg";
-  if (f.includes("webm")) return "audio/webm";
-  if (f.includes("riff") || f.includes("wav")) return "audio/wav";
-  return "audio/mpeg";
-}
-
 export async function onRequestOptions() {
   return new Response(null, {
     status: 204,
@@ -117,7 +101,6 @@ export async function onRequestPost({ request, env }) {
     const text = String(body.text || "").trim();
     const voice = String(body.voice || "").trim();
     const style = String(body.style || "").trim();
-    const speaker = String(body.speaker || "").trim();
 
     if (!text) return json({ error: "Missing text" }, 400);
     if (!voice) return json({ error: "Missing voice" }, 400);
@@ -166,27 +149,17 @@ export async function onRequestPost({ request, env }) {
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       return json(
-        {
-          error: "Azure TTS failed",
-          status: res.status,
-          details: errText.slice(0, 800),
-          speaker,
-          voice,
-          style,
-          format,
-        },
+        { error: "Azure TTS failed", status: res.status, details: errText.slice(0, 800), voice },
         502
       );
     }
 
     const audio = await res.arrayBuffer();
-    const mime = guessMimeFromFormat(format);
-
     return new Response(audio, {
       status: 200,
       headers: {
-        "content-type": mime,
-        "cache-control": "no-store",
+        "content-type": "audio/mpeg",
+        "cache-control": "public, max-age=31536000, immutable",
         "access-control-allow-origin": "*",
       },
     });
