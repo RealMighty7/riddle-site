@@ -1,6 +1,6 @@
 // /functions/api/tts.js
 // Cloudflare Pages Functions endpoint
-// POST JSON -> returns audio/mpeg
+// POST JSON -> returns audio bytes
 //
 // Required env vars:
 // - AZURE_SPEECH_KEY
@@ -29,13 +29,9 @@ function escapeXml(s) {
     .replace(/'/g, "&apos;");
 }
 
-// Convert your simple tokens into SSML breaks (server-side only).
 // Supports: {breath}, {beat}, {pause=300}, {pause 300}
 function tokensToSsmlText(raw) {
   const s = String(raw || "");
-
-  // Replace tokens with SSML breaks.
-  // You can tweak timings freely.
   return escapeXml(s)
     .replace(/\{breath\}/gi, `<break time="220ms"/>`)
     .replace(/\{beat\}/gi, `<break time="140ms"/>`)
@@ -43,16 +39,12 @@ function tokensToSsmlText(raw) {
     .replace(/\{pause\s+(\d{1,4})\}/gi, (_, ms) => `<break time="${ms}ms"/>`);
 }
 
-// Clamp helper for prosody
 function clampNum(n, a, b) {
   n = Number(n);
   if (!Number.isFinite(n)) return null;
   return Math.max(a, Math.min(b, n));
 }
 
-// Accept rate like "-1%" or number (-10..+30)
-// Accept pitch like "-1Hz" or number (-50..+50)
-// Accept volume like "+0%" or number (-30..+30)
 function normalizeProsody({ rate, pitch, volume } = {}) {
   const out = {};
 
@@ -88,6 +80,15 @@ function normalizeProsody({ rate, pitch, volume } = {}) {
   return out;
 }
 
+function guessMimeFromFormat(fmt) {
+  const f = String(fmt || "").toLowerCase();
+  if (f.includes("mp3")) return "audio/mpeg";
+  if (f.includes("ogg")) return "audio/ogg";
+  if (f.includes("webm")) return "audio/webm";
+  if (f.includes("riff") || f.includes("wav")) return "audio/wav";
+  return "audio/mpeg";
+}
+
 export async function onRequestOptions() {
   return new Response(null, {
     status: 204,
@@ -114,14 +115,13 @@ export async function onRequestPost({ request, env }) {
     if (!body) return json({ error: "Invalid JSON" }, 400);
 
     const text = String(body.text || "").trim();
-    const voice = String(body.voice || "").trim(); // ex: "en-US-ErinNeural"
-    const style = String(body.style || "").trim(); // optional: ex: "chat", "angry" (voice-dependent)
-    const speaker = String(body.speaker || "").trim(); // optional
+    const voice = String(body.voice || "").trim();
+    const style = String(body.style || "").trim();
+    const speaker = String(body.speaker || "").trim();
 
     if (!text) return json({ error: "Missing text" }, 400);
     if (!voice) return json({ error: "Missing voice" }, 400);
 
-    // Prosody controls (optional)
     const prosody = normalizeProsody({
       rate: body.rate,
       pitch: body.pitch,
@@ -130,8 +130,6 @@ export async function onRequestPost({ request, env }) {
 
     const ssmlText = tokensToSsmlText(text);
 
-    // NOTE: style only works for some voices. If unsupported, Azure will still often return audio;
-    // if it errors for your selected voice, just omit "style".
     const styleOpen = style ? `<mstts:express-as style="${escapeXml(style)}">` : "";
     const styleClose = style ? `</mstts:express-as>` : "";
 
@@ -174,19 +172,21 @@ export async function onRequestPost({ request, env }) {
           details: errText.slice(0, 800),
           speaker,
           voice,
+          style,
+          format,
         },
         502
       );
     }
 
     const audio = await res.arrayBuffer();
+    const mime = guessMimeFromFormat(format);
 
     return new Response(audio, {
       status: 200,
       headers: {
-        "content-type": "audio/mpeg",
-        // We handle caching client-side; keep server response cacheable if you want.
-        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": mime,
+        "cache-control": "no-store",
         "access-control-allow-origin": "*",
       },
     });
