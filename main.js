@@ -10,7 +10,6 @@
     function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
     const DIALOGUE = window.DIALOGUE;
-    const HELPERS = window.DIALOGUE_HELPERS;
     const TASKS = window.TASKS;
 
     if (!DIALOGUE || !TASKS) {
@@ -48,8 +47,6 @@
       "finalVerify",
       "finalErr",
       "turnstileBox",
-
-      // hack room REQUIRED:
       "hackRoom",
       "hackUser",
       "hackTargets",
@@ -87,6 +84,7 @@
     const systemBox = els.system;
     const cracks = els.cracks;
     const cracksImg = els.cracksImg;
+    const glassFX = els.glassFX;
 
     const simRoom = els.simRoom;
     const simText = els.simText;
@@ -106,9 +104,12 @@
     const resetTitle = els.resetTitle;
     const resetBody = els.resetBody;
 
-    const subs = els.subs;
-    const subsName = els.subsName;
-    const subsText = els.subsText;
+    const finalOverlay = els.finalOverlay;
+    const finalDiscord = els.finalDiscord;
+    const finalCancel = els.finalCancel;
+    const finalVerify = els.finalVerify;
+    const finalErr = els.finalErr;
+    const turnstileBox = els.turnstileBox;
 
     const hackRoom = els.hackRoom;
     const hackUser = els.hackUser;
@@ -119,10 +120,18 @@
     const hackReset = els.hackReset;
     const hackStatus = els.hackStatus;
 
+    const subs = els.subs;
+    const subsName = els.subsName;
+    const subsText = els.subsText;
+
+    const viewerToken = els.viewerToken;
+
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
 
-    /* ====================== ABORT ====================== */
+    /* ======================
+       ABORT FLAG
+    ====================== */
     let ABORTED = false;
 
     /* ====================== SFX ====================== */
@@ -141,7 +150,9 @@
       }
     }
 
-    /* ====================== REVISION COUNTER ====================== */
+    /* ======================
+       REVISION COUNTER
+    ====================== */
     const REV_KEY = "tnr_revision_count";
     function getRevisionCount() {
       const v = Number(localStorage.getItem(REV_KEY));
@@ -152,7 +163,9 @@
       localStorage.setItem(REV_KEY, String(v));
       return v;
     }
-    function incRevisionCount() { return setRevisionCount(getRevisionCount() + 1); }
+    function incRevisionCount() {
+      return setRevisionCount(getRevisionCount() + 1);
+    }
     function renderRevisionCount() {
       if (!els.build) return;
       els.build.textContent = `build: revision ${getRevisionCount()}`;
@@ -180,18 +193,23 @@
       setTimeout(hardReload, 1800);
     }
 
-    /* ====================== AUDIO UNLOCK ====================== */
+    /* ======================
+       AUDIO UNLOCK
+    ====================== */
     let audioUnlocked = false;
     async function unlockAudio() {
       if (audioUnlocked) return;
       audioUnlocked = true;
       try { await window.AudioPlayer?.unlock?.(); } catch {}
       try { await window.TTS?.unlock?.(); } catch {}
+      try { await VO?.unlockAudio?.(); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
 
-    /* ====================== TYPING ====================== */
+    /* ======================
+       TIMING (text typing)
+    ====================== */
     const BASE_WPM = 300;
     const MS_PER_WORD = 60000 / BASE_WPM;
 
@@ -204,17 +222,38 @@
       return Math.max(1100, w * MS_PER_WORD + 650);
     }
 
-    /* ====================== LANDING STATE ====================== */
+    /* ======================
+       STATE
+    ====================== */
     let stage = 1;
     let clicks = 0;
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
 
+    // 3 crack stages now (your PNGs)
     const CRACK_AT = [15, 18, 21];
     const SHATTER_AT = 22;
 
-    /* ====================== PNG CRACK OVERLAYS ====================== */
-    const CRACK_PNGS = ["", "/assets/Cracks1.png", "/assets/Cracks2.png", "/assets/Cracks3.png"];
+    let guidePath = "emma";
+    let paceBias = 0;
+
+    const COMPLIANCE_LIMIT = 0.30;
+    const MIN_CHOICES_BEFORE_CHECK = 10;
+
+    let choiceTotal = 0;
+    let compliancePoints = 0;
+    let resistancePoints = 0;
+
+    /* ======================
+       PNG CRACK OVERLAYS
+    ====================== */
+    const CRACK_PNGS = [
+      "", // stage 0 = none
+      "/assets/Cracks1.png",
+      "/assets/Cracks2.png",
+      "/assets/Cracks3.png",
+    ];
+
     let crackStage = 0;
 
     function setCrackStage(n) {
@@ -268,6 +307,7 @@
       cracks.style.opacity = "1";
 
       document.body.classList.add("shatter-cine");
+
       playSfx("glassBreak", { volume: 0.75, overlap: false });
       playSfx("glitch2", { volume: 0.20, overlap: true });
       setTimeout(() => playSfx("static1", { volume: 0.16, overlap: true }), 120);
@@ -304,12 +344,64 @@
       playSfx("mclick", { volume: 0.30, overlap: true });
 
       maybeAdvanceCracks();
+
       if (clicks >= SHATTER_AT) shatterAndEnterSim();
     }
 
     document.addEventListener("pointerdown", registerLandingClick, { passive: true });
 
-    /* ====================== HUD (same as your build) ====================== */
+    /* ======================
+       LANDING: launch button -> viewer box
+    ====================== */
+    if (els.launchBtn) {
+      const btn = els.launchBtn;
+      const status = els.launchStatus;
+      const box = els.viewerToken;
+      const valEl = document.getElementById("viewerTokenValue");
+      const copyBtn = document.getElementById("viewerCopy");
+
+      function makeToken() {
+        const key = "tnr_viewer_token";
+        let t = sessionStorage.getItem(key);
+        if (!t) {
+          t = "viewer-" + Math.random().toString(16).slice(2, 10) + "-" + Date.now().toString(16).slice(-4);
+          sessionStorage.setItem(key, t);
+        }
+        return t;
+      }
+
+      btn.addEventListener("click", async () => {
+        try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
+        await unlockAudio();
+
+        if (status) status.textContent = "status: staging…";
+
+        const t = makeToken();
+        if (valEl) valEl.textContent = `token: ${t}`;
+
+        if (box) box.classList.remove("hidden");
+        if (status) status.textContent = "status: viewer authorized";
+      });
+
+      if (copyBtn) {
+        copyBtn.addEventListener("click", async () => {
+          const text = (valEl?.textContent || "").replace(/^token:\s*/i, "").trim();
+          if (!text) return;
+          try {
+            await navigator.clipboard.writeText(text);
+            copyBtn.textContent = "copied";
+            setTimeout(() => (copyBtn.textContent = "copy"), 900);
+          } catch {
+            copyBtn.textContent = "blocked";
+            setTimeout(() => (copyBtn.textContent = "copy"), 900);
+          }
+        });
+      }
+    }
+
+    /* ======================
+       TASK TIMER HUD
+    ====================== */
     function makeHud() {
       let barWrap = document.getElementById("taskTimeWrap");
       let barFill = document.getElementById("taskTimeFill");
@@ -391,9 +483,6 @@
     }
 
     const HUD = makeHud();
-    let resistancePoints = 0;
-    let compliancePoints = 0;
-    let choiceTotal = 0;
 
     function updateResistanceMeter() {
       const max = 30;
@@ -415,6 +504,7 @@
       else HUD.barFill.style.background = "rgba(255,255,255,0.92)";
     }
 
+    // 2 minutes base; each resistance reduces by 5%
     function calcTaskLimitMs() {
       const base = 2 * 60 * 1000;
       const perRes = 0.05;
@@ -437,7 +527,9 @@
           setTaskTimeBarFrac(1);
           updateResistanceMeter();
         },
-        hide() { HUD.barWrap.style.opacity = "0"; },
+        hide() {
+          HUD.barWrap.style.opacity = "0";
+        },
         start() {
           if (running) return;
           running = true;
@@ -449,7 +541,12 @@
           if (raf) cancelAnimationFrame(raf);
           raf = 0;
         },
-        onWrong() { drainMult = clamp(drainMult + 0.25, 1.0, 4.0); },
+        bumpDrain(multAdd) {
+          drainMult = clamp(drainMult + (multAdd || 0), 1.0, 4.0);
+        },
+        onWrong() {
+          api.bumpDrain(0.25);
+        },
         resetForNewTask() {
           totalMs = calcTaskLimitMs();
           leftMs = totalMs;
@@ -484,7 +581,9 @@
       return api;
     }
 
-    /* ====================== VO / TTS ====================== */
+    /* ======================
+       VOICE: WAV if possible, otherwise Azure TTS
+    ====================== */
     function parseSpeakerAndText(line) {
       const raw = String(line || "").replace(/^\s*\[\d{1,4}\]\s*/, "").trim();
       const m = raw.match(/^([^:]{1,48}):\s*(.*)$/);
@@ -495,6 +594,10 @@
       return { speaker, text };
     }
 
+    function stripSpeakerPrefix(s) {
+      return String(s || "").replace(/^\s*[^:]{1,32}:\s*/, "");
+    }
+
     function normalizeForMatch(s) {
       return String(s || "")
         .replace(/\{[a-zA-Z0-9_]+\}/g, "")
@@ -502,10 +605,6 @@
         .replace(/\s+/g, " ")
         .trim()
         .toLowerCase();
-    }
-
-    function stripSpeakerPrefix(s) {
-      return String(s || "").replace(/^\s*[^:]{1,32}:\s*/, "");
     }
 
     let VO = null;
@@ -535,44 +634,33 @@
     async function ensureVoiceBank() {
       if (VO_READY) return;
       if (!window.VoiceBank) return;
-
       VO = new window.VoiceBank({
         voicesUrl: "/audio/data/voices.json",
         onTag: () => {},
       });
-
       VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
-      await VO.load();
-
-      // bridge for audio_player.js stop/unlock
-      window.__VOICEBANK_INSTANCE__ = VO;
-
+      await VO.load().catch(() => {});
       VO_READY = true;
     }
 
+    // speaker configs for Azure
     window.TTS_SPEAKERS = window.TTS_SPEAKERS || {
       System: { voice: "en-US-GuyNeural", style: "", rate: "-6%", pitch: "-2Hz", volume: 1 },
       Emma:   { voice: "en-US-ErinNeural", style: "serious", rate: "-4%", pitch: "-1Hz", volume: 1 },
       Liam:   { voice: "en-US-DavisNeural", style: "calm", rate: "-2%", pitch: "-2Hz", volume: 1 },
-      You:    { voice: "en-US-GuyNeural", style: "", rate: "-4%", pitch: "-2Hz", volume: 0.9 },
     };
 
     async function playVoiceWavIfExists(rawLine) {
       await ensureVoiceBank();
       const id = getIdFromLine(rawLine);
       if (!id || !VO) return false;
+
       try {
         await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false });
         return true;
       } catch {
         return false;
       }
-    }
-
-    function shouldUseAzureTTS(rawLine) {
-      const raw = String(rawLine || "");
-      if (/\{(pause|breath|beat)(?:\s*[= ]\s*\d{1,4})?\}/i.test(raw)) return true;
-      return !getIdFromLine(raw);
     }
 
     function getTypingMsForLine(rawLine) {
@@ -625,10 +713,15 @@
         const playedWav = await playVoiceWavIfExists(raw);
         if (playedWav) return;
 
+        // Always fall back to Azure if available (fixes "lines not preuploaded don't play")
         try {
-          if (!window.TTS || !shouldUseAzureTTS(raw)) return;
+          if (!window.TTS) return;
+
           const { speaker, text } = parseSpeakerAndText(raw);
-          const cfg = window.TTS_SPEAKERS?.[speaker] || window.TTS_SPEAKERS?.System;
+          const cfg =
+            window.TTS_SPEAKERS?.[speaker] ||
+            window.TTS_SPEAKERS?.System ||
+            window.TTS_SPEAKERS?.System;
 
           await window.TTS.enqueue({
             voice: cfg.voice,
@@ -652,10 +745,9 @@
       }
     }
 
-    /* ====================== CHOICES ====================== */
-    const COMPLIANCE_LIMIT = 0.30;
-    const MIN_CHOICES_BEFORE_CHECK = 10;
-
+    /* ======================
+       CHOICE HANDLING
+    ====================== */
     function checkComplianceOrReset() {
       if (choiceTotal < MIN_CHOICES_BEFORE_CHECK) return true;
 
@@ -685,33 +777,11 @@
       });
     }
 
-    async function runChoiceBeat(beat) {
-      if (!beat) return;
-
-      await playLines(beat.say || []);
-
-      // labels
-      if (beat.choices?.complyLabel) choiceNeed.textContent = beat.choices.complyLabel;
-      if (beat.choices?.lieLabel) choiceLie.textContent = beat.choices.lieLabel;
-      if (beat.choices?.runLabel) choiceRun.textContent = beat.choices.runLabel;
-
-      simChoices.classList.remove("hidden");
-      const choice = await waitForChoice();
-      simChoices.classList.add("hidden");
-
-      choiceTotal++;
-
-      if (choice === "comply") compliancePoints += 1;
-      else resistancePoints += 1;
-
-      updateResistanceMeter();
-      if (!checkComplianceOrReset()) return;
-
-      const lines = beat.respond?.[choice] || [];
-      await playLines(lines);
-    }
-
-    /* ====================== TASK FLOW ====================== */
+    /* ======================
+       TASK FLOW (AUTO-CONTINUE)
+       - tasks must call ctx.success() when verified correct
+       - wrong attempts must call ctx.penalize()
+    ====================== */
     let activeTaskId = null;
     let taskWrongCount = 0;
     let taskTimer = null;
@@ -758,6 +828,7 @@
       taskPrimary.disabled = false;
       taskPrimary.textContent = "Continue";
       taskPrimary.onclick = () => finishTaskGate(true);
+
       taskSecondary.classList.add("hidden");
     }
 
@@ -766,9 +837,9 @@
       taskSecondary,
       taskBody,
 
-      showTaskUI(title, desc) {
-        taskTitle.textContent = title || "TASK";
-        taskDesc.textContent = desc || "";
+      showTaskUI(title, desc){
+        taskTitle.textContent = String(title || "TASK");
+        taskDesc.textContent = String(desc || "");
       },
 
       success(msg = "Ok.") {
@@ -781,7 +852,10 @@
         } catch {}
 
         setTimeout(() => finishTaskGate(true), 380);
-        setTimeout(() => { if (!_taskDone) showFallbackContinue(); }, 1500);
+
+        setTimeout(() => {
+          if (!_taskDone) showFallbackContinue();
+        }, 1500);
       },
 
       fail(msg = "Not accepted.") {
@@ -794,126 +868,17 @@
         } catch {}
       },
 
-      penalize() { recordWrongAttempt(); },
+      penalize() {
+        recordWrongAttempt();
+      },
+
       doReset,
     };
 
-    /* ====================== HACK ROOM (DELIBERATE) ====================== */
-    const HACK_DEFAULT = [
-      "[00] pipeline init",
-      "[01] fetch: campaign_manifest.log",
-      "[02] verify: checksum pending",
-      "[03] route: /launch_campaign (internal)",
-      "[04] telemetry: enabled",
-      "[05] notice: endpoint not intended for external access",
-      "[06] warning: unknown viewer token",
-      "[07] trace: active",
-    ];
-    let hackBuffer = HACK_DEFAULT.slice();
-
-    function renderHackBuffer() { hackLines.value = hackBuffer.join("\n"); }
-    function setHackStatus(msg) { hackStatus.textContent = `status: ${msg}`; }
-
-    function parseLineSelection(textarea) {
-      const text = textarea.value;
-      const selStart = textarea.selectionStart ?? 0;
-      const selEnd = textarea.selectionEnd ?? 0;
-
-      const lines = text.split("\n");
-      let acc = 0;
-      let startLine = 0, endLine = lines.length - 1;
-
-      for (let i = 0; i < lines.length; i++) {
-        const len = lines[i].length + 1;
-        if (selStart >= acc && selStart < acc + len) startLine = i;
-        if (selEnd >= acc && selEnd <= acc + len) { endLine = i; break; }
-        acc += len;
-      }
-
-      if (selStart === selEnd) {
-        for (let i = lines.length - 1; i >= 0; i--) {
-          if (lines[i].trim()) return [i, i];
-        }
-        return null;
-      }
-
-      return [Math.min(startLine, endLine), Math.max(startLine, endLine)];
-    }
-
-    function openHackRoom(config = {}) {
-      return new Promise(async (resolve) => {
-        if (ABORTED) return resolve();
-
-        await unlockAudio();
-
-        // hide others
-        simRoom.classList.add("hidden");
-        taskUI.classList.add("hidden");
-        simChoices.classList.add("hidden");
-
-        hackRoom.classList.remove("hidden");
-
-        hackUser.value = String(config.user ?? hackUser.value ?? "viewer");
-        hackFilename.value = String(config.filename ?? hackFilename.value ?? "campaign_manifest.log");
-        if (config.target) hackTargets.value = String(config.target);
-
-        hackBuffer = (Array.isArray(config.lines) ? config.lines : HACK_DEFAULT).slice();
-        renderHackBuffer();
-        setHackStatus("standby");
-
-        const cleanup = () => {
-          hackDelete.onclick = null;
-          hackReset.onclick = null;
-        };
-
-        hackDelete.onclick = () => {
-          hackBuffer = hackLines.value.split("\n");
-          const range = parseLineSelection(hackLines);
-          if (!range) { setHackStatus("no lines to delete"); return; }
-
-          const [a, b] = range;
-          hackBuffer.splice(a, b - a + 1);
-          renderHackBuffer();
-
-          resistancePoints += 1;
-          updateResistanceMeter();
-
-          playSfx("glitch2", { volume: 0.14, overlap: true });
-          setHackStatus(`deleted lines ${a}..${b}`);
-        };
-
-        hackReset.onclick = () => {
-          cleanup();
-          hackRoom.classList.add("hidden");
-          simRoom.classList.remove("hidden");
-          setHackStatus("closed");
-          resolve();
-        };
-      });
-    }
-
-    /* ====================== FILLER SUPPORT (YOUR dialogue.js style) ====================== */
-    async function runFillerBlock(filler) {
-      const count = Number(filler?.count ?? 1);
-      const pool = filler?.pool || "AUTO";
-      const meta = filler?.meta || {};
-
-      for (let i = 0; i < count; i++) {
-        if (ABORTED) return;
-
-        if (pool === "AUTO" && HELPERS?.autoFiller) {
-          const line = HELPERS.autoFiller(meta);
-          await emitLine(line);
-        } else {
-          await emitLine("System: Buffering…");
-        }
-        await wait(30);
-      }
-    }
-
-    /* ====================== STEP RUNNER ====================== */
     async function runSteps(steps) {
-      for (const step of steps || []) {
+      let loopIndex = 0;
+
+      for (const step of steps) {
         if (ABORTED) return;
 
         if (step.say) {
@@ -922,6 +887,32 @@
           taskUI.classList.add("hidden");
           hackRoom.classList.add("hidden");
           await playLines(step.say);
+          continue;
+        }
+
+        if (step.filler) {
+          const count = step.filler.count ?? 1;
+          const pool = String(step.filler.pool || "AUTO");
+          const meta = { ...(step.filler.meta || {}) };
+
+          loopIndex += 1;
+          meta.loopIndex ??= loopIndex;
+          meta.guidePath ??= guidePath;
+          // pressure tier inference, but can be passed in meta.pressure
+          meta.pressure ??= (meta.loopIndex >= 7 ? 2 : meta.loopIndex >= 4 ? 1 : 0);
+
+          for (let i = 0; i < count; i++) {
+            if (ABORTED) return;
+
+            if (pool === "AUTO" && window.DIALOGUE_HELPERS?.autoFiller) {
+              const line = window.DIALOGUE_HELPERS.autoFiller(meta);
+              await emitLine(line);
+            } else {
+              await emitLine("System: Buffering…");
+            }
+
+            await wait(30);
+          }
           continue;
         }
 
@@ -942,18 +933,19 @@
 
           choiceTotal++;
 
-          if (choice === "comply") compliancePoints += 1;
-          else resistancePoints += 1;
+          if (choice === "comply") {
+            guidePath = "emma";
+            paceBias = -1;
+          } else if (choice === "lie") {
+            guidePath = "liam";
+            paceBias = 1;
+          } else {
+            guidePath = "run";
+            paceBias = 2;
+            resistancePoints += 1;
+            updateResistanceMeter();
+          }
 
-          updateResistanceMeter();
-          if (!checkComplianceOrReset()) return;
-          continue;
-        }
-
-        if (step.hack) {
-          const cfg = (typeof step.hack === "object") ? step.hack : {};
-          await openHackRoom(cfg);
-          if (ABORTED) return;
           if (!checkComplianceOrReset()) return;
           continue;
         }
@@ -967,8 +959,8 @@
 
           document.body.classList.add("task-open");
           simRoom.classList.add("hidden");
-          hackRoom.classList.add("hidden");
           simChoices.classList.add("hidden");
+          hackRoom.classList.add("hidden");
 
           taskUI.classList.remove("hidden");
           taskBody.innerHTML = "";
@@ -983,11 +975,13 @@
 
           const gate = beginTaskGate();
 
-          taskContext.showTaskUI(step.task, step.desc || "");
+          // Run task (it should call ctx.success() on verified correct)
           await fn(taskContext, step.args || {});
           if (ABORTED) return;
 
-          setTimeout(() => { if (!_taskDone) showFallbackContinue(); }, 800);
+          setTimeout(() => {
+            if (!_taskDone) showFallbackContinue();
+          }, 800);
 
           const ok = await gate;
           if (ABORTED) return;
@@ -997,6 +991,7 @@
           taskTimer = null;
 
           if (ok) compliancePoints += 1;
+
           if (!checkComplianceOrReset()) return;
 
           taskUI.classList.add("hidden");
@@ -1006,15 +1001,12 @@
           await wait(220);
           continue;
         }
-
-        if (step.filler) {
-          await runFillerBlock(step.filler);
-          continue;
-        }
       }
     }
 
-    /* ====================== SIM FLOW ====================== */
+    /* ======================
+       SIM FLOW
+    ====================== */
     async function openSimRoom() {
       stage = 99;
 
@@ -1025,8 +1017,8 @@
 
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
-      hackRoom.classList.add("hidden");
       simChoices.classList.add("hidden");
+      hackRoom.classList.add("hidden");
 
       simText.textContent = "";
       playSfx("static1", { volume: 0.22, overlap: false });
@@ -1034,19 +1026,13 @@
       HUD.resWrap.style.opacity = "1";
       updateResistanceMeter();
 
-      // intro
-      await playLines(DIALOGUE.intro || []);
-
-      // run your first choiceBeat once early (so it’s not dead data)
-      if (Array.isArray(DIALOGUE.choiceBeats) && DIALOGUE.choiceBeats[0]) {
-        await runChoiceBeat(DIALOGUE.choiceBeats[0]);
-      }
-
-      // steps
-      await runSteps(DIALOGUE.steps || []);
+      await playLines(DIALOGUE.intro);
+      await runSteps(DIALOGUE.steps);
     }
 
-    /* ====================== LANDING timestamp ====================== */
+    /* ======================
+       LANDING: timestamp tick
+    ====================== */
     if (els.timestamp) {
       const tick = () => {
         const d = new Date();
@@ -1059,7 +1045,6 @@
     // start
     stage = 1;
     setCrackStage(0);
-    updateResistanceMeter();
   }
 
   boot();
