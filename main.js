@@ -74,7 +74,6 @@
 
     const ids = [...REQUIRED_IDS, ...OPTIONAL_IDS];
     const els = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
-
     const missingRequired = REQUIRED_IDS.filter((id) => !els[id]);
     if (missingRequired.length) {
       console.error("Missing required element IDs:", missingRequired);
@@ -84,7 +83,6 @@
     const systemBox = els.system;
     const cracks = els.cracks;
     const cracksImg = els.cracksImg;
-    const glassFX = els.glassFX;
 
     const simRoom = els.simRoom;
     const simText = els.simText;
@@ -104,27 +102,11 @@
     const resetTitle = els.resetTitle;
     const resetBody = els.resetBody;
 
-    const finalOverlay = els.finalOverlay;
-    const finalDiscord = els.finalDiscord;
-    const finalCancel = els.finalCancel;
-    const finalVerify = els.finalVerify;
-    const finalErr = els.finalErr;
-    const turnstileBox = els.turnstileBox;
-
     const hackRoom = els.hackRoom;
-    const hackUser = els.hackUser;
-    const hackTargets = els.hackTargets;
-    const hackFilename = els.hackFilename;
-    const hackLines = els.hackLines;
-    const hackDelete = els.hackDelete;
-    const hackReset = els.hackReset;
-    const hackStatus = els.hackStatus;
 
     const subs = els.subs;
     const subsName = els.subsName;
     const subsText = els.subsText;
-
-    const viewerToken = els.viewerToken;
 
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
@@ -158,13 +140,10 @@
       const v = Number(localStorage.getItem(REV_KEY));
       return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
     }
-    function setRevisionCount(n) {
-      const v = Math.max(0, Math.floor(Number(n) || 0));
-      localStorage.setItem(REV_KEY, String(v));
-      return v;
-    }
     function incRevisionCount() {
-      return setRevisionCount(getRevisionCount() + 1);
+      const n = getRevisionCount() + 1;
+      localStorage.setItem(REV_KEY, String(n));
+      return n;
     }
     function renderRevisionCount() {
       if (!els.build) return;
@@ -207,11 +186,10 @@
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
 
     /* ======================
-       TIMING (text typing)
+       TIMING (typing)
     ====================== */
     const BASE_WPM = 300;
     const MS_PER_WORD = 60000 / BASE_WPM;
-
     function wordsCount(s) {
       return String(s || "").trim().split(/\s+/).filter(Boolean).length;
     }
@@ -229,7 +207,7 @@
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
 
-    // 3 crack stages now (your PNGs)
+    // 3 crack stages (PNGs)
     const CRACK_AT = [15, 18, 21];
     const SHATTER_AT = 22;
 
@@ -263,18 +241,19 @@
       document.body.classList.toggle("crack3", crackStage >= 3);
 
       const src = CRACK_PNGS[crackStage] || "";
-      if (src) {
-        // swap with no flash
-        cracksImg.style.opacity = "0";
-        requestAnimationFrame(() => {
-          cracksImg.src = src;
-          cracksImg.onload = () => { cracksImg.style.opacity = "1"; };
-          // if cached load doesn't fire consistently:
-          setTimeout(() => { cracksImg.style.opacity = "1"; }, 60);
-        });
-      } else {
+      if (!src) {
         cracksImg.removeAttribute("src");
+        cracksImg.style.opacity = "0";
+        return;
       }
+
+      cracksImg.style.opacity = "0";
+      requestAnimationFrame(() => {
+        cracksImg.onload = () => { cracksImg.style.opacity = "1"; };
+        cracksImg.src = src;
+        // cached load fallback
+        setTimeout(() => { cracksImg.style.opacity = "1"; }, 60);
+      });
     }
 
     function maybeAdvanceCracks() {
@@ -285,16 +264,13 @@
 
       if (next <= crackStage) return;
       setCrackStage(next);
-
       playSfx("glitch1", { volume: 0.18, overlap: true });
     }
 
     async function shatterAndEnterSim() {
       if (document.body.classList.contains("sim-transition")) return;
-
       document.body.classList.add("sim-transition");
 
-      // overlays once
       if (!document.getElementById("flashFX")) {
         const fx = document.createElement("div");
         fx.id = "flashFX";
@@ -306,10 +282,8 @@
         document.body.appendChild(cb);
       }
 
-      // force final crack stage before impact
       setCrackStage(3);
       cracks.style.opacity = "1";
-
       document.body.classList.add("shatter-cine");
 
       playSfx("glassBreak", { volume: 0.75, overlap: false });
@@ -348,14 +322,13 @@
       playSfx("mclick", { volume: 0.30, overlap: true });
 
       maybeAdvanceCracks();
-
       if (clicks >= SHATTER_AT) shatterAndEnterSim();
     }
 
     document.addEventListener("pointerdown", registerLandingClick, { passive: true });
 
     /* ======================
-       TASK TIMER HUD
+       HUD
     ====================== */
     function makeHud() {
       let barWrap = document.getElementById("taskTimeWrap");
@@ -482,9 +455,7 @@
           setTaskTimeBarFrac(1);
           updateResistanceMeter();
         },
-        hide() {
-          HUD.barWrap.style.opacity = "0";
-        },
+        hide() { HUD.barWrap.style.opacity = "0"; },
         start() {
           if (running) return;
           running = true;
@@ -496,12 +467,7 @@
           if (raf) cancelAnimationFrame(raf);
           raf = 0;
         },
-        bumpDrain(multAdd) {
-          drainMult = clamp(drainMult + (multAdd || 0), 1.0, 4.0);
-        },
-        onWrong() {
-          api.bumpDrain(0.25);
-        },
+        onWrong() { drainMult = clamp(drainMult + 0.25, 1.0, 4.0); },
         resetForNewTask() {
           totalMs = calcTaskLimitMs();
           leftMs = totalMs;
@@ -537,7 +503,7 @@
     }
 
     /* ======================
-       VOICE: WAV if possible, otherwise Azure TTS
+       VOICE: WAV via AudioPlayer, else Azure TTS
     ====================== */
     function parseSpeakerAndText(line) {
       const raw = String(line || "").replace(/^\s*\[\d{1,4}\]\s*/, "").trim();
@@ -549,98 +515,27 @@
       return { speaker, text };
     }
 
-    function stripSpeakerPrefix(s) {
-      return String(s || "").replace(/^\s*[^:]{1,32}:\s*/, "");
-    }
-
-    function normalizeForMatch(s) {
-      return String(s || "")
-        .replace(/\{[a-zA-Z0-9_]+\}/g, "")
-        .replace(/^\s*\[\d{1,4}\]\s*/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLowerCase();
-    }
-
-    let VO = null;
-    let VO_READY = false;
-
-    function getIdFromLine(rawLine) {
-      const raw = String(rawLine || "");
-      const m = raw.match(/^\s*\[(\d{1,4})\]\s*/);
-      if (m) return String(m[1]).padStart(4, "0");
-
-      if (!VO || !VO.byId) return null;
-
-      const targetA = normalizeForMatch(raw);
-      const targetB = normalizeForMatch(stripSpeakerPrefix(raw));
-
-      for (const [id, line] of VO.byId.entries()) {
-        const textRaw = line.text_raw ?? line.text ?? "";
-        const candA = normalizeForMatch(textRaw);
-        const candB = normalizeForMatch(stripSpeakerPrefix(textRaw));
-        if (candA === targetA || candA === targetB || candB === targetA || candB === targetB) {
-          return String(id).padStart(4, "0");
-        }
-      }
-      return null;
-    }
-
-    window.AudioPlayer = window.AudioPlayer || {};
-    const _AudioPlayer = window.AudioPlayer;
-
-    // If your audio_player.js defines these, this just uses them.
-    async function ensureVoiceBank() {
-      if (VO_READY) return;
-      if (!window.VoiceBank) return;
-      VO = new window.VoiceBank({
-        voicesUrl: "/audio/data/voices.json",
-        onTag: () => {},
-      });
-      VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
-      await VO.load();
-      VO_READY = true;
-    }
-
-    // speaker configs for Azure
+    // Azure speaker configs
     window.TTS_SPEAKERS = window.TTS_SPEAKERS || {
       System: { voice: "en-US-GuyNeural", style: "", rate: "-6%", pitch: "-2Hz", volume: 1 },
       Emma:   { voice: "en-US-ErinNeural", style: "serious", rate: "-4%", pitch: "-1Hz", volume: 1 },
       Liam:   { voice: "en-US-DavisNeural", style: "calm", rate: "-2%", pitch: "-2Hz", volume: 1 },
     };
 
-    async function playVoiceWavIfExists(rawLine) {
-      await ensureVoiceBank();
-      const id = getIdFromLine(rawLine);
-      if (!id || !VO) return false;
-
-      try {
-        // playById is async; we don't want it to block typing forever if it errors
-        await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false });
-        return true;
-      } catch {
-        return false;
-      }
-    }
-
     function shouldUseAzureTTS(rawLine) {
-      // Use Azure when:
-      // - no [####] id AND
-      // - VoiceBank can't match the line to an id
-      const id = getIdFromLine(rawLine);
-      return !id;
+      const raw = String(rawLine || "");
+      // tokens => prefer Azure
+      if (/\{(pause|breath|beat)(?:\s*[= ]\s*\d{1,4})?\}/i.test(raw)) return true;
+
+      // if AudioPlayer can’t match id, it will no-op; so default to Azure if no explicit [####]
+      const hasExplicitId = /^\s*\[\d{1,4}\]\s*/.test(raw);
+      if (!hasExplicitId) return true;
+
+      return false;
     }
 
     function getTypingMsForLine(rawLine) {
-      // If we have an id and duration metadata, use it; else fallback to WPM estimate
-      try {
-        const id = getIdFromLine(rawLine);
-        if (id && VO && VO.byId) {
-          const meta = VO.byId.get(id);
-          const d = Number(meta?.duration_sec ?? meta?.durationSec ?? meta?.duration ?? 0);
-          if (Number.isFinite(d) && d > 0) return Math.floor(d * 1000);
-        }
-      } catch {}
+      // If you later wire duration metadata in AudioPlayer, you can improve this.
       return msToRead(rawLine);
     }
 
@@ -668,54 +563,45 @@
       simText.textContent += "\n";
       simText.scrollTop = simText.scrollHeight;
     }
-    // ===== Azure TTS routing =====
-    // Use Azure when:
-    // - VoiceBank has no matching pre-rendered line id, OR
-    // - the line explicitly includes tokens like {pause}/{breath}/{beat}
-    function shouldUseAzureTTS(rawLine) {
-      const raw = String(rawLine || "");
-      // If it contains SSML-like tokens, prefer Azure
-      if (/\{(pause|breath|beat)(?:\s*[= ]\s*\d{1,4})?\}/i.test(raw)) return true;
-    
-      // If VoiceBank doesn't have an id for this line, use Azure
-      const id = getIdFromLine(raw);
-      return !id;
-    }
+
     async function emitLine(line) {
       if (ABORTED) return;
 
       const raw = String(line || "");
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
 
-      // 1) Always type text (this is the "source of truth" for pacing)
       const typingMs = getTypingMsForLine(raw);
       const typingPromise = typeLineIntoSim(printed, typingMs);
 
-      // 2) Try pre-uploaded WAV first; if it doesn't exist, use Azure TTS queue
       const audioPromise = (async () => {
-        // If VoiceBank exists and can play this line, do that.
-        const playedWav = await playVoiceWavIfExists(raw);
-        if (playedWav) return;
-
-        // Else, fall back to Azure TTS (your /functions/api/tts)
+        // Try preuploaded WAV via your AudioPlayer first
+        let wavAttempted = false;
         try {
-          if (!window.TTS || !shouldUseAzureTTS(raw)) return;
+          if (window.AudioPlayer?.playLine) {
+            wavAttempted = true;
+            await window.AudioPlayer.playLine(raw);
+          }
+        } catch {}
 
-          const { speaker, text } = parseSpeakerAndText(raw);
-          const cfg =
-            window.TTS_SPEAKERS?.[speaker] ||
-            window.TTS_SPEAKERS?.System ||
-            window.TTS_SPEAKERS?.System;
+        // If that line has explicit id, we assume WAV is intended; don't double-speak unless tokenized
+        const hasExplicitId = /^\s*\[\d{1,4}\]\s*/.test(raw);
+        if (hasExplicitId && !/\{(pause|breath|beat)/i.test(raw)) return;
 
-          await window.TTS.enqueue({
-            voice: cfg.voice,
-            style: cfg.style ?? "",
-            rate: cfg.rate ?? null,
-            pitch: cfg.pitch ?? null,
-            // volume in ttsQueue is 0..1
-            volume: cfg.volume ?? 1,
-            text: String(text || "").trim(),
-          });
+        // If no WAV system exists, or line isn't an id-based line, use Azure
+        try {
+          if (!window.TTS) return;
+          if (!wavAttempted || shouldUseAzureTTS(raw)) {
+            const { speaker, text } = parseSpeakerAndText(raw);
+            const cfg = window.TTS_SPEAKERS?.[speaker] || window.TTS_SPEAKERS?.System || {};
+            await window.TTS.enqueue({
+              voice: cfg.voice,
+              style: cfg.style ?? "",
+              rate: cfg.rate ?? null,
+              pitch: cfg.pitch ?? null,
+              volume: cfg.volume ?? 1,
+              text: String(text || "").trim(),
+            });
+          }
         } catch {}
       })();
 
@@ -763,17 +649,33 @@
     }
 
     /* ======================
-       TASK FLOW (AUTO-CONTINUE DONE RIGHT)
-       - No "phantom wrong"
-       - No hanging on "Ok."
-       - Fallback Continue button appears if success doesn't resolve
+       TASK FLOW (AUTO-CONTINUE)
     ====================== */
     let activeTaskId = null;
     let taskWrongCount = 0;
     let taskTimer = null;
 
+    // These guard against "phantom wrong" and "ok but never continue"
+    let _taskResolve = null;
+    let _taskDone = false;
+    let _taskPenalized = false;
+
+    function beginTaskGate() {
+      _taskDone = false;
+      _taskPenalized = false;
+      _taskResolve = null;
+      return new Promise((resolve) => { _taskResolve = resolve; });
+    }
+    function finishTaskGate(ok) {
+      if (_taskDone) return;
+      _taskDone = true;
+      try { _taskResolve?.(!!ok); } catch {}
+    }
+
     function recordWrongAttempt() {
       if (ABORTED) return;
+
+      _taskPenalized = true;
 
       resistancePoints += 3;
       updateResistanceMeter();
@@ -794,32 +696,11 @@
       else void emitLine("System: Input rejected.");
     }
 
-    // per-task promise controls:
-    let _taskResolve = null;
-    let _taskDone = false;
-    let _taskSuccess = false;
-
-    function beginTaskGate() {
-      _taskDone = false;
-      _taskSuccess = false;
-      _taskResolve = null;
-      return new Promise((resolve) => { _taskResolve = resolve; });
-    }
-
-    function finishTaskGate(ok) {
-      if (_taskDone) return;
-      _taskDone = true;
-      _taskSuccess = !!ok;
-      try { _taskResolve?.(_taskSuccess); } catch {}
-    }
-
     function showFallbackContinue() {
-      // This button is ONLY a failsafe (if a pack forgets ctx.success())
       taskPrimary.classList.remove("hidden");
       taskPrimary.disabled = false;
       taskPrimary.textContent = "Continue";
       taskPrimary.onclick = () => finishTaskGate(true);
-
       taskSecondary.classList.add("hidden");
     }
 
@@ -828,9 +709,19 @@
       taskSecondary,
       taskBody,
 
-      // Packs should call success() when verified correct
+      showTaskUI(title, desc) {
+        taskUI.classList.remove("hidden");
+        taskTitle.textContent = title || "TASK";
+        taskDesc.textContent = desc || "";
+        taskBody.innerHTML = "";
+        taskPrimary.classList.remove("hidden");
+        taskSecondary.classList.add("hidden");
+        taskPrimary.disabled = false;
+        taskPrimary.onclick = null;
+        taskSecondary.onclick = null;
+      },
+
       success(msg = "Ok.") {
-        // Show a tiny acknowledgement in the task UI, then auto-continue
         try {
           const p = document.createElement("div");
           p.style.marginTop = "10px";
@@ -839,16 +730,10 @@
           taskBody.appendChild(p);
         } catch {}
 
-        // Auto-finish soon (keeps the “Ok.” beat)
-        setTimeout(() => finishTaskGate(true), 380);
-
-        // Fallback button appears after 1.5s if something stalls
-        setTimeout(() => {
-          if (!_taskDone) showFallbackContinue();
-        }, 1500);
+        setTimeout(() => finishTaskGate(true), 320);
+        setTimeout(() => { if (!_taskDone) showFallbackContinue(); }, 1500);
       },
 
-      // Packs can call fail() when they want to show an error but NOT penalize
       fail(msg = "Not accepted.") {
         try {
           const p = document.createElement("div");
@@ -859,10 +744,7 @@
         } catch {}
       },
 
-      // This is the ONLY way a wrong attempt should add resistance:
-      penalize() {
-        recordWrongAttempt();
-      },
+      penalize() { recordWrongAttempt(); },
 
       doReset,
     };
@@ -919,7 +801,6 @@
             continue;
           }
 
-          // open task UI
           document.body.classList.add("task-open");
           simRoom.classList.add("hidden");
           simChoices.classList.add("hidden");
@@ -927,45 +808,56 @@
           taskUI.classList.remove("hidden");
           taskBody.innerHTML = "";
 
-          // per-task init
           activeTaskId = step.task;
           taskWrongCount = 0;
 
-          // show timer
           taskTimer = createTaskTimerController();
           taskTimer.resetForNewTask();
           taskTimer.show();
           taskTimer.start();
 
-          // IMPORTANT:
-          // Start a "gate" promise that resolves ONLY when ctx.success() is called
           const gate = beginTaskGate();
 
-          // Run task pack (packs should call ctx.success() once verified)
-          await fn(taskContext, step.args || {});
+          // Let the task run. It may:
+          // - call ctx.success()
+          // - return { ok:true }
+          // - return { answer: ... } (legacy)
+          let res = null;
+          try {
+            res = await fn(taskContext, step.args || {});
+          } catch (e) {
+            console.warn("[task] error:", e);
+            // do not penalize automatically — keep it "neutral"
+            taskContext.fail("System: procedure error.");
+          }
+
           if (ABORTED) return;
 
-          // If the task pack forgot to call ctx.success(),
-          // show fallback after a short delay.
-          setTimeout(() => {
-            if (!_taskDone) showFallbackContinue();
-          }, 800);
+          // Legacy support: if task returns { ok:true } or { answer:... } and no penalty happened, allow success.
+          if (!_taskDone) {
+            if (res && typeof res === "object") {
+              if (res.ok === true) {
+                finishTaskGate(true);
+              } else if ("answer" in res && !_taskPenalized) {
+                // Some older tasks return {answer: expected} on success too.
+                finishTaskGate(true);
+              }
+            }
+          }
+
+          // If still not done, show fallback continue
+          setTimeout(() => { if (!_taskDone) showFallbackContinue(); }, 800);
 
           const ok = await gate;
           if (ABORTED) return;
 
-          // stop timer
           taskTimer.stop();
           taskTimer.hide();
           taskTimer = null;
 
-          if (ok) {
-            compliancePoints += 1;
-          }
-
+          if (ok) compliancePoints += 1;
           if (!checkComplianceOrReset()) return;
 
-          // close task UI and continue sim
           taskUI.classList.add("hidden");
           document.body.classList.remove("task-open");
           simRoom.classList.remove("hidden");
@@ -991,13 +883,12 @@
     ====================== */
     async function openSimRoom() {
       stage = 99;
-
       await unlockAudio();
 
       document.body.classList.add("in-sim");
+      document.body.classList.add("hide-cracks"); // CSS will hide the overlay
       subs?.classList.remove("hidden");
 
-      // IMPORTANT: cracks are hidden in sim by CSS now
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
       simChoices.classList.add("hidden");
@@ -1014,7 +905,7 @@
     }
 
     /* ======================
-       LANDING: optional timestamp tick
+       Timestamp tick (optional)
     ====================== */
     if (els.timestamp) {
       const tick = () => {
@@ -1028,6 +919,7 @@
     // start
     stage = 1;
     setCrackStage(0);
+    updateResistanceMeter();
   }
 
   boot();
