@@ -1,7 +1,7 @@
 // ttsQueue.js (NON-module)
-// Queue-based Azure TTS player via /functions/api/tts.js
+// Queue-based Azure TTS player via /api/tts (Pages Function)
 (() => {
-  const API_URL = "/functions/api/tts";
+  const API_URL = "/api/tts";
 
   function clamp01(v){ v = Number(v); return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1; }
 
