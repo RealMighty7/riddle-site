@@ -128,10 +128,6 @@
 
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
-    // Unlock browser TTS on first user interaction
-    window.addEventListener("pointerdown", () => {
-      window.TTS?.unlockOnce?.();
-    }, { once: true });
 
     /* ======================
        ABORT FLAG
@@ -338,6 +334,7 @@ async function runTriGlitch(msTotal = 2000) {
   wrap.style.opacity = "1";
 
   const start = performance.now();
+  let sfxTick = 0;
   while (!ABORTED && performance.now() - start < msTotal) {
     // flicker between landing and sim tones
     document.body.classList.toggle("tri-flicker", Math.random() > 0.45);
@@ -346,13 +343,41 @@ async function runTriGlitch(msTotal = 2000) {
       d.style.transform = `translate(${(Math.random()*10-5).toFixed(1)}px, ${(Math.random()*10-5).toFixed(1)}px)`;
       d.style.opacity = String(0.08 + Math.random() * 0.25);
     });
-    playSfx("glitch2", { volume: 0.10, overlap: true });
+    // keep this sparse; constant spam feels "broken" instead of glitchy
+    if ((sfxTick++ % 3) === 0) playSfx("glitch2", { volume: 0.08, overlap: true });
     await wait(80 + Math.random() * 90);
   }
 
   document.body.classList.remove("tri-flicker");
   wrap.style.opacity = "0";
   await wait(200);
+}
+
+// Subtle sim-room glitch texture (brief "desync" bursts).
+// This replaces the old heavy shake/spam feel with a low-key glitchy tone.
+let SIM_GLITCH_ON = false;
+function startSimGlitchLoop() {
+  if (SIM_GLITCH_ON) return;
+  SIM_GLITCH_ON = true;
+
+  const loop = () => {
+    if (!SIM_GLITCH_ON) return;
+    if (!document.body.classList.contains("in-sim")) {
+      setTimeout(loop, 800);
+      return;
+    }
+
+    // 1-in-3 chance to do a short burst
+    if (Math.random() < 0.34) {
+      document.body.classList.add("sim-glitch");
+      playSfx("glitch1", { volume: 0.08, overlap: true });
+      setTimeout(() => document.body.classList.remove("sim-glitch"), 70 + Math.random() * 110);
+    }
+
+    setTimeout(loop, 420 + Math.random() * 1200);
+  };
+
+  setTimeout(loop, 600);
 }
 
     async function shatterAndEnterSim() {
@@ -894,16 +919,18 @@ function updateComplianceMeter() {
       const raw = String(line || "");
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
 
+	      // Music: briefly bias the stem mix toward the active speaker
+	      try {
+	        const { speaker } = parseSpeakerAndText(raw);
+	        const hold = Math.max(650, Math.min(2600, getTypingMsForLine(raw)));
+	        window.Music?.setVoiceFocus?.(speaker, hold);
+	      } catch {}
+
       const typingMs = getTypingMsForLine(raw);
       const typingPromise = typeLineIntoSim(printed, typingMs);
 
       const audioPromise = (async () => {
         const playedWav = await playVoiceWavIfExists(raw);
-        try {
-          const { speaker } = parseSpeakerAndText(raw);
-          const hold = Math.max(650, Math.min(2600, getTypingMsForLine(raw)));
-          window.Music?.setVoiceFocus?.(speaker, hold);
-        } catch {}
         if (playedWav) return;
 
         // Always fall back to Azure if available (fixes "lines not preuploaded don't play")
@@ -1261,7 +1288,12 @@ if (!noTimer) {
       try { window.Music?.setGuidePath?.(guidePath); } catch {}
       try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
+      // If we entered via the shatter transition, a full-screen black cut can be active.
+      // Reveal the sim UI immediately; do not keep the cut up while dialogue runs.
+      document.body.classList.remove("cut-black");
+
       document.body.classList.add("in-sim");
+      startSimGlitchLoop();
       subs?.classList.remove("hidden");
 
       simRoom.classList.remove("hidden");
