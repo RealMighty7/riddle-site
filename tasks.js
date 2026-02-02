@@ -28,11 +28,11 @@
   // Optional pools (packs can fill these)
   window.TASK_POOLS = window.TASK_POOLS || {
     core: ["checksum"],
-    pack1: [],
-    pack2: [],
-    pack3: [],
-    pack4: [],
-    pack5: [],
+    pack1: ["pulse"],
+    pack2: ["align"],
+    pack3: ["mirror"],
+    pack4: ["hold"],
+    pack5: ["scrub"],
   };
 
   /* =========================
@@ -158,6 +158,220 @@
     });
 
     inp.focus();
+
+
+  /* ======================
+     CORE TASKS (simple)
+  ====================== */
+  // pulse: click N times
+  TASKS.pulse = async (ctx, args = {}) => {
+    const need = Math.max(6, Math.min(18, Number(args.need) || 10));
+    let n = 0;
+
+    ctx.showTaskUI?.("pulse", `click ${need} times`);
+
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.gap = "10px";
+    row.style.alignItems = "center";
+    row.style.flexWrap = "wrap";
+
+    const btn = document.createElement("button");
+    btn.className = "sim-btn";
+    btn.type = "button";
+    btn.textContent = "pulse";
+
+    const stat = document.createElement("div");
+    stat.className = "muted";
+    stat.textContent = `0 / ${need}`;
+
+    row.appendChild(btn);
+    row.appendChild(stat);
+    ctx.taskBody.appendChild(row);
+
+    btn.onclick = () => {
+      n += 1;
+      stat.textContent = `${n} / ${need}`;
+      if (n >= need) ctx.success?.("Ok.");
+    };
+
+    ctx.taskPrimary.textContent = "reset";
+    ctx.taskPrimary.onclick = () => { n = 0; stat.textContent = `0 / ${need}`; };
+  };
+
+  // align: set slider to target band
+  TASKS.align = async (ctx, args = {}) => {
+    const target = Math.max(15, Math.min(85, Number(args.target) || (25 + Math.floor(Math.random()*50))));
+    const tol = Math.max(2, Math.min(10, Number(args.tol) || 5));
+
+    ctx.showTaskUI?.("align", "set the slider into the band");
+
+    const wrap = document.createElement("div");
+    wrap.style.display = "grid";
+    wrap.style.gap = "10px";
+
+    const info = document.createElement("div");
+    info.className = "muted";
+    info.textContent = `target: ${target} ± ${tol}`;
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = "0";
+    slider.max = "100";
+    slider.value = String(Math.floor(Math.random()*100));
+
+    const readout = document.createElement("div");
+    readout.textContent = `value: ${slider.value}`;
+
+    wrap.appendChild(info);
+    wrap.appendChild(slider);
+    wrap.appendChild(readout);
+    ctx.taskBody.appendChild(wrap);
+
+    const check = () => {
+      const v = Number(slider.value);
+      readout.textContent = `value: ${v}`;
+      if (Math.abs(v - target) <= tol) ctx.success?.("Aligned.");
+    };
+
+    slider.addEventListener("input", check);
+    check();
+
+    ctx.taskPrimary.textContent = "confirm";
+    ctx.taskPrimary.onclick = check;
+  };
+
+  // mirror: type reversed token
+  TASKS.mirror = async (ctx, args = {}) => {
+    const token = String(args.token || "mirror").trim();
+    const answer = token.split("").reverse().join("");
+
+    ctx.showTaskUI?.("mirror", "type the reflected token");
+
+    const line = document.createElement("div");
+    line.className = "muted";
+    line.textContent = `token: ${token}`;
+
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.placeholder = "reflected token";
+    inp.autocomplete = "off";
+    inp.spellcheck = false;
+
+    const msg = document.createElement("div");
+    msg.className = "muted";
+
+    ctx.taskBody.appendChild(line);
+    ctx.taskBody.appendChild(inp);
+    ctx.taskBody.appendChild(msg);
+
+    const submit = () => {
+      const v = String(inp.value || "").trim();
+      if (v === answer) return ctx.success?.("Ok.");
+      msg.textContent = "not reflected";
+      ctx.penalize?.(1, "mirror failed");
+      inp.focus();
+      inp.select?.();
+    };
+
+    ctx.taskPrimary.textContent = "submit";
+    ctx.taskPrimary.onclick = submit;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    inp.focus();
+  };
+
+  // hold: press and hold a button for ms
+  TASKS.hold = async (ctx, args = {}) => {
+    const needMs = Math.max(900, Math.min(3000, Number(args.ms) || 1600));
+
+    ctx.showTaskUI?.("hold", "press and hold");
+
+    const btn = document.createElement("button");
+    btn.className = "sim-btn";
+    btn.type = "button";
+    btn.textContent = "hold";
+
+    const stat = document.createElement("div");
+    stat.className = "muted";
+    stat.textContent = `0 / ${needMs}ms`;
+
+    ctx.taskBody.appendChild(btn);
+    ctx.taskBody.appendChild(stat);
+
+    let t0 = 0;
+    let raf = 0;
+
+    const stop = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      t0 = 0;
+    };
+
+    const tick = () => {
+      if (!t0) return;
+      const d = Date.now() - t0;
+      stat.textContent = `${d} / ${needMs}ms`;
+      if (d >= needMs) {
+        stop();
+        return ctx.success?.("Ok.");
+      }
+      raf = requestAnimationFrame(tick);
+    };
+
+    btn.addEventListener("pointerdown", () => {
+      t0 = Date.now();
+      stat.textContent = `0 / ${needMs}ms`;
+      tick();
+    });
+    const end = () => stop();
+    btn.addEventListener("pointerup", end);
+    btn.addEventListener("pointercancel", end);
+    btn.addEventListener("pointerleave", end);
+
+    ctx.taskPrimary.textContent = "cancel";
+    ctx.taskPrimary.onclick = () => { stop(); stat.textContent = `0 / ${needMs}ms`; };
+  };
+
+  // scrub: check all boxes
+  TASKS.scrub = async (ctx, args = {}) => {
+    ctx.showTaskUI?.("scrub", "clear all flags");
+
+    const count = Math.max(3, Math.min(7, Number(args.count) || 5));
+    const wrap = document.createElement("div");
+    wrap.style.display = "grid";
+    wrap.style.gap = "8px";
+
+    const boxes = [];
+    for (let i=0;i<count;i++){
+      const row=document.createElement("label");
+      row.style.display="flex";
+      row.style.gap="8px";
+      row.style.alignItems="center";
+
+      const cb=document.createElement("input");
+      cb.type="checkbox";
+      cb.checked=false;
+
+      const t=document.createElement("span");
+      t.textContent=`flag_${String(i+1).padStart(2,"0")}`;
+
+      row.appendChild(cb);
+      row.appendChild(t);
+      wrap.appendChild(row);
+      boxes.push(cb);
+    }
+
+    ctx.taskBody.appendChild(wrap);
+
+    const check=()=>{
+      if (boxes.every(b=>b.checked)) ctx.success?.("Ok.");
+    };
+    boxes.forEach(b=>b.addEventListener("change", check));
+
+    ctx.taskPrimary.textContent="verify";
+    ctx.taskPrimary.onclick=check;
+  };
+
   };
 })();
 /* ======================
@@ -175,7 +389,7 @@ TASKS.hack_final = async (ctx, args = {}) => {
   const filename = document.getElementById("hackFilename");
   const linesBox = document.getElementById("hackLines");
 
-  // swap textarea into a selectable line list (keep ID for compatibility)
+  // swap textarea into a non-scrollable live view (keep hackLines for compatibility)
   let view = document.getElementById("hackView");
   if (!view) {
     view = document.createElement("div");
@@ -185,16 +399,49 @@ TASKS.hack_final = async (ctx, args = {}) => {
     if (linesBox) linesBox.classList.add("hidden");
   }
 
-  const durationMs = Math.max(30000, Math.min(120000, Number(args.durationMs) || 65000));
-  const maxLines = 58;
+  // hard-disable user scrolling back
+  view.style.overflow = "hidden";
+  const stopScroll = (e) => { try { e.preventDefault(); } catch {} };
+  view.addEventListener("wheel", stopScroll, { passive: false });
+  view.addEventListener("touchmove", stopScroll, { passive: false });
 
-  function setStatus(s) {
-    if (status) status.textContent = String(s || "");
-  }
+  function setStatus(s) { if (status) status.textContent = String(s || ""); }
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
   function validUser(u) {
     const x = String(u || "").trim();
     return x.length >= 2 && x.length <= 32 && /^[a-zA-Z0-9_.-]+$/.test(x);
+  }
+
+  function addDomLine(text, isRed=false) {
+    const el = document.createElement("div");
+    el.className = "hackLine" + (isRed ? " red" : "");
+    el.textContent = text;
+    el.dataset.red = isRed ? "1" : "0";
+    el.dataset.selected = "0";
+    el.addEventListener("click", () => {
+      const on = el.dataset.selected === "1";
+      el.dataset.selected = on ? "0" : "1";
+      el.classList.toggle("sel", !on);
+    });
+    view.appendChild(el);
+    // always stay at the bottom visually (even though overflow is hidden)
+    view.scrollTop = view.scrollHeight;
+    return el;
+  }
+
+  function clearView() { view.innerHTML = ""; view.scrollTop = view.scrollHeight; }
+
+  function removeSelected() {
+    const selected = Array.from(view.querySelectorAll(".hackLine.sel"));
+    if (!selected.length) return 0;
+
+    let removedRed = 0;
+    for (const el of selected) {
+      if (el.dataset.red === "1") removedRed++;
+      el.remove();
+    }
+    return removedRed;
   }
 
   function mkLine(i) {
@@ -227,61 +474,21 @@ TASKS.hack_final = async (ctx, args = {}) => {
     return `!! ${patterns[i % patterns.length]}  // DELETE THIS`;
   }
 
-  function addDomLine(text, isRed) {
-    const el = document.createElement("div");
-    el.className = "hackLine" + (isRed ? " red" : "");
-    el.textContent = text;
-    el.dataset.red = isRed ? "1" : "0";
-    el.dataset.selected = "0";
-    el.addEventListener("click", () => {
-      const on = el.dataset.selected === "1";
-      el.dataset.selected = on ? "0" : "1";
-      el.classList.toggle("sel", !on);
-    });
-    view.appendChild(el);
-    view.scrollTop = view.scrollHeight;
-    return el;
-  }
-
-  function removeSelected() {
-    const selected = Array.from(view.querySelectorAll(".hackLine.sel"));
-    if (!selected.length) return 0;
-
-    let removedRed = 0;
-    for (const el of selected) {
-      if (el.dataset.red === "1") removedRed++;
-      el.remove();
-    }
-    return removedRed;
-  }
-
-  // gate: require username
+  // ---------- state ----------
   room?.classList.remove("hidden");
-  ctx.showTaskUI("FINAL PROCEDURE", "hack the terminal and remove yourself");
-  setStatus("login required");
-  if (targets) targets.textContent = "targets: self";
-  if (filename) filename.textContent = "file: /sim/lock/registry.lua";
+  ctx.showTaskUI("LOGIN", "enter your discord username (this is the login)");
 
-  let user = (sessionStorage.getItem("tnr_discord") || "").trim();
-  if (userInput) userInput.value = user;
-
-  // clear view
-  view.innerHTML = "";
-  for (let i = 0; i < 18; i++) addDomLine(mkLine(i), false);
-
-  // controls
   let done = false;
-  let ok = false;
-  let removedNeeded = 0;
-  let removedCount = 0;
   let tickTimer = 0;
-  let startT = 0;
+  let removedNeeded = 10;
+  let removedCount = 0;
   let lineIndex = 0;
+  const maxLines = 28;
+  const durationMs = Math.max(35000, Math.min(140000, Number(args.durationMs) || 70000));
 
   function fail(reason) {
     if (done) return;
     done = true;
-    ok = false;
     try { clearInterval(tickTimer); } catch {}
     setStatus(reason || "failed");
     ctx.doReset("LOCKDOWN", `${reason || "failed"}\n\nReinitializing…`);
@@ -290,74 +497,165 @@ TASKS.hack_final = async (ctx, args = {}) => {
   function succeed() {
     if (done) return;
     done = true;
-    ok = true;
     try { clearInterval(tickTimer); } catch {}
     setStatus("record removed");
     setTimeout(() => {
-      // mark escape and redirect
       sessionStorage.setItem("tnr_escape_ok", "1");
       window.location.href = "/escaped.html";
     }, 650);
   }
 
-  function begin() {
-    startT = Date.now();
-    setStatus("running… delete red lines before they scroll away");
-    removedNeeded = 10;
-    removedCount = 0;
+  // ---------- login UI ----------
+  const user = (sessionStorage.getItem("tnr_discord") || "").trim();
+  if (userInput) {
+    userInput.value = user;
+    userInput.placeholder = "discord username (login)";
+    userInput.autocomplete = "off";
+    userInput.spellcheck = false;
+  }
+  if (targets) targets.textContent = "login: username required";
+  if (filename) filename.textContent = "file: —";
+  clearView();
+  addDomLine("> login required");
+  addDomLine("> press ENTER to continue");
 
+  const doLogin = async () => {
+    const u = (userInput?.value || "").trim();
+    if (!validUser(u)) {
+      setStatus("invalid username");
+      addDomLine("> invalid username", true);
+      ctx.penalize?.(1, "invalid login");
+      return;
+    }
+
+    sessionStorage.setItem("tnr_discord", u);
+    setStatus("booting…");
+
+    // boot animation
+    clearView();
+    for (let i = 0; i < 10; i++) {
+      const dots = ".".repeat((i % 4) + 1);
+      addDomLine(`> loading${dots}`);
+      await sleep(220);
+    }
+    addDomLine("> please wait…");
+    await sleep(550);
+    addDomLine(`> welcome ${u}`);
+    await sleep(450);
+
+    // file choices
+    ctx.showTaskUI("FILES", "select your file");
+    if (targets) targets.textContent = "files:";
+    if (filename) filename.textContent = "file: /sim/lock/registry.lua";
+
+    const bar = document.createElement("div");
+    bar.className = "fileBar";
+
+    const decoys = ["guest_01", "temp_user", "cachewrap", "anon"];
+    const all = [u, ...decoys].sort(() => Math.random() - 0.5);
+
+    const label = document.createElement("div");
+    label.className = "muted";
+    label.textContent = "choose your username:";
+    bar.appendChild(label);
+
+    const row = document.createElement("div");
+    row.className = "fileRow";
+
+    all.forEach((name) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "fileBtn";
+      b.textContent = name;
+      b.addEventListener("click", async () => {
+        if (done) return;
+        if (name !== u) {
+          setStatus("wrong file");
+          ctx.penalize?.(1, "wrong file");
+          b.classList.add("bad");
+          await sleep(250);
+          b.classList.remove("bad");
+          return;
+        }
+
+        // correct: open file (start scroll)
+        bar.remove();
+        ctx.showTaskUI("FINAL PROCEDURE", "delete flagged lines before they leave the screen");
+        beginScroll(u);
+      });
+      row.appendChild(b);
+    });
+
+    bar.appendChild(row);
+
+    // mount bar above view
+    view.parentNode?.insertBefore(bar, view);
+    setStatus("select file");
+  };
+
+  // bind login
+  ctx.taskPrimary.textContent = "login";
+  ctx.taskPrimary.onclick = doLogin;
+  userInput?.addEventListener("keydown", (e) => { if (e.key === "Enter") doLogin(); });
+
+  // delete / reset buttons
+  if (delBtn) {
+    delBtn.onclick = () => {
+      if (done) return;
+      const removedRed = removeSelected();
+      if (removedRed) {
+        removedCount += removedRed;
+        setStatus(`deleted: ${removedCount}/${removedNeeded}`);
+        if (removedCount >= removedNeeded) return succeed();
+      }
+    };
+  }
+  if (resetBtn) resetBtn.onclick = () => fail("user reset");
+
+  function beginScroll(u) {
+    clearView();
+    lineIndex = 0;
+    removedCount = 0;
+    setStatus("running…");
+
+    // seed
+    for (let i = 0; i < 12; i++) addDomLine(mkLine(i), false);
+
+    const startT = Date.now();
+
+    // 2 lines / second: 1 per 500ms tick
     tickTimer = setInterval(() => {
       const elapsed = Date.now() - startT;
       if (elapsed > durationMs) {
-        // if player removed enough red lines, success
         if (removedCount >= removedNeeded) return succeed();
         return fail("timeout: record still present");
       }
 
-      // push new line
-      lineIndex++;
-      const isRed = (lineIndex % 6 === 0) || (Math.random() < 0.12);
-      const lineText = isRed ? mkRedLine(lineIndex, user) : mkLine(lineIndex);
-      addDomLine(lineText, isRed);
+      lineIndex += 1;
+      const isRed = (lineIndex % 7 === 0) || (Math.random() < 0.10);
+      const txt = isRed ? mkRedLine(lineIndex, u) : mkLine(lineIndex);
+      addDomLine(txt, isRed);
 
-      // enforce max lines; if a red line scrolls off undeleted => fail
+      // prune top; if a red line leaves the UI, wait 3s then fail
       while (view.children.length > maxLines) {
         const first = view.children[0];
         const wasRed = first?.dataset?.red === "1";
         first.remove();
-        if (wasRed) return fail("missed a flagged line");
+
+        if (wasRed) {
+          setStatus("verifying…");
+          setTimeout(() => {
+            if (!done) fail("missed a flagged line");
+          }, 3000);
+          return;
+        }
       }
 
-    }, 520);
+      // keep at bottom
+      view.scrollTop = view.scrollHeight;
+    }, 500);
   }
-
-  function tryLogin() {
-    const u = (userInput?.value || "").trim();
-    if (!validUser(u)) {
-      setStatus("invalid username (2–32 chars: letters, numbers, _ . -)");
-      return;
-    }
-    user = u;
-    sessionStorage.setItem("tnr_discord", user);
-    // add immediate red burst so login feels consequential
-    for (let i = 0; i < 6; i++) addDomLine(mkRedLine(i, user), true);
-    begin();
-  }
-
-  // delete button
-  delBtn.onclick = () => {
-    if (!user || !validUser(user)) {
-      tryLogin();
-      return;
-    }
-    const removedRed = removeSelected();
-    if (removedRed) {
-      removedCount += removedRed;
-      setStatus(`removed: ${removedCount}/${removedNeeded}`);
-    } else {
-      setStatus("no selected lines");
-    }
-  };
+};
 
   // reset button clears selection / gives a tiny hint
   resetBtn.onclick = () => {
