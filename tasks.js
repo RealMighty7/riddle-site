@@ -19,6 +19,16 @@
     }
   };
 
+  // Packs can register pools as arrays of task IDs
+  window.registerTaskPool = function registerTaskPool(name, pool) {
+    try {
+      const key = String(name || "").trim();
+      if (!key) return;
+      window.TASK_POOLS = window.TASK_POOLS || {};
+      window.TASK_POOLS[key] = Array.isArray(pool) ? pool.slice() : [];
+    } catch {}
+  };
+
   // Flush queued registrations (from your safety shim / packs)
   try {
     const q = window.__TASK_QUEUE__ || [];
