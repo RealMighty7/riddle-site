@@ -207,6 +207,7 @@ body.in-sim{
   color: var(--sim-fg);
 }
 body.in-sim #wrap{ display:none; }
+body.in-sim #glassFX{ opacity:0 !important; }
 
 #simRoom{
   position:fixed;
@@ -215,8 +216,31 @@ body.in-sim #wrap{ display:none; }
   align-items:flex-start;
   justify-content:center;
   padding: 22px 16px 180px;
-  z-index:90;
+  /* keep sim above any lingering glassFX / transition overlays */
+  z-index:110;
 }
+
+/* low-key CRT / scanline texture */
+#simRoom::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:.10;
+  background:
+    linear-gradient(rgba(255,255,255,.06), rgba(255,255,255,0) 3px),
+    repeating-linear-gradient(180deg, rgba(0,0,0,.22) 0px, rgba(0,0,0,.22) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px);
+  mix-blend-mode: overlay;
+  animation: sim_scan 2.6s linear infinite;
+}
+@keyframes sim_scan{
+  0%{ transform: translateY(-12px); }
+  100%{ transform: translateY(12px); }
+}
+
+/* brief "desync" burst toggled by JS */
+body.sim-glitch #simRoom::before{ opacity:.22; }
+body.sim-glitch .simCard{ filter: blur(.3px) contrast(1.08); transform: translateX(-0.8px) translateY(0.4px); }
 
 .simCard{
   width: min(860px, 100%);
