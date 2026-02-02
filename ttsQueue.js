@@ -1,35 +1,42 @@
-// ttsQueue.js (FULL REPLACEMENT)
+// ttsQueue.js (NON-module)
 // Browser TTS queue using Web Speech API (speechSynthesis)
-// No keys, no server calls.
+// Drop-in replacement for the old Azure /api/tts queue.
+// Supports: TTS.unlock(), TTS.stop(), TTS.enqueue({ text, voice, rate, pitch, volume })
 
 (() => {
   const synth = window.speechSynthesis;
 
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function clamp01(v) { v = Number(v); return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1; }
 
-  function normSpeaker(s) {
-    s = String(s || "").toLowerCase();
+  function normSpeakerFromVoice(v) {
+    const s = String(v || "").toLowerCase();
     if (s.includes("emma") || s.includes("security")) return "emma";
     if (s.includes("liam") || s.includes("worker")) return "liam";
     if (s.includes("system")) return "system";
     return "narr";
   }
 
-  // Pick a voice that exists on the current device.
-  function pickVoice(voices, speaker) {
+  function speakerDefaults(speaker) {
+    const sp = normSpeakerFromVoice(speaker);
+    // Subtle differences; keep within natural ranges.
+    if (sp === "emma")   return { rate: 0.95, pitch: 0.95, volume: 1.0 };
+    if (sp === "liam")   return { rate: 1.00, pitch: 1.05, volume: 1.0 };
+    if (sp === "system") return { rate: 0.92, pitch: 0.85, volume: 0.95 };
+    return { rate: 1.0, pitch: 1.0, volume: 1.0 };
+  }
+
+  function pickVoice(voices, speakerHint) {
     if (!voices || !voices.length) return null;
 
-    // Prefer English voices
     const en = voices.filter(v => (v.lang || "").toLowerCase().startsWith("en"));
     const pool = en.length ? en : voices;
 
-    const sp = normSpeaker(speaker);
-
-    // Heuristics: varies by OS/browser, so keep it flexible.
+    const sp = normSpeakerFromVoice(speakerHint);
     const prefers = {
-      emma:  [/female/i, /zira/i, /susan/i, /samantha/i, /victoria/i, /google.*english/i],
-      liam:  [/male/i, /david/i, /alex/i, /daniel/i, /google.*english/i],
-      system:[/robot/i, /microsoft/i, /google.*english/i, /en-us/i],
+      emma:  [/zira/i, /susan/i, /samantha/i, /victoria/i, /female/i, /google.*english/i],
+      liam:  [/david/i, /alex/i, /daniel/i, /male/i, /google.*english/i],
+      system:[/microsoft/i, /robot/i, /google.*english/i, /en-us/i],
       narr:  [/google.*english/i, /en-us/i],
     }[sp] || [];
 
@@ -37,41 +44,30 @@
       const hit = pool.find(v => rx.test(v.name) || rx.test(v.voiceURI || ""));
       if (hit) return hit;
     }
-
-    // Fall back to the first English voice, else the first voice.
     return pool[0] || voices[0] || null;
-  }
-
-  function speakerParams(speaker) {
-    const sp = normSpeaker(speaker);
-    // Keep it subtle so it doesn't sound robotic.
-    if (sp === "emma")   return { rate: 0.95, pitch: 0.95, volume: 1.0 };
-    if (sp === "liam")   return { rate: 1.00, pitch: 1.05, volume: 1.0 };
-    if (sp === "system") return { rate: 0.92, pitch: 0.85, volume: 0.95 };
-    return { rate: 1.0, pitch: 1.0, volume: 1.0 };
   }
 
   class TTSQueue {
     constructor() {
-      this.q = [];
-      this.playing = false;
-      this.voices = [];
+      this._q = [];
+      this._busy = false;
       this._unlocked = false;
+      this._voices = [];
+      this._stopToken = 0;
 
-      // Voices can load async; refresh when available.
-      const refresh = () => { this.voices = synth ? synth.getVoices() : []; };
-      try {
-        refresh();
-        if (synth) synth.addEventListener("voiceschanged", refresh);
-      } catch {}
+      const refresh = () => {
+        try { this._voices = synth ? synth.getVoices() : []; } catch { this._voices = []; }
+      };
+      refresh();
+      try { synth && synth.addEventListener("voiceschanged", refresh); } catch {}
     }
 
-    // Call this after first user gesture (click) to reduce autoplay restrictions.
-    unlockOnce() {
+    // Keep the same public API as the old queue.
+    async unlock() {
       if (this._unlocked || !synth) return;
       this._unlocked = true;
       try {
-        // Tiny “silent” utterance to prime audio path
+        // Tiny silent utterance to prime the audio path.
         const u = new SpeechSynthesisUtterance(".");
         u.volume = 0;
         u.rate = 1;
@@ -82,72 +78,93 @@
     }
 
     stop() {
-      this.q.length = 0;
-      this.playing = false;
+      this._q.length = 0;
+      this._stopToken++;
+      this._busy = false;
       try { synth && synth.cancel(); } catch {}
     }
 
-    enqueue(text, opts = {}) {
-      const clean = String(text || "").trim();
-      if (!clean) return;
+    // Accepts object shape: { text, voice, rate, pitch, volume }
+    // Returns a promise that resolves when the utterance finishes (or is skipped).
+    enqueue(item) {
+      const stopTokenAtEnqueue = this._stopToken;
 
-      this.q.push({
-        text: clean,
-        speaker: opts.speaker || opts.voice || "narr",
+      const text = String(item?.text || "").trim();
+      if (!text || !synth) return Promise.resolve();
+
+      const voiceHint = item?.voice || item?.speaker || "narr";
+      const defaults = speakerDefaults(voiceHint);
+
+      const rate = item?.rate == null ? defaults.rate : item.rate;
+      const pitch = item?.pitch == null ? defaults.pitch : item.pitch;
+      const volume = item?.volume == null ? defaults.volume : item.volume;
+
+      return new Promise((resolve) => {
+        this._q.push({
+          text,
+          voiceHint,
+          rate: clamp(rate, 0.7, 1.2),
+          pitch: clamp(pitch, 0.6, 1.4),
+          volume: clamp01(volume),
+          resolve,
+          stopTokenAtEnqueue,
+        });
+        this._drain();
       });
-
-      this._drain();
     }
 
-    async _drain() {
-      if (this.playing) return;
-      if (!synth) return; // no API available, silently do nothing
-      this.playing = true;
+    _drain() {
+      if (this._busy) return;
+      if (!synth) return;
+      this._busy = true;
 
-      while (this.q.length) {
-        const item = this.q.shift();
+      const next = () => {
+        // If stopped, flush resolves.
+        if (!this._q.length) { this._busy = false; return; }
 
-        // If another part of the app cancels speech, just continue cleanly.
-        await new Promise((resolve) => {
-          let done = false;
-          const finish = () => {
-            if (done) return;
-            done = true;
-            resolve();
-          };
+        const job = this._q.shift();
+        if (!job) { this._busy = false; return; }
 
-          try {
-            const u = new SpeechSynthesisUtterance(item.text);
+        // If stop() happened after enqueue, skip.
+        if (job.stopTokenAtEnqueue !== this._stopToken) {
+          try { job.resolve(); } catch {}
+          return next();
+        }
 
-            const v = pickVoice(this.voices, item.speaker);
-            if (v) u.voice = v;
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          try { job.resolve(); } catch {}
+          next();
+        };
 
-            const p = speakerParams(item.speaker);
-            u.rate = clamp(p.rate, 0.7, 1.2);
-            u.pitch = clamp(p.pitch, 0.6, 1.4);
-            u.volume = clamp(p.volume, 0, 1);
+        try {
+          const u = new SpeechSynthesisUtterance(job.text);
 
-            u.onend = finish;
-            u.onerror = finish;
+          const v = pickVoice(this._voices, job.voiceHint);
+          if (v) u.voice = v;
 
-            // Safety timeout: never hang.
-            const t = setTimeout(() => {
-              try { synth.cancel(); } catch {}
-              finish();
-            }, 12000);
+          u.rate = job.rate;
+          u.pitch = job.pitch;
+          u.volume = job.volume;
 
-            const wrappedFinish = () => { clearTimeout(t); finish(); };
-            u.onend = wrappedFinish;
-            u.onerror = wrappedFinish;
-
-            synth.speak(u);
-          } catch {
+          // Safety timeout so we never hang the game flow.
+          const t = setTimeout(() => {
+            try { synth.cancel(); } catch {}
             finish();
-          }
-        });
-      }
+          }, 12000);
 
-      this.playing = false;
+          u.onend = () => { clearTimeout(t); finish(); };
+          u.onerror = () => { clearTimeout(t); finish(); };
+
+          synth.speak(u);
+        } catch {
+          finish();
+        }
+      };
+
+      next();
     }
   }
 
