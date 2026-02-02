@@ -69,20 +69,41 @@
             body: JSON.stringify(item),
           });
 
+          // If TTS is disabled/misconfigured, the endpoint returns 204.
+          // Treat that as "no audio" (but don't error / don't stall).
+          if (res.status === 204) { resolve(); continue; }
+          
           if (!res.ok) { resolve(); continue; }
-
+          
           const blob = await res.blob();
+          if (!blob || blob.size < 64) { // guard empty/invalid audio
+            resolve();
+            continue;
+          }
+          
           const url = URL.createObjectURL(blob);
-
+          
           await new Promise((r) => {
             const a = new Audio(url);
             this._audio = a;
             a.volume = clamp01(item.volume ?? 1);
-
+          
+            let settled = false;
             const done = () => {
+              if (settled) return;
+              settled = true;
               try { URL.revokeObjectURL(url); } catch {}
               r();
             };
+          
+            // Safety timeout so we never hang if the browser never fires ended/error
+            const t = setTimeout(done, 12000);
+          
+            a.addEventListener("ended", () => { clearTimeout(t); done(); }, { once:true });
+            a.addEventListener("error", () => { clearTimeout(t); done(); }, { once:true });
+          
+            a.play().catch(() => { clearTimeout(t); done(); });
+          });
 
             a.addEventListener("ended", done, { once:true });
             a.addEventListener("error", done, { once:true });
