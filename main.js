@@ -895,6 +895,11 @@ function updateComplianceMeter() {
 
       const audioPromise = (async () => {
         const playedWav = await playVoiceWavIfExists(raw);
+        try {
+          const { speaker } = parseSpeakerAndText(raw);
+          const hold = Math.max(650, Math.min(2600, getTypingMsForLine(raw)));
+          window.Music?.setVoiceFocus?.(speaker, hold);
+        } catch {}
         if (playedWav) return;
 
         // Always fall back to Azure if available (fixes "lines not preuploaded don't play")
