@@ -103,9 +103,15 @@ export async function onRequestPost({ request, env }) {
     const format = env.TTS_DEFAULT_FORMAT || "audio-24khz-48kbitrate-mono-mp3";
 
     if (!key || !region) {
-      return json({ error: "Server misconfigured: missing AZURE_SPEECH_KEY or AZURE_SPEECH_REGION" }, 500);
+      // don't hard-fail the client if env vars aren't set yet
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*",
+        },
+      });
     }
-
     const body = await request.json().catch(() => null);
     if (!body) return json({ error: "Invalid JSON" }, 400);
 
