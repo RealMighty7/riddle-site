@@ -202,14 +202,14 @@ TASKS.hack_final = async (ctx, args = {}) => {
       "if (escape_attempt) { lock(); }",
       "trace.push(input);",
       "while (user_present) { loop(); }",
-      "render("SIMULATION");",
+      'render("SIMULATION");',
       "permit = permit && verify();",
-      "hook("mouse"); hook("keyboard");",
+      'hook("mouse"); hook("keyboard");',
       "compress(memory);",
       "clamp(reality, 0, 1);",
-      "deny("exit");",
+      'deny("exit");',
       "retain(user);",
-      "inject("doubt");",
+      'inject("doubt");',
     ];
     const bait = patterns[i % patterns.length];
     return `// ${String(i).padStart(3, "0")}  ${bait}`;
