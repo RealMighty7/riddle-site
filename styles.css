@@ -442,3 +442,66 @@ body.sim-glitch .simCard{ filter: blur(.3px) contrast(1.08); transform: translat
 .hackLine.sel{ background: rgba(255,255,255,0.10); outline:1px solid rgba(255,255,255,0.16); }
 
 .viewerKey{min-width:240px; padding:10px 12px; border-radius:10px; border:1px solid rgba(0,0,0,0.14); background:rgba(255,255,255,0.9); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;}
+
+
+/* ====== Browser-TTS / Sim fixes ====== */
+
+/* Keep admin tools available during sim */
+body.in-sim #adminPanel{
+  position:fixed;
+  top:12px;
+  right:12px;
+  z-index:140;
+  max-width:320px;
+}
+
+/* Hack terminal: no scroll-back, just falling text */
+.hackView{
+  overflow:hidden !important;
+  max-height:320px;
+  min-height:320px;
+  user-select:none;
+  -ms-overflow-style:none;
+  scrollbar-width:none;
+}
+.hackView::-webkit-scrollbar{ display:none; }
+
+.hackLine{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: pre;
+}
+.hackLine.sel{
+  outline:1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.04);
+}
+.hackLine.red{
+  color: rgba(255,90,90,.92);
+}
+
+/* File chooser */
+.fileBar{
+  display:grid;
+  gap:10px;
+  margin: 10px 0;
+}
+.fileRow{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.fileBtn{
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.14);
+  color: rgba(255,255,255,.88);
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+.fileBtn:hover{ background: rgba(255,255,255,.06); }
+.fileBtn.bad{
+  border-color: rgba(255,80,80,.55);
+}
+
