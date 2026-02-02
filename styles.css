@@ -59,7 +59,8 @@ body{
 /* when cracks start showing */
 body.crack1 #cracks,
 body.crack2 #cracks,
-body.crack3 #cracks{
+body.crack3 #cracks,
+body.crack4 #cracks{
   opacity:1;
 }
 
