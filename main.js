@@ -230,8 +230,9 @@
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
 
-    // 3 crack stages now (your PNGs)
-    const CRACK_AT = [15, 18, 21];
+    // 4 crack stages (registered clicks)
+    // stages at: 15, 17, 19, 21 clicks
+    const CRACK_AT = [15, 17, 19, 21];
     const SHATTER_AT = 22;
 
     let guidePath = "emma";
@@ -252,16 +253,18 @@
       "/assets/Cracks1.png",
       "/assets/Cracks2.png",
       "/assets/Cracks3.png",
+      "/assets/Cracks4.png",
     ];
 
     let crackStage = 0;
 
     function setCrackStage(n) {
-      crackStage = clamp(n, 0, 3);
+      crackStage = clamp(n, 0, 4);
 
       document.body.classList.toggle("crack1", crackStage >= 1);
       document.body.classList.toggle("crack2", crackStage >= 2);
       document.body.classList.toggle("crack3", crackStage >= 3);
+      document.body.classList.toggle("crack4", crackStage >= 4);
 
       const src = CRACK_PNGS[crackStage] || "";
       if (src) {
@@ -278,6 +281,7 @@
 
     function maybeAdvanceCracks() {
       const next =
+        clicks >= CRACK_AT[3] ? 4 :
         clicks >= CRACK_AT[2] ? 3 :
         clicks >= CRACK_AT[1] ? 2 :
         clicks >= CRACK_AT[0] ? 1 : 0;
@@ -303,7 +307,7 @@
         document.body.appendChild(cb);
       }
 
-      setCrackStage(3);
+      setCrackStage(4);
       cracks.style.opacity = "1";
 
       document.body.classList.add("shatter-cine");
