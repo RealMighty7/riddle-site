@@ -203,6 +203,8 @@
       try { await window.AudioPlayer?.unlock?.(); } catch {}
       try { await window.TTS?.unlock?.(); } catch {}
       try { await VO?.unlockAudio?.(); } catch {}
+      try { await window.Music?.unlock?.(); } catch {}
+      try { await window.Music?.loadAll?.(); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
@@ -230,10 +232,9 @@
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
 
-    // 4 crack stages (registered clicks)
-    // stages at: 15, 17, 19, 21 clicks
-    const CRACK_AT = [15, 17, 19, 21];
-    const SHATTER_AT = 22;
+    // 3 crack stages now (your PNGs)
+    const CRACK_AT = [15, 17, 19];
+    const SHATTER_AT = 21;
 
     let guidePath = "emma";
     let paceBias = 0;
@@ -242,7 +243,10 @@
     const MIN_CHOICES_BEFORE_CHECK = 10;
 
     let choiceTotal = 0;
-    let compliancePoints = 0;
+    let complianceChoices = 0;
+    let resistanceChoices = 0;
+
+    // resistancePoints affects timer/difficulty (choices + wrong attempts)
     let resistancePoints = 0;
 
     /* ======================
@@ -253,18 +257,16 @@
       "/assets/Cracks1.png",
       "/assets/Cracks2.png",
       "/assets/Cracks3.png",
-      "/assets/Cracks4.png",
     ];
 
     let crackStage = 0;
 
     function setCrackStage(n) {
-      crackStage = clamp(n, 0, 4);
+      crackStage = clamp(n, 0, 3);
 
       document.body.classList.toggle("crack1", crackStage >= 1);
       document.body.classList.toggle("crack2", crackStage >= 2);
       document.body.classList.toggle("crack3", crackStage >= 3);
-      document.body.classList.toggle("crack4", crackStage >= 4);
 
       const src = CRACK_PNGS[crackStage] || "";
       if (src) {
@@ -281,7 +283,6 @@
 
     function maybeAdvanceCracks() {
       const next =
-        clicks >= CRACK_AT[3] ? 4 :
         clicks >= CRACK_AT[2] ? 3 :
         clicks >= CRACK_AT[1] ? 2 :
         clicks >= CRACK_AT[0] ? 1 : 0;
@@ -290,6 +291,65 @@
       setCrackStage(next);
       playSfx("glitch1", { volume: 0.18, overlap: true });
     }
+
+function ensureTriGlitch() {
+  let wrap = document.getElementById("triGlitch");
+  if (wrap) return wrap;
+
+  wrap = document.createElement("div");
+  wrap.id = "triGlitch";
+  wrap.style.position = "fixed";
+  wrap.style.inset = "0";
+  wrap.style.zIndex = "9999";
+  wrap.style.pointerEvents = "none";
+  wrap.style.opacity = "0";
+  wrap.style.transition = "opacity 180ms ease";
+  document.body.appendChild(wrap);
+
+  const N = 18;
+  for (let i = 0; i < N; i++) {
+    const d = document.createElement("div");
+    d.className = "triShard";
+    d.style.position = "absolute";
+    d.style.inset = "0";
+    d.style.mixBlendMode = "screen";
+    d.style.opacity = String(0.10 + Math.random() * 0.18);
+    d.style.filter = "contrast(1.2) saturate(1.1)";
+    d.style.background = "linear-gradient(90deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02))";
+    // random triangle via clip-path
+    const ax = (Math.random() * 100).toFixed(1);
+    const ay = (Math.random() * 100).toFixed(1);
+    const bx = (Math.random() * 100).toFixed(1);
+    const by = (Math.random() * 100).toFixed(1);
+    const cx = (Math.random() * 100).toFixed(1);
+    const cy = (Math.random() * 100).toFixed(1);
+    d.style.clipPath = `polygon(${ax}% ${ay}%, ${bx}% ${by}%, ${cx}% ${cy}%)`;
+    wrap.appendChild(d);
+  }
+  return wrap;
+}
+
+async function runTriGlitch(msTotal = 2000) {
+  const wrap = ensureTriGlitch();
+  wrap.style.opacity = "1";
+
+  const start = performance.now();
+  while (!ABORTED && performance.now() - start < msTotal) {
+    // flicker between landing and sim tones
+    document.body.classList.toggle("tri-flicker", Math.random() > 0.45);
+    // nudge shards
+    wrap.querySelectorAll(".triShard").forEach((d) => {
+      d.style.transform = `translate(${(Math.random()*10-5).toFixed(1)}px, ${(Math.random()*10-5).toFixed(1)}px)`;
+      d.style.opacity = String(0.08 + Math.random() * 0.25);
+    });
+    playSfx("glitch2", { volume: 0.10, overlap: true });
+    await wait(80 + Math.random() * 90);
+  }
+
+  document.body.classList.remove("tri-flicker");
+  wrap.style.opacity = "0";
+  await wait(200);
+}
 
     async function shatterAndEnterSim() {
       if (document.body.classList.contains("sim-transition")) return;
@@ -307,7 +367,7 @@
         document.body.appendChild(cb);
       }
 
-      setCrackStage(4);
+      setCrackStage(3);
       cracks.style.opacity = "1";
 
       document.body.classList.add("shatter-cine");
@@ -316,7 +376,14 @@
       playSfx("glitch2", { volume: 0.20, overlap: true });
       setTimeout(() => playSfx("static1", { volume: 0.16, overlap: true }), 120);
 
-      await wait(420);
+      // 2s triangular glitch between landing + sim
+      await runTriGlitch(2000);
+
+      // remove crack overlays before committing to sim
+      setCrackStage(0);
+      cracks.style.opacity = "0";
+
+      await wait(120);
       document.body.classList.add("cut-black");
       await wait(160);
 
@@ -330,7 +397,7 @@
     function isClickableTarget(e) {
       const t = e.target;
       if (!t) return true;
-      if (t.closest && t.closest("input, textarea, select, button, a, label")) return false;
+      if (t.closest && t.closest("input, textarea, select")) return false;
       if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
       return true;
     }
@@ -355,55 +422,106 @@
     document.addEventListener("pointerdown", registerLandingClick, { passive: true });
 
     /* ======================
-       LANDING: launch button -> viewer box
-    ====================== */
-    if (els.launchBtn) {
-      const btn = els.launchBtn;
-      const status = els.launchStatus;
-      const box = els.viewerToken;
-      const valEl = document.getElementById("viewerTokenValue");
-      const copyBtn = document.getElementById("viewerCopy");
+       /* ======================
+   LANDING: launch button -> viewer box (admin key)
+====================== */
+const ADMIN_KEY_HASH_HEX = "27fedb02589c0bacf10ecdda0d63486573fa76350d2edf7ee6e6e6cc35858c44"; // sha256 hex of the real key (never store plaintext)
+let isAdmin = sessionStorage.getItem("tnr_is_admin") === "1";
 
-      function makeToken() {
-        const key = "tnr_viewer_token";
-        let t = sessionStorage.getItem(key);
-        if (!t) {
-          t = "viewer-" + Math.random().toString(16).slice(2, 10) + "-" + Date.now().toString(16).slice(-4);
-          sessionStorage.setItem(key, t);
-        }
-        return t;
-      }
+async function sha256Hex(str) {
+  const enc = new TextEncoder().encode(String(str || ""));
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
-      btn.addEventListener("click", async () => {
-        try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
-        await unlockAudio();
+function setAdminUI(on) {
+  isAdmin = !!on;
+  sessionStorage.setItem("tnr_is_admin", on ? "1" : "0");
+  if (els.adminPanel) els.adminPanel.classList.toggle("hidden", !on);
+  if (els.adminToggle) {
+    els.adminToggle.textContent = on ? "admin: on" : "admin: off";
+    els.adminToggle.classList.toggle("on", on);
+  }
+}
 
-        if (status) status.textContent = "status: staging…";
+function updateAdminPanelForTask(taskId, answerText) {
+  if (!els.adminPanel) return;
+  if (els.adminTask) els.adminTask.textContent = `task: ${taskId || "—"}`;
+  if (els.adminStoredAnswer) els.adminStoredAnswer.textContent = answerText ? `stored: ${answerText}` : "stored: —";
+  if (els.adminAnswer) els.adminAnswer.value = answerText || "";
+}
 
-        const t = makeToken();
-        if (valEl) valEl.textContent = `token: ${t}`;
+// wire admin buttons if present
+if (els.adminPanel) {
+  if (els.adminToggle) {
+    els.adminToggle.addEventListener("click", () => setAdminUI(!isAdmin));
+  } else {
+    // default visibility based on session
+    setAdminUI(isAdmin);
+  }
 
-        if (box) box.classList.remove("hidden");
-        if (status) status.textContent = "status: viewer authorized";
-      });
+  if (els.adminSkip) {
+    els.adminSkip.addEventListener("click", () => {
+      if (!isAdmin) return;
+      // main task gate listens for this
+      try { window.__TNR_ADMIN_SKIP__?.(); } catch {}
+    });
+  }
+}
 
-      if (copyBtn) {
-        copyBtn.addEventListener("click", async () => {
-          const text = (valEl?.textContent || "").replace(/^token:\s*/i, "").trim();
-          if (!text) return;
-          try {
-            await navigator.clipboard.writeText(text);
-            copyBtn.textContent = "copied";
-            setTimeout(() => (copyBtn.textContent = "copy"), 900);
-          } catch {
-            copyBtn.textContent = "blocked";
-            setTimeout(() => (copyBtn.textContent = "copy"), 900);
-          }
-        });
-      }
+if (els.launchBtn) {
+  const btn = els.launchBtn;
+  const status = els.launchStatus;
+  const box = els.viewerToken;
+
+  const keyInput = document.getElementById("viewerKey");
+  const keyMsg = document.getElementById("viewerKeyMsg");
+  const enterBtn = document.getElementById("viewerEnter");
+
+  btn.addEventListener("click", async () => {
+    try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
+    await unlockAudio();
+
+    if (status) status.textContent = "status: viewer staged";
+    if (box) box.classList.remove("hidden");
+    if (keyInput) keyInput.focus();
+    if (keyMsg) keyMsg.textContent = isAdmin ? "status: admin session active" : "status: awaiting key";
+  });
+
+  async function tryKey() {
+    const raw = (keyInput?.value || "").trim();
+    if (!raw) {
+      if (keyMsg) keyMsg.textContent = "status: enter a key";
+      return;
     }
+    if (keyMsg) keyMsg.textContent = "status: verifying…";
 
-    /* ======================
+    try {
+      const hex = await sha256Hex(raw);
+      const ok = hex === ADMIN_KEY_HASH_HEX;
+      if (ok) {
+        setAdminUI(true);
+        if (keyMsg) keyMsg.textContent = "status: admin unlocked";
+        if (status) status.textContent = "status: viewer authorized";
+        keyInput.value = "";
+      } else {
+        setAdminUI(false);
+        if (keyMsg) keyMsg.textContent = "status: invalid key";
+        if (status) status.textContent = "status: viewer authorized";
+      }
+    } catch {
+      if (keyMsg) keyMsg.textContent = "status: verify failed";
+    }
+  }
+
+  if (enterBtn) enterBtn.addEventListener("click", tryKey);
+  if (keyInput) {
+    keyInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") tryKey();
+    });
+  }
+}
+/* ======================
        TASK TIMER HUD
     ====================== */
     function makeHud() {
@@ -483,7 +601,55 @@
         document.body.appendChild(resWrap);
       }
 
-      return { barWrap, barFill, resWrap, resPip, resTxt };
+let compWrap = document.getElementById("compMeterWrap");
+let compPip = document.getElementById("compMeterPip");
+let compTxt = document.getElementById("compMeterTxt");
+
+if (!compWrap) {
+  compWrap = document.createElement("div");
+  compWrap.id = "compMeterWrap";
+  compWrap.style.position = "fixed";
+  compWrap.style.left = "10px";
+  compWrap.style.top = "10px";
+  compWrap.style.zIndex = "99999";
+  compWrap.style.pointerEvents = "none";
+  compWrap.style.display = "flex";
+  compWrap.style.alignItems = "center";
+  compWrap.style.gap = "8px";
+  compWrap.style.opacity = "0";
+  compWrap.style.transition = "opacity 220ms ease";
+
+  const track = document.createElement("div");
+  track.style.width = "56px";
+  track.style.height = "6px";
+  track.style.borderRadius = "999px";
+  track.style.background = "rgba(255,255,255,0.10)";
+  track.style.overflow = "hidden";
+  track.style.border = "1px solid rgba(255,255,255,0.10)";
+
+  compPip = document.createElement("div");
+  compPip.id = "compMeterPip";
+  compPip.style.height = "100%";
+  compPip.style.width = "0%";
+  compPip.style.background = "rgba(255,255,255,0.75)";
+  compPip.style.transition = "width 160ms ease, background 160ms ease";
+  track.appendChild(compPip);
+
+  compTxt = document.createElement("div");
+  compTxt.id = "compMeterTxt";
+  compTxt.textContent = "compliance: 0%";
+  compTxt.style.fontFamily =
+    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
+  compTxt.style.fontSize = "12px";
+  compTxt.style.color = "rgba(255,255,255,0.72)";
+  compTxt.style.textShadow = "0 1px 0 rgba(0,0,0,0.35)";
+
+  compWrap.appendChild(track);
+  compWrap.appendChild(compTxt);
+  document.body.appendChild(compWrap);
+}
+
+      return { barWrap, barFill, resWrap, resPip, resTxt, compWrap, compPip, compTxt };
     }
 
     const HUD = makeHud();
@@ -498,6 +664,19 @@
       else if (pct >= 0.35) HUD.resPip.style.background = "rgba(255,220,90,0.85)";
       else HUD.resPip.style.background = "rgba(255,255,255,0.70)";
     }
+
+function updateComplianceMeter() {
+  const denom = Math.max(1, complianceChoices + resistanceChoices);
+  const pct = clamp(complianceChoices / denom, 0, 1);
+
+  HUD.compPip.style.width = `${(pct * 100).toFixed(1)}%`;
+  HUD.compTxt.textContent = `compliance: ${(pct * 100).toFixed(0)}%`;
+
+  if (pct >= COMPLIANCE_LIMIT) HUD.compPip.style.background = "rgba(255,80,80,0.85)";
+  else if (pct >= 0.20) HUD.compPip.style.background = "rgba(255,255,255,0.70)";
+  else HUD.compPip.style.background = "rgba(180,220,255,0.75)";
+}
+
 
     function setTaskTimeBarFrac(frac) {
       const f = clamp(frac, 0, 1);
@@ -528,6 +707,7 @@
         show() {
           HUD.barWrap.style.opacity = "1";
           HUD.resWrap.style.opacity = "1";
+          HUD.compWrap.style.opacity = "1";
           setTaskTimeBarFrac(1);
           updateResistanceMeter();
         },
@@ -753,20 +933,28 @@
        CHOICE HANDLING
     ====================== */
     function checkComplianceOrReset() {
-      if (choiceTotal < MIN_CHOICES_BEFORE_CHECK) return true;
+  if (choiceTotal < MIN_CHOICES_BEFORE_CHECK) return true;
 
-      const denom = Math.max(1, compliancePoints + resistancePoints);
-      const ratio = compliancePoints / denom;
+  const denom = Math.max(1, complianceChoices + resistanceChoices);
+  const ratio = complianceChoices / denom;
 
-      if (ratio >= COMPLIANCE_LIMIT) {
-        doReset(
-          "TOO COMPLIANT",
-          `Compliance threshold exceeded.\n\ncompliance: ${compliancePoints}\nresistance: ${resistancePoints}\nratio: ${(ratio * 100).toFixed(0)}%\n\nReinitializing simulation…`
-        );
-        return false;
-      }
-      return true;
-    }
+  updateComplianceMeter();
+
+  if (ratio >= COMPLIANCE_LIMIT) {
+    doReset(
+      "TOO COMPLIANT",
+      `Compliance threshold exceeded.
+
+comply: ${complianceChoices}
+resist: ${resistanceChoices}
+ratio: ${(ratio * 100).toFixed(0)}%
+
+Reinitializing simulation…`
+    );
+    return false;
+  }
+  return true;
+}
 
     function waitForChoice() {
       return new Promise((resolve) => {
@@ -787,6 +975,7 @@
        - wrong attempts must call ctx.penalize()
     ====================== */
     let activeTaskId = null;
+    let activeTaskAnswer = "";
     let taskWrongCount = 0;
     let taskTimer = null;
 
@@ -844,6 +1033,17 @@
       showTaskUI(title, desc){
         taskTitle.textContent = String(title || "TASK");
         taskDesc.textContent = String(desc || "");
+      },
+
+      setAnswer(answerText) {
+        activeTaskAnswer = String(answerText || "");
+        updateAdminPanelForTask(activeTaskId, activeTaskAnswer);
+      },
+
+      onTaskPick(pickId) {
+        activeTaskId = String(pickId || activeTaskId || "task");
+        activeTaskAnswer = "";
+        updateAdminPanelForTask(activeTaskId, activeTaskAnswer);
       },
 
       success(msg = "Ok.") {
@@ -927,31 +1127,43 @@
           hackRoom.classList.add("hidden");
 
           const labels = step.choice;
-          if (labels?.complyLabel) choiceNeed.textContent = labels.complyLabel;
-          if (labels?.lieLabel) choiceLie.textContent = labels.lieLabel;
-          if (labels?.runLabel) choiceRun.textContent = labels.runLabel;
 
-          simChoices.classList.remove("hidden");
-          const choice = await waitForChoice();
-          simChoices.classList.add("hidden");
+// Add subtle alignment hints to labels (requested)
+const complyTxt = labels?.complyLabel ? `${labels.complyLabel} (comply)` : "comply (comply)";
+const lieTxt    = labels?.lieLabel    ? `${labels.lieLabel} (slight-resistance)` : "lie (slight-resistance)";
+const runTxt    = labels?.runLabel    ? `${labels.runLabel} (full-resistance)` : "run (full-resistance)";
 
-          choiceTotal++;
+choiceNeed.textContent = complyTxt;
+choiceLie.textContent = lieTxt;
+choiceRun.textContent = runTxt;
 
-          if (choice === "comply") {
-            guidePath = "emma";
-            paceBias = -1;
-          } else if (choice === "lie") {
-            guidePath = "liam";
-            paceBias = 1;
-          } else {
-            guidePath = "run";
-            paceBias = 2;
-            resistancePoints += 1;
-            updateResistanceMeter();
-          }
+simChoices.classList.remove("hidden");
+const choice = await waitForChoice();
+simChoices.classList.add("hidden");
 
-          if (!checkComplianceOrReset()) return;
-          continue;
+choiceTotal++;
+
+if (choice === "comply") {
+  guidePath = "emma";
+  paceBias = -1;
+  complianceChoices += 1;
+} else if (choice === "lie") {
+  guidePath = "liam";
+  paceBias = 1;
+  resistanceChoices += 1;
+  resistancePoints += 1;
+} else {
+  guidePath = "run";
+  paceBias = 2;
+  resistanceChoices += 1;
+  resistancePoints += 2;
+}
+
+updateResistanceMeter();
+updateComplianceMeter();
+
+if (!checkComplianceOrReset()) return;
+continue;
         }
 
         if (step.task) {
@@ -968,14 +1180,31 @@
 
           taskUI.classList.remove("hidden");
           taskBody.innerHTML = "";
+          try { window.Music?.setScene?.("task"); } catch {}
+          try { window.Music?.setGuidePath?.(guidePath); } catch {}
+          try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
           activeTaskId = step.task;
-          taskWrongCount = 0;
+activeTaskAnswer = "";
+updateAdminPanelForTask(activeTaskId, activeTaskAnswer);
 
-          taskTimer = createTaskTimerController();
-          taskTimer.resetForNewTask();
-          taskTimer.show();
-          taskTimer.start();
+// allow admin to skip *only* while a task gate is open
+window.__TNR_ADMIN_SKIP__ = () => {
+  if (!isAdmin) return;
+  finishTaskGate(true);
+};
+
+taskWrongCount = 0;
+
+const noTimer = !!(step.args && step.args.noTimer);
+if (!noTimer) {
+  taskTimer = createTaskTimerController();
+  taskTimer.resetForNewTask();
+  taskTimer.show();
+  taskTimer.start();
+} else {
+  taskTimer = null;
+}
 
           const gate = beginTaskGate();
 
@@ -990,17 +1219,21 @@
           const ok = await gate;
           if (ABORTED) return;
 
-          taskTimer.stop();
-          taskTimer.hide();
+          if (taskTimer) {
+            taskTimer.stop();
+            taskTimer.hide();
+          }
           taskTimer = null;
-
-          if (ok) compliancePoints += 1;
+          window.__TNR_ADMIN_SKIP__ = null;
 
           if (!checkComplianceOrReset()) return;
 
           taskUI.classList.add("hidden");
           document.body.classList.remove("task-open");
           simRoom.classList.remove("hidden");
+          try { window.Music?.setScene?.("sim"); } catch {}
+          try { window.Music?.setGuidePath?.(guidePath); } catch {}
+          try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
           await wait(220);
           continue;
@@ -1015,6 +1248,9 @@
       stage = 99;
 
       await unlockAudio();
+      try { window.Music?.setScene?.("sim"); } catch {}
+      try { window.Music?.setGuidePath?.(guidePath); } catch {}
+      try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
       document.body.classList.add("in-sim");
       subs?.classList.remove("hidden");
@@ -1028,7 +1264,9 @@
       playSfx("static1", { volume: 0.22, overlap: false });
 
       HUD.resWrap.style.opacity = "1";
+      HUD.compWrap.style.opacity = "1";
       updateResistanceMeter();
+      updateComplianceMeter();
 
       await playLines(DIALOGUE.intro);
       await runSteps(DIALOGUE.steps);
