@@ -215,7 +215,7 @@ body.in-sim #wrap{ display:none; }
   align-items:flex-start;
   justify-content:center;
   padding: 22px 16px 180px;
-  z-index:70;
+  z-index:90;
 }
 
 .simCard{
