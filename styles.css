@@ -59,8 +59,7 @@ body{
 /* when cracks start showing */
 body.crack1 #cracks,
 body.crack2 #cracks,
-body.crack3 #cracks,
-body.crack4 #cracks{
+body.crack3 #cracks{
   opacity:1;
 }
 
@@ -391,3 +390,31 @@ body.in-sim #wrap{ display:none; }
 }
 #resetOverlay{ z-index:100; }
 #finalOverlay{ z-index:120; }
+
+
+/* === Hack terminal selectable lines === */
+.hackView{
+  width:100%;
+  height:340px;
+  overflow:auto;
+  border:1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.72);
+  padding:10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size:12px;
+  line-height:1.35;
+  border-radius:10px;
+}
+.hackLine{
+  padding:3px 6px;
+  border-radius:6px;
+  opacity:0.92;
+  cursor:pointer;
+  user-select:none;
+  white-space:pre;
+}
+.hackLine:hover{ background: rgba(255,255,255,0.06); }
+.hackLine.red{ color: rgba(255,90,90,0.95); }
+.hackLine.sel{ background: rgba(255,255,255,0.10); outline:1px solid rgba(255,255,255,0.16); }
+
+.viewerKey{min-width:240px; padding:10px 12px; border-radius:10px; border:1px solid rgba(0,0,0,0.14); background:rgba(255,255,255,0.9); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;}
