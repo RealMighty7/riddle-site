@@ -44,13 +44,23 @@
       <div id="build" class="muted" style="margin-top:6px;"></div>
 
       <!-- viewer box (wired by main.js) -->
-      <div id="viewerToken" class="viewerBox hidden" aria-live="polite">
-        <div class="viewerBoxTop">
-          <div class="viewerBoxTitle">viewer</div>
-          <button id="viewerCopy" class="sim-btn" type="button">copy</button>
-        </div>
-        <div id="viewerTokenValue" class="viewerBoxValue">token: (unassigned)</div>
-      </div>
+<!-- viewer box (wired by main.js) -->
+<div id="viewerToken" class="viewerBox hidden" aria-live="polite">
+  <div class="viewerBoxTop">
+    <div class="viewerBoxTitle">viewer</div>
+    <button id="viewerEnter" class="sim-btn" type="button">enter</button>
+  </div>
+
+  <div class="muted" style="margin-bottom:8px;">notice: viewer access is limited</div>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    <input id="viewerKey" class="viewerKey" placeholder="access key" autocomplete="off" spellcheck="false">
+    <button id="viewerCopy" class="sim-btn hidden" type="button">copy</button>
+  </div>
+
+  <div id="viewerKeyMsg" class="muted" style="margin-top:8px;">status: awaiting key</div>
+</div>
+
     </header>
 
     <!-- optional admin panel container (kept) -->
@@ -178,15 +188,9 @@
   <script src="/dialogue.js?v=999"></script>
   <script src="/tasks.js?v=999"></script>
 
-  <!-- task packs -->
-  <script src="/packs/pack1.js?v=999"></script>
-  <script src="/packs/pack2.js?v=999"></script>
-  <script src="/packs/pack3.js?v=999"></script>
-  <script src="/packs/pack4.js?v=999"></script>
-  <script src="/packs/pack5.js?v=999"></script>
-
   <script src="/audio_player.js?v=999"></script>
   <script src="/ttsQueue.js?v=999"></script>
+  <script src="/music_player.js?v=999"></script>
 
   <script src="/main.js?v=999"></script>
 </body>
