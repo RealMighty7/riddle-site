@@ -128,6 +128,10 @@
 
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
+    // Unlock browser TTS on first user interaction
+    window.addEventListener("pointerdown", () => {
+      window.TTS?.unlockOnce?.();
+    }, { once: true });
 
     /* ======================
        ABORT FLAG
