@@ -933,24 +933,12 @@ function updateComplianceMeter() {
         const playedWav = await playVoiceWavIfExists(raw);
         if (playedWav) return;
 
-        // Always fall back to Azure if available (fixes "lines not preuploaded don't play")
+        // Browser TTS fallback (no server). Do not block typing on speech.
         try {
-          if (!window.TTS) return;
+          if (!window.TTS?.enqueue) return;
 
           const { speaker, text } = parseSpeakerAndText(raw);
-          const cfg =
-            window.TTS_SPEAKERS?.[speaker] ||
-            window.TTS_SPEAKERS?.System ||
-            window.TTS_SPEAKERS?.System;
-
-          await window.TTS.enqueue({
-            voice: cfg.voice,
-            style: cfg.style ?? "",
-            rate: cfg.rate ?? null,
-            pitch: cfg.pitch ?? null,
-            volume: cfg.volume ?? 1,
-            text: String(text || "").trim(),
-          });
+          window.TTS.enqueue(String(text || "").trim(), { speaker });
         } catch {}
       })();
 
@@ -1293,6 +1281,7 @@ if (!noTimer) {
       document.body.classList.remove("cut-black");
 
       document.body.classList.add("in-sim");
+      try { setAdminUI(isAdmin); } catch {}
       startSimGlitchLoop();
       subs?.classList.remove("hidden");
 
