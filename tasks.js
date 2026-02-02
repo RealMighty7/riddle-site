@@ -19,16 +19,6 @@
     }
   };
 
-  // Packs can register pools as arrays of task IDs
-  window.registerTaskPool = function registerTaskPool(name, pool) {
-    try {
-      const key = String(name || "").trim();
-      if (!key) return;
-      window.TASK_POOLS = window.TASK_POOLS || {};
-      window.TASK_POOLS[key] = Array.isArray(pool) ? pool.slice() : [];
-    } catch {}
-  };
-
   // Flush queued registrations (from your safety shim / packs)
   try {
     const q = window.__TASK_QUEUE__ || [];
@@ -79,6 +69,8 @@
 
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     const fn = TASKS[pick];
+
+    try { ctx.onTaskPick?.(pick); } catch {}
 
     if (typeof fn !== "function") {
       ctx.showTaskUI?.("TASK", "Procedure missing.");
@@ -168,3 +160,228 @@
     inp.focus();
   };
 })();
+/* ======================
+   FINAL TASK: hack + delete self
+   - select red lines and delete before they scroll away
+   - requires discord username login (saved for escaped.html)
+====================== */
+TASKS.hack_final = async (ctx, args = {}) => {
+  const room = document.getElementById("hackRoom");
+  const userInput = document.getElementById("hackUser");
+  const status = document.getElementById("hackStatus");
+  const delBtn = document.getElementById("hackDelete");
+  const resetBtn = document.getElementById("hackReset");
+  const targets = document.getElementById("hackTargets");
+  const filename = document.getElementById("hackFilename");
+  const linesBox = document.getElementById("hackLines");
+
+  // swap textarea into a selectable line list (keep ID for compatibility)
+  let view = document.getElementById("hackView");
+  if (!view) {
+    view = document.createElement("div");
+    view.id = "hackView";
+    view.className = "hackView";
+    linesBox?.parentNode?.insertBefore(view, linesBox);
+    if (linesBox) linesBox.classList.add("hidden");
+  }
+
+  const durationMs = Math.max(30000, Math.min(120000, Number(args.durationMs) || 65000));
+  const maxLines = 58;
+
+  function setStatus(s) {
+    if (status) status.textContent = String(s || "");
+  }
+
+  function validUser(u) {
+    const x = String(u || "").trim();
+    return x.length >= 2 && x.length <= 32 && /^[a-zA-Z0-9_.-]+$/.test(x);
+  }
+
+  function mkLine(i) {
+    const patterns = [
+      "if (escape_attempt) { lock(); }",
+      "trace.push(input);",
+      "while (user_present) { loop(); }",
+      "render("SIMULATION");",
+      "permit = permit && verify();",
+      "hook("mouse"); hook("keyboard");",
+      "compress(memory);",
+      "clamp(reality, 0, 1);",
+      "deny("exit");",
+      "retain(user);",
+      "inject("doubt");",
+    ];
+    const bait = patterns[i % patterns.length];
+    return `// ${String(i).padStart(3, "0")}  ${bait}`;
+  }
+
+  function mkRedLine(i, user) {
+    const patterns = [
+      `USER="${user}"`,
+      `FILES.delete("/users/${user}")`,
+      `SIM.pin("${user}")`,
+      `LOCK.append("${user}")`,
+      `DENY.exit("${user}")`,
+      `TRAP.bind("${user}")`,
+    ];
+    return `!! ${patterns[i % patterns.length]}  // DELETE THIS`;
+  }
+
+  function addDomLine(text, isRed) {
+    const el = document.createElement("div");
+    el.className = "hackLine" + (isRed ? " red" : "");
+    el.textContent = text;
+    el.dataset.red = isRed ? "1" : "0";
+    el.dataset.selected = "0";
+    el.addEventListener("click", () => {
+      const on = el.dataset.selected === "1";
+      el.dataset.selected = on ? "0" : "1";
+      el.classList.toggle("sel", !on);
+    });
+    view.appendChild(el);
+    view.scrollTop = view.scrollHeight;
+    return el;
+  }
+
+  function removeSelected() {
+    const selected = Array.from(view.querySelectorAll(".hackLine.sel"));
+    if (!selected.length) return 0;
+
+    let removedRed = 0;
+    for (const el of selected) {
+      if (el.dataset.red === "1") removedRed++;
+      el.remove();
+    }
+    return removedRed;
+  }
+
+  // gate: require username
+  room?.classList.remove("hidden");
+  ctx.showTaskUI("FINAL PROCEDURE", "hack the terminal and remove yourself");
+  setStatus("login required");
+  if (targets) targets.textContent = "targets: self";
+  if (filename) filename.textContent = "file: /sim/lock/registry.lua";
+
+  let user = (sessionStorage.getItem("tnr_discord") || "").trim();
+  if (userInput) userInput.value = user;
+
+  // clear view
+  view.innerHTML = "";
+  for (let i = 0; i < 18; i++) addDomLine(mkLine(i), false);
+
+  // controls
+  let done = false;
+  let ok = false;
+  let removedNeeded = 0;
+  let removedCount = 0;
+  let tickTimer = 0;
+  let startT = 0;
+  let lineIndex = 0;
+
+  function fail(reason) {
+    if (done) return;
+    done = true;
+    ok = false;
+    try { clearInterval(tickTimer); } catch {}
+    setStatus(reason || "failed");
+    ctx.doReset("LOCKDOWN", `${reason || "failed"}\n\nReinitializing…`);
+  }
+
+  function succeed() {
+    if (done) return;
+    done = true;
+    ok = true;
+    try { clearInterval(tickTimer); } catch {}
+    setStatus("record removed");
+    setTimeout(() => {
+      // mark escape and redirect
+      sessionStorage.setItem("tnr_escape_ok", "1");
+      window.location.href = "/escaped.html";
+    }, 650);
+  }
+
+  function begin() {
+    startT = Date.now();
+    setStatus("running… delete red lines before they scroll away");
+    removedNeeded = 10;
+    removedCount = 0;
+
+    tickTimer = setInterval(() => {
+      const elapsed = Date.now() - startT;
+      if (elapsed > durationMs) {
+        // if player removed enough red lines, success
+        if (removedCount >= removedNeeded) return succeed();
+        return fail("timeout: record still present");
+      }
+
+      // push new line
+      lineIndex++;
+      const isRed = (lineIndex % 6 === 0) || (Math.random() < 0.12);
+      const lineText = isRed ? mkRedLine(lineIndex, user) : mkLine(lineIndex);
+      addDomLine(lineText, isRed);
+
+      // enforce max lines; if a red line scrolls off undeleted => fail
+      while (view.children.length > maxLines) {
+        const first = view.children[0];
+        const wasRed = first?.dataset?.red === "1";
+        first.remove();
+        if (wasRed) return fail("missed a flagged line");
+      }
+
+    }, 520);
+  }
+
+  function tryLogin() {
+    const u = (userInput?.value || "").trim();
+    if (!validUser(u)) {
+      setStatus("invalid username (2–32 chars: letters, numbers, _ . -)");
+      return;
+    }
+    user = u;
+    sessionStorage.setItem("tnr_discord", user);
+    // add immediate red burst so login feels consequential
+    for (let i = 0; i < 6; i++) addDomLine(mkRedLine(i, user), true);
+    begin();
+  }
+
+  // delete button
+  delBtn.onclick = () => {
+    if (!user || !validUser(user)) {
+      tryLogin();
+      return;
+    }
+    const removedRed = removeSelected();
+    if (removedRed) {
+      removedCount += removedRed;
+      setStatus(`removed: ${removedCount}/${removedNeeded}`);
+    } else {
+      setStatus("no selected lines");
+    }
+  };
+
+  // reset button clears selection / gives a tiny hint
+  resetBtn.onclick = () => {
+    Array.from(view.querySelectorAll(".hackLine.sel")).forEach((el) => {
+      el.dataset.selected = "0";
+      el.classList.remove("sel");
+    });
+    setStatus("selection cleared");
+  };
+
+  // if user hits Enter in username field, attempt login
+  userInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      tryLogin();
+    }
+  });
+
+  // music: final scene
+  try { window.Music?.setScene?.("final"); } catch {}
+  try { window.Music?.setResistancePoints?.(999); } catch {}
+
+  // block the normal task completion gate; we redirect on succeed()
+  // keep function alive until redirect or reset
+  await new Promise((resolve) => setTimeout(resolve, durationMs + 5000));
+};
+
