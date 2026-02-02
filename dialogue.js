@@ -394,9 +394,10 @@
       { choice: { complyLabel: "…", lieLabel: "…", runLabel: "Run." } },
       { task: "random", args: { pool: ["pack5"] } },
 
-      // Tail
-      { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 11 } } },
-      { say: ["System: …"] }
-    ]
+      // Tail -> final task
+{ filler: { pool: "AUTO", count: 2, meta: { loopIndex: 11 } } },
+{ say: ["System: Access gate opened.", "System: Remove your record.", "Liam (Worker): Do it fast. Don’t look back."] },
+{ task: "hack_final", args: { noTimer: true, durationMs: 65000 } }
+]
   };
 })();
