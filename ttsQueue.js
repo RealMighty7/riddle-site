@@ -1,126 +1,155 @@
-// ttsQueue.js (NON-module)
-// Queue-based Azure TTS player via /api/tts (Pages Function)
-(() => {
-  const API_URL = "/api/tts";
+// ttsQueue.js (FULL REPLACEMENT)
+// Browser TTS queue using Web Speech API (speechSynthesis)
+// No keys, no server calls.
 
-  function clamp01(v){ v = Number(v); return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1; }
+(() => {
+  const synth = window.speechSynthesis;
+
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+  function normSpeaker(s) {
+    s = String(s || "").toLowerCase();
+    if (s.includes("emma") || s.includes("security")) return "emma";
+    if (s.includes("liam") || s.includes("worker")) return "liam";
+    if (s.includes("system")) return "system";
+    return "narr";
+  }
+
+  // Pick a voice that exists on the current device.
+  function pickVoice(voices, speaker) {
+    if (!voices || !voices.length) return null;
+
+    // Prefer English voices
+    const en = voices.filter(v => (v.lang || "").toLowerCase().startsWith("en"));
+    const pool = en.length ? en : voices;
+
+    const sp = normSpeaker(speaker);
+
+    // Heuristics: varies by OS/browser, so keep it flexible.
+    const prefers = {
+      emma:  [/female/i, /zira/i, /susan/i, /samantha/i, /victoria/i, /google.*english/i],
+      liam:  [/male/i, /david/i, /alex/i, /daniel/i, /google.*english/i],
+      system:[/robot/i, /microsoft/i, /google.*english/i, /en-us/i],
+      narr:  [/google.*english/i, /en-us/i],
+    }[sp] || [];
+
+    for (const rx of prefers) {
+      const hit = pool.find(v => rx.test(v.name) || rx.test(v.voiceURI || ""));
+      if (hit) return hit;
+    }
+
+    // Fall back to the first English voice, else the first voice.
+    return pool[0] || voices[0] || null;
+  }
+
+  function speakerParams(speaker) {
+    const sp = normSpeaker(speaker);
+    // Keep it subtle so it doesn't sound robotic.
+    if (sp === "emma")   return { rate: 0.95, pitch: 0.95, volume: 1.0 };
+    if (sp === "liam")   return { rate: 1.00, pitch: 1.05, volume: 1.0 };
+    if (sp === "system") return { rate: 0.92, pitch: 0.85, volume: 0.95 };
+    return { rate: 1.0, pitch: 1.0, volume: 1.0 };
+  }
 
   class TTSQueue {
     constructor() {
-      this._q = [];
-      this._busy = false;
-      this._audio = null;
+      this.q = [];
+      this.playing = false;
+      this.voices = [];
       this._unlocked = false;
-      this._stopToken = 0;
+
+      // Voices can load async; refresh when available.
+      const refresh = () => { this.voices = synth ? synth.getVoices() : []; };
+      try {
+        refresh();
+        if (synth) synth.addEventListener("voiceschanged", refresh);
+      } catch {}
     }
 
-    async unlock() {
-      if (this._unlocked) return;
+    // Call this after first user gesture (click) to reduce autoplay restrictions.
+    unlockOnce() {
+      if (this._unlocked || !synth) return;
       this._unlocked = true;
-
-      // best effort: tiny muted play
       try {
-        const a = new Audio();
-        a.muted = true;
-        a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=";
-        await a.play().catch(() => {});
-        a.pause();
+        // Tiny “silent” utterance to prime audio path
+        const u = new SpeechSynthesisUtterance(".");
+        u.volume = 0;
+        u.rate = 1;
+        u.pitch = 1;
+        synth.speak(u);
+        setTimeout(() => { try { synth.cancel(); } catch {} }, 50);
       } catch {}
     }
 
     stop() {
-      this._stopToken++;
-      this._q.length = 0;
-      try {
-        if (this._audio) {
-          this._audio.pause();
-          this._audio.currentTime = 0;
-        }
-      } catch {}
-      this._audio = null;
-      this._busy = false;
+      this.q.length = 0;
+      this.playing = false;
+      try { synth && synth.cancel(); } catch {}
     }
 
-    enqueue(payload) {
-      // payload: { voice, text, style?, rate?, pitch?, volume? }
-      const item = { ...payload };
-      if (!item || !item.voice || !String(item.text || "").trim()) return Promise.resolve();
+    enqueue(text, opts = {}) {
+      const clean = String(text || "").trim();
+      if (!clean) return;
 
-      return new Promise((resolve) => {
-        this._q.push({ item, resolve });
-        this._drain();
+      this.q.push({
+        text: clean,
+        speaker: opts.speaker || opts.voice || "narr",
       });
+
+      this._drain();
     }
 
     async _drain() {
-      if (this._busy) return;
-      this._busy = true;
+      if (this.playing) return;
+      if (!synth) return; // no API available, silently do nothing
+      this.playing = true;
 
-      while (this._q.length) {
-        const myToken = this._stopToken;
-        const { item, resolve } = this._q.shift();
+      while (this.q.length) {
+        const item = this.q.shift();
 
-        try {
-          if (myToken !== this._stopToken) { resolve(); continue; }
-
-          const res = await fetch(API_URL, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(item),
-          });
-
-          // If TTS is disabled/misconfigured, the endpoint returns 204.
-          // Treat that as "no audio" (but don't error / don't stall).
-          if (res.status === 204) { resolve(); continue; }
-          
-          if (!res.ok) { resolve(); continue; }
-          
-          const blob = await res.blob();
-          if (!blob || blob.size < 64) { // guard empty/invalid audio
+        // If another part of the app cancels speech, just continue cleanly.
+        await new Promise((resolve) => {
+          let done = false;
+          const finish = () => {
+            if (done) return;
+            done = true;
             resolve();
-            continue;
+          };
+
+          try {
+            const u = new SpeechSynthesisUtterance(item.text);
+
+            const v = pickVoice(this.voices, item.speaker);
+            if (v) u.voice = v;
+
+            const p = speakerParams(item.speaker);
+            u.rate = clamp(p.rate, 0.7, 1.2);
+            u.pitch = clamp(p.pitch, 0.6, 1.4);
+            u.volume = clamp(p.volume, 0, 1);
+
+            u.onend = finish;
+            u.onerror = finish;
+
+            // Safety timeout: never hang.
+            const t = setTimeout(() => {
+              try { synth.cancel(); } catch {}
+              finish();
+            }, 12000);
+
+            const wrappedFinish = () => { clearTimeout(t); finish(); };
+            u.onend = wrappedFinish;
+            u.onerror = wrappedFinish;
+
+            synth.speak(u);
+          } catch {
+            finish();
           }
-          
-          const url = URL.createObjectURL(blob);
-          
-          await new Promise((r) => {
-            const a = new Audio(url);
-            this._audio = a;
-            a.volume = clamp01(item.volume ?? 1);
-          
-            let settled = false;
-            const done = () => {
-              if (settled) return;
-              settled = true;
-              try { URL.revokeObjectURL(url); } catch {}
-              r();
-            };
-          
-            // Safety timeout so we never hang if the browser never fires ended/error
-            const t = setTimeout(done, 12000);
-          
-            a.addEventListener("ended", () => { clearTimeout(t); done(); }, { once:true });
-            a.addEventListener("error", () => { clearTimeout(t); done(); }, { once:true });
-          
-            a.play().catch(() => { clearTimeout(t); done(); });
-          });
-
-            a.addEventListener("ended", done, { once:true });
-            a.addEventListener("error", done, { once:true });
-
-            a.play().catch(done);
-          });
-
-          this._audio = null;
-          resolve();
-        } catch {
-          resolve();
-        }
+        });
       }
 
-      this._busy = false;
+      this.playing = false;
     }
   }
 
-  window.TTS = new TTSQueue();
+  window.TTS = window.TTS || new TTSQueue();
 })();
