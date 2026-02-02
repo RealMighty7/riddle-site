@@ -4,40 +4,40 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>escaped</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
   <link rel="stylesheet" href="/styles.css?v=999" />
 </head>
-<body>
+
+<body class="escaped">
   <main id="wrap">
     <header class="card">
       <h1>escaped</h1>
-      <p>
-        Notice: this endpoint is not intended for external access.<br>
-        Functionality may be incomplete.
+      <p class="muted">
+        notice: external contact requires verification.<br>
+        dm the code to the operator after verification completes.
       </p>
     </header>
 
-    <section class="card">
-      <div class="pill" id="escapeUser">user: —</div>
-      <div class="pill" id="escapeCode" style="margin-top:10px;">code: —</div>
-      <p style="margin-top:12px; opacity:.8;">
-        Keep it. Don’t share it here.
-      </p>
-    </section>
+    <section class="card" id="escapeCard">
+      <div class="muted" id="escapeUser">user: —</div>
+      <div class="muted" id="escapeCode">code: —</div>
 
-    <section class="card">
-      <button class="sim-btn" id="backBtn">back</button>
+      <div style="height:12px"></div>
+
+      <div id="turnstileBox" class="turnstileBox"></div>
+      <div id="escapeErr" class="muted" style="color: rgba(255,120,120,0.9); margin-top:8px;"></div>
+
+      <div style="height:12px"></div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button id="escapeVerify" class="sim-btn" type="button">verify + send</button>
+        <button id="escapeBack" class="sim-btn" type="button">back</button>
+      </div>
     </section>
   </main>
 
-  <script>
-    const u = sessionStorage.getItem("escape_user") || "—";
-    const c = sessionStorage.getItem("escape_code") || "—";
-    document.getElementById("escapeUser").textContent = "user: " + u;
-    document.getElementById("escapeCode").textContent = "code: " + c;
-
-    document.getElementById("backBtn").onclick = () => {
-      window.location.href = "/";
-    };
-  </script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="/music_player.js?v=999"></script>
+  <script src="/escaped.js?v=999"></script>
 </body>
 </html>
