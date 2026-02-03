@@ -75,6 +75,14 @@
     const ids = [...REQUIRED_IDS, ...OPTIONAL_IDS];
     const els = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
+    // Keep admin panel visible in simulation (the sim hides #wrap).
+    try {
+      const ap = els.adminPanel;
+      if (ap && ap.parentElement && ap.parentElement.id === "wrap") {
+        document.body.appendChild(ap);
+      }
+    } catch {}
+
     const missingRequired = REQUIRED_IDS.filter((id) => !els[id]);
     if (missingRequired.length) {
       console.error("Missing required element IDs:", missingRequired);
@@ -201,8 +209,9 @@
       if (audioUnlocked) return;
       audioUnlocked = true;
       try { await window.AudioPlayer?.unlock?.(); } catch {}
+      // Browser TTS: prime on user gesture (no pre-recorded VO in this build)
+      try { window.TTS?.unlockOnce?.(); } catch {}
       try { await window.TTS?.unlock?.(); } catch {}
-      try { await VO?.unlockAudio?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
     }
@@ -243,7 +252,8 @@
     const MIN_CHOICES_BEFORE_CHECK = 10;
 
     let choiceTotal = 0;
-    let complianceChoices = 0;
+    // "Compliance" is earned only by perfect task clears (no wrong attempts).
+    let compliancePoints = 0;
     let resistanceChoices = 0;
 
     // resistancePoints affects timer/difficulty (choices + wrong attempts)
@@ -666,7 +676,7 @@ if (!compWrap) {
 
   compTxt = document.createElement("div");
   compTxt.id = "compMeterTxt";
-  compTxt.textContent = "compliance: 0%";
+    compTxt.textContent = "compliance: 0";
   compTxt.style.fontFamily =
     "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
   compTxt.style.fontSize = "12px";
@@ -695,15 +705,16 @@ if (!compWrap) {
     }
 
 function updateComplianceMeter() {
-  const denom = Math.max(1, complianceChoices + resistanceChoices);
-  const pct = clamp(complianceChoices / denom, 0, 1);
+  const max = 10;
+  const pct = clamp(compliancePoints / max, 0, 1);
 
   HUD.compPip.style.width = `${(pct * 100).toFixed(1)}%`;
-  HUD.compTxt.textContent = `compliance: ${(pct * 100).toFixed(0)}%`;
+  HUD.compTxt.textContent = `compliance: ${compliancePoints}`;
 
-  if (pct >= COMPLIANCE_LIMIT) HUD.compPip.style.background = "rgba(255,80,80,0.85)";
-  else if (pct >= 0.20) HUD.compPip.style.background = "rgba(255,255,255,0.70)";
-  else HUD.compPip.style.background = "rgba(180,220,255,0.75)";
+  // color shifts as it climbs
+  if (pct >= 0.80) HUD.compPip.style.background = "rgba(180,220,255,0.85)";
+  else if (pct >= 0.40) HUD.compPip.style.background = "rgba(255,255,255,0.70)";
+  else HUD.compPip.style.background = "rgba(255,255,255,0.45)";
 }
 
 
@@ -820,6 +831,7 @@ function updateComplianceMeter() {
         .toLowerCase();
     }
 
+    // Pre-recorded VO is disabled: use generated (browser) TTS only.
     let VO = null;
     let VO_READY = false;
 
@@ -845,52 +857,17 @@ function updateComplianceMeter() {
     }
 
     async function ensureVoiceBank() {
-      if (VO_READY) return;
-      if (!window.VoiceBank) return;
-      VO = new window.VoiceBank({
-        voicesUrl: "/audio/data/voices.json",
-        onTag: () => {},
-      });
-      VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
-      await VO.load().catch(() => {});
+      // intentionally disabled
       VO_READY = true;
+      VO = null;
     }
 
-    // speaker configs for Azure
-    window.TTS_SPEAKERS = window.TTS_SPEAKERS || {
-      System: { voice: "en-US-GuyNeural", style: "", rate: "-6%", pitch: "-2Hz", volume: 1 },
-      Emma:   { voice: "en-US-ErinNeural", style: "serious", rate: "-4%", pitch: "-1Hz", volume: 1 },
-      Liam:   { voice: "en-US-DavisNeural", style: "calm", rate: "-2%", pitch: "-2Hz", volume: 1 },
-    };
-
-    async function playVoiceWavIfExists(rawLine) {
-      await ensureVoiceBank();
-      const id = getIdFromLine(rawLine);
-      if (!id || !VO) return false;
-
-      // If the line isn't present in voices.json, it's not recorded.
-      // Let browser TTS handle it.
-      try {
-        if (!VO.byId || !VO.byId.has(id)) return false;
-      } catch {}
-
-      try {
-        const ok = await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false });
-        return ok === true;
-      } catch {
-        return false;
-      }
+    async function playVoiceWavIfExists(_) {
+      // intentionally disabled (generated voice lines only)
+      return false;
     }
 
     function getTypingMsForLine(rawLine) {
-      try {
-        const id = getIdFromLine(rawLine);
-        if (id && VO && VO.byId) {
-          const meta = VO.byId.get(id);
-          const d = Number(meta?.duration_sec ?? meta?.durationSec ?? meta?.duration ?? 0);
-          if (Number.isFinite(d) && d > 0) return Math.floor(d * 1000);
-        }
-      } catch {}
       return msToRead(rawLine);
     }
 
@@ -1043,6 +1020,11 @@ Reinitializing simulation…`
     function finishTaskGate(ok) {
       if (_taskDone) return;
       _taskDone = true;
+      // Earn compliance only if the task was cleared without any wrong attempts.
+      if (ok && taskWrongCount === 0) {
+        compliancePoints = Math.min(10, compliancePoints + 1);
+        updateComplianceMeter();
+      }
       try { _taskResolve?.(!!ok); } catch {}
     }
 
@@ -1104,6 +1086,14 @@ Reinitializing simulation…`
 
       penalize() {
         recordWrongAttempt();
+      },
+
+      getResistancePoints() {
+        return resistancePoints;
+      },
+
+      getCompliancePoints() {
+        return compliancePoints;
       },
 
       doReset,
