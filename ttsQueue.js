@@ -77,6 +77,9 @@
       } catch {}
     }
 
+    // Alias for newer code paths
+    async unlockOnce() { return this.unlock(); }
+
     stop() {
       this._q.length = 0;
       this._stopToken++;
@@ -84,10 +87,14 @@
       try { synth && synth.cancel(); } catch {}
     }
 
-    // Accepts object shape: { text, voice, rate, pitch, volume }
+    // Accepts either object { text, voice, rate, pitch, volume } or (text, { speaker })
     // Returns a promise that resolves when the utterance finishes (or is skipped).
-    enqueue(item) {
+    enqueue(textOrItem, opts = null) {
       const stopTokenAtEnqueue = this._stopToken;
+
+      const item = (typeof textOrItem === "object" && textOrItem)
+        ? textOrItem
+        : { text: String(textOrItem || ""), voice: (opts && (opts.speaker || opts.voice)) || "" };
 
       const text = String(item?.text || "").trim();
       if (!text || !synth) return Promise.resolve();
