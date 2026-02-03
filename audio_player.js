@@ -197,7 +197,7 @@ class VoiceBank {
     const line = this.byId.get(key);
     if (!line) {
       console.warn("[VoiceBank] missing line", key);
-      return;
+      return false;
     }
 
     const token = ++this._playToken;
@@ -227,22 +227,28 @@ class VoiceBank {
     const holdMs = Number.isFinite(baseHoldMs) ? Math.max(0, baseHoldMs) : 0;
 
     return new Promise((resolve) => {
-      const finish = () => {
+      let errored = false;
+
+      const finish = (ok) => {
         try { this._activeAudios.delete(audio); } catch {}
 
-        if (token !== this._playToken) return resolve();
+        if (token !== this._playToken) return resolve(false);
 
         if (this._currentAudio === audio) this._currentAudio = null;
 
-        if (holdMs) setTimeout(resolve, holdMs);
-        else resolve();
+        const out = !!ok && !errored;
+
+        if (holdMs) setTimeout(() => resolve(out), holdMs);
+        else resolve(out);
       };
 
-      audio.addEventListener("ended", finish, { once: true });
-      audio.addEventListener("error", finish, { once: true });
+      audio.addEventListener("ended", () => finish(true), { once: true });
+      audio.addEventListener("error", () => { errored = true; finish(false); }, { once: true });
 
+      // If playback can't start (missing file / blocked), resolve false so caller can fall back to TTS.
       audio.play().catch(() => {
-        finish();
+        errored = true;
+        finish(false);
       });
     });
   }
