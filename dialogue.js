@@ -338,13 +338,13 @@
       // LOOP 1
       { say: ["System: Fragmented logs detected.", "System: Reconstruction needed."] },
       { choice: { complyLabel: "Okay.", lieLabel: "I didn't mean to.", runLabel: "Run." } },
-      { task: "random", args: { pool: ["core", "pack1"] } },
+      { task: "random", args: { pool: ["core"] } },
 
       // LOOP 2
       { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 2 } } },
       { say: ["Emma (Security): Keep your hands visible.", "System: Procedure continues."] },
       { choice: { complyLabel: "Fine.", lieLabel: "Sure.", runLabel: "Run." } },
-      { task: "random", args: { pool: ["pack1"] } },
+      { task: "random", args: { pool: ["core"] } },
 
       // LOOP 3
       { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 3 } } },
@@ -356,48 +356,48 @@
       { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 4 } } },
       { say: ["Liam (Worker): Slow is safer.", "System: Alternate path available."] },
       { choice: { complyLabel: "I'll wait.", lieLabel: "I know this.", runLabel: "Run." } },
-      { task: "random", args: { pool: ["pack2"] } },
+      { task: "random", args: { pool: ["core"] } },
 
       // LOOP 5
       { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 5 } } },
       { say: ["System: Supplemental verification.", "Emma (Security): No mistakes."] },
       { choice: { complyLabel: "Got it.", lieLabel: "It worked.", runLabel: "Run." } },
-      { task: "random", args: { pool: ["pack2", "pack3"] } },
+      { task: "random", args: { pool: ["core"] } },
 
       // LOOP 6
       { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 6 } } },
       { say: ["System: Monitoring degraded.", "System: Re-align the interface."] },
       { choice: { complyLabel: "Okay.", lieLabel: "Already aligned.", runLabel: "Run." } },
-      { task: "random", args: { pool: ["pack3"] } },
+      { task: "random", args: { pool: ["core"] } },
 
       // LOOP 7
       { filler: { pool: "AUTO", count: 3, meta: { loopIndex: 7 } } },
       { say: ["Emma (Security): You're lingering.", "System: Commit to input."] },
       { choice: { complyLabel: "Proceed.", lieLabel: "Proceeding.", runLabel: "Run." } },
-      { task: "random", args: { pool: ["pack3", "pack4"] } },
+      { task: "random", args: { pool: ["core"] } },
 
       // LOOP 8
       { filler: { pool: "AUTO", count: 3, meta: { loopIndex: 8 } } },
       { say: ["System: Pressure rising.", "Liam (Worker): Don't make it interesting."] },
       { choice: { complyLabel: "Okay.", lieLabel: "Okay.", runLabel: "Run." } },
-      { task: "random", args: { pool: ["pack4"] } },
+      { task: "random", args: { pool: ["core"] } },
 
       // LOOP 9
       { filler: { pool: "AUTO", count: 3, meta: { loopIndex: 9 } } },
       { say: ["System: Secondary channel open.", "System: Confirm continuity."] },
       { choice: { complyLabel: "Confirm.", lieLabel: "Confirmed.", runLabel: "Run." } },
-      { task: "random", args: { pool: ["pack4", "pack5"] } },
+      { task: "random", args: { pool: ["core"] } },
 
       // LOOP 10
       { filler: { pool: "AUTO", count: 4, meta: { loopIndex: 10 } } },
       { say: ["System: Final pass.", "Emma (Security): Don't choke now."] },
       { choice: { complyLabel: "…", lieLabel: "…", runLabel: "Run." } },
-      { task: "random", args: { pool: ["pack5"] } },
+      { task: "random", args: { pool: ["core"] } },
 
       // Tail -> final task
 { filler: { pool: "AUTO", count: 2, meta: { loopIndex: 11 } } },
 { say: ["System: Access gate opened.", "System: Remove your record.", "Liam (Worker): Do it fast. Don’t look back."] },
-{ task: "hack_final", args: { noTimer: true, durationMs: 65000 } }
+{ task: "hack_final", args: { noTimer: true, durationMs: 210000, removedNeeded: 35 } }
 ]
   };
 })();
