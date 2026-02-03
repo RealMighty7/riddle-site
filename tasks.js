@@ -27,7 +27,7 @@
 
   // Optional pools (packs can fill these)
   window.TASK_POOLS = window.TASK_POOLS || {
-    core: ["checksum","pulse","align","mirror","hold","scrub","pulse","align","mirror","hold"],
+    core: ["checksum"],
     pack1: ["pulse"],
     pack2: ["align"],
     pack3: ["mirror"],
@@ -655,31 +655,6 @@ TASKS.hack_final = async (ctx, args = {}) => {
       view.scrollTop = view.scrollHeight;
     }, 500);
   }
-};
-
-  // reset button clears selection / gives a tiny hint
-  resetBtn.onclick = () => {
-    Array.from(view.querySelectorAll(".hackLine.sel")).forEach((el) => {
-      el.dataset.selected = "0";
-      el.classList.remove("sel");
-    });
-    setStatus("selection cleared");
-  };
-
-  // if user hits Enter in username field, attempt login
-  userInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      tryLogin();
-    }
-  });
-
-  // music: final scene
-  try { window.Music?.setScene?.("final"); } catch {}
-  try { window.Music?.setResistancePoints?.(999); } catch {}
-
-  // block the normal task completion gate; we redirect on succeed()
-  // keep function alive until redirect or reset
-  await new Promise((resolve) => setTimeout(resolve, durationMs + 5000));
+  // TASKS.hack_final runs on timers/callbacks; no need to await here.
 };
 
