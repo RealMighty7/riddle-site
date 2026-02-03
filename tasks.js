@@ -27,7 +27,7 @@
 
   // Optional pools (packs can fill these)
   window.TASK_POOLS = window.TASK_POOLS || {
-    core: ["checksum"],
+    core: ["checksum","pulse","align","mirror","hold","scrub","pulse","align","mirror","hold"],
     pack1: ["pulse"],
     pack2: ["align"],
     pack3: ["mirror"],
