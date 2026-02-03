@@ -1,43 +1,89 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>escaped</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>▢</text></svg>">
-  <link rel="stylesheet" href="/styles.css?v=999" />
-</head>
+// escaped.js
+(() => {
+  const ok = sessionStorage.getItem("tnr_escape_ok") === "1";
+  const user = (sessionStorage.getItem("tnr_discord") || "").trim();
 
-<body class="escaped">
-  <main id="wrap">
-    <header class="card">
-      <h1>escaped</h1>
-      <p class="muted">
-        notice: external contact requires verification.<br>
-        dm the code to the operator after verification completes.
-      </p>
-    </header>
+  if (!ok || !user) {
+    window.location.replace("/"); // cannot bypass
+    return;
+  }
 
-    <section class="card" id="escapeCard">
-      <div class="muted" id="escapeUser">user: —</div>
-      <div class="muted" id="escapeCode">code: —</div>
+  // Escaped music should be a dedicated loop (fallback: stem mixer).
+  (async () => {
+    let started = false;
+    try {
+      const a = new Audio("/music/Escaped.WAV");
+      a.loop = true;
+      a.volume = 0.85;
+      window.__TNR_ESCAPED_AUDIO__ = a;
+      await a.play();
+      started = true;
+    } catch {}
 
-      <div style="height:12px"></div>
+    if (!started) {
+      try { await window.Music?.unlock?.(); } catch {}
+      try { await window.Music?.loadAll?.(); } catch {}
+      try { window.Music?.setScene?.("escaped"); } catch {}
+    }
+  })();
 
-      <div id="turnstileBox" class="turnstileBox"></div>
-      <div id="escapeErr" class="muted" style="color: rgba(255,120,120,0.9); margin-top:8px;"></div>
+  const userEl = document.getElementById("escapeUser");
+  const codeEl = document.getElementById("escapeCode");
+  const errEl = document.getElementById("escapeErr");
+  const verifyBtn = document.getElementById("escapeVerify");
+  const backBtn = document.getElementById("escapeBack");
+  const box = document.getElementById("turnstileBox");
 
-      <div style="height:12px"></div>
+  function makeCode() {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let out = "";
+    for (let i = 0; i < 8; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+    return out;
+  }
 
-      <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <button id="escapeVerify" class="sim-btn" type="button">verify + send</button>
-        <button id="escapeBack" class="sim-btn" type="button">back</button>
-      </div>
-    </section>
-  </main>
+  const code = makeCode();
+  sessionStorage.setItem("tnr_escape_code", code);
 
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-  <script src="/music_player.js?v=999"></script>
-  <script src="/escaped.js?v=999"></script>
-</body>
-</html>
+  if (userEl) userEl.textContent = `user: ${user}`;
+  if (codeEl) codeEl.textContent = `code: ${code}`;
+
+  // No button-gated Turnstile here; escaped page auto-sends the result.
+  if (box) box.remove();
+
+  async function submit() {
+    if (errEl) errEl.textContent = "";
+
+    if (verifyBtn) {
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = "sending…";
+    }
+
+    try {
+      const res = await fetch("/api/complete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          discord: user,
+          answer: code,
+        }),
+      });
+
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.error || "request failed");
+
+      if (verifyBtn) verifyBtn.textContent = "sent";
+      sessionStorage.setItem("tnr_escape_sent", "1");
+      // keep disabled; this page should auto-send once.
+    } catch (e) {
+      if (errEl) errEl.textContent = String(e?.message || e || "error");
+      if (verifyBtn) {
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = "send failed";
+      }
+    }
+  }
+
+  // Auto-send as soon as escaped loads.
+  setTimeout(submit, 350);
+  backBtn?.addEventListener("click", () => window.location.replace("/"));
+})();
