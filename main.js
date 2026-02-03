@@ -81,6 +81,15 @@
       return;
     }
 
+    // Keep admin panel alive during sim: move it out of #wrap (which is hidden in-sim)
+    // so body.in-sim #wrap{display:none} does not remove admin tools.
+    try {
+      const ap = els.adminPanel;
+      if (ap && ap.parentElement && ap.closest && ap.closest("#wrap")) {
+        document.body.appendChild(ap);
+      }
+    } catch {}
+
     const systemBox = els.system;
     const cracks = els.cracks;
     const cracksImg = els.cracksImg;
@@ -201,7 +210,10 @@
       if (audioUnlocked) return;
       audioUnlocked = true;
       try { await window.AudioPlayer?.unlock?.(); } catch {}
-      try { await window.TTS?.unlock?.(); } catch {}
+      // Browser TTS uses unlockOnce(), but we also support unlock() alias.
+      try { await (window.TTS?.unlockOnce?.() ?? window.TTS?.unlock?.()); } catch {}
+      // Ensure VoiceBank exists before unlocking, so pre-recorded lines can play.
+      try { await ensureVoiceBank(); } catch {}
       try { await VO?.unlockAudio?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
