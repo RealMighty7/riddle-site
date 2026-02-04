@@ -143,7 +143,14 @@
     let ABORTED = false;
 
     /* ====================== SFX ====================== */
+    const __SFX_LAST__ = Object.create(null);
     function playSfx(name, opts = {}) {
+      const now = performance.now();
+      const key = String(name || "");
+      const minGap = key.startsWith("glitch") ? 900 : key.startsWith("static") ? 700 : 120;
+      if (__SFX_LAST__[key] && (now - __SFX_LAST__[key] < minGap)) return;
+      __SFX_LAST__[key] = now;
+
       if (typeof window.playSfx === "function") {
         const map = {
           glitch1: "glitch",
@@ -254,10 +261,9 @@
     let choiceTotal = 0;
     // "Compliance" is earned only by perfect task clears (no wrong attempts).
     let compliancePoints = 0;
-    let resistanceChoices = 0;
+    let resistancePoints = 0;
 
     // resistancePoints affects timer/difficulty (choices + wrong attempts)
-    let resistancePoints = 0;
 
     /* ======================
        PNG CRACK OVERLAYS
@@ -411,25 +417,28 @@ function startSimGlitchLoop() {
 
       document.body.classList.add("shatter-cine");
 
-      playSfx("glassBreak", { volume: 0.75, overlap: false });
-      playSfx("glitch2", { volume: 0.20, overlap: true });
-      setTimeout(() => playSfx("static1", { volume: 0.16, overlap: true }), 120);
+      playSfx("glassBreak", { volume: 0.70, overlap: false });
+      playSfx("glitch2", { volume: 0.14, overlap: true });
+      setTimeout(() => playSfx("static1", { volume: 0.12, overlap: true }), 140);
 
-      // 2s triangular glitch between landing + sim
-      await runTriGlitch(2000);
+      // short, controlled transition (no long blackout)
+      await runTriGlitch(1200);
 
       // remove crack overlays before committing to sim
       setCrackStage(0);
       cracks.style.opacity = "0";
 
-      await wait(120);
+      // brief cut to black, then reveal sim while dialogue runs
+      await wait(80);
       document.body.classList.add("cut-black");
       await wait(160);
 
-      await openSimRoom();
-
+      // IMPORTANT: remove cursor hide + blackout BEFORE sim script continues
       document.body.classList.remove("cut-black");
       document.body.classList.remove("shatter-cine");
+
+      await openSimRoom();
+
       document.body.classList.remove("sim-transition");
     }
 
@@ -913,13 +922,9 @@ function updateComplianceMeter() {
       const typingPromise = typeLineIntoSim(printed, typingMs);
 
       const audioPromise = (async () => {
-        const playedWav = await playVoiceWavIfExists(raw);
-        if (playedWav) return;
-
-        // Browser TTS fallback (no server). Do not block typing on speech.
+        // Generated speech only (no pre-recorded VO)
         try {
           if (!window.TTS?.enqueue) return;
-
           const { speaker, text } = parseSpeakerAndText(raw);
           window.TTS.enqueue(String(text || "").trim(), { speaker });
         } catch {}
@@ -942,8 +947,8 @@ function updateComplianceMeter() {
     function checkComplianceOrReset() {
   if (choiceTotal < MIN_CHOICES_BEFORE_CHECK) return true;
 
-  const denom = Math.max(1, complianceChoices + resistanceChoices);
-  const ratio = complianceChoices / denom;
+  const denom = Math.max(1, compliancePoints + resistancePoints);
+  const ratio = compliancePoints / denom;
 
   updateComplianceMeter();
 
@@ -952,8 +957,8 @@ function updateComplianceMeter() {
       "TOO COMPLIANT",
       `Compliance threshold exceeded.
 
-comply: ${complianceChoices}
-resist: ${resistanceChoices}
+compliance: ${compliancePoints}
+resistance: ${resistancePoints}
 ratio: ${(ratio * 100).toFixed(0)}%
 
 Reinitializing simulation…`
@@ -1166,16 +1171,16 @@ choiceTotal++;
 if (choice === "comply") {
   guidePath = "emma";
   paceBias = -1;
-  complianceChoices += 1;
+  compliancePoints += 1;
 } else if (choice === "lie") {
   guidePath = "liam";
   paceBias = 1;
-  resistanceChoices += 1;
+  resistancePoints += 1;
   resistancePoints += 1;
 } else {
   guidePath = "run";
   paceBias = 2;
-  resistanceChoices += 1;
+  resistancePoints += 1;
   resistancePoints += 2;
 }
 
@@ -1316,4 +1321,13 @@ if (!noTimer) {
   }
 
   boot();
-})();
+})();function ensureAdminPanelOnBody(adminPanelEl) {
+      if (!adminPanelEl) return;
+      if (adminPanelEl.dataset.__moved === "1") return;
+      try {
+        document.body.appendChild(adminPanelEl);
+        adminPanelEl.dataset.__moved = "1";
+      } catch {}
+    }
+
+    
