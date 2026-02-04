@@ -8,11 +8,6 @@
 
     function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
     function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
-    async function nextFrame(n = 1) {
-      while (n-- > 0) {
-        await new Promise((r) => requestAnimationFrame(r));
-      }
-    }
 
     const DIALOGUE = window.DIALOGUE;
     const TASKS = window.TASKS;
@@ -26,6 +21,7 @@
     const REQUIRED_IDS = [
       "system",
       "cracks",
+      "cracksCanvas",
       "glassFX",
       "subs",
       "subsName",
@@ -87,7 +83,8 @@
 
     const systemBox = els.system;
     const cracks = els.cracks;
-    const glassFX = els.glassFX;
+    const cracksCanvas = els.cracksCanvas;
+const glassFX = els.glassFX;
 
     const simRoom = els.simRoom;
     const simText = els.simText;
@@ -131,10 +128,6 @@
 
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
-    // Unlock browser TTS on first user interaction
-    window.addEventListener("pointerdown", () => {
-      window.TTS?.unlockOnce?.();
-    }, { once: true });
 
     /* ======================
        ABORT FLAG
@@ -259,14 +252,148 @@
     /* ======================
        PNG CRACK OVERLAYS
     ====================== */
-    const CRACK_PNGS = [
-      "", // stage 0 = none
-      "/assets/Cracks1.png",
-      "/assets/Cracks2.png",
-      "/assets/Cracks3.png",
-    ];
-
+    // ===== Procedural crack overlay (canvas) =====
     let crackStage = 0;
+    const crackState = {
+      seed: (Date.now() ^ (Math.random() * 1e9)) >>> 0,
+      paths: [], // array of paths; each path is array of points [{x,y},...]
+    };
+
+    function sRand() {
+      // xorshift32
+      let x = crackState.seed | 0;
+      x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
+      crackState.seed = x >>> 0;
+      return (crackState.seed & 0xffffffff) / 4294967296;
+    }
+
+    function resizeCracksCanvas() {
+      const c = cracksCanvas;
+      if (!c) return;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const w = Math.max(1, Math.floor(window.innerWidth * dpr));
+      const h = Math.max(1, Math.floor(window.innerHeight * dpr));
+      if (c.width !== w || c.height !== h) {
+        c.width = w; c.height = h;
+        c.style.width = "100%";
+        c.style.height = "100%";
+      }
+      drawCracks();
+    }
+
+    function newCrackPath() {
+      const c = cracksCanvas;
+      const w = c.width, h = c.height;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+      // start near edge
+      const edge = Math.floor(sRand() * 4);
+      let x = 0, y = 0;
+      if (edge === 0) { x = sRand() * w; y = 0; }
+      if (edge === 1) { x = w; y = sRand() * h; }
+      if (edge === 2) { x = sRand() * w; y = h; }
+      if (edge === 3) { x = 0; y = sRand() * h; }
+
+      const pts = [{ x, y }];
+      const steps = 18 + Math.floor(sRand() * 26);
+
+      const cx = w * 0.5, cy = h * 0.5;
+      for (let i = 0; i < steps; i++) {
+        const last = pts[pts.length - 1];
+        const toCx = (cx - last.x) / w;
+        const toCy = (cy - last.y) / h;
+
+        let ang = Math.atan2(toCy, toCx) + (sRand() - 0.5) * 1.1;
+        const len = (10 + sRand() * 26) * dpr;
+
+        x = last.x + Math.cos(ang) * len;
+        y = last.y + Math.sin(ang) * len;
+
+        x = Math.max(-40 * dpr, Math.min(w + 40 * dpr, x));
+        y = Math.max(-40 * dpr, Math.min(h + 40 * dpr, y));
+        pts.push({ x, y });
+
+        // occasional branch
+        if (i > 6 && sRand() < 0.16) {
+          const bpts = [{ x: last.x, y: last.y }];
+          let bx = last.x, by = last.y;
+          const bsteps = 6 + Math.floor(sRand() * 10);
+          let bang = ang + (sRand() < 0.5 ? -1 : 1) * (0.35 + sRand() * 0.75);
+          for (let j = 0; j < bsteps; j++) {
+            const blen = (8 + sRand() * 18) * dpr;
+            bx += Math.cos(bang + (sRand() - 0.5) * 0.6) * blen;
+            by += Math.sin(bang + (sRand() - 0.5) * 0.6) * blen;
+            bpts.push({ x: bx, y: by });
+          }
+          crackState.paths.push(bpts);
+        }
+      }
+      return pts;
+    }
+
+    function ensureCracksForStage(stage) {
+      const want = stage === 0 ? 0 : stage === 1 ? 5 : stage === 2 ? 10 : 16;
+      while (crackState.paths.length < want) crackState.paths.push(newCrackPath());
+      while (crackState.paths.length > want) crackState.paths.pop();
+    }
+
+    function drawCracks() {
+      const c = cracksCanvas;
+      if (!c) return;
+      const ctx = c.getContext("2d");
+      if (!ctx) return;
+
+      ctx.clearRect(0, 0, c.width, c.height);
+      if (crackStage <= 0) return;
+
+      ctx.save();
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
+      // micro scratches
+      ctx.globalAlpha = 0.08;
+      for (let i = 0; i < 120; i++) {
+        const x1 = sRand() * c.width;
+        const y1 = sRand() * c.height;
+        const x2 = x1 + (sRand() - 0.5) * 80;
+        const y2 = y1 + (sRand() - 0.5) * 20;
+        ctx.strokeStyle = "rgba(0,0,0,0.25)";
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = 0.85;
+      ctx.shadowColor = "rgba(0,0,0,0.25)";
+      ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
+
+      for (const pts of crackState.paths) {
+        ctx.strokeStyle = "rgba(0,0,0,0.55)";
+        ctx.lineWidth = (1.4 + (crackStage - 1) * 0.35) * (window.devicePixelRatio || 1);
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = "rgba(255,255,255,0.25)";
+        ctx.lineWidth = (0.8 + (crackStage - 1) * 0.2) * (window.devicePixelRatio || 1);
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x + 0.6, pts[0].y - 0.4);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.6, pts[i].y - 0.4);
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.85;
+        ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
+      }
+
+      ctx.restore();
+    }
+
+    window.addEventListener("resize", resizeCracksCanvas);
 
     function setCrackStage(n) {
       crackStage = clamp(n, 0, 3);
@@ -275,18 +402,20 @@
       document.body.classList.toggle("crack2", crackStage >= 2);
       document.body.classList.toggle("crack3", crackStage >= 3);
 
-      const src = CRACK_PNGS[crackStage] || "";
-      if (src) {
-        cracksImg.style.opacity = "0";
-        requestAnimationFrame(() => {
-          cracksImg.src = src;
-          cracksImg.onload = () => { cracksImg.style.opacity = "1"; };
-          setTimeout(() => { cracksImg.style.opacity = "1"; }, 60);
-        });
-      } else {
-        cracksImg.removeAttribute("src");
+      if (crackStage === 0) {
+        crackState.paths.length = 0;
+        drawCracks();
+        cracks.style.opacity = "0";
+        return;
       }
 
+      cracks.style.opacity = "1";
+      ensureCracksForStage(crackStage);
+      drawCracks();
+    }
+
+    // init cracks
+    resizeCracksCanvas();
     }
 
     function maybeAdvanceCracks() {
@@ -342,6 +471,7 @@ async function runTriGlitch(msTotal = 2000) {
   wrap.style.opacity = "1";
 
   const start = performance.now();
+  let sfxTick = 0;
   while (!ABORTED && performance.now() - start < msTotal) {
     // flicker between landing and sim tones
     document.body.classList.toggle("tri-flicker", Math.random() > 0.45);
@@ -350,13 +480,41 @@ async function runTriGlitch(msTotal = 2000) {
       d.style.transform = `translate(${(Math.random()*10-5).toFixed(1)}px, ${(Math.random()*10-5).toFixed(1)}px)`;
       d.style.opacity = String(0.08 + Math.random() * 0.25);
     });
-    playSfx("glitch2", { volume: 0.10, overlap: true });
+    // keep this sparse; constant spam feels "broken" instead of glitchy
+    if ((sfxTick++ % 3) === 0) playSfx("glitch2", { volume: 0.08, overlap: true });
     await wait(80 + Math.random() * 90);
   }
 
   document.body.classList.remove("tri-flicker");
   wrap.style.opacity = "0";
   await wait(200);
+}
+
+// Subtle sim-room glitch texture (brief "desync" bursts).
+// This replaces the old heavy shake/spam feel with a low-key glitchy tone.
+let SIM_GLITCH_ON = false;
+function startSimGlitchLoop() {
+  if (SIM_GLITCH_ON) return;
+  SIM_GLITCH_ON = true;
+
+  const loop = () => {
+    if (!SIM_GLITCH_ON) return;
+    if (!document.body.classList.contains("in-sim")) {
+      setTimeout(loop, 800);
+      return;
+    }
+
+    // 1-in-3 chance to do a short burst
+    if (Math.random() < 0.34) {
+      document.body.classList.add("sim-glitch");
+      playSfx("glitch1", { volume: 0.08, overlap: true });
+      setTimeout(() => document.body.classList.remove("sim-glitch"), 70 + Math.random() * 110);
+    }
+
+    setTimeout(loop, 420 + Math.random() * 1200);
+  };
+
+  setTimeout(loop, 600);
 }
 
     async function shatterAndEnterSim() {
@@ -375,22 +533,8 @@ async function runTriGlitch(msTotal = 2000) {
         document.body.appendChild(cb);
       }
 
-      // Stage the fracture so it doesn't look like a single decal pop.
-      // (Give the browser a paint between stages.)
-      setCrackStage(1);
-      cracks.style.opacity = "1";
-      await nextFrame(2);
-
-      document.body.classList.add("crack-jolt");
-      setTimeout(() => document.body.classList.remove("crack-jolt"), 260);
-
-      setCrackStage(2);
-      await wait(180);
-      await nextFrame(1);
-
-      document.body.classList.add("crack-jolt");
-      setTimeout(() => document.body.classList.remove("crack-jolt"), 260);
       setCrackStage(3);
+      cracks.style.opacity = "1";
 
       document.body.classList.add("shatter-cine");
 
@@ -398,8 +542,8 @@ async function runTriGlitch(msTotal = 2000) {
       playSfx("glitch2", { volume: 0.20, overlap: true });
       setTimeout(() => playSfx("static1", { volume: 0.16, overlap: true }), 120);
 
-      // Triangular glitch between landing + sim (shorter, more deliberate)
-      await runTriGlitch(1250);
+      // 2s triangular glitch between landing + sim
+      await runTriGlitch(2000);
 
       // remove crack overlays before committing to sim
       setCrackStage(0);
@@ -409,14 +553,11 @@ async function runTriGlitch(msTotal = 2000) {
       document.body.classList.add("cut-black");
       await wait(160);
 
-      try {
-        await openSimRoom();
-      } finally {
-        // Always restore cursor/transition state even if something errors.
-        document.body.classList.remove("cut-black");
-        document.body.classList.remove("shatter-cine");
-        document.body.classList.remove("sim-transition");
-      }
+      await openSimRoom();
+
+      document.body.classList.remove("cut-black");
+      document.body.classList.remove("shatter-cine");
+      document.body.classList.remove("sim-transition");
     }
 
     function isClickableTarget(e) {
@@ -447,6 +588,7 @@ async function runTriGlitch(msTotal = 2000) {
     document.addEventListener("pointerdown", registerLandingClick, { passive: true });
 
     /* ======================
+       /* ======================
    LANDING: launch button -> viewer box (admin key)
 ====================== */
 const ADMIN_KEY_HASH_HEX = "27fedb02589c0bacf10ecdda0d63486573fa76350d2edf7ee6e6e6cc35858c44"; // sha256 hex of the real key (never store plaintext)
@@ -911,39 +1053,38 @@ function updateComplianceMeter() {
     async function emitLine(line) {
       if (ABORTED) return;
 
+      // Visual sync: brief CRT "response" so dialogue feels tied to the monitor UI
+      try {
+        document.body.classList.add("ui-pulse");
+        clearTimeout(window.__TNR_UI_PULSE_T);
+        window.__TNR_UI_PULSE_T = setTimeout(() => {
+          document.body.classList.remove("ui-pulse");
+        }, 260);
+      } catch {}
+
       const raw = String(line || "");
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+
+	      // Music: briefly bias the stem mix toward the active speaker
+	      try {
+	        const { speaker } = parseSpeakerAndText(raw);
+	        const hold = Math.max(650, Math.min(2600, getTypingMsForLine(raw)));
+	        window.Music?.setVoiceFocus?.(speaker, hold);
+	      } catch {}
 
       const typingMs = getTypingMsForLine(raw);
       const typingPromise = typeLineIntoSim(printed, typingMs);
 
       const audioPromise = (async () => {
         const playedWav = await playVoiceWavIfExists(raw);
-        try {
-          const { speaker } = parseSpeakerAndText(raw);
-          const hold = Math.max(650, Math.min(2600, getTypingMsForLine(raw)));
-          window.Music?.setVoiceFocus?.(speaker, hold);
-        } catch {}
         if (playedWav) return;
 
-        // Always fall back to Azure if available (fixes "lines not preuploaded don't play")
+        // Browser TTS fallback (no server). Do not block typing on speech.
         try {
-          if (!window.TTS) return;
+          if (!window.TTS?.enqueue) return;
 
           const { speaker, text } = parseSpeakerAndText(raw);
-          const cfg =
-            window.TTS_SPEAKERS?.[speaker] ||
-            window.TTS_SPEAKERS?.System ||
-            window.TTS_SPEAKERS?.System;
-
-          await window.TTS.enqueue({
-            voice: cfg.voice,
-            style: cfg.style ?? "",
-            rate: cfg.rate ?? null,
-            pitch: cfg.pitch ?? null,
-            volume: cfg.volume ?? 1,
-            text: String(text || "").trim(),
-          });
+          window.TTS.enqueue(String(text || "").trim(), { speaker });
         } catch {}
       })();
 
@@ -1203,8 +1344,7 @@ continue;
           }
 
           document.body.classList.add("task-open");
-          // Keep sim log visible; task UI is a panel layered on top.
-          simRoom.classList.remove("hidden");
+          simRoom.classList.add("hidden");
           simChoices.classList.add("hidden");
           hackRoom.classList.add("hidden");
 
@@ -1282,7 +1422,13 @@ if (!noTimer) {
       try { window.Music?.setGuidePath?.(guidePath); } catch {}
       try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
+      // If we entered via the shatter transition, a full-screen black cut can be active.
+      // Reveal the sim UI immediately; do not keep the cut up while dialogue runs.
+      document.body.classList.remove("cut-black");
+
       document.body.classList.add("in-sim");
+      try { setAdminUI(isAdmin); } catch {}
+      startSimGlitchLoop();
       subs?.classList.remove("hidden");
 
       simRoom.classList.remove("hidden");
@@ -1321,121 +1467,3 @@ if (!noTimer) {
 
   boot();
 })();
-// main.js — canvas-only crack pipeline (PNG removed)
-
-(() => {
-  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
-
-  function boot() {
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", boot, { once: true });
-      return;
-    }
-
-    const REQUIRED_IDS = [
-      "cracks",
-      "cracksCanvas"
-    ];
-
-    const els = Object.fromEntries(REQUIRED_IDS.map(id => [id, document.getElementById(id)]));
-    const missing = REQUIRED_IDS.filter(id => !els[id]);
-    if (missing.length) {
-      console.error("Missing required element IDs:", missing);
-      return;
-    }
-
-    const cracks = els.cracks;
-    const cracksCanvas = els.cracksCanvas;
-
-    const crackState = {
-      stage: 0,
-      seed: (Date.now() ^ (Math.random() * 1e9)) >>> 0,
-      paths: []
-    };
-
-    function sRand() {
-      let x = crackState.seed | 0;
-      x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
-      crackState.seed = x >>> 0;
-      return (crackState.seed & 0xffffffff) / 4294967296;
-    }
-
-    function resizeCracksCanvas() {
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      cracksCanvas.width = Math.floor(innerWidth * dpr);
-      cracksCanvas.height = Math.floor(innerHeight * dpr);
-      cracksCanvas.style.width = "100%";
-      cracksCanvas.style.height = "100%";
-      drawCracks();
-    }
-
-    function newCrackPath() {
-      const w = cracksCanvas.width;
-      const h = cracksCanvas.height;
-      const pts = [{ x: sRand()*w, y: sRand()*h }];
-      for (let i=0;i<30;i++) {
-        const last = pts[pts.length-1];
-        pts.push({
-          x: last.x + (sRand()-0.5)*40,
-          y: last.y + (sRand()-0.5)*40
-        });
-      }
-      return pts;
-    }
-
-    function ensureCracksForStage(stage) {
-      const want = stage === 1 ? 5 : stage === 2 ? 10 : stage === 3 ? 16 : 0;
-      while (crackState.paths.length < want) crackState.paths.push(newCrackPath());
-      while (crackState.paths.length > want) crackState.paths.pop();
-    }
-
-    function drawCracks() {
-      const ctx = cracksCanvas.getContext("2d");
-      ctx.clearRect(0,0,cracksCanvas.width,cracksCanvas.height);
-      if (!crackState.paths.length) return;
-      ctx.strokeStyle = "rgba(0,0,0,0.6)";
-      ctx.lineWidth = 1.5;
-      for (const pts of crackState.paths) {
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.stroke();
-      }
-    }
-
-    function setCrackStage(n) {
-      const stageN = clamp(n,0,3);
-      crackState.stage = stageN;
-
-      document.body.classList.toggle("crack1", stageN>=1);
-      document.body.classList.toggle("crack2", stageN>=2);
-      document.body.classList.toggle("crack3", stageN>=3);
-
-      if (stageN === 0) {
-        crackState.paths.length = 0;
-        drawCracks();
-        cracks.style.opacity = "0";
-        return;
-      }
-
-      cracks.style.opacity = "1";
-      ensureCracksForStage(stageN);
-      drawCracks();
-    }
-
-    resizeCracksCanvas();
-    window.addEventListener("resize", resizeCracksCanvas);
-
-    // demo: click to advance cracks
-    let clicks = 0;
-    document.addEventListener("pointerdown", () => {
-      clicks++;
-      if (clicks === 1) setCrackStage(1);
-      if (clicks === 3) setCrackStage(2);
-      if (clicks === 6) setCrackStage(3);
-    });
-  }
-
-  boot();
-})();
-  
