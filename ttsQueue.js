@@ -16,7 +16,14 @@
   }
 
   // Pick voices by heuristic (best effort; varies by OS/browser)
-  function pickVoice(list, speaker) {
+  function pickVoice(list, speaker, map) {
+    const sp = String(speaker || "narr").toLowerCase();
+    if (map) {
+      if (sp === "emma") return map.emma || null;
+      if (sp === "liam") return map.liam || null;
+      if (sp === "system") return map.system || null;
+    }
+
     const want = speaker === "system"
       ? ["microsoft david", "microsoft mark", "google uk english male", "daniel", "fred"]
       : speaker === "emma"
@@ -29,8 +36,49 @@
       const v = byName(n);
       if (v) return v;
     }
-    // fallback: first non-remote, non-compact if possible
     return l.find(v => !/remote|compact/i.test(String(v.name || ""))) || l[0] || null;
+  }
+
+
+  let _voiceReady = null;
+  function ensureVoicesLoaded(timeoutMs = 800) {
+    const listNow = synth ? synth.getVoices() : [];
+    if (listNow && listNow.length) return Promise.resolve(listNow);
+
+    if (_voiceReady) return _voiceReady;
+
+    _voiceReady = new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        try { synth && synth.removeEventListener?.("voiceschanged", onChanged); } catch {}
+        resolve(synth ? synth.getVoices() : []);
+      };
+      const onChanged = () => finish();
+      try { synth && synth.addEventListener?.("voiceschanged", onChanged); } catch {}
+      setTimeout(finish, timeoutMs);
+    });
+    return _voiceReady;
+  }
+
+  // Stable per-speaker voice mapping (so Emma/Liam/System don't collapse to one voice)
+  function buildVoiceMap(list) {
+    const v = (list || []).slice();
+    // Prefer English voices, but keep fallback
+    const en = v.filter(x => String(x.lang || "").toLowerCase().startsWith("en"));
+    const pool = en.length ? en : v;
+
+    const by = (rx) => pool.find(vo => rx.test(String(vo.name || "")) || rx.test(String(vo.voiceURI || "")));
+
+    const emma = by(/zira|aria|samantha|victoria|female/i) || pool[0] || null;
+    const liam = by(/david|guy|mark|alex|male/i) || pool[1] || pool[0] || null;
+    // System: pick something different from Emma/Liam if possible
+    let system = by(/mark|daniel|fred|robot|google uk english male/i) || pool[2] || pool[0] || null;
+    if (system && emma && system.name === emma.name && pool[3]) system = pool[3];
+    if (system && liam && system.name === liam.name && pool[4]) system = pool[4];
+
+    return { emma, liam, system };
   }
 
   // Base personality tuning
