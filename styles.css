@@ -447,13 +447,9 @@ body.sim-glitch .simCard{ filter: blur(.3px) contrast(1.08); transform: translat
 /* ====== Browser-TTS / Sim fixes ====== */
 
 /* Keep admin tools available during sim */
-body.in-sim #adminPanel{
-  position:fixed;
-  top:12px;
-  right:12px;
-  z-index:140;
-  max-width:320px;
-}
+body.in-sim #adminPanel{ position:fixed; top:12px; right:12px; z-index:140; width:280px; max-width:90vw; }
+#adminPanel .card{ margin:0; padding:12px; }
+#adminPanel.hidden{ display:none !important; }
 
 /* Hack terminal: no scroll-back, just falling text */
 .hackView{
@@ -505,3 +501,43 @@ body.in-sim #adminPanel{
   border-color: rgba(255,80,80,.55);
 }
 
+
+
+/* Phase 2 puzzle UI */
+.wireWrap{ display:flex; gap:16px; align-items:flex-start; margin-top:10px; }
+.wireCol{ display:flex; flex-direction:column; gap:10px; }
+.wirePort{ padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#e9eef8; font-weight:700; letter-spacing:.06em; }
+.wirePort.sel{ outline:2px solid rgba(255,255,255,.35); }
+.wirePort.ok{ background:rgba(255,255,255,.10); }
+.wirePort.red{ box-shadow: inset 0 0 0 1px rgba(255,80,80,.35); }
+.wirePort.blue{ box-shadow: inset 0 0 0 1px rgba(80,160,255,.35); }
+.wirePort.green{ box-shadow: inset 0 0 0 1px rgba(90,255,160,.28); }
+.wirePort.yellow{ box-shadow: inset 0 0 0 1px rgba(255,220,80,.28); }
+
+.jigBoard{ display:grid; grid-template-columns:repeat(3, 64px); gap:10px; margin-top:12px; }
+.jigTile{ width:64px; height:64px; border-radius:14px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.07); color:#e9eef8; font-weight:800; font-size:18px; }
+.jigTile.sel{ outline:2px solid rgba(255,255,255,.35); }
+
+.patGrid{ display:grid; grid-template-columns:repeat(3, 46px); gap:10px; margin-top:12px; }
+.patNode{ width:46px; height:46px; border-radius:999px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); }
+.patNode.on{ background:rgba(255,255,255,.18); }
+
+.routeGrid{ display:grid; grid-template-columns:repeat(6, 38px); gap:8px; margin-top:12px; }
+.routeCell{ width:38px; height:38px; border-radius:10px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); color:#e9eef8; font-weight:800; }
+.routeCell.on{ background:rgba(255,255,255,.12); }
+
+.freqWrap{ display:flex; gap:12px; align-items:center; margin-top:10px; }
+.freqSlider{ width:260px; }
+
+.memGrid{ display:grid; grid-template-columns:repeat(4, 42px); gap:10px; margin-top:12px; }
+.memCell{ width:42px; height:42px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); }
+.memCell.on{ background:rgba(255,255,255,.20); }
+.memCell.hit{ outline:2px solid rgba(255,255,255,.35); }
+
+.calBox{ width:280px; height:140px; border-radius:18px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); position:relative; overflow:hidden; margin-top:10px; }
+.calDot{ position:absolute; width:12px; height:12px; border-radius:999px; background:rgba(255,255,255,.55); left:12px; top:12px; animation: calDrift 1.2s ease-in-out infinite alternate; }
+@keyframes calDrift{ from{ transform: translate(0,0);} to{ transform: translate(240px, 95px);} }
+
+.portWrap{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+.portBtn{ padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.06); color:#e9eef8; font-weight:800; }
+.portBtn.on{ background:rgba(255,255,255,.16); }
