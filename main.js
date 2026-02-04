@@ -1355,26 +1355,26 @@ continue;
           try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
           activeTaskId = step.task;
-activeTaskAnswer = "";
-updateAdminPanelForTask(activeTaskId, activeTaskAnswer);
-
-// allow admin to skip *only* while a task gate is open
-window.__TNR_ADMIN_SKIP__ = () => {
-  if (!isAdmin) return;
-  finishTaskGate(true);
-};
-
-taskWrongCount = 0;
-
-const noTimer = !!(step.args && step.args.noTimer);
-if (!noTimer) {
-  taskTimer = createTaskTimerController();
-  taskTimer.resetForNewTask();
-  taskTimer.show();
-  taskTimer.start();
-} else {
-  taskTimer = null;
-}
+		  activeTaskAnswer = "";
+		  updateAdminPanelForTask(activeTaskId, activeTaskAnswer);
+		
+		// allow admin to skip *only* while a task gate is open
+		  window.__TNR_ADMIN_SKIP__ = () => {
+		    if (!isAdmin) return;
+		    finishTaskGate(true);
+		  };
+		
+		  taskWrongCount = 0;
+		
+		  const noTimer = !!(step.args && step.args.noTimer);
+		  if (!noTimer) {
+		    taskTimer = createTaskTimerController();
+		    taskTimer.resetForNewTask();
+		    taskTimer.show();
+		    taskTimer.start();
+		  } else {
+		    taskTimer = null;
+		  }
 
           const gate = beginTaskGate();
 
