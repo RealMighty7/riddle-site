@@ -21,7 +21,7 @@
     const REQUIRED_IDS = [
       "system",
       "cracks",
-      "cracksCanvas",
+      "cracksImg",
       "glassFX",
       "subs",
       "subsName",
@@ -75,6 +75,14 @@
     const ids = [...REQUIRED_IDS, ...OPTIONAL_IDS];
     const els = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
+    // Keep admin panel visible in simulation (the sim hides #wrap).
+    try {
+      const ap = els.adminPanel;
+      if (ap && ap.parentElement && ap.parentElement.id === "wrap") {
+        document.body.appendChild(ap);
+      }
+    } catch {}
+
     const missingRequired = REQUIRED_IDS.filter((id) => !els[id]);
     if (missingRequired.length) {
       console.error("Missing required element IDs:", missingRequired);
@@ -83,8 +91,8 @@
 
     const systemBox = els.system;
     const cracks = els.cracks;
-    const cracksCanvas = els.cracksCanvas;
-const glassFX = els.glassFX;
+    const cracksImg = els.cracksImg;
+    const glassFX = els.glassFX;
 
     const simRoom = els.simRoom;
     const simText = els.simText;
@@ -135,7 +143,14 @@ const glassFX = els.glassFX;
     let ABORTED = false;
 
     /* ====================== SFX ====================== */
+    const __SFX_LAST__ = Object.create(null);
     function playSfx(name, opts = {}) {
+      const now = performance.now();
+      const key = String(name || "");
+      const minGap = key.startsWith("glitch") ? 900 : key.startsWith("static") ? 700 : 120;
+      if (__SFX_LAST__[key] && (now - __SFX_LAST__[key] < minGap)) return;
+      __SFX_LAST__[key] = now;
+
       if (typeof window.playSfx === "function") {
         const map = {
           glitch1: "glitch",
@@ -201,8 +216,9 @@ const glassFX = els.glassFX;
       if (audioUnlocked) return;
       audioUnlocked = true;
       try { await window.AudioPlayer?.unlock?.(); } catch {}
+      // Browser TTS: prime on user gesture (no pre-recorded VO in this build)
+      try { window.TTS?.unlockOnce?.(); } catch {}
       try { await window.TTS?.unlock?.(); } catch {}
-      try { await VO?.unlockAudio?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
     }
@@ -243,157 +259,23 @@ const glassFX = els.glassFX;
     const MIN_CHOICES_BEFORE_CHECK = 10;
 
     let choiceTotal = 0;
-    let complianceChoices = 0;
-    let resistanceChoices = 0;
+    // "Compliance" is earned only by perfect task clears (no wrong attempts).
+    let compliancePoints = 0;
+    let resistancePoints = 0;
 
     // resistancePoints affects timer/difficulty (choices + wrong attempts)
-    let resistancePoints = 0;
 
     /* ======================
        PNG CRACK OVERLAYS
     ====================== */
-    // ===== Procedural crack overlay (canvas) =====
+    const CRACK_PNGS = [
+      "", // stage 0 = none
+      "/assets/Cracks1.png",
+      "/assets/Cracks2.png",
+      "/assets/Cracks3.png",
+    ];
+
     let crackStage = 0;
-    const crackState = {
-      seed: (Date.now() ^ (Math.random() * 1e9)) >>> 0,
-      paths: [], // array of paths; each path is array of points [{x,y},...]
-    };
-
-    function sRand() {
-      // xorshift32
-      let x = crackState.seed | 0;
-      x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
-      crackState.seed = x >>> 0;
-      return (crackState.seed & 0xffffffff) / 4294967296;
-    }
-
-    function resizeCracksCanvas() {
-      const c = cracksCanvas;
-      if (!c) return;
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      const w = Math.max(1, Math.floor(window.innerWidth * dpr));
-      const h = Math.max(1, Math.floor(window.innerHeight * dpr));
-      if (c.width !== w || c.height !== h) {
-        c.width = w; c.height = h;
-        c.style.width = "100%";
-        c.style.height = "100%";
-      }
-      drawCracks();
-    }
-
-    function newCrackPath() {
-      const c = cracksCanvas;
-      const w = c.width, h = c.height;
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-
-      // start near edge
-      const edge = Math.floor(sRand() * 4);
-      let x = 0, y = 0;
-      if (edge === 0) { x = sRand() * w; y = 0; }
-      if (edge === 1) { x = w; y = sRand() * h; }
-      if (edge === 2) { x = sRand() * w; y = h; }
-      if (edge === 3) { x = 0; y = sRand() * h; }
-
-      const pts = [{ x, y }];
-      const steps = 18 + Math.floor(sRand() * 26);
-
-      const cx = w * 0.5, cy = h * 0.5;
-      for (let i = 0; i < steps; i++) {
-        const last = pts[pts.length - 1];
-        const toCx = (cx - last.x) / w;
-        const toCy = (cy - last.y) / h;
-
-        let ang = Math.atan2(toCy, toCx) + (sRand() - 0.5) * 1.1;
-        const len = (10 + sRand() * 26) * dpr;
-
-        x = last.x + Math.cos(ang) * len;
-        y = last.y + Math.sin(ang) * len;
-
-        x = Math.max(-40 * dpr, Math.min(w + 40 * dpr, x));
-        y = Math.max(-40 * dpr, Math.min(h + 40 * dpr, y));
-        pts.push({ x, y });
-
-        // occasional branch
-        if (i > 6 && sRand() < 0.16) {
-          const bpts = [{ x: last.x, y: last.y }];
-          let bx = last.x, by = last.y;
-          const bsteps = 6 + Math.floor(sRand() * 10);
-          let bang = ang + (sRand() < 0.5 ? -1 : 1) * (0.35 + sRand() * 0.75);
-          for (let j = 0; j < bsteps; j++) {
-            const blen = (8 + sRand() * 18) * dpr;
-            bx += Math.cos(bang + (sRand() - 0.5) * 0.6) * blen;
-            by += Math.sin(bang + (sRand() - 0.5) * 0.6) * blen;
-            bpts.push({ x: bx, y: by });
-          }
-          crackState.paths.push(bpts);
-        }
-      }
-      return pts;
-    }
-
-    function ensureCracksForStage(stage) {
-      const want = stage === 0 ? 0 : stage === 1 ? 5 : stage === 2 ? 10 : 16;
-      while (crackState.paths.length < want) crackState.paths.push(newCrackPath());
-      while (crackState.paths.length > want) crackState.paths.pop();
-    }
-
-    function drawCracks() {
-      const c = cracksCanvas;
-      if (!c) return;
-      const ctx = c.getContext("2d");
-      if (!ctx) return;
-
-      ctx.clearRect(0, 0, c.width, c.height);
-      if (crackStage <= 0) return;
-
-      ctx.save();
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-
-      // micro scratches
-      ctx.globalAlpha = 0.08;
-      for (let i = 0; i < 120; i++) {
-        const x1 = sRand() * c.width;
-        const y1 = sRand() * c.height;
-        const x2 = x1 + (sRand() - 0.5) * 80;
-        const y2 = y1 + (sRand() - 0.5) * 20;
-        ctx.strokeStyle = "rgba(0,0,0,0.25)";
-        ctx.lineWidth = 0.6;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-      }
-
-      ctx.globalAlpha = 0.85;
-      ctx.shadowColor = "rgba(0,0,0,0.25)";
-      ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
-
-      for (const pts of crackState.paths) {
-        ctx.strokeStyle = "rgba(0,0,0,0.55)";
-        ctx.lineWidth = (1.4 + (crackStage - 1) * 0.35) * (window.devicePixelRatio || 1);
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.stroke();
-
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = 0.22;
-        ctx.strokeStyle = "rgba(255,255,255,0.25)";
-        ctx.lineWidth = (0.8 + (crackStage - 1) * 0.2) * (window.devicePixelRatio || 1);
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x + 0.6, pts[0].y - 0.4);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.6, pts[i].y - 0.4);
-        ctx.stroke();
-
-        ctx.globalAlpha = 0.85;
-        ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
-      }
-
-      ctx.restore();
-    }
-
-    window.addEventListener("resize", resizeCracksCanvas);
 
     function setCrackStage(n) {
       crackStage = clamp(n, 0, 3);
@@ -402,20 +284,17 @@ const glassFX = els.glassFX;
       document.body.classList.toggle("crack2", crackStage >= 2);
       document.body.classList.toggle("crack3", crackStage >= 3);
 
-      if (crackStage === 0) {
-        crackState.paths.length = 0;
-        drawCracks();
-        cracks.style.opacity = "0";
-        return;
+      const src = CRACK_PNGS[crackStage] || "";
+      if (src) {
+        cracksImg.style.opacity = "0";
+        requestAnimationFrame(() => {
+          cracksImg.src = src;
+          cracksImg.onload = () => { cracksImg.style.opacity = "1"; };
+          setTimeout(() => { cracksImg.style.opacity = "1"; }, 60);
+        });
+      } else {
+        cracksImg.removeAttribute("src");
       }
-
-      cracks.style.opacity = "1";
-      ensureCracksForStage(crackStage);
-      drawCracks();
-    }
-
-    // init cracks
-    resizeCracksCanvas();
     }
 
     function maybeAdvanceCracks() {
@@ -538,25 +417,28 @@ function startSimGlitchLoop() {
 
       document.body.classList.add("shatter-cine");
 
-      playSfx("glassBreak", { volume: 0.75, overlap: false });
-      playSfx("glitch2", { volume: 0.20, overlap: true });
-      setTimeout(() => playSfx("static1", { volume: 0.16, overlap: true }), 120);
+      playSfx("glassBreak", { volume: 0.70, overlap: false });
+      playSfx("glitch2", { volume: 0.14, overlap: true });
+      setTimeout(() => playSfx("static1", { volume: 0.12, overlap: true }), 140);
 
-      // 2s triangular glitch between landing + sim
-      await runTriGlitch(2000);
+      // short, controlled transition (no long blackout)
+      await runTriGlitch(1200);
 
       // remove crack overlays before committing to sim
       setCrackStage(0);
       cracks.style.opacity = "0";
 
-      await wait(120);
+      // brief cut to black, then reveal sim while dialogue runs
+      await wait(80);
       document.body.classList.add("cut-black");
       await wait(160);
 
-      await openSimRoom();
-
+      // IMPORTANT: remove cursor hide + blackout BEFORE sim script continues
       document.body.classList.remove("cut-black");
       document.body.classList.remove("shatter-cine");
+
+      await openSimRoom();
+
       document.body.classList.remove("sim-transition");
     }
 
@@ -803,7 +685,7 @@ if (!compWrap) {
 
   compTxt = document.createElement("div");
   compTxt.id = "compMeterTxt";
-  compTxt.textContent = "compliance: 0%";
+    compTxt.textContent = "compliance: 0";
   compTxt.style.fontFamily =
     "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
   compTxt.style.fontSize = "12px";
@@ -832,15 +714,16 @@ if (!compWrap) {
     }
 
 function updateComplianceMeter() {
-  const denom = Math.max(1, complianceChoices + resistanceChoices);
-  const pct = clamp(complianceChoices / denom, 0, 1);
+  const max = 10;
+  const pct = clamp(compliancePoints / max, 0, 1);
 
   HUD.compPip.style.width = `${(pct * 100).toFixed(1)}%`;
-  HUD.compTxt.textContent = `compliance: ${(pct * 100).toFixed(0)}%`;
+  HUD.compTxt.textContent = `compliance: ${compliancePoints}`;
 
-  if (pct >= COMPLIANCE_LIMIT) HUD.compPip.style.background = "rgba(255,80,80,0.85)";
-  else if (pct >= 0.20) HUD.compPip.style.background = "rgba(255,255,255,0.70)";
-  else HUD.compPip.style.background = "rgba(180,220,255,0.75)";
+  // color shifts as it climbs
+  if (pct >= 0.80) HUD.compPip.style.background = "rgba(180,220,255,0.85)";
+  else if (pct >= 0.40) HUD.compPip.style.background = "rgba(255,255,255,0.70)";
+  else HUD.compPip.style.background = "rgba(255,255,255,0.45)";
 }
 
 
@@ -957,6 +840,7 @@ function updateComplianceMeter() {
         .toLowerCase();
     }
 
+    // Pre-recorded VO is disabled: use generated (browser) TTS only.
     let VO = null;
     let VO_READY = false;
 
@@ -982,46 +866,17 @@ function updateComplianceMeter() {
     }
 
     async function ensureVoiceBank() {
-      if (VO_READY) return;
-      if (!window.VoiceBank) return;
-      VO = new window.VoiceBank({
-        voicesUrl: "/audio/data/voices.json",
-        onTag: () => {},
-      });
-      VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
-      await VO.load().catch(() => {});
+      // intentionally disabled
       VO_READY = true;
+      VO = null;
     }
 
-    // speaker configs for Azure
-    window.TTS_SPEAKERS = window.TTS_SPEAKERS || {
-      System: { voice: "en-US-GuyNeural", style: "", rate: "-6%", pitch: "-2Hz", volume: 1 },
-      Emma:   { voice: "en-US-ErinNeural", style: "serious", rate: "-4%", pitch: "-1Hz", volume: 1 },
-      Liam:   { voice: "en-US-DavisNeural", style: "calm", rate: "-2%", pitch: "-2Hz", volume: 1 },
-    };
-
-    async function playVoiceWavIfExists(rawLine) {
-      await ensureVoiceBank();
-      const id = getIdFromLine(rawLine);
-      if (!id || !VO) return false;
-
-      try {
-        await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false });
-        return true;
-      } catch {
-        return false;
-      }
+    async function playVoiceWavIfExists(_) {
+      // intentionally disabled (generated voice lines only)
+      return false;
     }
 
     function getTypingMsForLine(rawLine) {
-      try {
-        const id = getIdFromLine(rawLine);
-        if (id && VO && VO.byId) {
-          const meta = VO.byId.get(id);
-          const d = Number(meta?.duration_sec ?? meta?.durationSec ?? meta?.duration ?? 0);
-          if (Number.isFinite(d) && d > 0) return Math.floor(d * 1000);
-        }
-      } catch {}
       return msToRead(rawLine);
     }
 
@@ -1053,49 +908,101 @@ function updateComplianceMeter() {
     async function emitLine(line) {
       if (ABORTED) return;
 
-      // Visual sync: brief CRT "response" so dialogue feels tied to the monitor UI
-      try {
-        document.body.classList.add("ui-pulse");
-        clearTimeout(window.__TNR_UI_PULSE_T);
-        window.__TNR_UI_PULSE_T = setTimeout(() => {
-          document.body.classList.remove("ui-pulse");
-        }, 260);
-      } catch {}
-
       const raw = String(line || "");
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+      const { speaker, text } = parseSpeakerAndText(raw);
 
-	      // Music: briefly bias the stem mix toward the active speaker
-	      try {
-	        const { speaker } = parseSpeakerAndText(raw);
-	        const hold = Math.max(650, Math.min(2600, getTypingMsForLine(raw)));
-	        window.Music?.setVoiceFocus?.(speaker, hold);
-	      } catch {}
+      // Music: briefly bias the stem mix toward the active speaker
+      try {
+        const hold = Math.max(650, Math.min(2800, Math.floor(getTypingMsForLine(raw) * 1.35)));
+        window.Music?.setVoiceFocus?.(speaker, hold);
+      } catch {}
 
-      const typingMs = getTypingMsForLine(raw);
-      const typingPromise = typeLineIntoSim(printed, typingMs);
+      // --- System "drain" bed (subtle noise) while System speaks ---
+      try {
+        if (!window.__SYSBED) {
+          const a = new Audio("/assets/ambience.wav");
+          a.loop = true;
+          a.preload = "auto";
+          a.volume = 0;
+          window.__SYSBED = { a, target: 0, raf: 0 };
+        }
+        const bed = window.__SYSBED;
+        const want = (String(speaker || "").toLowerCase().includes("system")) ? 0.18 : 0.0;
+        bed.target = want;
 
-      const audioPromise = (async () => {
-        const playedWav = await playVoiceWavIfExists(raw);
-        if (playedWav) return;
+        if (!bed.raf) {
+          const tick = () => {
+            bed.raf = 0;
+            try {
+              const a = bed.a;
+              const cur = a.volume || 0;
+              const next = cur + (bed.target - cur) * 0.12;
+              a.volume = Math.max(0, Math.min(0.25, next));
+              if (bed.target > 0.01 && a.paused) {
+                a.play().catch(() => {});
+              }
+              if (bed.target <= 0.001 && a.volume <= 0.002 && !a.paused) {
+                a.pause();
+              }
+              bed.raf = requestAnimationFrame(tick);
+            } catch {}
+          };
+          bed.raf = requestAnimationFrame(tick);
+        }
+      } catch {}
 
-        // Browser TTS fallback (no server). Do not block typing on speech.
+      // Type the "Speaker:" prefix quickly and silently; speak+type the content together.
+      const full = String(printed || "");
+      const colon = full.indexOf(":");
+      let prefix = "";
+      let body = full;
+
+      if (colon >= 0 && colon < 40) {
+        prefix = full.slice(0, colon + 1);     // "Emma (Security):"
+        body = full.slice(colon + 1).replace(/^\s+/, ""); // without leading space
+      }
+
+      // Slow typing down slightly so it can match speech better.
+      const totalMs = Math.floor(getTypingMsForLine(raw) * 1.45);
+
+      async function typeChunk(str, perMs) {
+        const chars = [...String(str)];
+        for (const ch of chars) {
+          if (ABORTED) return;
+          simText.textContent += ch;
+          simText.scrollTop = simText.scrollHeight;
+          await wait(perMs);
+        }
+      }
+
+      // Prefix: fast
+      if (prefix) {
+        await typeChunk(prefix + " ", 10);
+      }
+
+      // Start TTS right as we begin typing the body (not the label)
+      const speakPromise = (async () => {
         try {
-          if (!window.TTS?.enqueue) return;
-
-          const { speaker, text } = parseSpeakerAndText(raw);
-          window.TTS.enqueue(String(text || "").trim(), { speaker });
+          const spoken = String(text || "").trim();
+          if (!spoken) return;
+          window.TTS?.enqueue?.(spoken, { speaker });
         } catch {}
       })();
 
-      await Promise.all([typingPromise, audioPromise]);
-    }
+      // Body: paced
+      const per = Math.max(18, Math.floor(totalMs / Math.max(1, [...body].length)));
+      await typeChunk(body, per);
+      simText.textContent += "\n";
+      simText.scrollTop = simText.scrollHeight;
 
-    async function playLines(lines) {
+      await speakPromise;
+    }
+async function playLines(lines) {
       for (const line of lines || []) {
         if (ABORTED) return;
         await emitLine(line);
-        await wait(70);
+        await wait(140);
       }
     }
 
@@ -1105,8 +1012,8 @@ function updateComplianceMeter() {
     function checkComplianceOrReset() {
   if (choiceTotal < MIN_CHOICES_BEFORE_CHECK) return true;
 
-  const denom = Math.max(1, complianceChoices + resistanceChoices);
-  const ratio = complianceChoices / denom;
+  const denom = Math.max(1, compliancePoints + resistancePoints);
+  const ratio = compliancePoints / denom;
 
   updateComplianceMeter();
 
@@ -1115,8 +1022,8 @@ function updateComplianceMeter() {
       "TOO COMPLIANT",
       `Compliance threshold exceeded.
 
-comply: ${complianceChoices}
-resist: ${resistanceChoices}
+compliance: ${compliancePoints}
+resistance: ${resistancePoints}
 ratio: ${(ratio * 100).toFixed(0)}%
 
 Reinitializing simulation…`
@@ -1173,9 +1080,11 @@ Reinitializing simulation…`
 
     let _taskResolve = null;
     let _taskDone = false;
+    let _allowContinue = false;
 
     function beginTaskGate() {
       _taskDone = false;
+      _allowContinue = false;
       _taskResolve = null;
       return new Promise((resolve) => { _taskResolve = resolve; });
     }
@@ -1183,6 +1092,11 @@ Reinitializing simulation…`
     function finishTaskGate(ok) {
       if (_taskDone) return;
       _taskDone = true;
+      // Earn compliance only if the task was cleared without any wrong attempts.
+      if (ok && taskWrongCount === 0) {
+        compliancePoints = Math.min(10, compliancePoints + 1);
+        updateComplianceMeter();
+      }
       try { _taskResolve?.(!!ok); } catch {}
     }
 
@@ -1215,6 +1129,13 @@ Reinitializing simulation…`
         activeTaskAnswer = "";
         updateAdminPanelForTask(activeTaskId, activeTaskAnswer);
       },
+      // Some tasks (rare) may allow a manual "Continue" fallback.
+      allowContinue() {
+        _allowContinue = true;
+        showFallbackContinue();
+      },
+
+
 
       success(msg = "Ok.") {
         try {
@@ -1226,11 +1147,7 @@ Reinitializing simulation…`
         } catch {}
 
         setTimeout(() => finishTaskGate(true), 380);
-
-        setTimeout(() => {
-          if (!_taskDone) showFallbackContinue();
-        }, 1500);
-      },
+},
 
       fail(msg = "Not accepted.") {
         try {
@@ -1244,6 +1161,14 @@ Reinitializing simulation…`
 
       penalize() {
         recordWrongAttempt();
+      },
+
+      getResistancePoints() {
+        return resistancePoints;
+      },
+
+      getCompliancePoints() {
+        return compliancePoints;
       },
 
       doReset,
@@ -1316,16 +1241,16 @@ choiceTotal++;
 if (choice === "comply") {
   guidePath = "emma";
   paceBias = -1;
-  complianceChoices += 1;
+  compliancePoints += 1;
 } else if (choice === "lie") {
   guidePath = "liam";
   paceBias = 1;
-  resistanceChoices += 1;
+  resistancePoints += 1;
   resistancePoints += 1;
 } else {
   guidePath = "run";
   paceBias = 2;
-  resistanceChoices += 1;
+  resistancePoints += 1;
   resistancePoints += 2;
 }
 
@@ -1355,26 +1280,26 @@ continue;
           try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
           activeTaskId = step.task;
-		  activeTaskAnswer = "";
-		  updateAdminPanelForTask(activeTaskId, activeTaskAnswer);
-		
-		// allow admin to skip *only* while a task gate is open
-		  window.__TNR_ADMIN_SKIP__ = () => {
-		    if (!isAdmin) return;
-		    finishTaskGate(true);
-		  };
-		
-		  taskWrongCount = 0;
-		
-		  const noTimer = !!(step.args && step.args.noTimer);
-		  if (!noTimer) {
-		    taskTimer = createTaskTimerController();
-		    taskTimer.resetForNewTask();
-		    taskTimer.show();
-		    taskTimer.start();
-		  } else {
-		    taskTimer = null;
-		  }
+activeTaskAnswer = "";
+updateAdminPanelForTask(activeTaskId, activeTaskAnswer);
+
+// allow admin to skip *only* while a task gate is open
+window.__TNR_ADMIN_SKIP__ = () => {
+  if (!isAdmin) return;
+  finishTaskGate(true);
+};
+
+taskWrongCount = 0;
+
+const noTimer = !!(step.args && step.args.noTimer);
+if (!noTimer) {
+  taskTimer = createTaskTimerController();
+  taskTimer.resetForNewTask();
+  taskTimer.show();
+  taskTimer.start();
+} else {
+  taskTimer = null;
+}
 
           const gate = beginTaskGate();
 
@@ -1466,4 +1391,13 @@ continue;
   }
 
   boot();
-})();
+})();function ensureAdminPanelOnBody(adminPanelEl) {
+      if (!adminPanelEl) return;
+      if (adminPanelEl.dataset.__moved === "1") return;
+      try {
+        document.body.appendChild(adminPanelEl);
+        adminPanelEl.dataset.__moved = "1";
+      } catch {}
+    }
+
+    
