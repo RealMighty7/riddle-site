@@ -34,7 +34,7 @@ body{
   z-index:80;
 }
 
-/* PROCEDURAL CRACK OVERLAY */
+/* PNG CRACK OVERLAY */
 #cracks{
   position:fixed;
   inset:0;
@@ -47,32 +47,13 @@ body{
 #cracksCanvas{
   width:100%;
   height:100%;
+  /* stretch/squish OK */
   display:block;
-  /* glass fracture reads best as multiply */
-  mix-blend-mode:multiply;
-  opacity:0.0;
-  filter: contrast(1.08) brightness(0.92);
-}
-
-/* stage tuning (subtle -> stronger but readable) */
-body.crack1 #cracksCanvas{ opacity:0.32; filter: contrast(1.05) brightness(0.94); }
-body.crack2 #cracksCanvas{ opacity:0.55; filter: contrast(1.10) brightness(0.92); }
-body.crack3 #cracksCanvas{ opacity:0.78; filter: contrast(1.14) brightness(0.90); }
-
-@keyframes crackJolt{
-  0%{ transform:translate3d(0,0,0); }
-  35%{ transform:translate3d(-0.6px,0.4px,0); }
-  70%{ transform:translate3d(0.5px,-0.3px,0); }
-  100%{ transform:translate3d(0,0,0); }
-}
-body.crack-jolt #cracksCanvas{ animation: crackJolt 220ms linear 1; }
-
-/* stage tuning (JS toggles body.crack1/2/3) */
-/* micro jolt when a new stage lands */
-@keyframes crackJolt{
-  0%{ transform: translate(0,0) scale(1); filter: contrast(1.25) brightness(0.98); }
-  55%{ transform: translate(-2px,2px) scale(1.01); }
-  100%{ transform: translate(0,0) scale(1); }
+  opacity:1;
+  transform:none;
+  filter:
+    drop-shadow(0 0 2px rgba(0,0,0,.25))
+    drop-shadow(0 0 14px rgba(0,0,0,.18));
 }
 
 /* when cracks start showing */
@@ -86,42 +67,6 @@ body.crack3 #cracks{
 body.in-sim #cracks{
   opacity:0 !important;
 }
-
-/* =====================
-   SIM: monitor UI frame
-   ===================== */
-#simRoom{
-  position: relative;
-}
-
-/* subtle monitor overlay that does NOT block interaction */
-#simRoom::after{
-  content:"";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 40;
-  opacity: .85;
-  background: url('/assets/monitor_ui.svg') center/cover no-repeat;
-  mix-blend-mode: screen;
-  filter: contrast(1.12) brightness(1.06);
-}
-
-/* keep sim content above monitor */
-#simRoom .simCard{ position: relative; z-index: 45; }
-
-/* TASK UI becomes a panel inside sim instead of replacing it */
-body.task-open #taskUI{
-  position: fixed;
-  inset: auto 4vw 8vh auto;
-  width: min(520px, 42vw);
-  max-height: 70vh;
-  overflow: auto;
-  z-index: 60;
-  display: block;
-}
-body.task-open #simRoom{ opacity: 1; }
-
 
 /* cinematic shatter helpers */
 body.sim-transition #glassFX{
@@ -262,6 +207,39 @@ body.in-sim{
   color: var(--sim-fg);
 }
 body.in-sim #wrap{ display:none; }
+body.in-sim #glassFX{ opacity:0 !important; }
+
+/* ========= Monitor shell overlay (applies to sim + task + hack so it feels connected) ========= */
+body.in-sim::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background: url("/assets/monitor_ui.svg") center/cover no-repeat;
+  opacity: 0.95;
+  mix-blend-mode: screen;
+  filter: contrast(1.05) brightness(1.02);
+}
+
+/* Different "modes" slightly tint the monitor */
+body.hack-open::before{ filter: contrast(1.12) brightness(1.06); }
+body.task-open::before{ filter: contrast(1.08) brightness(1.04); }
+
+/* global scanlines live above the bezel but below text */
+body.in-sim::after{
+  content:"";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 101;
+  opacity: .10;
+  background:
+    linear-gradient(rgba(255,255,255,.06), rgba(255,255,255,0) 3px),
+    repeating-linear-gradient(180deg, rgba(0,0,0,.22) 0px, rgba(0,0,0,.22) 1px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px);
+  mix-blend-mode: overlay;
+  animation: sim_scan 2.6s linear infinite;
+}
 
 #simRoom{
   position:fixed;
@@ -269,9 +247,20 @@ body.in-sim #wrap{ display:none; }
   display:flex;
   align-items:flex-start;
   justify-content:center;
-  padding: 22px 16px 180px;
-  z-index:90;
+  padding: 34px 18px 190px;
+  /* keep sim above any lingering glassFX / transition overlays */
+  z-index:110;
 }
+
+/* (scanlines moved to body.in-sim::after so tasks/hack feel inside the same monitor) */
+@keyframes sim_scan{
+  0%{ transform: translateY(-12px); }
+  100%{ transform: translateY(12px); }
+}
+
+/* brief "desync" burst toggled by JS */
+body.sim-glitch::after{ opacity:.22; }
+body.sim-glitch .simCard{ filter: blur(.3px) contrast(1.08); transform: translateX(-0.8px) translateY(0.4px); }
 
 .simCard{
   width: min(860px, 100%);
@@ -279,6 +268,18 @@ body.in-sim #wrap{ display:none; }
   background: rgba(255,255,255,.04);
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
+}
+
+@keyframes ui_pulse{
+  0%{ filter: brightness(1) contrast(1); box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+  30%{ filter: brightness(1.08) contrast(1.05); box-shadow: 0 12px 30px rgba(0,0,0,.45); }
+  100%{ filter: brightness(1) contrast(1); box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+}
+
+body.ui-pulse .simCard,
+body.ui-pulse .taskCard,
+body.ui-pulse .hackCard{
+  animation: ui_pulse 260ms ease-out 1;
 }
 
 #simText{
@@ -310,14 +311,15 @@ body.in-sim #wrap{ display:none; }
   display:flex;
   align-items:flex-start;
   justify-content:center;
-  padding: 22px 16px 130px;
-  z-index:75;
+  /* match simRoom so panels feel docked inside the same screen */
+  padding: 34px 18px 190px;
+  z-index:112;
 }
 
 .taskCard{
   width: min(700px, 100%);
   border:1px solid var(--sim-line);
-  background: rgba(255,255,255,.04);
+  background: rgba(255,255,255,.06);
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
 }
@@ -364,13 +366,14 @@ body.in-sim #wrap{ display:none; }
   display:flex;
   align-items:flex-start;
   justify-content:center;
-  padding: 22px 16px 130px;
-  z-index:76;
+  /* match simRoom so panels feel docked inside the same screen */
+  padding: 34px 18px 190px;
+  z-index:113;
 }
 .hackCard{
   width: min(860px, 100%);
   border:1px solid var(--sim-line);
-  background: rgba(255,255,255,.04);
+  background: rgba(255,255,255,.06);
   border-radius: 18px;
   box-shadow: 0 10px 24px rgba(0,0,0,.35);
 }
@@ -473,3 +476,66 @@ body.in-sim #wrap{ display:none; }
 .hackLine.sel{ background: rgba(255,255,255,0.10); outline:1px solid rgba(255,255,255,0.16); }
 
 .viewerKey{min-width:240px; padding:10px 12px; border-radius:10px; border:1px solid rgba(0,0,0,0.14); background:rgba(255,255,255,0.9); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;}
+
+
+/* ====== Browser-TTS / Sim fixes ====== */
+
+/* Keep admin tools available during sim */
+body.in-sim #adminPanel{
+  position:fixed;
+  top:12px;
+  right:12px;
+  z-index:140;
+  max-width:320px;
+}
+
+/* Hack terminal: no scroll-back, just falling text */
+.hackView{
+  overflow:hidden !important;
+  max-height:320px;
+  min-height:320px;
+  user-select:none;
+  -ms-overflow-style:none;
+  scrollbar-width:none;
+}
+.hackView::-webkit-scrollbar{ display:none; }
+
+.hackLine{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: pre;
+}
+.hackLine.sel{
+  outline:1px solid rgba(255,255,255,.22);
+  background: rgba(255,255,255,.04);
+}
+.hackLine.red{
+  color: rgba(255,90,90,.92);
+}
+
+/* File chooser */
+.fileBar{
+  display:grid;
+  gap:10px;
+  margin: 10px 0;
+}
+.fileRow{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.fileBtn{
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.14);
+  color: rgba(255,255,255,.88);
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+.fileBtn:hover{ background: rgba(255,255,255,.06); }
+.fileBtn.bad{
+  border-color: rgba(255,80,80,.55);
+}
+
