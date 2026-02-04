@@ -910,34 +910,99 @@ function updateComplianceMeter() {
 
       const raw = String(line || "");
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+      const { speaker, text } = parseSpeakerAndText(raw);
 
-	      // Music: briefly bias the stem mix toward the active speaker
-	      try {
-	        const { speaker } = parseSpeakerAndText(raw);
-	        const hold = Math.max(650, Math.min(2600, getTypingMsForLine(raw)));
-	        window.Music?.setVoiceFocus?.(speaker, hold);
-	      } catch {}
+      // Music: briefly bias the stem mix toward the active speaker
+      try {
+        const hold = Math.max(650, Math.min(2800, Math.floor(getTypingMsForLine(raw) * 1.35)));
+        window.Music?.setVoiceFocus?.(speaker, hold);
+      } catch {}
 
-      const typingMs = getTypingMsForLine(raw);
-      const typingPromise = typeLineIntoSim(printed, typingMs);
+      // --- System "drain" bed (subtle noise) while System speaks ---
+      try {
+        if (!window.__SYSBED) {
+          const a = new Audio("/assets/ambience.wav");
+          a.loop = true;
+          a.preload = "auto";
+          a.volume = 0;
+          window.__SYSBED = { a, target: 0, raf: 0 };
+        }
+        const bed = window.__SYSBED;
+        const want = (String(speaker || "").toLowerCase().includes("system")) ? 0.18 : 0.0;
+        bed.target = want;
 
-      const audioPromise = (async () => {
-        // Generated speech only (no pre-recorded VO)
+        if (!bed.raf) {
+          const tick = () => {
+            bed.raf = 0;
+            try {
+              const a = bed.a;
+              const cur = a.volume || 0;
+              const next = cur + (bed.target - cur) * 0.12;
+              a.volume = Math.max(0, Math.min(0.25, next));
+              if (bed.target > 0.01 && a.paused) {
+                a.play().catch(() => {});
+              }
+              if (bed.target <= 0.001 && a.volume <= 0.002 && !a.paused) {
+                a.pause();
+              }
+              bed.raf = requestAnimationFrame(tick);
+            } catch {}
+          };
+          bed.raf = requestAnimationFrame(tick);
+        }
+      } catch {}
+
+      // Type the "Speaker:" prefix quickly and silently; speak+type the content together.
+      const full = String(printed || "");
+      const colon = full.indexOf(":");
+      let prefix = "";
+      let body = full;
+
+      if (colon >= 0 && colon < 40) {
+        prefix = full.slice(0, colon + 1);     // "Emma (Security):"
+        body = full.slice(colon + 1).replace(/^\s+/, ""); // without leading space
+      }
+
+      // Slow typing down slightly so it can match speech better.
+      const totalMs = Math.floor(getTypingMsForLine(raw) * 1.45);
+
+      async function typeChunk(str, perMs) {
+        const chars = [...String(str)];
+        for (const ch of chars) {
+          if (ABORTED) return;
+          simText.textContent += ch;
+          simText.scrollTop = simText.scrollHeight;
+          await wait(perMs);
+        }
+      }
+
+      // Prefix: fast
+      if (prefix) {
+        await typeChunk(prefix + " ", 10);
+      }
+
+      // Start TTS right as we begin typing the body (not the label)
+      const speakPromise = (async () => {
         try {
-          if (!window.TTS?.enqueue) return;
-          const { speaker, text } = parseSpeakerAndText(raw);
-          window.TTS.enqueue(String(text || "").trim(), { speaker });
+          const spoken = String(text || "").trim();
+          if (!spoken) return;
+          window.TTS?.enqueue?.(spoken, { speaker });
         } catch {}
       })();
 
-      await Promise.all([typingPromise, audioPromise]);
-    }
+      // Body: paced
+      const per = Math.max(18, Math.floor(totalMs / Math.max(1, [...body].length)));
+      await typeChunk(body, per);
+      simText.textContent += "\n";
+      simText.scrollTop = simText.scrollHeight;
 
-    async function playLines(lines) {
+      await speakPromise;
+    }
+async function playLines(lines) {
       for (const line of lines || []) {
         if (ABORTED) return;
         await emitLine(line);
-        await wait(70);
+        await wait(140);
       }
     }
 
@@ -1015,9 +1080,11 @@ Reinitializing simulation…`
 
     let _taskResolve = null;
     let _taskDone = false;
+    let _allowContinue = false;
 
     function beginTaskGate() {
       _taskDone = false;
+      _allowContinue = false;
       _taskResolve = null;
       return new Promise((resolve) => { _taskResolve = resolve; });
     }
@@ -1062,6 +1129,13 @@ Reinitializing simulation…`
         activeTaskAnswer = "";
         updateAdminPanelForTask(activeTaskId, activeTaskAnswer);
       },
+      // Some tasks (rare) may allow a manual "Continue" fallback.
+      allowContinue() {
+        _allowContinue = true;
+        showFallbackContinue();
+      },
+
+
 
       success(msg = "Ok.") {
         try {
@@ -1073,11 +1147,7 @@ Reinitializing simulation…`
         } catch {}
 
         setTimeout(() => finishTaskGate(true), 380);
-
-        setTimeout(() => {
-          if (!_taskDone) showFallbackContinue();
-        }, 1500);
-      },
+},
 
       fail(msg = "Not accepted.") {
         try {
