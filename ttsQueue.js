@@ -35,14 +35,14 @@
 
   // Base personality tuning
   const BASE = {
-    emma:   { rate: 0.98, pitch: 1.02, volume: 1.0 },
-    liam:   { rate: 1.02, pitch: 0.98, volume: 1.0 },
-    system: { rate: 0.94, pitch: 0.80, volume: 0.92 },
+    emma:   { rate: 0.95, pitch: 0.95, volume: 1.0 },
+    liam:   { rate: 0.99, pitch: 1.06, volume: 0.86 },
+    system: { rate: 0.92, pitch: 0.78, volume: 0.85 },
   };
 
   // Subtle “humanization” jitter per utterance
   function withJitter(base, speaker) {
-    const j = speaker === "system" ? 0.015 : 0.03;
+    const j = speaker === "system" ? 0.012 : 0.022;
     const r = base.rate * (1 + (Math.random() * 2 - 1) * j);
     const p = base.pitch + (Math.random() * 2 - 1) * (speaker === "system" ? 0.02 : 0.04);
     return {
