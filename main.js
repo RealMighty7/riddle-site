@@ -26,7 +26,6 @@
     const REQUIRED_IDS = [
       "system",
       "cracks",
-      "cracksImg",
       "glassFX",
       "subs",
       "subsName",
@@ -88,7 +87,6 @@
 
     const systemBox = els.system;
     const cracks = els.cracks;
-    const cracksImg = els.cracksImg;
     const glassFX = els.glassFX;
 
     const simRoom = els.simRoom;
@@ -1323,3 +1321,121 @@ if (!noTimer) {
 
   boot();
 })();
+// main.js — canvas-only crack pipeline (PNG removed)
+
+(() => {
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+  function boot() {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot, { once: true });
+      return;
+    }
+
+    const REQUIRED_IDS = [
+      "cracks",
+      "cracksCanvas"
+    ];
+
+    const els = Object.fromEntries(REQUIRED_IDS.map(id => [id, document.getElementById(id)]));
+    const missing = REQUIRED_IDS.filter(id => !els[id]);
+    if (missing.length) {
+      console.error("Missing required element IDs:", missing);
+      return;
+    }
+
+    const cracks = els.cracks;
+    const cracksCanvas = els.cracksCanvas;
+
+    const crackState = {
+      stage: 0,
+      seed: (Date.now() ^ (Math.random() * 1e9)) >>> 0,
+      paths: []
+    };
+
+    function sRand() {
+      let x = crackState.seed | 0;
+      x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
+      crackState.seed = x >>> 0;
+      return (crackState.seed & 0xffffffff) / 4294967296;
+    }
+
+    function resizeCracksCanvas() {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      cracksCanvas.width = Math.floor(innerWidth * dpr);
+      cracksCanvas.height = Math.floor(innerHeight * dpr);
+      cracksCanvas.style.width = "100%";
+      cracksCanvas.style.height = "100%";
+      drawCracks();
+    }
+
+    function newCrackPath() {
+      const w = cracksCanvas.width;
+      const h = cracksCanvas.height;
+      const pts = [{ x: sRand()*w, y: sRand()*h }];
+      for (let i=0;i<30;i++) {
+        const last = pts[pts.length-1];
+        pts.push({
+          x: last.x + (sRand()-0.5)*40,
+          y: last.y + (sRand()-0.5)*40
+        });
+      }
+      return pts;
+    }
+
+    function ensureCracksForStage(stage) {
+      const want = stage === 1 ? 5 : stage === 2 ? 10 : stage === 3 ? 16 : 0;
+      while (crackState.paths.length < want) crackState.paths.push(newCrackPath());
+      while (crackState.paths.length > want) crackState.paths.pop();
+    }
+
+    function drawCracks() {
+      const ctx = cracksCanvas.getContext("2d");
+      ctx.clearRect(0,0,cracksCanvas.width,cracksCanvas.height);
+      if (!crackState.paths.length) return;
+      ctx.strokeStyle = "rgba(0,0,0,0.6)";
+      ctx.lineWidth = 1.5;
+      for (const pts of crackState.paths) {
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+      }
+    }
+
+    function setCrackStage(n) {
+      const stageN = clamp(n,0,3);
+      crackState.stage = stageN;
+
+      document.body.classList.toggle("crack1", stageN>=1);
+      document.body.classList.toggle("crack2", stageN>=2);
+      document.body.classList.toggle("crack3", stageN>=3);
+
+      if (stageN === 0) {
+        crackState.paths.length = 0;
+        drawCracks();
+        cracks.style.opacity = "0";
+        return;
+      }
+
+      cracks.style.opacity = "1";
+      ensureCracksForStage(stageN);
+      drawCracks();
+    }
+
+    resizeCracksCanvas();
+    window.addEventListener("resize", resizeCracksCanvas);
+
+    // demo: click to advance cracks
+    let clicks = 0;
+    document.addEventListener("pointerdown", () => {
+      clicks++;
+      if (clicks === 1) setCrackStage(1);
+      if (clicks === 3) setCrackStage(2);
+      if (clicks === 6) setCrackStage(3);
+    });
+  }
+
+  boot();
+})();
+  
