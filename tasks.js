@@ -357,10 +357,6 @@
     ctx.taskBody.append(rule, gate, msg, table);
   };
 
-      row.appendChild(b);
-    });
-    try { ctx.setAnswer?.(correct); } catch {}
-  };
 
   /* =========================
      Final hack task
