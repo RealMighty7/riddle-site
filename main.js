@@ -8,6 +8,11 @@
 
     function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
     function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
+    async function nextFrame(n = 1) {
+      while (n-- > 0) {
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+    }
 
     const DIALOGUE = window.DIALOGUE;
     const TASKS = window.TASKS;
@@ -75,14 +80,6 @@
     const ids = [...REQUIRED_IDS, ...OPTIONAL_IDS];
     const els = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
-    // Keep admin panel visible in simulation (the sim hides #wrap).
-    try {
-      const ap = els.adminPanel;
-      if (ap && ap.parentElement && ap.parentElement.id === "wrap") {
-        document.body.appendChild(ap);
-      }
-    } catch {}
-
     const missingRequired = REQUIRED_IDS.filter((id) => !els[id]);
     if (missingRequired.length) {
       console.error("Missing required element IDs:", missingRequired);
@@ -136,6 +133,10 @@
 
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
+    // Unlock browser TTS on first user interaction
+    window.addEventListener("pointerdown", () => {
+      window.TTS?.unlockOnce?.();
+    }, { once: true });
 
     /* ======================
        ABORT FLAG
@@ -143,14 +144,7 @@
     let ABORTED = false;
 
     /* ====================== SFX ====================== */
-    const __SFX_LAST__ = Object.create(null);
     function playSfx(name, opts = {}) {
-      const now = performance.now();
-      const key = String(name || "");
-      const minGap = key.startsWith("glitch") ? 900 : key.startsWith("static") ? 700 : 120;
-      if (__SFX_LAST__[key] && (now - __SFX_LAST__[key] < minGap)) return;
-      __SFX_LAST__[key] = now;
-
       if (typeof window.playSfx === "function") {
         const map = {
           glitch1: "glitch",
@@ -216,9 +210,8 @@
       if (audioUnlocked) return;
       audioUnlocked = true;
       try { await window.AudioPlayer?.unlock?.(); } catch {}
-      // Browser TTS: prime on user gesture (no pre-recorded VO in this build)
-      try { window.TTS?.unlockOnce?.(); } catch {}
       try { await window.TTS?.unlock?.(); } catch {}
+      try { await VO?.unlockAudio?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
     }
@@ -259,11 +252,11 @@
     const MIN_CHOICES_BEFORE_CHECK = 10;
 
     let choiceTotal = 0;
-    // "Compliance" is earned only by perfect task clears (no wrong attempts).
-    let compliancePoints = 0;
-    let resistancePoints = 0;
+    let complianceChoices = 0;
+    let resistanceChoices = 0;
 
     // resistancePoints affects timer/difficulty (choices + wrong attempts)
+    let resistancePoints = 0;
 
     /* ======================
        PNG CRACK OVERLAYS
@@ -350,7 +343,6 @@ async function runTriGlitch(msTotal = 2000) {
   wrap.style.opacity = "1";
 
   const start = performance.now();
-  let sfxTick = 0;
   while (!ABORTED && performance.now() - start < msTotal) {
     // flicker between landing and sim tones
     document.body.classList.toggle("tri-flicker", Math.random() > 0.45);
@@ -359,41 +351,13 @@ async function runTriGlitch(msTotal = 2000) {
       d.style.transform = `translate(${(Math.random()*10-5).toFixed(1)}px, ${(Math.random()*10-5).toFixed(1)}px)`;
       d.style.opacity = String(0.08 + Math.random() * 0.25);
     });
-    // keep this sparse; constant spam feels "broken" instead of glitchy
-    if ((sfxTick++ % 3) === 0) playSfx("glitch2", { volume: 0.08, overlap: true });
+    playSfx("glitch2", { volume: 0.10, overlap: true });
     await wait(80 + Math.random() * 90);
   }
 
   document.body.classList.remove("tri-flicker");
   wrap.style.opacity = "0";
   await wait(200);
-}
-
-// Subtle sim-room glitch texture (brief "desync" bursts).
-// This replaces the old heavy shake/spam feel with a low-key glitchy tone.
-let SIM_GLITCH_ON = false;
-function startSimGlitchLoop() {
-  if (SIM_GLITCH_ON) return;
-  SIM_GLITCH_ON = true;
-
-  const loop = () => {
-    if (!SIM_GLITCH_ON) return;
-    if (!document.body.classList.contains("in-sim")) {
-      setTimeout(loop, 800);
-      return;
-    }
-
-    // 1-in-3 chance to do a short burst
-    if (Math.random() < 0.34) {
-      document.body.classList.add("sim-glitch");
-      playSfx("glitch1", { volume: 0.08, overlap: true });
-      setTimeout(() => document.body.classList.remove("sim-glitch"), 70 + Math.random() * 110);
-    }
-
-    setTimeout(loop, 420 + Math.random() * 1200);
-  };
-
-  setTimeout(loop, 600);
 }
 
     async function shatterAndEnterSim() {
@@ -412,41 +376,48 @@ function startSimGlitchLoop() {
         document.body.appendChild(cb);
       }
 
-      // stage the fracture so it doesn't feel like an instant decal
-      setCrackStage(2);
+      // Stage the fracture so it doesn't look like a single decal pop.
+      // (Give the browser a paint between stages.)
+      setCrackStage(1);
+      cracks.style.opacity = "1";
+      await nextFrame(2);
+
       document.body.classList.add("crack-jolt");
       setTimeout(() => document.body.classList.remove("crack-jolt"), 260);
-      setTimeout(() => {
-        setCrackStage(3);
-        document.body.classList.add("crack-jolt");
-        setTimeout(() => document.body.classList.remove("crack-jolt"), 260);
-      }, 220);
+
+      setCrackStage(2);
+      await wait(180);
+      await nextFrame(1);
+
+      document.body.classList.add("crack-jolt");
+      setTimeout(() => document.body.classList.remove("crack-jolt"), 260);
+      setCrackStage(3);
 
       document.body.classList.add("shatter-cine");
 
-      playSfx("glassBreak", { volume: 0.70, overlap: false });
-      playSfx("glitch2", { volume: 0.14, overlap: true });
-      setTimeout(() => playSfx("static1", { volume: 0.12, overlap: true }), 140);
+      playSfx("glassBreak", { volume: 0.75, overlap: false });
+      playSfx("glitch2", { volume: 0.20, overlap: true });
+      setTimeout(() => playSfx("static1", { volume: 0.16, overlap: true }), 120);
 
-      // short, controlled transition (no long blackout)
-      await runTriGlitch(1200);
+      // Triangular glitch between landing + sim (shorter, more deliberate)
+      await runTriGlitch(1250);
 
       // remove crack overlays before committing to sim
       setCrackStage(0);
       cracks.style.opacity = "0";
 
-      // brief cut to black, then reveal sim while dialogue runs
-      await wait(80);
+      await wait(120);
       document.body.classList.add("cut-black");
       await wait(160);
 
-      // IMPORTANT: remove cursor hide + blackout BEFORE sim script continues
-      document.body.classList.remove("cut-black");
-      document.body.classList.remove("shatter-cine");
-
-      await openSimRoom();
-
-      document.body.classList.remove("sim-transition");
+      try {
+        await openSimRoom();
+      } finally {
+        // Always restore cursor/transition state even if something errors.
+        document.body.classList.remove("cut-black");
+        document.body.classList.remove("shatter-cine");
+        document.body.classList.remove("sim-transition");
+      }
     }
 
     function isClickableTarget(e) {
@@ -692,7 +663,7 @@ if (!compWrap) {
 
   compTxt = document.createElement("div");
   compTxt.id = "compMeterTxt";
-    compTxt.textContent = "compliance: 0";
+  compTxt.textContent = "compliance: 0%";
   compTxt.style.fontFamily =
     "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
   compTxt.style.fontSize = "12px";
@@ -721,16 +692,15 @@ if (!compWrap) {
     }
 
 function updateComplianceMeter() {
-  const max = 10;
-  const pct = clamp(compliancePoints / max, 0, 1);
+  const denom = Math.max(1, complianceChoices + resistanceChoices);
+  const pct = clamp(complianceChoices / denom, 0, 1);
 
   HUD.compPip.style.width = `${(pct * 100).toFixed(1)}%`;
-  HUD.compTxt.textContent = `compliance: ${compliancePoints}`;
+  HUD.compTxt.textContent = `compliance: ${(pct * 100).toFixed(0)}%`;
 
-  // color shifts as it climbs
-  if (pct >= 0.80) HUD.compPip.style.background = "rgba(180,220,255,0.85)";
-  else if (pct >= 0.40) HUD.compPip.style.background = "rgba(255,255,255,0.70)";
-  else HUD.compPip.style.background = "rgba(255,255,255,0.45)";
+  if (pct >= COMPLIANCE_LIMIT) HUD.compPip.style.background = "rgba(255,80,80,0.85)";
+  else if (pct >= 0.20) HUD.compPip.style.background = "rgba(255,255,255,0.70)";
+  else HUD.compPip.style.background = "rgba(180,220,255,0.75)";
 }
 
 
@@ -847,7 +817,6 @@ function updateComplianceMeter() {
         .toLowerCase();
     }
 
-    // Pre-recorded VO is disabled: use generated (browser) TTS only.
     let VO = null;
     let VO_READY = false;
 
@@ -873,17 +842,46 @@ function updateComplianceMeter() {
     }
 
     async function ensureVoiceBank() {
-      // intentionally disabled
+      if (VO_READY) return;
+      if (!window.VoiceBank) return;
+      VO = new window.VoiceBank({
+        voicesUrl: "/audio/data/voices.json",
+        onTag: () => {},
+      });
+      VO.bindSubtitleUI({ nameEl: subsName, subtitleEl: subsText });
+      await VO.load().catch(() => {});
       VO_READY = true;
-      VO = null;
     }
 
-    async function playVoiceWavIfExists(_) {
-      // intentionally disabled (generated voice lines only)
-      return false;
+    // speaker configs for Azure
+    window.TTS_SPEAKERS = window.TTS_SPEAKERS || {
+      System: { voice: "en-US-GuyNeural", style: "", rate: "-6%", pitch: "-2Hz", volume: 1 },
+      Emma:   { voice: "en-US-ErinNeural", style: "serious", rate: "-4%", pitch: "-1Hz", volume: 1 },
+      Liam:   { voice: "en-US-DavisNeural", style: "calm", rate: "-2%", pitch: "-2Hz", volume: 1 },
+    };
+
+    async function playVoiceWavIfExists(rawLine) {
+      await ensureVoiceBank();
+      const id = getIdFromLine(rawLine);
+      if (!id || !VO) return false;
+
+      try {
+        await VO.playById(id, { volume: 1.0, baseHoldMs: 160, stopPrevious: false });
+        return true;
+      } catch {
+        return false;
+      }
     }
 
     function getTypingMsForLine(rawLine) {
+      try {
+        const id = getIdFromLine(rawLine);
+        if (id && VO && VO.byId) {
+          const meta = VO.byId.get(id);
+          const d = Number(meta?.duration_sec ?? meta?.durationSec ?? meta?.duration ?? 0);
+          if (Number.isFinite(d) && d > 0) return Math.floor(d * 1000);
+        }
+      } catch {}
       return msToRead(rawLine);
     }
 
@@ -917,99 +915,48 @@ function updateComplianceMeter() {
 
       const raw = String(line || "");
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
-      const { speaker, text } = parseSpeakerAndText(raw);
 
-      // Music: briefly bias the stem mix toward the active speaker
-      try {
-        const hold = Math.max(650, Math.min(2800, Math.floor(getTypingMsForLine(raw) * 1.35)));
-        window.Music?.setVoiceFocus?.(speaker, hold);
-      } catch {}
+      const typingMs = getTypingMsForLine(raw);
+      const typingPromise = typeLineIntoSim(printed, typingMs);
 
-      // --- System "drain" bed (subtle noise) while System speaks ---
-      try {
-        if (!window.__SYSBED) {
-          const a = new Audio("/assets/ambience.wav");
-          a.loop = true;
-          a.preload = "auto";
-          a.volume = 0;
-          window.__SYSBED = { a, target: 0, raf: 0 };
-        }
-        const bed = window.__SYSBED;
-        const want = (String(speaker || "").toLowerCase().includes("system")) ? 0.18 : 0.0;
-        bed.target = want;
-
-        if (!bed.raf) {
-          const tick = () => {
-            bed.raf = 0;
-            try {
-              const a = bed.a;
-              const cur = a.volume || 0;
-              const next = cur + (bed.target - cur) * 0.12;
-              a.volume = Math.max(0, Math.min(0.25, next));
-              if (bed.target > 0.01 && a.paused) {
-                a.play().catch(() => {});
-              }
-              if (bed.target <= 0.001 && a.volume <= 0.002 && !a.paused) {
-                a.pause();
-              }
-              bed.raf = requestAnimationFrame(tick);
-            } catch {}
-          };
-          bed.raf = requestAnimationFrame(tick);
-        }
-      } catch {}
-
-      // Type the "Speaker:" prefix quickly and silently; speak+type the content together.
-      const full = String(printed || "");
-      const colon = full.indexOf(":");
-      let prefix = "";
-      let body = full;
-
-      if (colon >= 0 && colon < 40) {
-        prefix = full.slice(0, colon + 1);     // "Emma (Security):"
-        body = full.slice(colon + 1).replace(/^\s+/, ""); // without leading space
-      }
-
-      // Slow typing down slightly so it can match speech better.
-      const totalMs = Math.floor(getTypingMsForLine(raw) * 1.45);
-
-      async function typeChunk(str, perMs) {
-        const chars = [...String(str)];
-        for (const ch of chars) {
-          if (ABORTED) return;
-          simText.textContent += ch;
-          simText.scrollTop = simText.scrollHeight;
-          await wait(perMs);
-        }
-      }
-
-      // Prefix: fast
-      if (prefix) {
-        await typeChunk(prefix + " ", 10);
-      }
-
-      // Start TTS right as we begin typing the body (not the label)
-      const speakPromise = (async () => {
+      const audioPromise = (async () => {
+        const playedWav = await playVoiceWavIfExists(raw);
         try {
-          const spoken = String(text || "").trim();
-          if (!spoken) return;
-          window.TTS?.enqueue?.(spoken, { speaker });
+          const { speaker } = parseSpeakerAndText(raw);
+          const hold = Math.max(650, Math.min(2600, getTypingMsForLine(raw)));
+          window.Music?.setVoiceFocus?.(speaker, hold);
+        } catch {}
+        if (playedWav) return;
+
+        // Always fall back to Azure if available (fixes "lines not preuploaded don't play")
+        try {
+          if (!window.TTS) return;
+
+          const { speaker, text } = parseSpeakerAndText(raw);
+          const cfg =
+            window.TTS_SPEAKERS?.[speaker] ||
+            window.TTS_SPEAKERS?.System ||
+            window.TTS_SPEAKERS?.System;
+
+          await window.TTS.enqueue({
+            voice: cfg.voice,
+            style: cfg.style ?? "",
+            rate: cfg.rate ?? null,
+            pitch: cfg.pitch ?? null,
+            volume: cfg.volume ?? 1,
+            text: String(text || "").trim(),
+          });
         } catch {}
       })();
 
-      // Body: paced
-      const per = Math.max(18, Math.floor(totalMs / Math.max(1, [...body].length)));
-      await typeChunk(body, per);
-      simText.textContent += "\n";
-      simText.scrollTop = simText.scrollHeight;
-
-      await speakPromise;
+      await Promise.all([typingPromise, audioPromise]);
     }
-async function playLines(lines) {
+
+    async function playLines(lines) {
       for (const line of lines || []) {
         if (ABORTED) return;
         await emitLine(line);
-        await wait(140);
+        await wait(70);
       }
     }
 
@@ -1019,8 +966,8 @@ async function playLines(lines) {
     function checkComplianceOrReset() {
   if (choiceTotal < MIN_CHOICES_BEFORE_CHECK) return true;
 
-  const denom = Math.max(1, compliancePoints + resistancePoints);
-  const ratio = compliancePoints / denom;
+  const denom = Math.max(1, complianceChoices + resistanceChoices);
+  const ratio = complianceChoices / denom;
 
   updateComplianceMeter();
 
@@ -1029,8 +976,8 @@ async function playLines(lines) {
       "TOO COMPLIANT",
       `Compliance threshold exceeded.
 
-compliance: ${compliancePoints}
-resistance: ${resistancePoints}
+comply: ${complianceChoices}
+resist: ${resistanceChoices}
 ratio: ${(ratio * 100).toFixed(0)}%
 
 Reinitializing simulation…`
@@ -1087,11 +1034,9 @@ Reinitializing simulation…`
 
     let _taskResolve = null;
     let _taskDone = false;
-    let _allowContinue = false;
 
     function beginTaskGate() {
       _taskDone = false;
-      _allowContinue = false;
       _taskResolve = null;
       return new Promise((resolve) => { _taskResolve = resolve; });
     }
@@ -1099,11 +1044,6 @@ Reinitializing simulation…`
     function finishTaskGate(ok) {
       if (_taskDone) return;
       _taskDone = true;
-      // Earn compliance only if the task was cleared without any wrong attempts.
-      if (ok && taskWrongCount === 0) {
-        compliancePoints = Math.min(10, compliancePoints + 1);
-        updateComplianceMeter();
-      }
       try { _taskResolve?.(!!ok); } catch {}
     }
 
@@ -1136,13 +1076,6 @@ Reinitializing simulation…`
         activeTaskAnswer = "";
         updateAdminPanelForTask(activeTaskId, activeTaskAnswer);
       },
-      // Some tasks (rare) may allow a manual "Continue" fallback.
-      allowContinue() {
-        _allowContinue = true;
-        showFallbackContinue();
-      },
-
-
 
       success(msg = "Ok.") {
         try {
@@ -1154,7 +1087,11 @@ Reinitializing simulation…`
         } catch {}
 
         setTimeout(() => finishTaskGate(true), 380);
-},
+
+        setTimeout(() => {
+          if (!_taskDone) showFallbackContinue();
+        }, 1500);
+      },
 
       fail(msg = "Not accepted.") {
         try {
@@ -1168,14 +1105,6 @@ Reinitializing simulation…`
 
       penalize() {
         recordWrongAttempt();
-      },
-
-      getResistancePoints() {
-        return resistancePoints;
-      },
-
-      getCompliancePoints() {
-        return compliancePoints;
       },
 
       doReset,
@@ -1248,16 +1177,16 @@ choiceTotal++;
 if (choice === "comply") {
   guidePath = "emma";
   paceBias = -1;
-  compliancePoints += 1;
+  complianceChoices += 1;
 } else if (choice === "lie") {
   guidePath = "liam";
   paceBias = 1;
-  resistancePoints += 1;
+  resistanceChoices += 1;
   resistancePoints += 1;
 } else {
   guidePath = "run";
   paceBias = 2;
-  resistancePoints += 1;
+  resistanceChoices += 1;
   resistancePoints += 2;
 }
 
@@ -1276,7 +1205,8 @@ continue;
           }
 
           document.body.classList.add("task-open");
-          simRoom.classList.add("hidden");
+          // Keep sim log visible; task UI is a panel layered on top.
+          simRoom.classList.remove("hidden");
           simChoices.classList.add("hidden");
           hackRoom.classList.add("hidden");
 
@@ -1354,13 +1284,7 @@ if (!noTimer) {
       try { window.Music?.setGuidePath?.(guidePath); } catch {}
       try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
-      // If we entered via the shatter transition, a full-screen black cut can be active.
-      // Reveal the sim UI immediately; do not keep the cut up while dialogue runs.
-      document.body.classList.remove("cut-black");
-
       document.body.classList.add("in-sim");
-      try { setAdminUI(isAdmin); } catch {}
-      startSimGlitchLoop();
       subs?.classList.remove("hidden");
 
       simRoom.classList.remove("hidden");
@@ -1398,13 +1322,4 @@ if (!noTimer) {
   }
 
   boot();
-})();function ensureAdminPanelOnBody(adminPanelEl) {
-      if (!adminPanelEl) return;
-      if (adminPanelEl.dataset.__moved === "1") return;
-      try {
-        document.body.appendChild(adminPanelEl);
-        adminPanelEl.dataset.__moved = "1";
-      } catch {}
-    }
-
-    
+})();
