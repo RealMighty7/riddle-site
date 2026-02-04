@@ -412,12 +412,15 @@ function startSimGlitchLoop() {
         document.body.appendChild(cb);
       }
 
-      // staged crack hit (keeps it readable + feels less abrupt)
+      // stage the fracture so it doesn't feel like an instant decal
       setCrackStage(2);
-      cracks.style.opacity = "1";
-      document.body.classList.add("crack-jitter");
-      setTimeout(() => setCrackStage(3), 220);
-      setTimeout(() => document.body.classList.remove("crack-jitter"), 900);
+      document.body.classList.add("crack-jolt");
+      setTimeout(() => document.body.classList.remove("crack-jolt"), 260);
+      setTimeout(() => {
+        setCrackStage(3);
+        document.body.classList.add("crack-jolt");
+        setTimeout(() => document.body.classList.remove("crack-jolt"), 260);
+      }, 220);
 
       document.body.classList.add("shatter-cine");
 
@@ -441,14 +444,9 @@ function startSimGlitchLoop() {
       document.body.classList.remove("cut-black");
       document.body.classList.remove("shatter-cine");
 
-      try {
-        await openSimRoom();
-      } finally {
-        document.body.classList.remove("cut-black");
-        document.body.classList.remove("shatter-cine");
-        document.body.classList.remove("crack-jitter");
-        document.body.classList.remove("sim-transition");
-      }
+      await openSimRoom();
+
+      document.body.classList.remove("sim-transition");
     }
 
     function isClickableTarget(e) {
