@@ -34,7 +34,7 @@ body{
   z-index:80;
 }
 
-/* PNG CRACK OVERLAY */
+/* PROCEDURAL CRACK OVERLAY */
 #cracks{
   position:fixed;
   inset:0;
@@ -44,31 +44,31 @@ body{
   transition: opacity 180ms ease;
 }
 
-#cracksImg{
+#cracksCanvas{
   width:100%;
   height:100%;
-  object-fit: fill; /* stretch/squish OK */
   display:block;
-  opacity:1;
-  transform:none;
-  /* Make cracks read like *glass* instead of a bright decal */
-  mix-blend-mode: multiply;
-  filter:
-    contrast(1.15)
-    brightness(0.92)
-    drop-shadow(0 0 2px rgba(0,0,0,.20))
-    drop-shadow(0 0 14px rgba(0,0,0,.12));
+  /* glass fracture reads best as multiply */
+  mix-blend-mode:multiply;
+  opacity:0.0;
+  filter: contrast(1.08) brightness(0.92);
 }
+
+/* stage tuning (subtle -> stronger but readable) */
+body.crack1 #cracksCanvas{ opacity:0.32; filter: contrast(1.05) brightness(0.94); }
+body.crack2 #cracksCanvas{ opacity:0.55; filter: contrast(1.10) brightness(0.92); }
+body.crack3 #cracksCanvas{ opacity:0.78; filter: contrast(1.14) brightness(0.90); }
+
+@keyframes crackJolt{
+  0%{ transform:translate3d(0,0,0); }
+  35%{ transform:translate3d(-0.6px,0.4px,0); }
+  70%{ transform:translate3d(0.5px,-0.3px,0); }
+  100%{ transform:translate3d(0,0,0); }
+}
+body.crack-jolt #cracksCanvas{ animation: crackJolt 220ms linear 1; }
 
 /* stage tuning (JS toggles body.crack1/2/3) */
-body.crack1 #cracksImg{ opacity:.38; }
-body.crack2 #cracksImg{ opacity:.58; }
-body.crack3 #cracksImg{ opacity:.78; }
-
 /* micro jolt when a new stage lands */
-body.crack-jolt #cracksImg{
-  animation: crackJolt 220ms ease 1;
-}
 @keyframes crackJolt{
   0%{ transform: translate(0,0) scale(1); filter: contrast(1.25) brightness(0.98); }
   55%{ transform: translate(-2px,2px) scale(1.01); }
