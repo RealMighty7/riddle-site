@@ -289,6 +289,8 @@
         cracksImg.removeAttribute("src");
       }
 
+    }
+
     function maybeAdvanceCracks() {
       const next =
         clicks >= CRACK_AT[2] ? 3 :
