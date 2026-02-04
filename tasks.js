@@ -310,21 +310,53 @@
   };
 
   TASKS.mask = async (ctx) => {
-    ctx.showTaskUI?.("mask", "choose the correct mask" );
-    const opts = ["alpha", "beta", "delta", "gamma"].sort(() => Math.random() - 0.5);
-    const correct = opts[Math.floor(Math.random() * opts.length)];
-    const msg = el("div", { class: "muted", text: "one is valid" });
+    ctx.showTaskUI?.("mask", "select the valid mask (use the rule below)");
+    // Rule (hard but solvable): score = (vowels*3 + consonants) mod 4 must equal the gate value.
+    const words = ["alpha","beta","gamma","delta","sigma","kappa"];
+    const opts = words.sort(() => Math.random() - 0.5).slice(0, 4);
+
+    const vowels = new Set(["a","e","i","o","u"]);
+    const scoreOf = (w) => {
+      let v = 0, c = 0;
+      for (const ch of String(w)) {
+        if (/[a-z]/i.test(ch)) (vowels.has(ch.toLowerCase()) ? v++ : c++);
+      }
+      return (v * 3 + c) % 4;
+    };
+
+    // Choose a target that matches exactly ONE option (so it's not guessy)
+    let target = 0;
+    for (let tries = 0; tries < 20; tries++) {
+      const t = Math.floor(Math.random() * 4);
+      const matches = opts.filter(o => scoreOf(o) === t);
+      if (matches.length === 1) { target = t; break; }
+    }
+
+    const rule = el("div", { class: "muted", text: `rule: (vowels×3 + consonants) mod 4 = gate` });
+    const gate = el("div", { class: "muted", text: `gate: ${target}` });
+
+    const table = el("div", { class: "maskTable" });
     const row = el("div", { class: "btnRow" });
-    ctx.taskBody.appendChild(msg);
-    ctx.taskBody.appendChild(row);
+    const msg = el("div", { class: "muted", text: "choose carefully." });
 
     opts.forEach((name) => {
-      const b = el("button", { type: "button", class: "taskBtn", text: name });
+      const sc = scoreOf(name);
+      const line = el("div", { class: "maskRow" });
+      const tag = el("span", { class: "maskTag", text: `${name}` });
+      const sig = el("span", { class: "maskSig", text: `sig:${sc}` });
+      const b = el("button", { type: "button", class: "taskBtn", text: "select" });
       b.onclick = () => {
-        if (name === correct) return ctx.success?.("accepted");
+        if (sc === target) return ctx.success?.("mask accepted");
         ctx.penalize?.();
-        msg.textContent = "rejected";
+        msg.textContent = "rejected. recalculating…";
       };
+      line.append(tag, sig, b);
+      table.appendChild(line);
+    });
+
+    ctx.taskBody.append(rule, gate, msg, table);
+  };
+
       row.appendChild(b);
     });
     try { ctx.setAnswer?.(correct); } catch {}
