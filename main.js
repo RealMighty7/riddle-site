@@ -21,7 +21,6 @@
     const REQUIRED_IDS = [
       "system",
       "cracks",
-      "cracksImg",
       "glassFX",
       "subs",
       "subsName",
