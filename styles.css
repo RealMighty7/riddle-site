@@ -49,14 +49,28 @@ body{
   height:100%;
   object-fit: fill; /* stretch/squish OK */
   display:block;
-  opacity:1;
+  /* make the PNG feel like it belongs to the surface instead of a white sheet */
+  mix-blend-mode: multiply;
+  opacity: .18;
   transform:none;
   filter:
-    drop-shadow(0 0 2px rgba(0,0,0,.25))
-    drop-shadow(0 0 14px rgba(0,0,0,.18));
+    brightness(.55)
+    contrast(1.15)
+    drop-shadow(0 0 2px rgba(0,0,0,.20))
+    drop-shadow(0 0 14px rgba(0,0,0,.14));
 }
 
 /* when cracks start showing */
+
+/* crack intensity per stage (keeps readability) */
+body.crack1 #cracksImg{ opacity:.14; filter: brightness(.52) contrast(1.12) drop-shadow(0 0 2px rgba(0,0,0,.18)) drop-shadow(0 0 12px rgba(0,0,0,.12)); }
+body.crack2 #cracksImg{ opacity:.22; filter: brightness(.56) contrast(1.16) drop-shadow(0 0 2px rgba(0,0,0,.20)) drop-shadow(0 0 14px rgba(0,0,0,.14)); }
+body.crack3 #cracksImg{ opacity:.30; filter: brightness(.60) contrast(1.18) drop-shadow(0 0 2px rgba(0,0,0,.22)) drop-shadow(0 0 16px rgba(0,0,0,.16)); }
+
+/* optional: brief transition polish */
+#cracks{ will-change: opacity; }
+#cracksImg{ will-change: opacity, filter, transform; }
+
 body.crack1 #cracks,
 body.crack2 #cracks,
 body.crack3 #cracks{
@@ -244,8 +258,10 @@ body.in-sim #glassFX{ opacity:0 !important; }
   inset:0;
   pointer-events:none;
   background: url("/assets/monitor_ui.svg") center/cover no-repeat;
-  opacity: .55;
-  filter: contrast(1.05) saturate(0.9);
+  /* visible bezel + subtle glow */
+  opacity: .82;
+  mix-blend-mode: screen;
+  filter: contrast(1.08) saturate(1.0);
 }
 @keyframes sim_scan{
   0%{ transform: translateY(-12px); }
@@ -519,3 +535,14 @@ body.in-sim #adminPanel{
   border-color: rgba(255,80,80,.55);
 }
 
+
+
+@keyframes crackJitter{
+  0%{ transform: translate3d(0,0,0) scale(1); }
+  15%{ transform: translate3d(-2px,1px,0) scale(1.003); }
+  35%{ transform: translate3d(2px,-1px,0) scale(1.006); }
+  55%{ transform: translate3d(-1px,-2px,0) scale(1.004); }
+  75%{ transform: translate3d(1px,2px,0) scale(1.002); }
+  100%{ transform: translate3d(0,0,0) scale(1); }
+}
+body.crack-jitter #cracksImg{ animation: crackJitter 420ms ease-in-out 0s 2; }
