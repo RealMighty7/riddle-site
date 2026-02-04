@@ -4,10 +4,12 @@
 // Expects JSON:
 // { discord: "name", answer: "string", turnstile?: "token" }
 //
-// Env required:
-// - TURNSTILE_SECRET  (Cloudflare Turnstile secret key)
-// Optional:
-// - ESCAPE_SALT (any random string; improves code uniqueness)
+// Optional Env:
+// - TURNSTILE_SECRET  (Cloudflare Turnstile secret key)  (verification only if token provided)
+// - ESCAPE_SALT       (any random string; improves code uniqueness)
+// - RESEND_API_KEY    (to email you)
+// - EMAIL_FROM        (sender, e.g. not.a.riddlers.email@gmail.com)
+// - EMAIL_TO          (recipient, e.g. 2nlindauer@gmail.com)
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -19,7 +21,7 @@ function json(data, status = 200) {
   });
 }
 
-// Simple, stable code generator (not “security”, just a reward code)
+// Simple reward-code generator
 async function makeCode(discord, answer, env) {
   const salt = (env.ESCAPE_SALT || "salt").toString();
   const input = `${discord}::${answer}::${salt}`;
@@ -28,14 +30,51 @@ async function makeCode(discord, answer, env) {
   const digest = await crypto.subtle.digest("SHA-256", enc);
   const bytes = new Uint8Array(digest);
 
-  // base32-ish alphabet without confusing chars
+  // readable 8-char code
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "";
-  for (let i = 0; i < 12; i++) {
-    out += alphabet[bytes[i] % alphabet.length];
-  }
-  // Format: AAAA-BBBB-CCCC
-  return `${out.slice(0, 4)}-${out.slice(4, 8)}-${out.slice(8, 12)}`;
+  for (let i = 0; i < 8; i++) out += alphabet[bytes[i] % alphabet.length];
+  return out;
+}
+
+async function verifyTurnstile(secret, token, ip) {
+  const form = new FormData();
+  form.append("secret", secret);
+  form.append("response", token);
+  if (ip) form.append("remoteip", ip);
+
+  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    body: form,
+  });
+  return res.json();
+}
+
+async function sendResendEmail(env, subject, text) {
+  const key = (env.RESEND_API_KEY || "").toString().trim();
+  const from = (env.EMAIL_FROM || "").toString().trim();
+  const to = (env.EMAIL_TO || "").toString().trim();
+  if (!key || !from || !to) return { skipped: true };
+
+  const payload = {
+    from,
+    to: [to],
+    subject,
+    text,
+  };
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j?.message || "Resend failed");
+  return { ok: true, id: j?.id };
 }
 
 export async function onRequestPost({ request, env }) {
@@ -47,57 +86,35 @@ export async function onRequestPost({ request, env }) {
     const token = (body.turnstile || "").toString().trim();
 
     if (!discord || discord.length > 64) return json({ error: "Invalid username" }, 400);
-    if (!answer || answer.length > 256) return json({ error: "Invalid answer" }, 400);
-    // Turnstile is optional for this project flow (escaped.html auto-sends).
-    // If token + secret are present, we verify; otherwise we proceed.
-    if (token && env.TURNSTILE_SECRET) {
-      const tsSecret = env.TURNSTILE_SECRET;
+    if (!answer || answer.length > 128) return json({ error: "Invalid code" }, 400);
+
+    // Turnstile is optional: verify only if token is provided and secret exists.
+    const tsSecret = (env.TURNSTILE_SECRET || "").toString().trim();
+    if (token && tsSecret) {
       const ip = request.headers.get("CF-Connecting-IP") || "";
-
-      const form = new FormData();
-      form.append("secret", tsSecret);
-      form.append("response", token);
-      if (ip) form.append("remoteip", ip);
-
-      const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-        method: "POST",
-        body: form,
-      });
-
-      const verify = await verifyRes.json().catch(() => null);
-      if (!verify || verify.success !== true) return json({ error: "Verification failed" }, 403);
+      const verify = await verifyTurnstile(tsSecret, token, ip);
+      if (!verify?.success) return json({ error: "Turnstile failed" }, 403);
     }
 
-    // Generate reward code
     const code = await makeCode(discord, answer, env);
 
-    // Optional email notify (MailChannels). Configure in Cloudflare Pages env:
-    // MAIL_TO (your email), MAIL_FROM (verified sender-like address), MAIL_FROM_NAME (optional)
-    const MAIL_TO = (env.MAIL_TO || "").toString().trim();
-    const MAIL_FROM = (env.MAIL_FROM || "").toString().trim();
-    const MAIL_FROM_NAME = (env.MAIL_FROM_NAME || "there is no riddle").toString().trim();
-    if (MAIL_TO && MAIL_FROM) {
-      try {
-        await fetch("https://api.mailchannels.net/tx/v1/send", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            personalizations: [{ to: [{ email: MAIL_TO }] }],
-            from: { email: MAIL_FROM, name: MAIL_FROM_NAME },
-            subject: "TNR completion",
-            content: [
-              {
-                type: "text/plain",
-                value: `discord: ${discord}\nanswer: ${answer}\ncode: ${code}\n`,
-              },
-            ],
-          }),
-        });
-      } catch {}
+    // Email you immediately (best effort)
+    try {
+      await sendResendEmail(
+        env,
+        "there is no riddle — escape code",
+        `user: ${discord}
+submitted: ${answer}
+reward: ${code}
+`
+      );
+    } catch (e) {
+      // still return ok; email can fail silently during testing
+      return json({ ok: true, code, email: "failed" }, 200);
     }
 
-    return json({ ok: true, code }, 200);
-  } catch (err) {
+    return json({ ok: true, code, email: "sent" }, 200);
+  } catch (e) {
     return json({ error: "Server error" }, 500);
   }
 }
