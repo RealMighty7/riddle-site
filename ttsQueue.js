@@ -1,7 +1,6 @@
 // ttsQueue.js (NON-module)
 // Browser TTS queue using Web Speech API (speechSynthesis)
-// Drop-in replacement for the old Azure /api/tts queue.
-// Supports: TTS.unlock(), TTS.stop(), TTS.enqueue({ text, voice, rate, pitch, volume })
+// Generated speech only (no server). Small humanization + optional system noise bed.
 
 (() => {
   const synth = window.speechSynthesis;
@@ -9,171 +8,191 @@
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
   function clamp01(v) { v = Number(v); return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1; }
 
-  function normSpeakerFromVoice(v) {
-    const s = String(v || "").toLowerCase();
+  function normSpeaker(s) {
+    s = String(s || "").toLowerCase();
     if (s.includes("emma") || s.includes("security")) return "emma";
     if (s.includes("liam") || s.includes("worker")) return "liam";
-    if (s.includes("system")) return "system";
-    return "narr";
+    return "system";
   }
 
-  function speakerDefaults(speaker) {
-    const sp = normSpeakerFromVoice(speaker);
-    // Subtle differences; keep within natural ranges.
-    if (sp === "emma")   return { rate: 0.95, pitch: 0.95, volume: 1.0 };
-    if (sp === "liam")   return { rate: 1.00, pitch: 1.05, volume: 1.0 };
-    if (sp === "system") return { rate: 0.92, pitch: 0.85, volume: 0.95 };
-    return { rate: 1.0, pitch: 1.0, volume: 1.0 };
-  }
+  // Pick voices by heuristic (best effort; varies by OS/browser)
+  function pickVoice(list, speaker) {
+    const want = speaker === "system"
+      ? ["microsoft david", "microsoft mark", "google uk english male", "daniel", "fred"]
+      : speaker === "emma"
+      ? ["microsoft zira", "microsoft aria", "google uk english female", "samantha", "victoria"]
+      : ["microsoft guy", "google us english", "alex", "daniel"];
 
-  function pickVoice(voices, speakerHint) {
-    if (!voices || !voices.length) return null;
-
-    const en = voices.filter(v => (v.lang || "").toLowerCase().startsWith("en"));
-    const pool = en.length ? en : voices;
-
-    const sp = normSpeakerFromVoice(speakerHint);
-    const prefers = {
-      emma:  [/zira/i, /susan/i, /samantha/i, /victoria/i, /female/i, /google.*english/i],
-      liam:  [/david/i, /alex/i, /daniel/i, /male/i, /google.*english/i],
-      system:[/microsoft/i, /robot/i, /google.*english/i, /en-us/i],
-      narr:  [/google.*english/i, /en-us/i],
-    }[sp] || [];
-
-    for (const rx of prefers) {
-      const hit = pool.find(v => rx.test(v.name) || rx.test(v.voiceURI || ""));
-      if (hit) return hit;
+    const l = (list || []).slice();
+    const byName = (needle) => l.find(v => String(v.name || "").toLowerCase().includes(needle));
+    for (const n of want) {
+      const v = byName(n);
+      if (v) return v;
     }
-    return pool[0] || voices[0] || null;
+    // fallback: first non-remote, non-compact if possible
+    return l.find(v => !/remote|compact/i.test(String(v.name || ""))) || l[0] || null;
   }
 
-  class TTSQueue {
-    constructor() {
-      this._q = [];
-      this._busy = false;
-      this._unlocked = false;
-      this._voices = [];
-      this._stopToken = 0;
+  // Base personality tuning
+  const BASE = {
+    emma:   { rate: 0.98, pitch: 1.02, volume: 1.0 },
+    liam:   { rate: 1.02, pitch: 0.98, volume: 1.0 },
+    system: { rate: 0.94, pitch: 0.80, volume: 0.92 },
+  };
 
-      const refresh = () => {
-        try { this._voices = synth ? synth.getVoices() : []; } catch { this._voices = []; }
+  // Subtle “humanization” jitter per utterance
+  function withJitter(base, speaker) {
+    const j = speaker === "system" ? 0.015 : 0.03;
+    const r = base.rate * (1 + (Math.random() * 2 - 1) * j);
+    const p = base.pitch + (Math.random() * 2 - 1) * (speaker === "system" ? 0.02 : 0.04);
+    return {
+      rate: clamp(r, 0.84, 1.18),
+      pitch: clamp(p, 0.55, 1.35),
+      volume: clamp01(base.volume),
+    };
+  }
+
+  // System background bed (low volume ambience) — only audible while system speaks
+  const bed = new Audio("/assets/ambience.wav");
+  bed.loop = true;
+  bed.volume = 0;
+  bed.preload = "auto";
+
+  let bedTarget = 0;
+  let bedRAF = 0;
+  function bedAnim() {
+    const cur = bed.volume;
+    const next = cur + (bedTarget - cur) * 0.08;
+    bed.volume = clamp01(next);
+    if (Math.abs(bedTarget - next) > 0.004) {
+      bedRAF = requestAnimationFrame(bedAnim);
+    }
+  }
+  async function bedOn() {
+    bedTarget = 0.10;
+    try { if (bed.paused) await bed.play(); } catch {}
+    cancelAnimationFrame(bedRAF);
+    bedRAF = requestAnimationFrame(bedAnim);
+  }
+  function bedOff() {
+    bedTarget = 0;
+    cancelAnimationFrame(bedRAF);
+    bedRAF = requestAnimationFrame(bedAnim);
+    // don't force pause; keep it ready (prevents autoplay re-blocking)
+  }
+
+  // Queue
+  const q = [];
+  let speaking = false;
+  let voices = [];
+  let unlocked = false;
+
+  function refreshVoices() {
+    try { voices = synth.getVoices() || []; } catch { voices = []; }
+  }
+  refreshVoices();
+  if (synth && typeof synth.onvoiceschanged !== "undefined") {
+    synth.onvoiceschanged = refreshVoices;
+  }
+
+  function normalizeArgs(textOrObj, opts) {
+    if (typeof textOrObj === "object" && textOrObj) {
+      // enqueue({ text, voice, rate, pitch, volume })
+      return {
+        text: String(textOrObj.text || ""),
+        speaker: normSpeaker(textOrObj.voice || textOrObj.speaker),
+        rate: textOrObj.rate,
+        pitch: textOrObj.pitch,
+        volume: textOrObj.volume,
       };
-      refresh();
-      try { synth && synth.addEventListener("voiceschanged", refresh); } catch {}
     }
+    return {
+      text: String(textOrObj || ""),
+      speaker: normSpeaker(opts?.speaker),
+      rate: opts?.rate,
+      pitch: opts?.pitch,
+      volume: opts?.volume,
+    };
+  }
 
-    // Keep the same public API as the old queue.
-    async unlock() {
-      if (this._unlocked || !synth) return;
-      this._unlocked = true;
-      try {
-        // Tiny silent utterance to prime the audio path.
-        const u = new SpeechSynthesisUtterance(".");
-        u.volume = 0;
-        u.rate = 1;
-        u.pitch = 1;
-        synth.speak(u);
-        setTimeout(() => { try { synth.cancel(); } catch {} }, 50);
-      } catch {}
-    }
+  function next() {
+    if (speaking) return;
+    const item = q.shift();
+    if (!item) return;
+    const { text, speaker } = item;
+    if (!text) return next();
 
-    // Alias for newer code paths
-    async unlockOnce() { return this.unlock(); }
+    refreshVoices();
+    const voice = pickVoice(voices, speaker);
 
-    stop() {
-      this._q.length = 0;
-      this._stopToken++;
-      this._busy = false;
-      try { synth && synth.cancel(); } catch {}
-    }
+    const base = { ...(BASE[speaker] || BASE.system) };
+    if (typeof item.rate === "number") base.rate = item.rate;
+    if (typeof item.pitch === "number") base.pitch = item.pitch;
+    if (typeof item.volume === "number") base.volume = item.volume;
 
-    // Accepts either object { text, voice, rate, pitch, volume } or (text, { speaker })
-    // Returns a promise that resolves when the utterance finishes (or is skipped).
-    enqueue(textOrItem, opts = null) {
-      const stopTokenAtEnqueue = this._stopToken;
+    const tuned = withJitter(base, speaker);
 
-      const item = (typeof textOrItem === "object" && textOrItem)
-        ? textOrItem
-        : { text: String(textOrItem || ""), voice: (opts && (opts.speaker || opts.voice)) || "" };
+    // Build utterance
+    const u = new SpeechSynthesisUtterance(text);
+    if (voice) u.voice = voice;
+    u.rate = tuned.rate;
+    u.pitch = tuned.pitch;
+    u.volume = tuned.volume;
 
-      const text = String(item?.text || "").trim();
-      if (!text || !synth) return Promise.resolve();
+    speaking = true;
 
-      const voiceHint = item?.voice || item?.speaker || "narr";
-      const defaults = speakerDefaults(voiceHint);
+    // system bed in/out
+    if (speaker === "system") bedOn(); else bedOff();
 
-      const rate = item?.rate == null ? defaults.rate : item.rate;
-      const pitch = item?.pitch == null ? defaults.pitch : item.pitch;
-      const volume = item?.volume == null ? defaults.volume : item.volume;
+    const done = () => {
+      speaking = false;
+      if (speaker === "system") bedOff();
+      setTimeout(next, 40);
+    };
+    u.onend = done;
+    u.onerror = done;
 
-      return new Promise((resolve) => {
-        this._q.push({
-          text,
-          voiceHint,
-          rate: clamp(rate, 0.7, 1.2),
-          pitch: clamp(pitch, 0.6, 1.4),
-          volume: clamp01(volume),
-          resolve,
-          stopTokenAtEnqueue,
-        });
-        this._drain();
-      });
-    }
-
-    _drain() {
-      if (this._busy) return;
-      if (!synth) return;
-      this._busy = true;
-
-      const next = () => {
-        // If stopped, flush resolves.
-        if (!this._q.length) { this._busy = false; return; }
-
-        const job = this._q.shift();
-        if (!job) { this._busy = false; return; }
-
-        // If stop() happened after enqueue, skip.
-        if (job.stopTokenAtEnqueue !== this._stopToken) {
-          try { job.resolve(); } catch {}
-          return next();
-        }
-
-        let settled = false;
-        const finish = () => {
-          if (settled) return;
-          settled = true;
-          try { job.resolve(); } catch {}
-          next();
-        };
-
-        try {
-          const u = new SpeechSynthesisUtterance(job.text);
-
-          const v = pickVoice(this._voices, job.voiceHint);
-          if (v) u.voice = v;
-
-          u.rate = job.rate;
-          u.pitch = job.pitch;
-          u.volume = job.volume;
-
-          // Safety timeout so we never hang the game flow.
-          const t = setTimeout(() => {
-            try { synth.cancel(); } catch {}
-            finish();
-          }, 12000);
-
-          u.onend = () => { clearTimeout(t); finish(); };
-          u.onerror = () => { clearTimeout(t); finish(); };
-
-          synth.speak(u);
-        } catch {
-          finish();
-        }
-      };
-
-      next();
+    try {
+      synth.speak(u);
+    } catch {
+      done();
     }
   }
 
-  window.TTS = window.TTS || new TTSQueue();
+  const TTS = (window.TTS = window.TTS || {});
+  TTS.enqueue = (textOrObj, opts) => {
+    const item = normalizeArgs(textOrObj, opts);
+    q.push(item);
+    next();
+  };
+
+  TTS.stop = () => {
+    q.length = 0;
+    speaking = false;
+    try { synth.cancel(); } catch {}
+    bedOff();
+  };
+
+  // Must be called from a user gesture once.
+  TTS.unlock = async () => {
+    if (unlocked) return true;
+    unlocked = true;
+    try {
+      // poke speech
+      const u = new SpeechSynthesisUtterance(" ");
+      u.volume = 0;
+      synth.speak(u);
+      synth.cancel();
+    } catch {}
+    try {
+      bed.volume = 0;
+      await bed.play();
+      bed.pause();
+      bed.currentTime = 0;
+    } catch {}
+    return true;
+  };
+
+  // alias used by older code
+  TTS.unlockOnce = TTS.unlock;
 })();
