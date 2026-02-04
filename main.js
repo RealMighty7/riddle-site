@@ -26,7 +26,7 @@
     const REQUIRED_IDS = [
       "system",
       "cracks",
-      "cracksCanvas",
+      "cracksImg",
       "glassFX",
       "subs",
       "subsName",
@@ -88,7 +88,7 @@
 
     const systemBox = els.system;
     const cracks = els.cracks;
-    const cracksCanvas = els.cracksCanvas;
+    const cracksImg = els.cracksImg;
     const glassFX = els.glassFX;
 
     const simRoom = els.simRoom;
@@ -261,178 +261,33 @@
     /* ======================
        PNG CRACK OVERLAYS
     ====================== */
-    
-    // ===== Procedural crack overlay (canvas) =====
-    const crackState = {
-      stage: 0,
-      seed: (Date.now() ^ (Math.random() * 1e9)) >>> 0,
-      paths: [], // array of paths; each path is array of points [{x,y},...]
-    };
+    const CRACK_PNGS = [
+      "", // stage 0 = none
+      "/assets/Cracks1.png",
+      "/assets/Cracks2.png",
+      "/assets/Cracks3.png",
+    ];
 
-    function sRand() {
-      // xorshift32
-      let x = crackState.seed | 0;
-      x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
-      crackState.seed = x >>> 0;
-      return (crackState.seed & 0xffffffff) / 4294967296;
-    }
-
-    function resizeCracksCanvas() {
-      const c = cracksCanvas;
-      if (!c) return;
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      const w = Math.max(1, Math.floor(window.innerWidth * dpr));
-      const h = Math.max(1, Math.floor(window.innerHeight * dpr));
-      if (c.width !== w || c.height !== h) {
-        c.width = w; c.height = h;
-        c.style.width = "100%";
-        c.style.height = "100%";
-        drawCracks();
-      }
-    }
-
-    function newCrackPath() {
-      const c = cracksCanvas;
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      const w = c.width, h = c.height;
-
-      // start near one of the edges for a more realistic fracture
-      const edge = Math.floor(sRand() * 4);
-      let x = 0, y = 0;
-      if (edge === 0) { x = sRand() * w; y = 0; }
-      if (edge === 1) { x = w; y = sRand() * h; }
-      if (edge === 2) { x = sRand() * w; y = h; }
-      if (edge === 3) { x = 0; y = sRand() * h; }
-
-      const pts = [{ x, y }];
-      const steps = 22 + Math.floor(sRand() * 26);
-
-      // random walk with bias toward center
-      const cx = w * 0.5, cy = h * 0.5;
-
-      for (let i = 0; i < steps; i++) {
-        const last = pts[pts.length - 1];
-        const toCx = (cx - last.x) / w;
-        const toCy = (cy - last.y) / h;
-
-        // direction: mostly toward center, with jitter
-        let ang = Math.atan2(toCy, toCx) + (sRand() - 0.5) * 1.2;
-        const len = (10 + sRand() * 30) * dpr;
-
-        x = last.x + Math.cos(ang) * len;
-        y = last.y + Math.sin(ang) * len;
-
-        // clamp
-        x = Math.max(-40 * dpr, Math.min(w + 40 * dpr, x));
-        y = Math.max(-40 * dpr, Math.min(h + 40 * dpr, y));
-        pts.push({ x, y });
-
-        // spawn occasional branch
-        if (i > 6 && sRand() < 0.18) {
-          const bpts = [{ x: last.x, y: last.y }];
-          let bx = last.x, by = last.y;
-          const bsteps = 6 + Math.floor(sRand() * 10);
-          let bang = ang + (sRand() < 0.5 ? -1 : 1) * (0.35 + sRand() * 0.75);
-          for (let j = 0; j < bsteps; j++) {
-            const blen = (8 + sRand() * 18) * dpr;
-            bx += Math.cos(bang + (sRand() - 0.5) * 0.6) * blen;
-            by += Math.sin(bang + (sRand() - 0.5) * 0.6) * blen;
-            bpts.push({ x: bx, y: by });
-          }
-          crackState.paths.push(bpts);
-        }
-      }
-      return pts;
-    }
-
-    function ensureCracksForStage(stage) {
-      const want = stage === 0 ? 0 : stage === 1 ? 5 : stage === 2 ? 10 : 16;
-      while (crackState.paths.length < want) crackState.paths.push(newCrackPath());
-      while (crackState.paths.length > want) crackState.paths.pop();
-    }
-
-    function drawCracks() {
-      const c = cracksCanvas;
-      if (!c) return;
-      const ctx = c.getContext("2d");
-      if (!ctx) return;
-
-      ctx.clearRect(0, 0, c.width, c.height);
-
-      if (crackState.stage <= 0) return;
-
-      // Base: dark fracture lines (multiply blend in CSS)
-      ctx.save();
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-
-      // faint glass dust / micro scratches
-      ctx.globalAlpha = 0.10;
-      for (let i = 0; i < 140; i++) {
-        const x1 = sRand() * c.width;
-        const y1 = sRand() * c.height;
-        const x2 = x1 + (sRand() - 0.5) * 80;
-        const y2 = y1 + (sRand() - 0.5) * 20;
-        ctx.strokeStyle = "rgba(0,0,0,0.25)";
-        ctx.lineWidth = 0.6;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-      }
-
-      // main cracks
-      ctx.globalAlpha = 0.85;
-      ctx.shadowColor = "rgba(0,0,0,0.25)";
-      ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
-
-      for (const pts of crackState.paths) {
-        // outer dark line
-        ctx.strokeStyle = "rgba(0,0,0,0.55)";
-        ctx.lineWidth = (1.4 + (crackState.stage - 1) * 0.35) * (window.devicePixelRatio || 1);
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.stroke();
-
-        // inner highlight (gives a "split" edge feel)
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = 0.28;
-        ctx.strokeStyle = "rgba(255,255,255,0.25)";
-        ctx.lineWidth = (0.8 + (crackState.stage - 1) * 0.2) * (window.devicePixelRatio || 1);
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x + 0.6, pts[0].y - 0.4);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.6, pts[i].y - 0.4);
-        ctx.stroke();
-
-        ctx.globalAlpha = 0.85;
-        ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
-      }
-
-      ctx.restore();
-    }
-
-    // resize on boot + on resize
-    resizeCracksCanvas();
-    window.addEventListener("resize", () => resizeCracksCanvas());
+    let crackStage = 0;
 
     function setCrackStage(n) {
-      crackState.stage = clamp(n, 0, 3);
+      crackStage = clamp(n, 0, 3);
 
-      document.body.classList.toggle("crack1", crackState.stage >= 1);
-      document.body.classList.toggle("crack2", crackState.stage >= 2);
-      document.body.classList.toggle("crack3", crackState.stage >= 3);
+      document.body.classList.toggle("crack1", crackStage >= 1);
+      document.body.classList.toggle("crack2", crackStage >= 2);
+      document.body.classList.toggle("crack3", crackStage >= 3);
 
-      if (crackState.stage === 0) {
-        crackState.paths.length = 0;
-        drawCracks();
-        return;
+      const src = CRACK_PNGS[crackStage] || "";
+      if (src) {
+        cracksImg.style.opacity = "0";
+        requestAnimationFrame(() => {
+          cracksImg.src = src;
+          cracksImg.onload = () => { cracksImg.style.opacity = "1"; };
+          setTimeout(() => { cracksImg.style.opacity = "1"; }, 60);
+        });
+      } else {
+        cracksImg.removeAttribute("src");
       }
-
-      ensureCracksForStage(crackState.stage);
-      drawCracks();
-    }
-    }
 
     function maybeAdvanceCracks() {
       const next =
@@ -520,37 +375,39 @@ async function runTriGlitch(msTotal = 2000) {
         document.body.appendChild(cb);
       }
 
-      // Transition: quick fracture surge (no long "tries to crack" sequence)
-      cracks.style.opacity = "1";
+      // Stage the fracture so it doesn't look like a single decal pop.
+      // (Give the browser a paint between stages.)
       setCrackStage(1);
+      cracks.style.opacity = "1";
+      await nextFrame(2);
+
+      document.body.classList.add("crack-jolt");
+      setTimeout(() => document.body.classList.remove("crack-jolt"), 260);
+
+      setCrackStage(2);
+      await wait(180);
       await nextFrame(1);
 
       document.body.classList.add("crack-jolt");
-      setTimeout(() => document.body.classList.remove("crack-jolt"), 240);
-      playSfx("glassTick", { volume: 0.25, overlap: false });
-
-      await wait(140);
-      setCrackStage(2);
-
-      // short flash + glitch tick, then commit
-      playSfx("glassBreak", { volume: 0.55, overlap: false });
-      playSfx("glitch2", { volume: 0.14, overlap: false });
-
-      if (window.Music?.duck) window.Music.duck(0.25, 380);
-
-      await wait(210);
+      setTimeout(() => document.body.classList.remove("crack-jolt"), 260);
       setCrackStage(3);
-      await nextFrame(1);
 
-      // clear overlay before sim appears
-      await wait(110);
+      document.body.classList.add("shatter-cine");
+
+      playSfx("glassBreak", { volume: 0.75, overlap: false });
+      playSfx("glitch2", { volume: 0.20, overlap: true });
+      setTimeout(() => playSfx("static1", { volume: 0.16, overlap: true }), 120);
+
+      // Triangular glitch between landing + sim (shorter, more deliberate)
+      await runTriGlitch(1250);
+
+      // remove crack overlays before committing to sim
       setCrackStage(0);
       cracks.style.opacity = "0";
 
-      // brief cut (very short) to sell the jump
+      await wait(120);
       document.body.classList.add("cut-black");
-      await wait(110);
-      document.body.classList.remove("cut-black");
+      await wait(160);
 
       try {
         await openSimRoom();
@@ -590,7 +447,6 @@ async function runTriGlitch(msTotal = 2000) {
     document.addEventListener("pointerdown", registerLandingClick, { passive: true });
 
     /* ======================
-       /* ======================
    LANDING: launch button -> viewer box (admin key)
 ====================== */
 const ADMIN_KEY_HASH_HEX = "27fedb02589c0bacf10ecdda0d63486573fa76350d2edf7ee6e6e6cc35858c44"; // sha256 hex of the real key (never store plaintext)
@@ -1427,10 +1283,6 @@ if (!noTimer) {
       try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
       document.body.classList.add("in-sim");
-      // Ensure we never stay black/cursor-hidden while sim runs
-      document.body.classList.remove("cut-black");
-      document.body.classList.remove("shatter-cine");
-      document.body.classList.remove("sim-transition");
       subs?.classList.remove("hidden");
 
       simRoom.classList.remove("hidden");
@@ -1465,5 +1317,7 @@ if (!noTimer) {
     // start
     stage = 1;
     setCrackStage(0);
+  }
+
   boot();
 })();
