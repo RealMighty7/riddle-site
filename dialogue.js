@@ -14,116 +14,129 @@
     // The simulation runs as a scripted sequence of steps.
     // Supported step shapes:
     // { say:[...] }  { choice:{ complyLabel, lieLabel, runLabel } }  { task:"id", args:{} }  { filler:{count,pool,meta} }
+    
     steps: [
+      // --- Establishment ---
       { say: [
         "System: SIMULATION WORKERS ROOM — initializing.",
         "System: Booting…",
         "System: Please wait…",
-        "Emma (Security): How did you breach the simulation?",
-        "Liam (Worker): Lets get you back."
+        "Emma (Security): Whoever you are — you don’t belong in here.",
+        "Liam (Worker): Hey. Don’t panic. Just… follow the prompts. Slow is safe."
       ]},
 
-      { filler: { count: 8, pool: "AUTO", meta: { pressure: 0 } } },
-
-      { choice: {
-        complyLabel: "I didn’t mean to be here.",
-        lieLabel: "I’m supposed to be here.",
-        runLabel: "…leave."
-      }},
+      // --- Intro loop: dialogue → task (10) ---
+      { say: [
+        "System: Calibration required.",
+        "Emma (Security): Your input is being recorded.",
+        "Liam (Worker): First one’s simple. Don’t rush it."
+      ]},
+      { task: "checksum", args: { phrase: "echostatic07vault" } },
 
       { say: [
-        "System: Movement detected.",
-        "System: Checksum required.",
-        "Emma (Security): Speak carefully. The system listens to everything.",
-        "Liam (Worker): Do what it asks. But don't give it extra."
+        "System: Pulse monitor online.",
+        "Liam (Worker): Keep your rhythm steady. It matters."
       ]},
-
-      // === INTRO PACK (10 tasks) ===
-      { task: "checksum" },
-      { say: ["System: Checksum accepted. Stabilizing interface…"] },
-
       { task: "pulse" },
-      { say: ["Emma (Security): Good. Keep your hands steady."] },
 
-      { task: "align" },
-      { say: ["Liam (Worker): Tiny adjustments. Not dramatic ones."] },
+      { choice: { complyLabel: "Do what it says.", lieLabel: "Pretend you didn’t see it.", runLabel: "Push past it." }},
 
-      { task: "mirror" },
-      { filler: { count: 5, pool: "AUTO", meta: { pressure: 0 } } },
-
-      { task: "hold" },
-      { say: ["System: Compliance signal recorded."] },
-
-      { choice: {
-        complyLabel: "Follow the prompts.",
-        lieLabel: "Search for a bypass.",
-        runLabel: "Break the pattern."
-      }},
-
-      { task: "scrub" },
-      { task: "splice" },
       { say: [
-        "System: Surface noise reduced.",
-        "Emma (Security): You're getting comfortable. Don't."
+        "System: Alignment drift detected.",
+        "Emma (Security): If you slip, containment tightens.",
+        "Liam (Worker): Center everything. Perfectly."
       ]},
+      { task: "align" },
 
+      { say: [
+        "System: Mirror channel opened.",
+        "Liam (Worker): Repeat exactly. No improvising."
+      ]},
+      { task: "mirror" },
+
+      { say: [
+        "System: Pressure test.",
+        "Emma (Security): Hold. Don’t flinch."
+      ]},
+      { task: "hold" },
+
+      { say: [
+        "System: Scrub filter required.",
+        "Liam (Worker): All switches on. Clean pass."
+      ]},
+      { task: "scrub" },
+
+      { say: [
+        "System: Splice token issued.",
+        "Emma (Security): Type only what’s requested."
+      ]},
+      { task: "splice" },
+
+      { choice: { complyLabel: "Stay compliant.", lieLabel: "Signal Liam.", runLabel: "Interfere." }},
+
+      { say: [
+        "System: Trace sequence armed.",
+        "Liam (Worker): In order. Don’t miss a node."
+      ]},
       { task: "trace" },
+
+      { say: [
+        "System: Offset gate.",
+        "Emma (Security): You’re being tested for speed and accuracy."
+      ]},
       { task: "offset" },
+
+      { say: [
+        "System: Mask selection required.",
+        "Liam (Worker): There’s a rule. It’s not a guess."
+      ]},
       { task: "mask" },
 
+      // --- Phase 2: harder interactive pack ---
       { say: [
-        "System: Intro procedures complete.",
-        "System: Escalation authorized.",
-        "Emma (Security): Now it stops being training.",
-        "Liam (Worker): Now it starts being a trap."
+        "System: Intro sequence complete.",
+        "System: Escalation permitted.",
+        "Emma (Security): This is where people break.",
+        "Liam (Worker): Or where they get out. One step at a time."
       ]},
 
-      // === HARD PACK (10 tasks) ===
       { task: "wires" },
-      { say: ["System: Continuity restored."] },
-
-      { task: "jigsaw" },
-      { filler: { count: 6, pool: "AUTO", meta: { pressure: 1 } } },
-
-      { task: "patternlock" },
-      { say: ["Emma (Security): Do not improvise. Repeat exactly."] },
-
+      { say: [ "System: Routing layer unlocked." ]},
       { task: "router" },
-      { say: ["Liam (Worker): One path. No branches."] },
 
+      { say: [ "System: Tile map loaded." ]},
+      { task: "jigsaw" },
+
+      { say: [ "System: Pattern lock armed." ]},
+      { task: "patternlock" },
+
+      { say: [ "System: Frequency window narrowing." ]},
       { task: "freq_match" },
+
+      { say: [ "System: Memory grid enabled." ]},
       { task: "grid_memory" },
 
-      { choice: {
-        complyLabel: "Stay inside constraints.",
-        lieLabel: "Pretend you understand.",
-        runLabel: "Refuse to be measured."
-      }},
-
+      { say: [ "System: Cipher keypad offered." ]},
       { task: "cipherpad" },
-      { say: ["System: Semantic layer aligned."] },
 
+      { say: [ "System: Calibration zone unstable." ]},
       { task: "calibration" },
+
+      { say: [ "System: Diff merge required." ]},
       { task: "diff_merge" },
+
+      { say: [ "System: Port list published." ]},
       { task: "ports" },
 
+      // --- Final hack ---
       { say: [
-        "System: Phase two complete.",
-        "System: Containment tightening.",
-        "Emma (Security): Last step. Then you either leave… or you get filed.",
-        "Liam (Worker): If you're going to move, move *once*."
+        "System: Final procedure required.",
+        "Emma (Security): Do NOT attempt to delete anything.",
+        "Liam (Worker): Delete only the flagged lines. If one escapes, you lose the window."
       ]},
-
-      // === FINAL HACK (end) ===
-      { task: "hack_final", args: { durationMs: 190000 } },
-
-      { say: [
-        "System: Record deleted.",
-        "System: Egress route available.",
-        "Emma (Security): ...",
-        "Liam (Worker): Go. Now."
-      ]},
-    ],
+      { task: "hack_final" },
+    ]
+,
   };
 
   // Optional helper filler; main.js will call this if present.
