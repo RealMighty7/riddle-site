@@ -1465,7 +1465,5 @@ if (!noTimer) {
     // start
     stage = 1;
     setCrackStage(0);
-  }
-
   boot();
 })();
