@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700">
+  <defs>
+    <linearGradient id="bezel" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#d9f1ff" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#b6d9ff" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#e8f6ff" stop-opacity="0.10"/>
+      <stop offset="0.5" stop-color="#e8f6ff" stop-opacity="0.03"/>
+      <stop offset="1" stop-color="#e8f6ff" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="softGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="2" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- outer bezel -->
+  <rect x="34" y="26" width="1132" height="648" rx="42" fill="none"
+        stroke="url(#bezel)" stroke-width="6" filter="url(#softGlow)"/>
+
+  <!-- inner bezel edge -->
+  <rect x="62" y="52" width="1076" height="596" rx="34" fill="none"
+        stroke="url(#edge)" stroke-width="3" opacity="0.9"/>
+
+  <!-- screen area outline (transparent fill so your sim background shows) -->
+  <rect x="110" y="92" width="980" height="516" rx="18" fill="none"
+        stroke="#dff3ff" stroke-opacity="0.12" stroke-width="2"/>
+
+  <!-- scanline / subtle grit -->
+  <g opacity="0.08">
+    <path d="M110 128h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 168h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 208h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 248h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 288h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 328h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 368h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 408h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 448h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 488h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 528h980" stroke="#dff3ff" stroke-width="1"/>
+    <path d="M110 568h980" stroke="#dff3ff" stroke-width="1"/>
+  </g>
+
+  <!-- corner fasteners -->
+  <g opacity="0.18">
+    <circle cx="92" cy="80" r="6" fill="#dff3ff"/>
+    <circle cx="1108" cy="80" r="6" fill="#dff3ff"/>
+    <circle cx="92" cy="620" r="6" fill="#dff3ff"/>
+    <circle cx="1108" cy="620" r="6" fill="#dff3ff"/>
+  </g>
+
+  <!-- small HUD notches -->
+  <g opacity="0.16">
+    <path d="M120 86h80" stroke="#dff3ff" stroke-width="2"/>
+    <path d="M1000 86h80" stroke="#dff3ff" stroke-width="2"/>
+    <path d="M120 614h120" stroke="#dff3ff" stroke-width="2"/>
+    <path d="M960 614h120" stroke="#dff3ff" stroke-width="2"/>
+  </g>
+</svg>
