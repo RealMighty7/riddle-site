@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+  <defs>
+    <pattern id="scan" width="1" height="6" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="1" height="1" fill="#ffffff" fill-opacity="0.06"/>
+    </pattern>
+  </defs>
+
+  <!-- Outer bezel -->
+  <rect x="60" y="40" width="1800" height="1000" rx="70" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="4"/>
+  <rect x="78" y="58" width="1764" height="964" rx="64" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2"/>
+
+  <!-- Inner screen edge -->
+  <rect x="125" y="110" width="1670" height="860" rx="42" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="2"/>
+  <rect x="135" y="120" width="1650" height="840" rx="36" fill="url(#scan)" fill-opacity="0.30"/>
+
+  <!-- Corner HUD notches -->
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="3" stroke-linecap="round">
+    <path d="M160 160h48v0"/>
+    <path d="M160 160v48"/>
+
+    <path d="M1760 160h-48"/>
+    <path d="M1760 160v48"/>
+
+    <path d="M160 920h48"/>
+    <path d="M160 920v-48"/>
+
+    <path d="M1760 920h-48"/>
+    <path d="M1760 920v-48"/>
+  </g>
+
+  <!-- Top status ticks -->
+  <g stroke="#ffffff" stroke-opacity="0.14" stroke-width="2" stroke-linecap="round">
+    <path d="M880 96h32"/>
+    <path d="M930 96h32"/>
+    <path d="M980 96h32"/>
+    <path d="M1030 96h32"/>
+  </g>
+
+  <!-- Subtle side vents -->
+  <g stroke="#ffffff" stroke-opacity="0.10" stroke-width="2" stroke-linecap="round">
+    <path d="M92 260v40"/>
+    <path d="M92 320v40"/>
+    <path d="M92 380v40"/>
+    <path d="M1828 260v40"/>
+    <path d="M1828 320v40"/>
+    <path d="M1828 380v40"/>
+  </g>
+</svg>
