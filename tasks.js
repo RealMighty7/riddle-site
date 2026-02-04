@@ -35,6 +35,20 @@
     "mask",
   ];
 
+  // Phase 2: harder, more interactive puzzles
+  window.TASK_POOLS.hard = [
+    "wires",
+    "jigsaw",
+    "patternlock",
+    "router",
+    "freq_match",
+    "grid_memory",
+    "cipherpad",
+    "calibration",
+    "diff_merge",
+    "ports",
+  ];
+
   function el(tag, attrs = {}, children = []) {
     const n = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
@@ -73,7 +87,11 @@
   ========================= */
 
   TASKS.checksum = async (ctx, args = {}) => {
-    const phrase = String(args.phrase || "").trim() || "checksum";
+    // First time: require the special phrase. If checksum appears again, fall back to stored answer.
+    ctx.state = ctx.state || {};
+    const first = ctx.state.__checksumFirstDone !== true;
+    const required = first ? "echostatic07vault" : String(ctx.state.storedAnswer || "checksum");
+    const phrase = String(args.phrase || "").trim() || required;
     ctx.showTaskUI?.("checksum", "enter checksum phrase");
 
     const inp = el("input", { type: "text", placeholder: "checksum" });
@@ -649,3 +667,366 @@
     await new Promise(() => {});
   };
 })();
+  /* =========================
+     HARD TASK PACK (PHASE 2)
+     ========================= */
+
+  TASKS.wires = async (ctx) => {
+    ctx.showTaskUI?.("wires", "connect each color to its matching port");
+    const wrap = el("div", { class: "wireWrap" });
+    const cols = ["red","blue","green","yellow"];
+    const portsL = cols.map(c => el("button",{type:"button",class:`wirePort left ${c}`,text:c.toUpperCase()}));
+    const portsR = cols.map(c => el("button",{type:"button",class:`wirePort right ${c}`,text:c.toUpperCase()}));
+    // shuffle right side
+    for (let i = portsR.length-1; i>0; i--) {
+      const j = Math.floor(Math.random()*(i+1));
+      [portsR[i], portsR[j]] = [portsR[j], portsR[i]];
+    }
+    const leftCol = el("div",{class:"wireCol"},portsL);
+    const rightCol= el("div",{class:"wireCol"},portsR);
+    const msg = el("div",{class:"muted",text:"tap a left port then a right port to link. mismatches reset."});
+    wrap.append(leftCol,rightCol);
+    ctx.taskBody.append(msg,wrap);
+
+    let pending=null;
+    const links=new Map(); // leftColor -> rightColor
+    function resetAll(bad){
+      links.clear();
+      pending=null;
+      portsL.forEach(b=>b.classList.remove("sel","ok"));
+      portsR.forEach(b=>b.classList.remove("sel","ok"));
+      if (bad) ctx.penalize?.();
+    }
+    function checkDone(){
+      if (links.size!==cols.length) return;
+      for (const c of cols) if (links.get(c)!==c) return;
+      ctx.success?.("wired");
+    }
+    portsL.forEach((b)=>{
+      b.onclick=()=>{
+        portsL.forEach(x=>x.classList.remove("sel"));
+        b.classList.add("sel");
+        pending=b.classList.contains("red")?"red":b.classList.contains("blue")?"blue":b.classList.contains("green")?"green":"yellow";
+      };
+    });
+    portsR.forEach((b)=>{
+      b.onclick=()=>{
+        if (!pending) return;
+        const rc=b.classList.contains("red")?"red":b.classList.contains("blue")?"blue":b.classList.contains("green")?"green":"yellow";
+        // set link
+        links.set(pending, rc);
+        // mark ok for now
+        portsL.forEach(x=>x.classList.toggle("ok", links.get(x.classList.contains("red")?"red":x.classList.contains("blue")?"blue":x.classList.contains("green")?"green":"yellow")!=null));
+        portsR.forEach(x=>x.classList.remove("sel"));
+        b.classList.add("sel");
+        // if mismatch on any completed pair early, penalize + reset
+        if (pending!==rc) {
+          resetAll(true);
+          msg.textContent="mismatch detected. links purged.";
+          return;
+        }
+        portsL.forEach(x=>x.classList.remove("sel"));
+        pending=null;
+        msg.textContent="stable.";
+        checkDone();
+      };
+    });
+  };
+
+  TASKS.jigsaw = async (ctx) => {
+    ctx.showTaskUI?.("jigsaw", "rebuild the image by swapping tiles");
+    const size = 3;
+    const board = el("div",{class:"jigBoard"});
+    const msg = el("div",{class:"muted",text:"click two tiles to swap. restore correct order."});
+    ctx.taskBody.append(msg, board);
+
+    const order = Array.from({length:size*size},(_,i)=>i);
+    const shuffled = order.slice();
+    // shuffle but keep solvable-ish; just random swaps
+    for (let i=0;i<20;i++){
+      const a=Math.floor(Math.random()*shuffled.length);
+      const b=Math.floor(Math.random()*shuffled.length);
+      [shuffled[a],shuffled[b]]=[shuffled[b],shuffled[a]];
+    }
+
+    let first=null;
+    function render(){
+      board.innerHTML="";
+      shuffled.forEach((n,idx)=>{
+        const tile=el("button",{type:"button",class:"jigTile",text:String(n+1)});
+        tile.dataset.idx=String(idx);
+        tile.dataset.val=String(n);
+        if (first===idx) tile.classList.add("sel");
+        tile.onclick=()=>{
+          if (first===null){ first=idx; render(); return; }
+          if (first===idx){ first=null; render(); return; }
+          [shuffled[first],shuffled[idx]]=[shuffled[idx],shuffled[first]];
+          first=null;
+          if (shuffled.every((v,i)=>v===i)) return ctx.success?.("rebuilt");
+          render();
+        };
+        board.appendChild(tile);
+      });
+    }
+    render();
+  };
+
+  TASKS.patternlock = async (ctx) => {
+    ctx.showTaskUI?.("pattern", "trace the pattern (repeat exactly)");
+    const msg = el("div",{class:"muted",text:"tap nodes in order. wrong resets."});
+    const grid = el("div",{class:"patGrid"});
+    ctx.taskBody.append(msg, grid);
+
+    const nodes = Array.from({length:9},(_,i)=>el("button",{type:"button",class:"patNode",text:""}));
+    nodes.forEach((n,i)=>{ n.dataset.i=String(i); grid.appendChild(n); });
+
+    const target = [];
+    let cur = Math.floor(Math.random()*9);
+    for (let k=0;k<5;k++){
+      target.push(cur);
+      cur = (cur + [1,2,3,4][Math.floor(Math.random()*4)])%9;
+    }
+    msg.textContent = `pattern: ${target.map(n=>n+1).join("-")}`;
+
+    let idx=0;
+    nodes.forEach((n)=>{
+      n.onclick=()=>{
+        const i=Number(n.dataset.i);
+        if (i!==target[idx]){
+          idx=0;
+          ctx.penalize?.();
+          nodes.forEach(x=>x.classList.remove("on"));
+          return;
+        }
+        n.classList.add("on");
+        idx++;
+        if (idx>=target.length) ctx.success?.("ok");
+      };
+    });
+  };
+
+  TASKS.router = async (ctx) => {
+    ctx.showTaskUI?.("router", "route packets without crossing");
+    const msg = el("div",{class:"muted",text:"toggle cells to create a single path from S to E. no branches."});
+    const grid = el("div",{class:"routeGrid"});
+    ctx.taskBody.append(msg, grid);
+
+    const W=6,H=4;
+    const start=0, end=W*H-1;
+    const active=new Set([start,end]);
+    function cell(i){
+      const b=el("button",{type:"button",class:"routeCell",text:""});
+      b.dataset.i=String(i);
+      if (i===start) b.textContent="S";
+      if (i===end) b.textContent="E";
+      b.onclick=()=>{
+        if (i===start||i===end) return;
+        if (active.has(i)) active.delete(i); else active.add(i);
+        draw();
+        check();
+      };
+      return b;
+    }
+    const cells=Array.from({length:W*H},(_,i)=>cell(i));
+    cells.forEach(c=>grid.appendChild(c));
+
+    function draw(){
+      cells.forEach((c)=>{
+        const i=Number(c.dataset.i);
+        c.classList.toggle("on", active.has(i));
+      });
+    }
+    function neighbors(i){
+      const x=i%W,y=Math.floor(i/W);
+      const out=[];
+      if (x>0) out.push(i-1);
+      if (x<W-1) out.push(i+1);
+      if (y>0) out.push(i-W);
+      if (y<H-1) out.push(i+W);
+      return out;
+    }
+    function check(){
+      // BFS path using active cells
+      const q=[start];
+      const seen=new Set([start]);
+      while(q.length){
+        const u=q.shift();
+        if (u===end) break;
+        for(const v of neighbors(u)){
+          if (!active.has(v) || seen.has(v)) continue;
+          seen.add(v); q.push(v);
+        }
+      }
+      if (!seen.has(end)) return;
+
+      // no branches: each active cell (except endpoints) must have degree 2 in active graph; endpoints degree 1
+      for (const i of active){
+        const deg=neighbors(i).filter(n=>active.has(n)).length;
+        if (i===start||i===end){
+          if (deg!==1) return;
+        } else {
+          if (deg!==2) return;
+        }
+      }
+      ctx.success?.("routed");
+    }
+    draw();
+  };
+
+  TASKS.freq_match = async (ctx) => {
+    ctx.showTaskUI?.("freq", "match the frequency window");
+    const msg = el("div",{class:"muted",text:"drag the knob until the needle sits in the band for 1 second."});
+    const wrap=el("div",{class:"freqWrap"});
+    const slider=el("input",{type:"range",min:"0",max:"100",value:"0",class:"freqSlider"});
+    const bandStart=30+Math.floor(Math.random()*35);
+    const bandEnd=bandStart+12+Math.floor(Math.random()*10);
+    const read=el("div",{class:"mono",text:"0"});
+    wrap.append(read,slider);
+    ctx.taskBody.append(msg,wrap);
+
+    let okT=0, last=Date.now();
+    function tick(){
+      const v=Number(slider.value);
+      read.textContent=`${v}`;
+      const now=Date.now();
+      const dt=now-last; last=now;
+      if (v>=bandStart && v<=bandEnd) okT+=dt; else okT=0;
+      if (okT>=1000) return ctx.success?.("locked");
+      requestAnimationFrame(tick);
+    }
+    tick();
+  };
+
+  TASKS.grid_memory = async (ctx) => {
+    ctx.showTaskUI?.("memory", "repeat the highlighted cells");
+    const msg=el("div",{class:"muted",text:"watch then repeat. one mistake resets."});
+    const grid=el("div",{class:"memGrid"});
+    ctx.taskBody.append(msg,grid);
+
+    const N=4;
+    const cells=[];
+    for(let i=0;i<N*N;i++){
+      const b=el("button",{type:"button",class:"memCell",text:""});
+      b.dataset.i=String(i);
+      grid.appendChild(b); cells.push(b);
+    }
+    const seq=[];
+    let len=5;
+    for(let i=0;i<len;i++) seq.push(Math.floor(Math.random()*N*N));
+    let phase="show";
+    let idx=0;
+
+    async function flash(){
+      for(const s of seq){
+        cells[s].classList.add("on");
+        await new Promise(r=>setTimeout(r,320));
+        cells[s].classList.remove("on");
+        await new Promise(r=>setTimeout(r,180));
+      }
+      phase="input";
+      msg.textContent="your turn.";
+      idx=0;
+    }
+    cells.forEach((c)=>{
+      c.onclick=()=>{
+        if (phase!=="input") return;
+        const i=Number(c.dataset.i);
+        if (i!==seq[idx]){
+          idx=0;
+          ctx.penalize?.();
+          msg.textContent="wrong. watch again.";
+          phase="show";
+          flash();
+          return;
+        }
+        c.classList.add("hit");
+        setTimeout(()=>c.classList.remove("hit"),120);
+        idx++;
+        if (idx>=seq.length) ctx.success?.("ok");
+      };
+    });
+    flash();
+  };
+
+  TASKS.cipherpad = async (ctx) => {
+    ctx.showTaskUI?.("cipher", "decode the keypad phrase");
+    const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const plain="SAFE EXIT";
+    const shift=2+Math.floor(Math.random()*5);
+    const enc = plain.replace(/[A-Z]/g, ch => {
+      const code=ch.charCodeAt(0)-65;
+      return String.fromCharCode(65+(code+shift)%26);
+    });
+    const msg=el("div",{class:"muted",text:`decode: ${enc} (caesar shift unknown)`});
+    const inp=el("input",{type:"text",placeholder:"type decoded phrase"});
+    const btn=el("button",{type:"button",class:"taskBtn",text:"submit"});
+    ctx.taskBody.append(msg,inp,btn);
+    btn.onclick=()=>{
+      const v=String(inp.value||"").trim().toUpperCase();
+      if (v===plain) return ctx.success?.("ok");
+      ctx.penalize?.();
+    };
+  };
+
+  TASKS.calibration = async (ctx) => {
+    ctx.showTaskUI?.("calibration", "stabilize: keep cursor inside the box for 2 seconds");
+    const msg=el("div",{class:"muted",text:"do not leave the box."});
+    const box=el("div",{class:"calBox"});
+    const dot=el("div",{class:"calDot"});
+    box.appendChild(dot);
+    ctx.taskBody.append(msg,box);
+
+    let inside=false;
+    let t0=null;
+    box.onpointerenter=()=>{ inside=true; if (!t0) t0=Date.now(); };
+    box.onpointerleave=()=>{ inside=false; t0=null; ctx.penalize?.(); msg.textContent="deviation detected."; };
+    const loop=()=>{
+      if (t0 && inside && Date.now()-t0>=2000) return ctx.success?.("stable");
+      requestAnimationFrame(loop);
+    };
+    loop();
+  };
+
+  TASKS.diff_merge = async (ctx) => {
+    ctx.showTaskUI?.("merge", "merge the diff (choose correct output)");
+    const a="ACCT-7F2C";
+    const b="ACCT-7F3C";
+    const correct=Math.random()<0.5?a:b;
+    const msg=el("div",{class:"muted",text:`resolve conflict: <<<<<<< HEAD ${a} ======= ${b} >>>>>>>`});
+    const btnA=el("button",{type:"button",class:"taskBtn",text:a});
+    const btnB=el("button",{type:"button",class:"taskBtn",text:b});
+    ctx.taskBody.append(msg,btnA,btnB);
+    btnA.onclick=()=>{ if (a===correct) ctx.success?.("ok"); else ctx.penalize?.(); };
+    btnB.onclick=()=>{ if (b===correct) ctx.success?.("ok"); else ctx.penalize?.(); };
+  };
+
+  TASKS.ports = async (ctx) => {
+    ctx.showTaskUI?.("ports", "open the correct ports (match labels)");
+    const msg=el("div",{class:"muted",text:"toggle only the ports referenced by the rule."});
+    const topics = ["HTTP","SSH","SMTP","DNS","RDP","NTP"];
+    const rule = ["HTTP+DNS","SSH+RDP","SMTP+NTP"][Math.floor(Math.random()*3)];
+    const need = new Set(rule.split("+"));
+    const wrap=el("div",{class:"portWrap"});
+    const togg=new Map();
+        topics.forEach(t=>{
+      const b=el("button",{type:"button",class:"portBtn",text:t});
+      togg.set(t,false);
+      b.onclick=()=>{
+        togg.set(t,!togg.get(t));
+        b.classList.toggle("on", togg.get(t));
+        check();
+      };
+      wrap.appendChild(b);
+    });
+    const ruleEl=el("div",{class:"mono",text:`rule: enable ${rule}`});
+    ctx.taskBody.append(msg,ruleEl,wrap);
+
+    function check(){
+            for(const t of topics){
+        if (togg.get(t) !== need.has(t)) return;
+      }
+      ctx.success?.("ok");
+    }
+  };
+
+
