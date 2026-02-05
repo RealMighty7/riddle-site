@@ -234,7 +234,7 @@
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
 
-    const CRACK_AT = [15, 17, 19];
+    const CRACK_AT = [15, 17, 19, 21];
     const SHATTER_AT = 21;
 
     let guidePath = "emma";
@@ -325,7 +325,7 @@
     }
 
     function ensureCracksForStage(stageN) {
-      const want = stageN === 0 ? 0 : stageN === 1 ? 5 : stageN === 2 ? 10 : 16;
+      const want = stageN === 0 ? 0 : stageN === 1 ? 5 : stageN === 2 ? 11 : stageN === 3 ? 17 : 24;
       while (crackState.paths.length < want) crackState.paths.push(newCrackPath());
       while (crackState.paths.length > want) crackState.paths.pop();
     }
@@ -391,17 +391,22 @@
 
     let crackStage = 0;
     function setCrackStage(n) {
-      crackStage = clamp(n, 0, 3);
+      crackStage = clamp(n, 0, 4);
       crackState.stage = crackStage;
       ensureCracksForStage(crackStage);
       drawCracks();
 
       // show/hide overlay container
       cracks.style.opacity = crackStage > 0 ? "1" : "0";
+
+      // stage classes for CSS hooks
+      document.body.classList.remove("crack1","crack2","crack3","crack4");
+      if (crackStage > 0) document.body.classList.add(`crack${crackStage}`);
     }
 
     function maybeAdvanceCracks() {
       const next =
+        clicks >= CRACK_AT[3] ? 4 :
         clicks >= CRACK_AT[2] ? 3 :
         clicks >= CRACK_AT[1] ? 2 :
         clicks >= CRACK_AT[0] ? 1 : 0;
@@ -471,6 +476,28 @@
       await wait(120);
     }
 
+    async function fractureLanding(ms = 900) {
+      const targets = Array.from(document.querySelectorAll('#wrap > .card, #wrap > section.card, #wrap > header.card, #wrap > .grid.card, #wrap > .grid'))
+        .filter(Boolean);
+      if (!targets.length) return;
+      document.body.classList.add('page-fracture');
+      // assign random transforms (stable-ish per run)
+      for (const el of targets) {
+        const rx = (Math.random() * 24 - 12).toFixed(2);
+        const ry = (Math.random() * 18 - 9).toFixed(2);
+        const rz = (Math.random() * 10 - 5).toFixed(2);
+        const sc = (0.98 + Math.random() * 0.08).toFixed(3);
+        el.style.setProperty('--fx', `${rx}px`);
+        el.style.setProperty('--fy', `${ry}px`);
+        el.style.setProperty('--fr', `${rz}deg`);
+        el.style.setProperty('--fs', sc);
+        el.classList.add('fracture-piece');
+      }
+      // ramp intensity based on crack stage
+      document.body.style.setProperty('--fractureIntensity', String(Math.max(1, crackStage)));
+      await wait(ms);
+    }
+
     async function shatterAndEnterSim() {
       if (document.body.classList.contains("sim-transition")) return;
       document.body.classList.add("sim-transition");
@@ -479,9 +506,13 @@
       playSfx("glassBreak", { volume: 0.70, overlap: false });
       playSfx("glitch2", { volume: 0.14, overlap: true });
 
+      // first: visually break the landing UI apart before the security room
+      await fractureLanding(760);
       await runTriGlitch(1100);
 
       setCrackStage(0);
+      document.body.classList.remove('page-fracture');
+      document.querySelectorAll('.fracture-piece').forEach((el)=>{ el.classList.remove('fracture-piece'); el.style.removeProperty('--fx'); el.style.removeProperty('--fy'); el.style.removeProperty('--fr'); el.style.removeProperty('--fs'); });
 
       document.body.classList.add("cut-black");
       await wait(160);
