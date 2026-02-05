@@ -668,6 +668,7 @@ async function shatterAndEnterSim() {
       btn.addEventListener("click", async () => {
         try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
         await unlockAudio();
+        try { window.Music?.setScene?.("sim"); } catch {}
         if (status) status.textContent = "status: viewer staged";
         if (box) box.classList.remove("hidden");
         if (keyInput) keyInput.focus();
@@ -855,11 +856,6 @@ async function shatterAndEnterSim() {
     }
 
     async function runTask(taskId, args) {
-      // User request: background music only in the simulation room.
-      // Silence for tasks/hack/landing.
-      try { window.Music?.stopAll?.(); } catch {}
-      try { window.Music?.setScene?.("landing"); } catch {}
-
       simChoices.classList.add("hidden");
       taskUI.classList.remove("hidden");
       hackRoom.classList.add("hidden");
@@ -876,24 +872,60 @@ async function shatterAndEnterSim() {
       let resolver;
       const p = new Promise((r) => (resolver = r));
 
+      // persistent sim task state (survives across tasks)
+      window.__SIM_STATE__ = window.__SIM_STATE__ || {};
+      const simState = window.__SIM_STATE__;
+      
+      const resetTaskButtons = () => {
+        // Always clear handlers to avoid “stacking” onclicks across tasks
+        try { taskPrimary.onclick = null; } catch {}
+        try { taskSecondary.onclick = null; } catch {}
+        taskPrimary.classList.remove("hidden");
+        taskSecondary.classList.add("hidden");
+      };
+      
       const ctx = {
+        // DOM refs tasks.js expects
+        taskUI,
         taskBody,
+        taskTitle,
+        taskDesc,
+        taskPrimary,
+        taskSecondary,
+      
+        // persistent state tasks can use
+        state: simState,
+      
         showTaskUI: (title, desc) => {
           if (title) taskTitle.textContent = String(title);
           if (desc) taskDesc.textContent = String(desc);
+          resetTaskButtons();
         },
+      
+        // optional helper tasks.js calls in checksum
+        setAnswer: (phrase) => {
+          simState.storedAnswer = String(phrase || "");
+        },
+      
         success: () => {
           if (done) return;
           done = true;
+      
+          // mark checksum “first done” only when it actually succeeds
+          if (String(taskId) === "checksum") simState.__checksumFirstDone = true;
+      
           resolver(true);
         },
+      
         penalize: () => {
           try { playSfx("mclick", { volume: 0.25, overlap: true }); } catch {}
           taskUI.classList.add("task-bad");
           setTimeout(() => taskUI.classList.remove("task-bad"), 180);
         },
+      
         doReset,
       };
+      
 
       // Admin skip: allow skipping while the task is active
       __ADMIN_CAN_SKIP__ = () => {
