@@ -177,7 +177,7 @@
     }
     function renderRevisionCount() {
       if (!els.build) return;
-      els.build.textContent = `build: revision ${getRevisionCount()}`;
+      els.build.textContent = `build: reversion ${getRevisionCount()}`;
     }
     renderRevisionCount();
 
