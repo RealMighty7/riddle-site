@@ -8,20 +8,14 @@
     return;
   }
 
-  // Stop stem music if running
+  // User request: background music only in the simulation room.
   try { window.Music?.stopAll?.(); } catch {}
-  try { window.Music?.setScene?.("none"); } catch {}
+  try { window.Music?.setScene?.("landing"); } catch {}
 
-  // Dedicated escaped music: Escaped.WAV
-  const escapedMusic = new Audio("/music/Escaped.WAV");
-  escapedMusic.loop = true;
-  escapedMusic.volume = 0.85;
-
-  (async () => {
-    try { await window.Music?.unlock?.(); } catch {}
-    try { await window.TTS?.unlock?.(); } catch {}
-    try { await escapedMusic.play(); } catch {}
-  })();
+  // User request: background music only in the simulation room.
+  // Ensure stems are silenced on escaped page.
+  try { window.Music?.stopAll?.(); } catch {}
+  try { window.Music?.setScene?.("landing"); } catch {}
 
   const userEl = document.getElementById("escapeUser");
   const codeEl = document.getElementById("escapeCode");
@@ -69,10 +63,5 @@
   // Auto-send on load (no button)
   submit();
 
-  if (backBtn) {
-    backBtn.onclick = () => {
-      try { escapedMusic.pause(); } catch {}
-      window.location.href = "/";
-    };
-  }
+    if (backBtn) backBtn.onclick = () => { window.location.href = "/"; };
 })();
