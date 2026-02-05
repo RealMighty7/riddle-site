@@ -60,19 +60,34 @@ body.crack4 #glassFX::before{
 body.crack3 #glassFX::before{ opacity:0.30; }
 body.crack4 #glassFX::before{ opacity:0.42; }
 
+
+@keyframes fractureFall {
+  0%   { transform: translate(0,0) rotate(0deg) scale(1); filter: blur(0px); opacity: 1; }
+  30%  { filter: blur(0.6px) contrast(1.05); }
+  60%  { opacity: 0.9; }
+  100% { transform: translate(var(--fx,0), calc(var(--fy,0) + 140px)) rotate(calc(var(--fr,0deg) * 1.6)) scale(var(--fs,1)); opacity: 0.0; filter: blur(1.2px) contrast(1.2); }
+}
+
+@keyframes triGlitch {
+  0% { filter: none; transform: none; }
+  18% { filter: blur(0.9px) contrast(1.2); transform: translate(-2px, 1px) skewX(-1deg); }
+  36% { filter: blur(0.3px) contrast(1.4); transform: translate(3px, -1px) skewX(1deg); }
+  55% { filter: blur(1.1px) contrast(1.15); transform: translate(-1px, -2px); }
+  100% { filter: none; transform: none; }
+}
 /* page fracture (landing breaking apart) */
 body.page-fracture #wrap{
   filter: blur(0.25px) contrast(1.05);
 }
 
 .fracture-piece{
-  transition: transform 520ms ease, filter 520ms ease, opacity 520ms ease;
+  will-change: transform, filter, opacity;
   transform: translate(var(--fx,0), var(--fy,0)) rotate(var(--fr,0deg)) scale(var(--fs,1));
-  filter: blur(0.2px);
 }
 
 body.page-fracture .fracture-piece{
-  opacity: 0.92;
+  opacity: 0.95;
+  animation: fractureFall 760ms cubic-bezier(.2,.8,.2,1) both;
 }
 
 /* PNG CRACK OVERLAY */
@@ -581,3 +596,27 @@ body.in-sim #adminPanel{
   border-color: rgba(255,80,80,.55);
 }
 
+
+/* task feedback */
+#taskUI.task-bad .taskCard{
+  animation: triGlitch 180ms linear both;
+}
+
+/* admin panel */
+#adminPanel{ max-width: 980px; margin: 0 auto 24px auto; padding: 0 18px; }
+.adminCard{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+}
+.adminLeft{ display:flex; flex-direction:column; gap:6px; }
+.adminTitle{ font-weight:600; letter-spacing:0.02em; }
+.adminPills{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.pill{
+  font-size:12px;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.55);
+}
