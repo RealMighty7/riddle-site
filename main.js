@@ -855,8 +855,10 @@ async function shatterAndEnterSim() {
     }
 
     async function runTask(taskId, args) {
-      // Move to task mode music
-      try { window.Music?.setScene?.("task"); } catch {}
+      // User request: background music only in the simulation room.
+      // Silence for tasks/hack/landing.
+      try { window.Music?.stopAll?.(); } catch {}
+      try { window.Music?.setScene?.("landing"); } catch {}
 
       simChoices.classList.add("hidden");
       taskUI.classList.remove("hidden");
@@ -902,18 +904,7 @@ async function shatterAndEnterSim() {
 
       // Run the task
       
-      // Dedicated final hack music
-      if (taskId === "hack_final") {
-        try { window.Music?.stopAll?.(); } catch {}
-        try { window.Music?.setScene?.("landing"); } catch {}
-        try {
-          window.__TNR_SPECIAL_MUSIC__ = new Audio("/music/FinalHack.WAV");
-          window.__TNR_SPECIAL_MUSIC__.loop = true;
-          window.__TNR_SPECIAL_MUSIC__.volume = 0.85;
-          window.__TNR_SPECIAL_MUSIC__.play().catch(()=>{});
-        } catch {}
-      }
-const fn = window.TASKS?.[taskId];
+      const fn = window.TASKS?.[taskId];
       if (typeof fn !== "function") {
         taskDesc.textContent = "missing task handler";
         await wait(400);
@@ -937,7 +928,7 @@ const fn = window.TASKS?.[taskId];
       taskUI.classList.add("hidden");
       simRoom.classList.remove("hidden");
 
-      // Back to sim music unless we are entering hack/escaped via task itself
+      // Back to sim room music
       try { window.Music?.setScene?.("sim"); } catch {}
     }
 
