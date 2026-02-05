@@ -128,6 +128,15 @@
       for (const k of Array.from(this.nodes.keys())) this._stopStem(k);
     }
 
+    // Public helper used by main.js/tasks.js
+    stopAll() {
+      try { this._stopAll(); } catch {}
+      if (this.glitchTimer) {
+        try { clearTimeout(this.glitchTimer); } catch {}
+        this.glitchTimer = 0;
+      }
+    }
+
     setScene(scene) {
       this.mode.scene = scene;
       this._applyMix();
