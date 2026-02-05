@@ -439,13 +439,6 @@
       if (state.done) return;
       state.done = true;
       try { clearInterval(state.timer); } catch {}
-      try {
-        if (window.__TNR_SPECIAL_MUSIC__) {
-          window.__TNR_SPECIAL_MUSIC__.pause();
-          window.__TNR_SPECIAL_MUSIC__.src = "";
-          window.__TNR_SPECIAL_MUSIC__ = null;
-        }
-      } catch {}
       setStatus("record removed");
       setTimeout(() => {
         sessionStorage.setItem("tnr_escape_ok", "1");
@@ -603,37 +596,8 @@
 
     if (resetBtn) resetBtn.onclick = () => fail("user reset");
 
-    // music: final hack should use FinalHack.WAV if present.
-    // If missing, fall back to stem mixer final scene.
-    const tryFinalHackMusic = () => {
-      try {
-        const a = new Audio("/music/FinalHack.WAV");
-        a.loop = true;
-        a.volume = 0.85;
-        a.play().then(() => {
-          window.__TNR_SPECIAL_MUSIC__ = a;
-          try { window.Music?.setScene?.("final"); } catch {}
-        }).catch(() => {
-          try { window.Music?.setScene?.("final"); } catch {}
-        });
-      } catch {
-        try { window.Music?.setScene?.("final"); } catch {}
-      }
-    };
-
-    const stopSpecialMusic = () => {
-      try {
-        if (window.__TNR_SPECIAL_MUSIC__) {
-          window.__TNR_SPECIAL_MUSIC__.pause();
-          window.__TNR_SPECIAL_MUSIC__.src = "";
-          window.__TNR_SPECIAL_MUSIC__ = null;
-        }
-      } catch {}
-    };
-
+    // User request: background music only in the simulation room.
     const startFinal = (u) => {
-      stopSpecialMusic();
-      tryFinalHackMusic();
       clearView();
       state.lineIndex = 0;
       state.removedCount = 0;
