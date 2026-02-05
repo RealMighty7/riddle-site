@@ -66,15 +66,20 @@
     <!-- optional admin panel container (kept) -->
     <section id="adminPanel" class="hidden">
       <div class="card" style="margin-top:14px;">
-        <div class="muted">admin: restricted</div>
-        <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
-          <button id="adminToggle" class="sim-btn" type="button">hide</button>
-          <button id="adminSkip" class="sim-btn" type="button">skip</button>
-        </div>
-        <div style="margin-top:10px; display:grid; gap:8px;">
-          <div class="muted">task: <span id="adminTask">—</span></div>
-          <div class="muted">args: <span id="adminAnswer">—</span></div>
-          <div class="muted">answer: <span id="adminStoredAnswer">—</span></div>
+        <div class="adminCard">
+          <div class="adminLeft">
+            <div class="adminTitle">admin console</div>
+            <div class="muted">restricted — session tools</div>
+            <div class="adminPills">
+              <span class="pill">task: <span id="adminTask">—</span></span>
+              <span class="pill">args: <span id="adminAnswer">—</span></span>
+              <span class="pill">answer: <span id="adminStoredAnswer">—</span></span>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <button id="adminSkip" class="sim-btn" type="button">skip step</button>
+            <button id="adminToggle" class="sim-btn" type="button">hide</button>
+          </div>
         </div>
       </div>
     </section>
