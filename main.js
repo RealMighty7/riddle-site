@@ -498,13 +498,80 @@
       await wait(ms);
     }
 
-    async function shatterAndEnterSim() {
+    
+    // Falling shard rain for transition (uses cracksCanvas)
+    function spawnShards(durationMs = 1200) {
+      const c = cracksCanvas;
+      const ctx = c.getContext("2d");
+      if (!ctx) return;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const start = performance.now();
+      const shards = [];
+      const W = () => c.width;
+      const H = () => c.height;
+
+      function addShard() {
+        const w = (12 + Math.random() * 70) * dpr;
+        const h = (6 + Math.random() * 24) * dpr;
+        shards.push({
+          x: Math.random() * W(),
+          y: -40 * dpr,
+          vx: (Math.random() - 0.5) * 120 * dpr,
+          vy: (120 + Math.random() * 520) * dpr,
+          r: (Math.random() - 0.5) * 0.8,
+          vr: (Math.random() - 0.5) * 0.12,
+          w, h,
+          a: 0.35 + Math.random() * 0.25,
+        });
+      }
+
+      let last = performance.now();
+      (function frame(t) {
+        const dt = Math.min(32, t - last) / 1000;
+        last = t;
+
+        // spawn rate ramps
+        const p = Math.min(1, (t - start) / durationMs);
+        const spawnN = 2 + Math.floor(p * 6);
+        for (let i = 0; i < spawnN; i++) addShard();
+
+        ctx.save();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = "rgba(0,0,0,0.06)";
+        ctx.fillRect(0, 0, c.width, c.height);
+
+        for (let i = shards.length - 1; i >= 0; i--) {
+          const s = shards[i];
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
+          s.r += s.vr;
+          s.vy += 420 * dpr * dt;
+          if (s.y > H() + 200 * dpr) { shards.splice(i, 1); continue; }
+
+          ctx.save();
+          ctx.translate(s.x, s.y);
+          ctx.rotate(s.r);
+          ctx.globalAlpha = s.a * (1 - p * 0.35);
+          ctx.fillStyle = "rgba(0,0,0,0.65)";
+          ctx.fillRect(-s.w / 2, -s.h / 2, s.w, s.h);
+          ctx.restore();
+        }
+
+        ctx.restore();
+
+        if (t - start < durationMs) requestAnimationFrame(frame);
+      })(performance.now());
+    }
+async function shatterAndEnterSim() {
       if (document.body.classList.contains("sim-transition")) return;
       document.body.classList.add("sim-transition");
 
       setCrackStage(3);
       playSfx("glassBreak", { volume: 0.70, overlap: false });
       playSfx("glitch2", { volume: 0.14, overlap: true });
+
+      spawnShards(1400);
+
 
       // first: visually break the landing UI apart before the security room
       await fractureLanding(760);
@@ -684,6 +751,15 @@
       stage = 99;
       await unlockAudio();
 
+      // Music: simulation uses stem mixer (3 “songs” via guidePath + intensity via resistance)
+      try {
+        await window.Music?.unlock?.();
+        await window.Music?.loadAll?.();
+        window.Music?.setScene?.("sim");
+        window.Music?.setGuidePath?.(guidePath);
+        window.Music?.setResistancePoints?.(resistancePoints);
+      } catch {}
+
       document.body.classList.add("in-sim");
       subs?.classList.remove("hidden");
 
@@ -695,11 +771,174 @@
       simText.textContent = "";
       playSfx("static1", { volume: 0.22, overlap: false });
 
-      await playLines(DIALOGUE.intro);
-      // your DIALOGUE.steps runner stays in your existing file set; keep it if you have it there
-      if (Array.isArray(DIALOGUE.steps) && typeof window.__RUN_STEPS__ === "function") {
-        await window.__RUN_STEPS__(DIALOGUE.steps);
+      // Always run the scripted sequence
+      if (Array.isArray(DIALOGUE.steps)) {
+        await runSteps(DIALOGUE.steps);
+      } else {
+        await playLines(DIALOGUE.intro);
       }
+    }
+
+    /* ======================
+       STEPS RUNNER (dialogue → choice → task)
+    ====================== */
+    let __ADMIN_CAN_SKIP__ = false;
+    window.__TNR_ADMIN_SKIP__ = () => { if (__ADMIN_CAN_SKIP__) __ADMIN_CAN_SKIP__(); };
+
+    async function runSteps(steps) {
+      // Start with the intro beat (your “security room” opening)
+      await playLines(DIALOGUE.intro || []);
+
+      for (let i = 0; i < steps.length; i++) {
+        if (ABORTED) return;
+        const step = steps[i] || {};
+
+        if (Array.isArray(step.say)) {
+          await playLines(step.say);
+          continue;
+        }
+
+        if (step.choice) {
+          const res = await showChoice(step.choice);
+          // Choice affects “side” + music feel.
+          choiceTotal++;
+          if (res === "comply") compliancePoints++;
+          if (res === "run") resistancePoints++;
+          if (res === "lie") resistancePoints += 0.5;
+
+          // Guide path: emma (security), liam (worker), system (takeover)
+          if (res === "comply") guidePath = "emma";
+          else if (res === "lie") guidePath = "liam";
+          else guidePath = "sys";
+
+          try { window.Music?.setGuidePath?.(guidePath === "sys" ? "emma" : guidePath); } catch {}
+          try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
+
+          continue;
+        }
+
+        if (step.task) {
+          await runTask(String(step.task), step.args || {});
+          continue;
+        }
+      }
+    }
+
+    function setChoicesVisible(on) {
+      if (!simChoices) return;
+      simChoices.classList.toggle("hidden", !on);
+    }
+
+    async function showChoice(choiceObj) {
+      setChoicesVisible(true);
+
+      if (choiceNeed) choiceNeed.textContent = choiceObj.complyLabel || "Okay.";
+      if (choiceLie)  choiceLie.textContent  = choiceObj.lieLabel || "…";
+      if (choiceRun)  choiceRun.textContent  = choiceObj.runLabel || "Run.";
+
+      return await new Promise((resolve) => {
+        const cleanup = () => {
+          try { choiceNeed?.removeEventListener("click", onNeed); } catch {}
+          try { choiceLie?.removeEventListener("click", onLie); } catch {}
+          try { choiceRun?.removeEventListener("click", onRun); } catch {}
+          setChoicesVisible(false);
+        };
+
+        const onNeed = () => { cleanup(); resolve("comply"); };
+        const onLie  = () => { cleanup(); resolve("lie"); };
+        const onRun  = () => { cleanup(); resolve("run"); };
+
+        choiceNeed?.addEventListener("click", onNeed, { once: true });
+        choiceLie?.addEventListener("click", onLie, { once: true });
+        choiceRun?.addEventListener("click", onRun, { once: true });
+      });
+    }
+
+    async function runTask(taskId, args) {
+      // Move to task mode music
+      try { window.Music?.setScene?.("task"); } catch {}
+
+      simChoices.classList.add("hidden");
+      taskUI.classList.remove("hidden");
+      hackRoom.classList.add("hidden");
+
+      // Reset task UI content
+      taskTitle.textContent = taskId;
+      taskDesc.textContent = "";
+      taskBody.innerHTML = "";
+      taskPrimary.classList.add("hidden");
+      taskSecondary.classList.add("hidden");
+
+      // ctx for tasks.js
+      let done = false;
+      let resolver;
+      const p = new Promise((r) => (resolver = r));
+
+      const ctx = {
+        taskBody,
+        showTaskUI: (title, desc) => {
+          if (title) taskTitle.textContent = String(title);
+          if (desc) taskDesc.textContent = String(desc);
+        },
+        success: () => {
+          if (done) return;
+          done = true;
+          resolver(true);
+        },
+        penalize: () => {
+          try { playSfx("mclick", { volume: 0.25, overlap: true }); } catch {}
+          taskUI.classList.add("task-bad");
+          setTimeout(() => taskUI.classList.remove("task-bad"), 180);
+        },
+        doReset,
+      };
+
+      // Admin skip: allow skipping while the task is active
+      __ADMIN_CAN_SKIP__ = () => {
+        if (done) return;
+        done = true;
+        resolver(true);
+      };
+
+      // Run the task
+      
+      // Dedicated final hack music
+      if (taskId === "hack_final") {
+        try { window.Music?.stopAll?.(); } catch {}
+        try { window.Music?.setScene?.("landing"); } catch {}
+        try {
+          window.__TNR_SPECIAL_MUSIC__ = new Audio("/music/FinalHack.WAV");
+          window.__TNR_SPECIAL_MUSIC__.loop = true;
+          window.__TNR_SPECIAL_MUSIC__.volume = 0.85;
+          window.__TNR_SPECIAL_MUSIC__.play().catch(()=>{});
+        } catch {}
+      }
+const fn = window.TASKS?.[taskId];
+      if (typeof fn !== "function") {
+        taskDesc.textContent = "missing task handler";
+        await wait(400);
+        doReset("MISSING TASK", `Task '${taskId}' is not registered.`);
+        return;
+      }
+
+      try {
+        await fn(ctx, args);
+      } catch (e) {
+        console.error(e);
+        doReset("TASK ERROR", String(e && e.message ? e.message : e));
+        return;
+      }
+
+      await p;
+
+      __ADMIN_CAN_SKIP__ = false;
+
+      // Hide task UI, return to sim
+      taskUI.classList.add("hidden");
+      simRoom.classList.remove("hidden");
+
+      // Back to sim music unless we are entering hack/escaped via task itself
+      try { window.Music?.setScene?.("sim"); } catch {}
     }
 
     /* ====================== LANDING: timestamp tick ====================== */
