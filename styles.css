@@ -796,3 +796,42 @@ body.hudNoTimer #hud .hudTimer{opacity: 0.45;}
 .sudokuCell{width: 40px; height: 40px; text-align:center; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;}
 .sudokuCell.fixed{display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.10);}
 
+
+
+/* ===== Stronger crack presence + dramatic transition ===== */
+body.crack1 #cracksCanvas{ filter: drop-shadow(0 0 10px rgba(0,0,0,.45)) contrast(1.12); }
+body.crack2 #cracksCanvas{ filter: drop-shadow(0 0 14px rgba(0,0,0,.55)) contrast(1.18) brightness(1.02); }
+body.crack3 #cracksCanvas{ filter: drop-shadow(0 0 18px rgba(0,0,0,.65)) contrast(1.25) brightness(1.04); }
+body.crack4 #cracksCanvas{ filter: drop-shadow(0 0 22px rgba(0,0,0,.75)) contrast(1.35) brightness(1.08); }
+
+@keyframes crack_zoom {
+  0%{ transform: scale(1) rotate(0deg); }
+  40%{ transform: scale(1.08) rotate(0.5deg); }
+  100%{ transform: scale(1.02) rotate(-0.2deg); }
+}
+body.shatter-burst #cracksCanvas{ animation: crack_zoom 520ms ease-out 1; }
+
+/* Glitch storm overlay */
+body.glitch-storm::before{
+  content:"";
+  position:fixed; inset:0;
+  pointer-events:none;
+  z-index:120;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 2px, rgba(0,0,0,0) 2px 6px),
+    radial-gradient(closest-side, rgba(255,255,255,.08), rgba(0,0,0,0) 70%);
+  mix-blend-mode: overlay;
+  opacity:0;
+  animation: storm 820ms steps(2,end) 1;
+}
+@keyframes storm{
+  0%{ opacity:0; transform: translate3d(0,0,0); filter: blur(0px); }
+  20%{ opacity:.55; transform: translate3d(-6px,2px,0); filter: blur(.6px); }
+  45%{ opacity:.25; transform: translate3d(5px,-3px,0); filter: blur(0px); }
+  70%{ opacity:.65; transform: translate3d(-3px,1px,0); filter: blur(1px); }
+  100%{ opacity:0; transform: translate3d(0,0,0); filter: blur(0px); }
+}
+
+/* Sim card alignment (dialogue box) */
+#simRoom{ display:flex; justify-content:center; align-items:flex-start; padding-top: 56px; }
+.simCard{ width:min(920px, 92vw); margin: 0 auto; }
