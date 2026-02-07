@@ -49,6 +49,130 @@
     "ports",
   ];
 
+  // Pack 6 + 7: additional interactive puzzles (second 10)
+  window.TASK_POOLS.pack6 = [
+    "p6_rotors",
+    "p6_wordsplice",
+    "p6_freqdial",
+    "p6_morse",
+    "p6_gridtap",
+    "p6_switchboard",
+    "p6_checksum2",
+    "p6_sequence",
+    "p6_matchpairs",
+    "p6_hexpad",
+  ];
+
+  window.TASK_POOLS.pack7 = [
+    "p7_minisudoku",
+    "p7_memoryflash",
+    "p7_sortstack",
+    "p7_ciphershift",
+    "p7_parity",
+    "p7_patternflip",
+    "p7_keymaze",
+    "p7_anagram",
+    "p7_gridroute",
+    "p7_timerlock",
+  ];
+
+  /* =========================
+     Packs 1–5: 100 intro variants
+     (20 per pack)
+  ========================= */
+
+  const INTRO_PACKS = (window.TASK_POOLS.introPacks = window.TASK_POOLS.introPacks || {});
+  for (let p = 1; p <= 5; p++) INTRO_PACKS[p] = [];
+  window.TASK_POOLS.pack1 = INTRO_PACKS[1];
+  window.TASK_POOLS.pack2 = INTRO_PACKS[2];
+  window.TASK_POOLS.pack3 = INTRO_PACKS[3];
+  window.TASK_POOLS.pack4 = INTRO_PACKS[4];
+  window.TASK_POOLS.pack5 = INTRO_PACKS[5];
+
+  function makeId(pack, base, i) {
+    const n = String(i).padStart(2, "0");
+    return `p${pack}_${base}_${n}`;
+  }
+
+  function addVariant(pack, base, i, buildArgs, answerText) {
+    const id = makeId(pack, base, i);
+    INTRO_PACKS[pack].push(id);
+    TASKS[id] = async (ctx) => {
+      // Provide admin-visible “answer” even for non-input tasks.
+      try {
+        const a = typeof answerText === "function" ? answerText() : answerText;
+        if (a) ctx.setAnswer?.(String(a), { pack, variant: id, base });
+      } catch {}
+      const args = typeof buildArgs === "function" ? buildArgs() : (buildArgs || {});
+      return TASKS[base](ctx, args);
+    };
+  }
+
+  // Generate 20 variants per pack (100 total). These stay “light” by default;
+  // the guide path (sys/emma/liam) and scoring/timer scaling provides the real pressure.
+  const PHRASE_ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const mkPhrase = (pack, i) => {
+    let s = "";
+    let x = (pack * 1315423911) ^ (i * 2654435761);
+    x >>>= 0;
+    for (let k = 0; k < 6; k++) {
+      x = (x * 1664525 + 1013904223) >>> 0;
+      s += PHRASE_ALPH[x % PHRASE_ALPH.length];
+    }
+    return `${pack}${s}`;
+  };
+
+  // Pack 1: checksum + pulse
+  for (let i = 1; i <= 10; i++) {
+    const phrase = mkPhrase(1, i);
+    addVariant(1, "checksum", i, { phrase }, () => phrase);
+  }
+  for (let i = 11; i <= 20; i++) {
+    const count = 3 + ((i - 11) % 6); // 3..8
+    addVariant(1, "pulse", i - 10, { count }, () => `clicks:${count}`);
+  }
+
+  // Pack 2: align + mirror
+  for (let i = 1; i <= 10; i++) {
+    const target = 42 + ((i * 3) % 17); // 42..58
+    addVariant(2, "align", i, { target, tol: 2 }, () => `target:${target}±2`);
+  }
+  for (let i = 11; i <= 20; i++) {
+    const len = 3 + ((i - 11) % 3); // 3..5
+    addVariant(2, "mirror", i - 10, { len }, () => `len:${len}`);
+  }
+
+  // Pack 3: hold + scrub
+  for (let i = 1; i <= 10; i++) {
+    const ms = 1400 + ((i * 137) % 900); // ~1.4s..2.3s
+    addVariant(3, "hold", i, { durationMs: ms }, () => `hold:${Math.round(ms / 100) / 10}s`);
+  }
+  for (let i = 11; i <= 20; i++) {
+    const n = 4 + ((i - 11) % 4); // 4..7
+    addVariant(3, "scrub", i - 10, { nBoxes: n }, () => `switches:${n}`);
+  }
+
+  // Pack 4: splice + trace
+  for (let i = 1; i <= 10; i++) {
+    const len = 3 + ((i * 7) % 3); // 3..5
+    addVariant(4, "splice", i, { tokenLen: len }, () => `token:${len} chars`);
+  }
+  for (let i = 11; i <= 20; i++) {
+    const n = 4 + ((i - 11) % 3); // 4..6
+    addVariant(4, "trace", i - 10, { nodes: n }, () => `nodes:${n}`);
+  }
+
+  // Pack 5: offset + mask
+  for (let i = 1; i <= 10; i++) {
+    const A = (i * 7) % 10;
+    const B = (i * 3) % 10;
+    addVariant(5, "offset", i, { A, B }, () => `(${A}+${B}) mod 10`);
+  }
+  for (let i = 11; i <= 20; i++) {
+    const size = 4;
+    addVariant(5, "mask", i - 10, { size }, () => `options:${size}`);
+  }
+
   function el(tag, attrs = {}, children = []) {
     const n = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
@@ -62,6 +186,11 @@
   }
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function clamp(n, a, b) {
+    const x = Number(n);
+    return Math.max(a, Math.min(b, Number.isFinite(x) ? x : a));
+  }
 
   /* =========================
      Random wrapper
@@ -115,25 +244,28 @@
     try { ctx.setAnswer?.(phrase); } catch {}
   };
 
-  TASKS.pulse = async (ctx) => {
-    ctx.showTaskUI?.("pulse", "click the pulse 5 times" );
+  TASKS.pulse = async (ctx, args = {}) => {
+    const target = Math.max(1, Math.floor(Number(args.count || 5)));
+    ctx.showTaskUI?.("pulse", `click the pulse ${target} times` );
     let count = 0;
     const btn = el("button", { type: "button", class: "taskBtn", text: "PULSE" });
-    const msg = el("div", { class: "muted", text: "0/5" });
+    const msg = el("div", { class: "muted", text: `0/${target}` });
     ctx.taskBody.appendChild(btn);
     ctx.taskBody.appendChild(msg);
 
     btn.onclick = () => {
       count++;
-      msg.textContent = `${count}/5`;
-      if (count >= 5) ctx.success?.("ok");
+      msg.textContent = `${count}/${target}`;
+      if (count >= target) ctx.success?.("ok");
     };
   };
 
-  TASKS.align = async (ctx) => {
-    ctx.showTaskUI?.("align", "set all sliders to the center" );
+  TASKS.align = async (ctx, args = {}) => {
+    const target = clamp(Math.floor(Number(args.target ?? 50)), 0, 100);
+    const tol = clamp(Math.floor(Number(args.tol ?? 2)), 0, 10);
+    ctx.showTaskUI?.("align", `set all sliders to ${target}` );
     const wrap = el("div", { class: "sliderWrap" });
-    const msg = el("div", { class: "muted", text: "targets: 50" });
+    const msg = el("div", { class: "muted", text: `target: ${target}±${tol}` });
     const sliders = [];
     for (let i = 0; i < 3; i++) {
       const s = el("input", { type: "range", min: "0", max: "100", value: String(Math.floor(Math.random() * 101)) });
@@ -144,23 +276,24 @@
     ctx.taskBody.appendChild(msg);
 
     const check = () => {
-      const ok = sliders.every((s) => Math.abs(Number(s.value) - 50) <= 2);
+      const ok = sliders.every((s) => Math.abs(Number(s.value) - target) <= tol);
       if (ok) ctx.success?.("aligned");
     };
 
     sliders.forEach((s) => s.addEventListener("input", check));
     ctx.taskPrimary.textContent = "verify";
     ctx.taskPrimary.onclick = () => {
-      const ok = sliders.every((s) => Math.abs(Number(s.value) - 50) <= 2);
+      const ok = sliders.every((s) => Math.abs(Number(s.value) - target) <= tol);
       if (ok) return ctx.success?.("aligned");
       ctx.penalize?.();
       msg.textContent = "misaligned.";
     };
   };
 
-  TASKS.mirror = async (ctx) => {
+  TASKS.mirror = async (ctx, args = {}) => {
+    const len = Math.max(2, Math.floor(Number(args.len || 4)));
     ctx.showTaskUI?.("mirror", "repeat the pattern" );
-    const seq = Array.from({ length: 4 }, () => (Math.random() < 0.5 ? "L" : "R"));
+    const seq = Array.from({ length: len }, () => (Math.random() < 0.5 ? "L" : "R"));
     let idx = 0;
 
     const row = el("div", { class: "btnRow" });
@@ -187,8 +320,10 @@
     r.onclick = () => press("R");
   };
 
-  TASKS.hold = async (ctx) => {
-    ctx.showTaskUI?.("hold", "hold the button for 2 seconds" );
+  TASKS.hold = async (ctx, args = {}) => {
+    const durationMs = Math.max(500, Math.floor(Number(args.durationMs || 2000)));
+    const s = Math.round(durationMs / 100) / 10;
+    ctx.showTaskUI?.("hold", `hold the button for ${s} seconds` );
     const btn = el("button", { type: "button", class: "taskBtn", text: "HOLD" });
     const msg = el("div", { class: "muted", text: "press and hold" });
     ctx.taskBody.appendChild(btn);
@@ -200,7 +335,7 @@
       if (!t0) return;
       const dt = Date.now() - t0;
       t0 = 0;
-      if (dt >= 2000) return ctx.success?.("held");
+      if (dt >= durationMs) return ctx.success?.("held");
       ctx.penalize?.();
       msg.textContent = "released too early";
     };
@@ -209,11 +344,12 @@
     btn.addEventListener("pointerleave", up);
   };
 
-  TASKS.scrub = async (ctx) => {
+  TASKS.scrub = async (ctx, args = {}) => {
+    const nBoxes = clamp(Math.floor(Number(args.nBoxes || 5)), 2, 10);
     ctx.showTaskUI?.("scrub", "toggle all switches on" );
     const wrap = el("div", { class: "chkRow" });
     const boxes = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < nBoxes; i++) {
       const cb = el("input", { type: "checkbox" });
       boxes.push(cb);
       wrap.appendChild(cb);
@@ -234,9 +370,10 @@
     };
   };
 
-  TASKS.splice = async (ctx) => {
+  TASKS.splice = async (ctx, args = {}) => {
+    const tokenLen = clamp(Math.floor(Number(args.tokenLen || 4)), 2, 8);
     ctx.showTaskUI?.("splice", "type the highlighted token" );
-    const token = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const token = Math.random().toString(36).slice(2, 2 + tokenLen).toUpperCase();
     const code = el("div", { class: "token", text: token });
     const inp = el("input", { type: "text", placeholder: "token" });
     inp.autocomplete = "off";
@@ -258,16 +395,17 @@
     try { ctx.setAnswer?.(token); } catch {}
   };
 
-  TASKS.trace = async (ctx) => {
+  TASKS.trace = async (ctx, args = {}) => {
+    const nodes = clamp(Math.floor(Number(args.nodes || 4)), 3, 8);
     ctx.showTaskUI?.("trace", "click the nodes in order" );
-    const order = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+    const order = Array.from({ length: nodes }, (_, i) => i).sort(() => Math.random() - 0.5);
     let idx = 0;
     const row = el("div", { class: "nodeRow" });
     const msg = el("div", { class: "muted", text: `order: ${order.map((n) => n + 1).join("-")}` });
     ctx.taskBody.appendChild(msg);
     ctx.taskBody.appendChild(row);
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < nodes; i++) {
       const b = el("button", { type: "button", class: "nodeBtn", text: String(i + 1) });
       b.onclick = () => {
         if (order[idx] !== i) {
@@ -284,10 +422,10 @@
     }
   };
 
-  TASKS.offset = async (ctx) => {
+  TASKS.offset = async (ctx, args = {}) => {
     ctx.showTaskUI?.("offset", "solve: (A+B) mod 10" );
-    const A = Math.floor(Math.random() * 10);
-    const B = Math.floor(Math.random() * 10);
+    const A = Number.isFinite(Number(args.A)) ? clamp(Math.floor(Number(args.A)), 0, 9) : Math.floor(Math.random() * 10);
+    const B = Number.isFinite(Number(args.B)) ? clamp(Math.floor(Number(args.B)), 0, 9) : Math.floor(Math.random() * 10);
     const ans = String((A + B) % 10);
     const q = el("div", { class: "muted", text: `A=${A}  B=${B}` });
     const inp = el("input", { type: "text", placeholder: "0-9" });
@@ -309,11 +447,12 @@
     try { ctx.setAnswer?.(ans); } catch {}
   };
 
-  TASKS.mask = async (ctx) => {
+  TASKS.mask = async (ctx, args = {}) => {
     ctx.showTaskUI?.("mask", "select the valid mask (use the rule below)");
     // Rule (hard but solvable): score = (vowels*3 + consonants) mod 4 must equal the gate value.
     const words = ["alpha","beta","gamma","delta","sigma","kappa"];
-    const opts = words.sort(() => Math.random() - 0.5).slice(0, 4);
+    const size = clamp(Math.floor(Number(args.size || 4)), 3, 6);
+    const opts = words.sort(() => Math.random() - 0.5).slice(0, size);
 
     const vowels = new Set(["a","e","i","o","u"]);
     const scoreOf = (w) => {
@@ -658,7 +797,6 @@
     // Keep task alive until reset/redirect.
     await new Promise(() => {});
   };
-})();
   /* =========================
      HARD TASK PACK (PHASE 2)
      ========================= */
@@ -1020,5 +1158,520 @@
       ctx.success?.("ok");
     }
   };
+
+  /* =========================
+     PACK 6 (10 interactive puzzles)
+  ========================= */
+
+  TASKS.p6_rotors = async (ctx) => {
+    ctx.showTaskUI?.("rotors", "set the rotors to match the target" );
+    const target = Array.from({ length: 3 }, () => Math.floor(Math.random() * 10));
+    const wrap = el("div", { class: "rotorWrap" });
+    const msg = el("div", { class: "muted", text: `target: ${target.join("-")}` });
+    const rotors = target.map(() => el("input", { type: "range", min: "0", max: "9", value: String(Math.floor(Math.random() * 10)) }));
+    rotors.forEach(r => wrap.appendChild(r));
+    ctx.taskBody.append(msg, wrap);
+    const check = () => {
+      const ok = rotors.every((r, i) => Number(r.value) === target[i]);
+      if (ok) ctx.success?.("ok");
+    };
+    rotors.forEach(r => r.addEventListener("input", check));
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.onclick = () => {
+      if (rotors.every((r, i) => Number(r.value) === target[i])) return ctx.success?.("ok");
+      ctx.penalize?.();
+    };
+    try { ctx.setAnswer?.(target.join("-")); } catch {}
+  };
+
+  TASKS.p6_wordsplice = async (ctx) => {
+    ctx.showTaskUI?.("wordsplice", "reorder the tiles to form the word" );
+    const words = ["CIRCUIT", "REFRACT", "SIGNAL", "SANDBOX", "MONITOR", "PROTOCOL"];
+    const word = words[Math.floor(Math.random() * words.length)];
+    const tiles = word.split("").sort(() => Math.random() - 0.5);
+    const wrap = el("div", { class: "tileWrap" });
+    const out = el("div", { class: "mono", text: tiles.join(" ") });
+    const inp = el("input", { type: "text", placeholder: "type the correct word" });
+    const msg = el("div", { class: "muted", text: "" });
+    ctx.taskBody.append(out, inp, msg);
+    const submit = () => {
+      const v = String(inp.value || "").trim().toUpperCase();
+      if (v === word) return ctx.success?.("ok");
+      ctx.penalize?.();
+      msg.textContent = "wrong";
+    };
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.onclick = submit;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    try { ctx.setAnswer?.(word); } catch {}
+  };
+
+  TASKS.p6_freqdial = async (ctx) => {
+    ctx.showTaskUI?.("freq dial", "tune to the target frequency" );
+    const target = 120 + Math.floor(Math.random() * 480); // 120..599
+    const tol = 6;
+    const dial = el("input", { type: "range", min: "100", max: "650", value: String(100 + Math.floor(Math.random() * 550)) });
+    const read = el("div", { class: "mono", text: `hz: ${dial.value}` });
+    const msg = el("div", { class: "muted", text: `target: ${target} ±${tol}` });
+    ctx.taskBody.append(read, dial, msg);
+    dial.addEventListener("input", () => { read.textContent = `hz: ${dial.value}`; });
+    ctx.taskPrimary.textContent = "lock";
+    ctx.taskPrimary.onclick = () => {
+      const v = Number(dial.value);
+      if (Math.abs(v - target) <= tol) return ctx.success?.("locked");
+      ctx.penalize?.();
+    };
+    try { ctx.setAnswer?.(String(target)); } catch {}
+  };
+
+  TASKS.p6_morse = async (ctx) => {
+    ctx.showTaskUI?.("morse", "decode the signal" );
+    const map = { A: ".-", S: "...", O: "---", T: "-", N: "-." };
+    const words = ["AS", "SON", "TO", "SAT", "NOT", "SO"];
+    const w = words[Math.floor(Math.random() * words.length)];
+    const code = w.split("").map(ch => map[ch]).join(" ");
+    const codeEl = el("div", { class: "mono", text: code });
+    const inp = el("input", { type: "text", placeholder: "letters" });
+    const msg = el("div", { class: "muted", text: "" });
+    ctx.taskBody.append(codeEl, inp, msg);
+    const submit = () => {
+      const v = String(inp.value || "").trim().toUpperCase();
+      if (v === w) return ctx.success?.("ok");
+      ctx.penalize?.();
+      msg.textContent = "wrong";
+    };
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.onclick = submit;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    try { ctx.setAnswer?.(w); } catch {}
+  };
+
+  TASKS.p6_gridtap = async (ctx) => {
+    ctx.showTaskUI?.("grid tap", "tap the lit cells" );
+    const need = new Set();
+    while (need.size < 4) need.add(Math.floor(Math.random() * 9));
+    const wrap = el("div", { class: "grid3" });
+    const msg = el("div", { class: "muted", text: "tap all highlighted" });
+    const hit = new Set();
+    for (let i = 0; i < 9; i++) {
+      const b = el("button", { type: "button", class: "gridCell", text: "" });
+      if (need.has(i)) b.classList.add("hot");
+      b.onclick = () => {
+        b.classList.toggle("on");
+        if (b.classList.contains("on")) hit.add(i); else hit.delete(i);
+        if (hit.size === need.size && [...hit].every(x => need.has(x))) ctx.success?.("ok");
+      };
+      wrap.appendChild(b);
+    }
+    ctx.taskBody.append(msg, wrap);
+    try { ctx.setAnswer?.([...need].map(n => n + 1).join(",")); } catch {}
+  };
+
+  TASKS.p6_switchboard = async (ctx) => {
+    ctx.showTaskUI?.("switchboard", "match the pattern" );
+    const n = 6;
+    const target = Array.from({ length: n }, () => (Math.random() < 0.5 ? 0 : 1));
+    const wrap = el("div", { class: "switchRow" });
+    const state = Array.from({ length: n }, () => 0);
+    const msg = el("div", { class: "muted", text: `target: ${target.map(v => (v ? "1" : "0")).join("")}` });
+    for (let i = 0; i < n; i++) {
+      const b = el("button", { type: "button", class: "switchBtn", text: "0" });
+      b.onclick = () => {
+        state[i] = state[i] ? 0 : 1;
+        b.textContent = String(state[i]);
+        b.classList.toggle("on", !!state[i]);
+        if (state.every((v, j) => v === target[j])) ctx.success?.("ok");
+      };
+      wrap.appendChild(b);
+    }
+    ctx.taskBody.append(msg, wrap);
+    try { ctx.setAnswer?.(target.join("")); } catch {}
+  };
+
+  TASKS.p6_checksum2 = async (ctx) => {
+    ctx.showTaskUI?.("checksum2", "enter the 2-digit checksum" );
+    const n = 1000 + Math.floor(Math.random() * 9000);
+    const sum = String(n).split("").reduce((a, d) => a + Number(d), 0);
+    const ans = String(sum % 97).padStart(2, "0");
+    const q = el("div", { class: "mono", text: `id: ${n}` });
+    const inp = el("input", { type: "text", placeholder: "00" });
+    inp.maxLength = 2;
+    const msg = el("div", { class: "muted", text: "rule: (sum of digits) mod 97" });
+    ctx.taskBody.append(q, inp, msg);
+    const submit = () => {
+      const v = String(inp.value || "").trim();
+      if (v === ans) return ctx.success?.("ok");
+      ctx.penalize?.();
+    };
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.onclick = submit;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    try { ctx.setAnswer?.(ans); } catch {}
+  };
+
+  TASKS.p6_sequence = async (ctx) => {
+    ctx.showTaskUI?.("sequence", "continue the sequence" );
+    const a = 1 + Math.floor(Math.random() * 4);
+    const b = 2 + Math.floor(Math.random() * 6);
+    const seq = [a, a + b, a + 2 * b, a + 3 * b];
+    const ans = String(a + 4 * b);
+    const q = el("div", { class: "mono", text: seq.join("  ") + "  ?" });
+    const inp = el("input", { type: "text", placeholder: "next" });
+    const msg = el("div", { class: "muted", text: "" });
+    ctx.taskBody.append(q, inp, msg);
+    const submit = () => {
+      if (String(inp.value || "").trim() === ans) return ctx.success?.("ok");
+      ctx.penalize?.();
+      msg.textContent = "wrong";
+    };
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.onclick = submit;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    try { ctx.setAnswer?.(ans); } catch {}
+  };
+
+  TASKS.p6_matchpairs = async (ctx) => {
+    ctx.showTaskUI?.("match pairs", "reveal and match all pairs" );
+    const vals = ["A","A","B","B","C","C","D","D"].sort(() => Math.random() - 0.5);
+    const wrap = el("div", { class: "pairGrid" });
+    let first = null;
+    let matched = 0;
+    vals.forEach((v, i) => {
+      const b = el("button", { type: "button", class: "pairCard", text: "?" });
+      b.onclick = () => {
+        if (b.disabled || b.classList.contains("open")) return;
+        b.classList.add("open");
+        b.textContent = v;
+        if (!first) { first = b; return; }
+        const a = first;
+        first = null;
+        if (a.textContent === b.textContent) {
+          a.disabled = b.disabled = true;
+          matched += 2;
+          if (matched >= vals.length) ctx.success?.("ok");
+        } else {
+          setTimeout(() => {
+            a.classList.remove("open");
+            b.classList.remove("open");
+            a.textContent = "?";
+            b.textContent = "?";
+          }, 450);
+          ctx.penalize?.();
+        }
+      };
+      wrap.appendChild(b);
+    });
+    ctx.taskBody.append(wrap);
+  };
+
+  TASKS.p6_hexpad = async (ctx) => {
+    ctx.showTaskUI?.("hexpad", "enter the hex for the displayed number" );
+    const n = 16 + Math.floor(Math.random() * 240);
+    const ans = n.toString(16).toUpperCase();
+    const q = el("div", { class: "mono", text: `dec: ${n}` });
+    const inp = el("input", { type: "text", placeholder: "HEX" });
+    const msg = el("div", { class: "muted", text: "" });
+    ctx.taskBody.append(q, inp, msg);
+    const submit = () => {
+      const v = String(inp.value || "").trim().toUpperCase();
+      if (v === ans) return ctx.success?.("ok");
+      ctx.penalize?.();
+      msg.textContent = "wrong";
+    };
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.onclick = submit;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    try { ctx.setAnswer?.(ans); } catch {}
+  };
+
+  /* =========================
+     PACK 7 (10 interactive puzzles)
+  ========================= */
+
+  TASKS.p7_minisudoku = async (ctx) => {
+    ctx.showTaskUI?.("minisudoku", "fill the blanks (digits 1-4)" );
+    // 2x2 blocks in 4x4
+    const solution = [
+      [1,2,3,4],
+      [3,4,1,2],
+      [2,1,4,3],
+      [4,3,2,1],
+    ];
+    const blanks = new Set();
+    while (blanks.size < 6) blanks.add(Math.floor(Math.random() * 16));
+    const grid = el("div", { class: "sudoku4" });
+    const inputs = [];
+    for (let i = 0; i < 16; i++) {
+      const r = Math.floor(i / 4), c = i % 4;
+      if (!blanks.has(i)) {
+        const d = el("div", { class: "sudokuCell fixed", text: String(solution[r][c]) });
+        grid.appendChild(d);
+      } else {
+        const inp = el("input", { class: "sudokuCell", type: "text" });
+        inp.maxLength = 1;
+        inputs.push({ inp, r, c });
+        grid.appendChild(inp);
+      }
+    }
+    ctx.taskBody.append(grid);
+    const check = () => {
+      const ok = inputs.every(({ inp, r, c }) => String(inp.value || "").trim() === String(solution[r][c]));
+      if (ok) ctx.success?.("ok");
+    };
+    inputs.forEach(({ inp }) => inp.addEventListener("input", check));
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.onclick = () => {
+      if (inputs.every(({ inp, r, c }) => String(inp.value || "").trim() === String(solution[r][c]))) return ctx.success?.("ok");
+      ctx.penalize?.();
+    };
+    try { ctx.setAnswer?.("4x4 fixed"); } catch {}
+  };
+
+  TASKS.p7_memoryflash = async (ctx) => {
+    ctx.showTaskUI?.("memoryflash", "repeat the flash pattern" );
+    const seq = Array.from({ length: 4 }, () => Math.floor(Math.random() * 4));
+    const wrap = el("div", { class: "flashRow" });
+    const btns = Array.from({ length: 4 }, (_, i) => el("button", { type: "button", class: "flashBtn", text: String(i + 1) }));
+    btns.forEach(b => wrap.appendChild(b));
+    const msg = el("div", { class: "muted", text: "watch…" });
+    ctx.taskBody.append(msg, wrap);
+    let idx = 0;
+    const flash = async () => {
+      for (const i of seq) {
+        btns[i].classList.add("on");
+        await sleep(240);
+        btns[i].classList.remove("on");
+        await sleep(140);
+      }
+      msg.textContent = "your turn";
+    };
+    await flash();
+    btns.forEach((b, i) => {
+      b.onclick = () => {
+        if (seq[idx] !== i) {
+          idx = 0;
+          ctx.penalize?.();
+          msg.textContent = "reset";
+          return;
+        }
+        idx++;
+        if (idx >= seq.length) ctx.success?.("ok");
+      };
+    });
+    try { ctx.setAnswer?.(seq.map(n => n + 1).join("-")); } catch {}
+  };
+
+  TASKS.p7_sortstack = async (ctx) => {
+    ctx.showTaskUI?.("sortstack", "type the numbers in ascending order" );
+    const nums = Array.from({ length: 5 }, () => 10 + Math.floor(Math.random() * 90));
+    const ans = nums.slice().sort((a, b) => a - b).join(" ");
+    const q = el("div", { class: "mono", text: nums.join(" ") });
+    const inp = el("input", { type: "text", placeholder: "sorted" });
+    const msg = el("div", { class: "muted", text: "" });
+    ctx.taskBody.append(q, inp, msg);
+    const submit = () => {
+      const v = String(inp.value || "").trim().replace(/\s+/g, " ");
+      if (v === ans) return ctx.success?.("ok");
+      ctx.penalize?.();
+      msg.textContent = "wrong";
+    };
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.onclick = submit;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    try { ctx.setAnswer?.(ans); } catch {}
+  };
+
+  TASKS.p7_ciphershift = async (ctx) => {
+    ctx.showTaskUI?.("ciphershift", "decode the Caesar shift" );
+    const words = ["ESCAPE", "TRUST", "SIGNAL", "VECTOR", "WINDOW"];
+    const plain = words[Math.floor(Math.random() * words.length)];
+    const shift = 1 + Math.floor(Math.random() * 5);
+    const enc = plain.replace(/[A-Z]/g, (ch) => String.fromCharCode(((ch.charCodeAt(0) - 65 + shift) % 26) + 65));
+    const q = el("div", { class: "mono", text: `shift: +${shift}  msg: ${enc}` });
+    const inp = el("input", { type: "text", placeholder: "decoded" });
+    const msg = el("div", { class: "muted", text: "" });
+    ctx.taskBody.append(q, inp, msg);
+    const submit = () => {
+      const v = String(inp.value || "").trim().toUpperCase();
+      if (v === plain) return ctx.success?.("ok");
+      ctx.penalize?.();
+      msg.textContent = "wrong";
+    };
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.onclick = submit;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    try { ctx.setAnswer?.(plain); } catch {}
+  };
+
+  TASKS.p7_parity = async (ctx) => {
+    ctx.showTaskUI?.("parity", "choose the even-parity line" );
+    const lines = Array.from({ length: 4 }, () => Array.from({ length: 7 }, () => (Math.random() < 0.5 ? 0 : 1)));
+    const parity = (arr) => arr.reduce((a, b) => a + b, 0) % 2;
+    let correct = 0;
+    for (let i = 0; i < 4; i++) {
+      if (parity(lines[i]) === 0) { correct = i; break; }
+    }
+    const wrap = el("div", { class: "parityList" });
+    const msg = el("div", { class: "muted", text: "even parity = even number of 1s" });
+    ctx.taskBody.append(msg, wrap);
+    lines.forEach((arr, i) => {
+      const b = el("button", { type: "button", class: "parityBtn", text: arr.join("") });
+      b.onclick = () => {
+        if (i === correct) return ctx.success?.("ok");
+        ctx.penalize?.();
+      };
+      wrap.appendChild(b);
+    });
+    try { ctx.setAnswer?.(`line:${correct + 1}`); } catch {}
+  };
+
+  TASKS.p7_patternflip = async (ctx) => {
+    ctx.showTaskUI?.("patternflip", "toggle until the board is all on" );
+    const wrap = el("div", { class: "grid3" });
+    const st = Array.from({ length: 9 }, () => (Math.random() < 0.5 ? 0 : 1));
+    const btns = [];
+    const toggle = (i) => {
+      const coords = [i, i - 1, i + 1, i - 3, i + 3].filter(j => j >= 0 && j < 9);
+      coords.forEach(j => st[j] = st[j] ? 0 : 1);
+      render();
+      if (st.every(v => v === 1)) ctx.success?.("ok");
+    };
+    const render = () => {
+      btns.forEach((b, i) => {
+        b.classList.toggle("on", !!st[i]);
+      });
+    };
+    for (let i = 0; i < 9; i++) {
+      const b = el("button", { type: "button", class: "gridCell", text: "" });
+      b.onclick = () => toggle(i);
+      btns.push(b);
+      wrap.appendChild(b);
+    }
+    ctx.taskBody.append(wrap);
+    render();
+  };
+
+  TASKS.p7_keymaze = async (ctx) => {
+    ctx.showTaskUI?.("keymaze", "use arrow keys to reach the exit" );
+    const size = 5;
+    let x = 0, y = 0;
+    const exit = { x: 4, y: 4 };
+    const grid = el("div", { class: "maze" });
+    const cells = [];
+    for (let i = 0; i < size * size; i++) {
+      const c = el("div", { class: "mazeCell" });
+      cells.push(c);
+      grid.appendChild(c);
+    }
+    const msg = el("div", { class: "muted", text: "" });
+    ctx.taskBody.append(msg, grid);
+    const idx = (x, y) => y * size + x;
+    const render = () => {
+      cells.forEach(c => c.className = "mazeCell");
+      cells[idx(exit.x, exit.y)].classList.add("exit");
+      cells[idx(x, y)].classList.add("you");
+    };
+    render();
+    const onKey = (e) => {
+      const k = e.key;
+      if (!["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(k)) return;
+      e.preventDefault();
+      if (k === "ArrowUp") y = Math.max(0, y - 1);
+      if (k === "ArrowDown") y = Math.min(size - 1, y + 1);
+      if (k === "ArrowLeft") x = Math.max(0, x - 1);
+      if (k === "ArrowRight") x = Math.min(size - 1, x + 1);
+      render();
+      if (x === exit.x && y === exit.y) {
+        window.removeEventListener("keydown", onKey, true);
+        ctx.success?.("ok");
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+  };
+
+  TASKS.p7_anagram = async (ctx) => {
+    ctx.showTaskUI?.("anagram", "unscramble" );
+    const words = ["WORKER","SECURITY","SYSTEM","GLASS","STATIC"];
+    const w = words[Math.floor(Math.random() * words.length)];
+    const scr = w.split("").sort(() => Math.random() - 0.5).join("");
+    const q = el("div", { class: "mono", text: scr });
+    const inp = el("input", { type: "text", placeholder: "word" });
+    const msg = el("div", { class: "muted", text: "" });
+    ctx.taskBody.append(q, inp, msg);
+    const submit = () => {
+      const v = String(inp.value || "").trim().toUpperCase();
+      if (v === w) return ctx.success?.("ok");
+      ctx.penalize?.();
+      msg.textContent = "wrong";
+    };
+    ctx.taskPrimary.textContent = "verify";
+    ctx.taskPrimary.onclick = submit;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    try { ctx.setAnswer?.(w); } catch {}
+  };
+
+  TASKS.p7_gridroute = async (ctx) => {
+    ctx.showTaskUI?.("gridroute", "click a path from S to E" );
+    const msg = el("div", { class: "muted", text: "S = start, E = exit. click a connected path." });
+    const wrap = el("div", { class: "grid3" });
+    const start = 0;
+    const end = 8;
+    const path = new Set([start]);
+    const btns = [];
+    const neighbors = (i) => {
+      const r = Math.floor(i / 3), c = i % 3;
+      const out = [];
+      if (r > 0) out.push(i - 3);
+      if (r < 2) out.push(i + 3);
+      if (c > 0) out.push(i - 1);
+      if (c < 2) out.push(i + 1);
+      return out;
+    };
+    const render = () => {
+      btns.forEach((b, i) => {
+        b.classList.toggle("on", path.has(i));
+        b.textContent = i === start ? "S" : i === end ? "E" : "";
+      });
+    };
+    for (let i = 0; i < 9; i++) {
+      const b = el("button", { type: "button", class: "gridCell", text: "" });
+      b.onclick = () => {
+        if (i === start) return;
+        const ok = [...path].some(p => neighbors(p).includes(i));
+        if (!ok) { ctx.penalize?.(); return; }
+        path.add(i);
+        render();
+        if (path.has(end)) ctx.success?.("ok");
+      };
+      btns.push(b);
+      wrap.appendChild(b);
+    }
+    ctx.taskBody.append(msg, wrap);
+    render();
+  };
+
+  TASKS.p7_timerlock = async (ctx) => {
+    ctx.showTaskUI?.("timerlock", "wait for the correct beat then press" );
+    const windowMs = 260;
+    const period = 1200;
+    const start = performance.now();
+    const msg = el("div", { class: "muted", text: "press when the indicator is ON" });
+    const ind = el("div", { class: "lockIndicator" });
+    const btn = el("button", { type: "button", class: "taskBtn", text: "PRESS" });
+    ctx.taskBody.append(msg, ind, btn);
+    const tick = () => {
+      const t = (performance.now() - start) % period;
+      ind.classList.toggle("on", t < windowMs);
+      if (!ctx.__done__) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    btn.onclick = () => {
+      const t = (performance.now() - start) % period;
+      if (t < windowMs) return ctx.success?.("ok");
+      ctx.penalize?.();
+    };
+  };
+
+})();
 
 
