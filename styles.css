@@ -603,7 +603,38 @@ body.in-sim #adminPanel{
 }
 
 /* admin panel */
-#adminPanel{ max-width: 980px; margin: 0 auto 24px auto; padding: 0 18px; }
+#adminPanel{
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  max-width: 520px;
+  width: calc(100vw - 28px);
+  z-index: 9998;
+  padding: 0;
+}
+#adminDragHandle{cursor: move; user-select: none; }
+.adminAnswer{
+  width: 220px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.75);
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+.adminRestore{
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 9998;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.55);
+  color: rgba(255,255,255,0.90);
+  cursor: pointer;
+}
+.adminRestore:hover{background: rgba(0,0,0,0.70);}
 .adminCard{
   display:flex;
   align-items:center;
@@ -637,3 +668,92 @@ body.in-sim #adminPanel{
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+
+/* =====================
+   HUD (compliance / resistance / timer)
+   ===================== */
+#hud{
+  position: fixed;
+  left: 14px;
+  top: 14px;
+  z-index: 9999;
+  width: min(520px, calc(100vw - 28px));
+  pointer-events: none;
+  user-select: none;
+}
+.hudRow{display:flex; gap:10px; align-items:stretch;}
+.hudMeter{
+  flex: 1;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 8px 10px;
+  backdrop-filter: blur(3px);
+}
+.hudLabel{font-size: 12px; opacity: 0.75; letter-spacing: 0.06em; text-transform: lowercase;}
+.hudBar{height: 10px; border-radius: 999px; background: rgba(255,255,255,0.08); margin-top: 6px; overflow:hidden;}
+.hudFill{height: 100%; width: 0%; background: rgba(255,255,255,0.75); transition: width 120ms linear;}
+.hudVal{font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; margin-top: 6px; opacity: 0.85;}
+.hudTimer{max-width: 170px;}
+body.hudNoTimer #hud .hudTimer{opacity: 0.45;}
+
+/* =====================
+   Pack 6/7 task styles
+   ===================== */
+.token{
+  display: inline-block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.12em;
+  margin-bottom: 10px;
+}
+.dial{width: 100%;}
+.chipTray{display:flex; flex-wrap:wrap; gap:8px; margin: 8px 0 10px;}
+.chip{
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.35);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  cursor: grab;
+}
+.chip.dragging{opacity: 0.6;}
+.chipOut{min-height: 46px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding: 10px; border-radius: 12px; border: 1px dashed rgba(255,255,255,0.24); background: rgba(0,0,0,0.25);}
+.chipOutChip{cursor: default;}
+.miniGrid{display:grid; grid-template-columns: repeat(5, 38px); gap:6px; margin: 10px 0;}
+.gridCell{width: 38px; height: 38px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06);}
+.switchRow{display:grid; grid-template-columns: 1fr 1fr; gap: 12px;}
+.switchCol{display:flex; flex-direction:column; gap: 10px;}
+.pairGrid{display:grid; grid-template-columns: repeat(4, minmax(44px, 1fr)); gap: 10px; margin-top: 10px;}
+.pairCard{height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;}
+.miniSudoku{display:grid; gap: 6px; margin: 10px 0;}
+.miniSudokuRow{display:grid; grid-template-columns: repeat(4, 40px); gap: 6px;}
+.miniSudokuCell{width: 40px; height: 40px; display:flex; align-items:center; justify-content:center; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;}
+.sortList{display:flex; flex-direction:column; gap: 8px; margin: 10px 0;}
+.sortItem{padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.35); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; cursor: grab;}
+.sortItem.dragging{opacity: 0.6;}
+
+/* ===== Pack 6/7 additional widgets ===== */
+.rotorWrap{display:flex; gap:12px; margin: 12px 0;}
+.rotorWrap input[type=range]{width: 140px;}
+.grid3{display:grid; grid-template-columns: repeat(3, 38px); gap:6px; margin: 10px 0;}
+.gridCell.hot{outline: 1px solid rgba(255,255,255,0.22);}
+.gridCell.on{background: rgba(255,255,255,0.18);}
+.flashRow{display:flex; gap:10px; margin: 10px 0;}
+.flashBtn{width: 44px; height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;}
+.flashBtn.on{background: rgba(255,255,255,0.22);}
+.parityList{display:flex; flex-direction:column; gap: 8px; margin: 10px 0;}
+.parityBtn{padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.35); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-align:left;}
+.maze{display:grid; grid-template-columns: repeat(5, 34px); gap:6px; margin: 10px 0;}
+.mazeCell{width:34px; height:34px; border-radius:10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06);}
+.mazeCell.you{background: rgba(255,255,255,0.22);}
+.mazeCell.exit{outline: 1px solid rgba(255,255,255,0.28);}
+.lockIndicator{width: 100%; height: 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); margin: 10px 0;}
+.lockIndicator.on{background: rgba(255,255,255,0.22);}
+.sudoku4{display:grid; grid-template-columns: repeat(4, 40px); gap:6px; margin: 10px 0;}
+.sudokuCell{width: 40px; height: 40px; text-align:center; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;}
+.sudokuCell.fixed{display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.10);}
+
