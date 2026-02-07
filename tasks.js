@@ -1142,17 +1142,6 @@
     }
   };
 
-  /* =========================
-     PACK 6 (10 interactive puzzles)
-  ========================= */
-    requestAnimationFrame(tick);
-    btn.onclick = () => {
-      const t = (performance.now() - start) % period;
-      if (t < windowMs) return ctx.success?.("ok");
-      ctx.penalize?.();
-    };
-  };
-
 })();
 
 
