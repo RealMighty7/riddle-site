@@ -64,16 +64,18 @@
     </header>
 
     <!-- optional admin panel container (kept) -->
-    <section id="adminPanel" class="hidden">
+    <section id="adminPanel" class="hidden" aria-label="admin console">
       <div class="card" style="margin-top:14px;">
         <div class="adminCard">
-          <div class="adminLeft">
+          <div class="adminLeft" id="adminDragHandle">
             <div class="adminTitle">admin console</div>
             <div class="muted">restricted — session tools</div>
             <div class="adminPills">
               <span class="pill">task: <span id="adminTask">—</span></span>
-              <span class="pill">args: <span id="adminAnswer">—</span></span>
-              <span class="pill">answer: <span id="adminStoredAnswer">—</span></span>
+              <span class="pill">answer:
+                <input id="adminAnswer" class="adminAnswer" type="text" value="" readonly />
+              </span>
+              <span class="pill"><span id="adminStoredAnswer">—</span></span>
             </div>
           </div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
@@ -83,6 +85,8 @@
         </div>
       </div>
     </section>
+
+    <button id="adminRestore" class="adminRestore hidden" type="button">admin</button>
   </main>
 
   <!-- SIM -->
@@ -190,8 +194,8 @@
   </section>
 
   <!-- IMPORTANT script order -->
-  <script src="/dialogue.js?v=999"></script>
   <script src="/tasks.js?v=999"></script>
+  <script src="/dialogue.js?v=999"></script>
 
   <script src="/audio_player.js?v=999"></script>
   <script src="/ttsQueue.js?v=999"></script>
