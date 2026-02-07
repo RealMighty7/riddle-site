@@ -281,51 +281,62 @@
       const w = c.width, h = c.height;
       const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-      const edge = Math.floor(sRand() * 4);
-      let x = 0, y = 0;
-      if (edge === 0) { x = sRand() * w; y = 0; }
-      if (edge === 1) { x = w; y = sRand() * h; }
-      if (edge === 2) { x = sRand() * w; y = h; }
-      if (edge === 3) { x = 0; y = sRand() * h; }
+      // Start near center (visible, intentional), then grow outward.
+      const cx = w * 0.5, cy = h * 0.5;
+      const minR = Math.min(w, h) * (0.06 + sRand() * 0.06); // 6–12% radius
+      const maxJ = Math.min(w, h) * 0.012;                  // small jitter
+      const seedAng = sRand() * Math.PI * 2;
+      let x = cx + Math.cos(seedAng) * minR + (sRand() - 0.5) * maxJ;
+      let y = cy + Math.sin(seedAng) * minR + (sRand() - 0.5) * maxJ;
 
       const pts = [{ x, y }];
-      const steps = 18 + Math.floor(sRand() * 22);
+      const steps = 14 + Math.floor(sRand() * 18);
 
-      const cx = w * 0.5, cy = h * 0.5;
+      // Direction tends away from center with noise so cracks "push out".
       for (let i = 0; i < steps; i++) {
         const last = pts[pts.length - 1];
-        const toCx = (cx - last.x) / w;
-        const toCy = (cy - last.y) / h;
+        const awayX = (last.x - cx) / (w || 1);
+        const awayY = (last.y - cy) / (h || 1);
 
-        let ang = Math.atan2(toCy, toCx) + (sRand() - 0.5) * 1.2;
-        const len = (10 + sRand() * 26) * dpr;
+        const awayAng = Math.atan2(awayY, awayX);
+        const wander = (sRand() - 0.5) * (0.55 + i * 0.01);
+        const ang = awayAng + wander + (sRand() - 0.5) * 0.25;
 
+        const len = (18 + sRand() * 42) * dpr;
         x = last.x + Math.cos(ang) * len;
         y = last.y + Math.sin(ang) * len;
 
-        x = Math.max(-40 * dpr, Math.min(w + 40 * dpr, x));
-        y = Math.max(-40 * dpr, Math.min(h + 40 * dpr, y));
+        // keep inside, but allow near-edge exit so cracks can reach frame
+        x = Math.max(-60 * dpr, Math.min(w + 60 * dpr, x));
+        y = Math.max(-60 * dpr, Math.min(h + 60 * dpr, y));
+
         pts.push({ x, y });
 
-        if (i > 5 && sRand() < 0.16) {
+        // branching: build off existing cracks progressively
+        if (i >= 2 && sRand() < (0.10 + crackState.stage * 0.035)) {
           const bpts = [{ x: last.x, y: last.y }];
           let bx = last.x, by = last.y;
-          const bsteps = 5 + Math.floor(sRand() * 9);
-          let bang = ang + (sRand() < 0.5 ? -1 : 1) * (0.35 + sRand() * 0.8);
+
+          const bsteps = 4 + Math.floor(sRand() * 8);
+          const bdir = (sRand() < 0.5 ? -1 : 1);
+          let bang = ang + bdir * (0.55 + sRand() * 0.9);
+
           for (let j = 0; j < bsteps; j++) {
-            const blen = (8 + sRand() * 16) * dpr;
-            bx += Math.cos(bang + (sRand() - 0.5) * 0.6) * blen;
-            by += Math.sin(bang + (sRand() - 0.5) * 0.6) * blen;
+            const blen = (10 + sRand() * 22) * dpr;
+            bx += Math.cos(bang + (sRand() - 0.5) * 0.5) * blen;
+            by += Math.sin(bang + (sRand() - 0.5) * 0.5) * blen;
             bpts.push({ x: bx, y: by });
           }
           crackState.paths.push(bpts);
         }
       }
+
       return pts;
     }
 
     function ensureCracksForStage(stageN) {
-      const want = stageN === 0 ? 0 : stageN === 1 ? 5 : stageN === 2 ? 11 : stageN === 3 ? 17 : 24;
+      // Keep the early stages readable: 2–3 clear cracks that build off each other.
+      const want = stageN === 0 ? 0 : stageN === 1 ? 3 : stageN === 2 ? 7 : stageN === 3 ? 12 : 18;
       while (crackState.paths.length < want) crackState.paths.push(newCrackPath());
       while (crackState.paths.length > want) crackState.paths.pop();
     }
@@ -566,18 +577,24 @@ async function shatterAndEnterSim() {
       if (document.body.classList.contains("sim-transition")) return;
       document.body.classList.add("sim-transition");
 
-      setCrackStage(3);
-      playSfx("glassBreak", { volume: 0.70, overlap: false });
-      playSfx("glitch2", { volume: 0.14, overlap: true });
+      // Over-dramatic shatter: push cracks to max, blast shards, glitch, flash.
+      setCrackStage(4);
+      document.body.classList.add("shatter-burst");
+      playSfx("glassBreak", { volume: 0.75, overlap: false });
+      playSfx("glitch2", { volume: 0.16, overlap: true });
 
-      spawnShards(1400);
-
+      spawnShards(1800);
+      await runTriGlitch(420);
+      document.body.classList.add("screen-flash");
+      await wait(80);
+      document.body.classList.remove("screen-flash");
 
       // first: visually break the landing UI apart before the security room
-      await fractureLanding(760);
-      await runTriGlitch(1100);
+      await fractureLanding(860);
+      await runTriGlitch(980);
 
       setCrackStage(0);
+      document.body.classList.remove("shatter-burst");
       document.body.classList.remove('page-fracture');
       document.querySelectorAll('.fracture-piece').forEach((el)=>{ el.classList.remove('fracture-piece'); el.style.removeProperty('--fx'); el.style.removeProperty('--fy'); el.style.removeProperty('--fr'); el.style.removeProperty('--fs'); });
 
@@ -801,18 +818,21 @@ async function shatterAndEnterSim() {
 
         if (step.choice) {
           const res = await showChoice(step.choice);
-          // Choice affects “side” + music feel.
+
+          // scoring
           choiceTotal++;
-          if (res === "comply") compliancePoints++;
-          if (res === "run") resistancePoints++;
-          if (res === "lie") resistancePoints += 0.5;
+          if (res === "comply") compliancePoints += 1;
+          if (res === "resist") resistancePoints += 1;
+          if (res === "full") resistancePoints += 2;
 
-          // Guide path: emma (security), liam (worker), system (takeover)
-          if (res === "comply") guidePath = "emma";
-          else if (res === "lie") guidePath = "liam";
-          else guidePath = "sys";
+          // only the FIRST choice locks the guide path (per design)
+          if (step.choice.lockPath && !step.choice.__locked) {
+            step.choice.__locked = true;
+            // system path uses the base bed; emma/liam are character accents
+            guidePath = (res === "full") ? "liam" : "emma";
+          }
 
-          try { window.Music?.setGuidePath?.(guidePath === "sys" ? "emma" : guidePath); } catch {}
+          try { window.Music?.setGuidePath?.(guidePath); } catch {}
           try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
           continue;
@@ -846,8 +866,8 @@ async function shatterAndEnterSim() {
         };
 
         const onNeed = () => { cleanup(); resolve("comply"); };
-        const onLie  = () => { cleanup(); resolve("lie"); };
-        const onRun  = () => { cleanup(); resolve("run"); };
+        const onLie  = () => { cleanup(); resolve("resist"); };
+        const onRun  = () => { cleanup(); resolve("full"); };
 
         choiceNeed?.addEventListener("click", onNeed, { once: true });
         choiceLie?.addEventListener("click", onLie, { once: true });
@@ -945,7 +965,12 @@ async function shatterAndEnterSim() {
       }
 
       try {
+        // Tasks may either call ctx.success() OR (legacy pack tasks) resolve by returning.
         await fn(ctx, args);
+        if (!done) {
+          done = true;
+          resolver(true);
+        }
       } catch (e) {
         console.error(e);
         doReset("TASK ERROR", String(e && e.message ? e.message : e));
