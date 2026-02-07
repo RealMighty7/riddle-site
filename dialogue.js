@@ -1,144 +1,185 @@
 // dialogue.js
 // Exposes window.DIALOGUE used by main.js
-// Steps drive the full sim narrative + task progression.
+// Builds a 20-task run:
+//   dialogue → first choice (locks path) → task, repeated
+//   first 10 tasks from packs 1-5, next 10 from packs 6-7
 
 (() => {
+  const rand = (n) => Math.floor(Math.random() * n);
+  const pick = (arr) => arr[rand(arr.length)];
+  const shuffle = (arr) => arr.slice().sort(() => Math.random() - 0.5);
+
+  // Packs 1-5 (intro procedures): 20 variants per pack, generated in tasks.js
+  const PACKS_1_5 = {
+    1: (window.TASK_POOLS && window.TASK_POOLS.pack1) || [],
+    2: (window.TASK_POOLS && window.TASK_POOLS.pack2) || [],
+    3: (window.TASK_POOLS && window.TASK_POOLS.pack3) || [],
+    4: (window.TASK_POOLS && window.TASK_POOLS.pack4) || [],
+    5: (window.TASK_POOLS && window.TASK_POOLS.pack5) || [],
+  };
+
+  // Packs 6-7 (interactive puzzles)
+  const PACKS_6_7 = {
+    6: [
+      "p6_rotors",
+      "p6_wordsplice",
+      "p6_freqdial",
+      "p6_morse",
+      "p6_gridtap",
+      "p6_switchboard",
+      "p6_checksum2",
+      "p6_sequence",
+      "p6_matchpairs",
+      "p6_hexpad",
+    ],
+    7: [
+      "p7_minisudoku",
+      "p7_memoryflash",
+      "p7_sortstack",
+      "p7_ciphershift",
+      "p7_parity",
+      "p7_patternflip",
+      "p7_keymaze",
+      "p7_anagram",
+      "p7_gridroute",
+      "p7_timerlock",
+    ],
+  };
+
+  function buildFirstTen() {
+    // Exactly 10 tasks: choose 2 random variants from each pack 1-5.
+    const picked = [];
+    for (let p = 1; p <= 5; p++) {
+      const list = shuffle(PACKS_1_5[p] || []);
+      picked.push(...list.slice(0, 2).map((id) => ({ id, pack: p })));
+    }
+    return shuffle(picked);
+  }
+
+  function buildSecondTen() {
+    // 10 tasks: choose 5 from pack6 and 5 from pack7 (no duplicates), shuffle.
+    const p6 = shuffle(PACKS_6_7[6]).slice(0, 5);
+    const p7 = shuffle(PACKS_6_7[7]).slice(0, 5);
+    const all = shuffle(p6.concat(p7));
+    return all.map((id) => ({ id, pack: PACKS_6_7[6].includes(id) ? 6 : 7 }));
+  }
+
+  function preLineForTask(taskId) {
+    // Per-path variants. Kept short to avoid desync.
+    const sys = [
+      `System: Procedure '${taskId}' queued. Execute without deviation.`,
+    ];
+    const emma = [
+      `Emma (Security): Stay sharp. '${taskId}' is watching for mistakes.`,
+    ];
+    const liam = [
+      `Liam (Worker): '${taskId}'. Don’t rush — pick your moves.`,
+    ];
+    return { sys, emma, liam };
+  }
+
+  const firstTen = buildFirstTen();
+  const secondTen = buildSecondTen();
+
+  const steps = [];
+
+  // Establishment
+  steps.push({
+    say: {
+      sys: [
+        "System: SIMULATION WORKERS ROOM — initializing.",
+        "System: Attention is the currency. Your inputs are the fee.",
+      ],
+      emma: [
+        "Emma (Security): Whoever you are — you don’t belong in here.",
+        "Emma (Security): Keep order and you’ll get through.",
+      ],
+      liam: [
+        "Liam (Worker): Hey… breathe. Slow is safe.",
+        "Liam (Worker): If you want out, you’ll have to push back.",
+      ],
+    }
+  });
+
+  // First choice locks the path (handled in main.js)
+  steps.push({
+    say: [
+      "System: Compliance requested.",
+      "System: Choose response.",
+    ]
+  });
+  steps.push({
+    choice: {
+      complyLabel: "Comply.",
+      lieLabel: "Resist (carefully).",
+      runLabel: "Resist (fully).",
+    }
+  });
+
+  steps.push({
+    say: {
+      sys: [
+        "System: Guidance channel: PRIMARY.",
+        "System: Do not improvise.",
+      ],
+      emma: [
+        "Emma (Security): Fine. I’ll keep you alive — but I need control.",
+        "Emma (Security): Follow my timing.",
+      ],
+      liam: [
+        "Liam (Worker): Okay. We do this the hard way.",
+        "Liam (Worker): When it tightens, you push.",
+      ],
+    }
+  });
+
+  // 10 intro tasks (packs 1-5)
+  firstTen.forEach((t, i) => {
+    steps.push({ say: preLineForTask(t.id) });
+    steps.push({ task: t.id, args: { meta: { pack: t.pack, qIndex: i + 1 } } });
+  });
+
+  steps.push({
+    say: {
+      sys: ["System: Intro procedures complete. Escalation granted."],
+      emma: ["Emma (Security): Now it stops being polite."],
+      liam: ["Liam (Worker): This part bites. Keep moving."],
+    }
+  });
+
+  // 10 interactive puzzles (packs 6-7)
+  secondTen.forEach((t, i) => {
+    steps.push({ say: preLineForTask(t.id) });
+    steps.push({ task: t.id, args: { meta: { pack: t.pack, qIndex: i + 11 } } });
+  });
+
+  steps.push({
+    say: {
+      sys: [
+        "System: Evaluation complete.",
+        "System: Preparing final procedure.",
+      ],
+      emma: [
+        "Emma (Security): I can’t hold this open long.",
+        "Emma (Security): If you’re going to do it — do it now.",
+      ],
+      liam: [
+        "Liam (Worker): Window’s open.",
+        "Liam (Worker): Delete yourself from their script.",
+      ],
+    }
+  });
+
+  // Gate decides whether hack runs.
+  steps.push({ check: "escapeGate" });
+
   window.DIALOGUE = {
     intro: [
       "System: Unauthorized viewer session detected.",
       "System: This endpoint is under revision. External access is not intended.",
-      "Emma (Security): Don't click anything you don't understand.",
-      "Liam (Worker): ...slow is safe."
+      "Emma (Security): Don’t click anything you don’t understand.",
+      "Liam (Worker): …slow is safe.",
     ],
-
-    // The simulation runs as a scripted sequence of steps.
-    // Supported step shapes:
-    // { say:[...] }  { choice:{ complyLabel, lieLabel, runLabel } }  { task:"id", args:{} }  { filler:{count,pool,meta} }
-    
-    steps: [
-      // --- Establishment ---
-      { say: [
-        "System: SIMULATION WORKERS ROOM — initializing.",
-        "System: Booting…",
-        "System: Please wait…",
-        "Emma (Security): Whoever you are — you don’t belong in here.",
-        "Liam (Worker): Hey. Don’t panic. Just… follow the prompts. Slow is safe."
-      ]},
-
-      // --- Intro loop: dialogue → task (10) ---
-      { say: [
-        "System: Calibration required.",
-        "Emma (Security): Your input is being recorded.",
-        "Liam (Worker): First one’s simple. Don’t rush it."
-      ]},
-      { task: "checksum", args: { phrase: "echostatic07vault" } },
-
-      { say: [
-        "System: Pulse monitor online.",
-        "Liam (Worker): Keep your rhythm steady. It matters."
-      ]},
-      { task: "pulse" },
-
-      { choice: { complyLabel: "Do what it says.", lieLabel: "Pretend you didn’t see it.", runLabel: "Push past it." }},
-
-      { say: [
-        "System: Alignment drift detected.",
-        "Emma (Security): If you slip, containment tightens.",
-        "Liam (Worker): Center everything. Perfectly."
-      ]},
-      { task: "align" },
-
-      { say: [
-        "System: Mirror channel opened.",
-        "Liam (Worker): Repeat exactly. No improvising."
-      ]},
-      { task: "mirror" },
-
-      { say: [
-        "System: Pressure test.",
-        "Emma (Security): Hold. Don’t flinch."
-      ]},
-      { task: "hold" },
-
-      { say: [
-        "System: Scrub filter required.",
-        "Liam (Worker): All switches on. Clean pass."
-      ]},
-      { task: "scrub" },
-
-      { say: [
-        "System: Splice token issued.",
-        "Emma (Security): Type only what’s requested."
-      ]},
-      { task: "splice" },
-
-      { choice: { complyLabel: "Stay compliant.", lieLabel: "Signal Liam.", runLabel: "Interfere." }},
-
-      { say: [
-        "System: Trace sequence armed.",
-        "Liam (Worker): In order. Don’t miss a node."
-      ]},
-      { task: "trace" },
-
-      { say: [
-        "System: Offset gate.",
-        "Emma (Security): You’re being tested for speed and accuracy."
-      ]},
-      { task: "offset" },
-
-      { say: [
-        "System: Mask selection required.",
-        "Liam (Worker): There’s a rule. It’s not a guess."
-      ]},
-      { task: "mask" },
-
-      // --- Phase 2: harder interactive pack ---
-      { say: [
-        "System: Intro sequence complete.",
-        "System: Escalation permitted.",
-        "Emma (Security): This is where people break.",
-        "Liam (Worker): Or where they get out. One step at a time."
-      ]},
-
-      { task: "wires" },
-      { say: [ "System: Routing layer unlocked." ]},
-      { task: "router" },
-
-      { say: [ "System: Tile map loaded." ]},
-      { task: "jigsaw" },
-
-      { say: [ "System: Pattern lock armed." ]},
-      { task: "patternlock" },
-
-      { say: [ "System: Frequency window narrowing." ]},
-      { task: "freq_match" },
-
-      { say: [ "System: Memory grid enabled." ]},
-      { task: "grid_memory" },
-
-      { say: [ "System: Cipher keypad offered." ]},
-      { task: "cipherpad" },
-
-      { say: [ "System: Calibration zone unstable." ]},
-      { task: "calibration" },
-
-      { say: [ "System: Diff merge required." ]},
-      { task: "diff_merge" },
-
-      { say: [ "System: Port list published." ]},
-      { task: "ports" },
-
-      // --- Final hack ---
-      { say: [
-        "System: Final procedure required.",
-        "Emma (Security): Do NOT attempt to delete anything.",
-        "Liam (Worker): Delete only the flagged lines. If one escapes, you lose the window."
-      ]},
-      { task: "hack_final" },
-    ]
-,
+    steps,
   };
-
-  // Optional helper filler; main.js will call this if present.
-  window.DIALOGUE_HELPERS = window.DIALOGUE_HELPERS || {};
 })();
