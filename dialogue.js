@@ -2,24 +2,18 @@
 // Exposes window.DIALOGUE used by main.js
 // Structure after cracks:
 //   plot dialogue → (first choice locks guide path) → [ plot → choice → taskline → task ] x20
-// First 10 tasks are randomly selected from packs 1-5 (100 variants total).
-// Second 10 tasks are randomly selected from packs 6-7 (interactive puzzles).
 
 (() => {
   const shuffle = (arr) => arr.slice().sort(() => Math.random() - 0.5);
   const POOLS = window.TASK_POOLS || {};
 
-  function pickN(pool, n) {
-    const a = shuffle(Array.isArray(pool) ? pool : []);
-    return a.slice(0, Math.max(0, n));
-  }
+  const pickN = (pool, n) => shuffle(Array.isArray(pool) ? pool : []).slice(0, Math.max(0, n));
 
   function buildFirstTen() {
-    // 2 from each pack 1-5 -> 10 total
+    // 2 from each pack 1-5 -> 10 total (100 variants total in pools)
     const picked = [];
     for (let p = 1; p <= 5; p++) {
-      const pool = POOLS[`pack${p}`] || [];
-      pickN(pool, 2).forEach((id) => picked.push({ id, pack: p }));
+      pickN(POOLS[`pack${p}`] || [], 2).forEach((id) => picked.push({ id, pack: p }));
     }
     return shuffle(picked);
   }
@@ -31,39 +25,60 @@
   }
 
   function plotBeat(i) {
-    const beats = [
-      "System: Session bound. Movement logged.",
-      "Emma (Security): Keep your hands visible. Follow the prompts.",
-      "Liam (Worker): Don’t let it rush you. Read twice.",
+    // Same beat, different voice depending on locked guide path (system/emma/liam)
+    const sys = [
+      "System: Session bound. Cursor motion logged.",
       "System: Deviation increases scrutiny.",
-      "Emma (Security): Order keeps you alive in here.",
-      "Liam (Worker): If you fight it, do it clean.",
+      "System: Obedience improves stability.",
+      "System: Attention is mandatory.",
     ];
-    return beats[i % beats.length];
+    const emma = [
+      "Emma (Security): Keep your hands visible. Follow the prompt, then stop.",
+      "Emma (Security): Don’t improvise. I can’t cover you if you do.",
+      "Emma (Security): Slow is safe. Read it once before you move.",
+      "Emma (Security): You want out? Then stay orderly.",
+    ];
+    const liam = [
+      "Liam (Worker): Don’t let it rush you. Read twice.",
+      "Liam (Worker): If you’re going to fight it, do it clean.",
+      "Liam (Worker): Make it think you’re cooperating. Then pivot.",
+      "Liam (Worker): You’ve got one advantage — it’s predictable.",
+    ];
+    return { system: sys[i % sys.length], emma: emma[i % emma.length], liam: liam[i % liam.length] };
   }
 
   function taskLead(taskId, idx, pack) {
-    const packTag = pack ? `pack ${pack}` : "pack ?";
-    return `System: Task ${idx + 1}/20 queued — '${taskId}' (${packTag}).`;
+    const tag = pack ? `pack ${pack}` : "pack ?";
+    return {
+      system: `System: Task ${idx + 1}/20 queued — '${taskId}' (${tag}).`,
+      emma:   `Emma (Security): Task ${idx + 1}/20. Do it clean — '${taskId}'.`,
+      liam:   `Liam (Worker): Task ${idx + 1}/20. Don’t panic — '${taskId}'.`,
+    };
   }
 
-  const firstTen = buildFirstTen();
-  const secondTen = buildSecondTen();
-  const run = firstTen.concat(secondTen);
+  function taskCue(taskId, idx) {
+    // A quick “task dialogue” line before the UI appears, to make the cadence obvious.
+    return {
+      system: "System: Execute. Confirm. Continue.",
+      emma:   "Emma (Security): One action at a time. Don’t spam it.",
+      liam:   "Liam (Worker): Take the point it gives you. Don’t overthink.",
+    };
+  }
+
+  const run = buildFirstTen().concat(buildSecondTen());
 
   const steps = [];
 
-  // Security-room opening (before the repeating loop)
+  // Opening beat
   steps.push({
     say: [
-      "System: INPUT CHANNEL OPEN.",
-      "Emma (Security): You weren't scheduled for this.",
-      "Liam (Worker): …keep your voice down.",
-      "System: COMPLIANCE CHECK REQUIRED.",
+      { system: "System: INPUT CHANNEL OPEN.", emma: "System: INPUT CHANNEL OPEN.", liam: "System: INPUT CHANNEL OPEN." },
+      { system: "System: COMPLIANCE CHECK REQUIRED.", emma: "Emma (Security): You weren't scheduled for this.", liam: "Liam (Worker): …keep your voice down." },
+      { system: "System: SIGNAL ACQUIRED.", emma: "System: SIGNAL ACQUIRED.", liam: "System: SIGNAL ACQUIRED." },
     ],
   });
 
-  // First choice locks the guide path (comply / resist / full)
+  // First choice locks path: comply->system, resist->emma, full->liam
   steps.push({
     choice: {
       lockPath: true,
@@ -73,10 +88,11 @@
     },
   });
 
-  // 20 rounds: plot → choice → taskline → task
+  // 20 rounds
   for (let i = 0; i < run.length; i++) {
     const t = run[i];
     steps.push({ say: [plotBeat(i)] });
+
     steps.push({
       choice: {
         complyLabel: "Comply",
@@ -84,12 +100,10 @@
         runLabel: "Break protocol",
       },
     });
-    steps.push({ say: [taskLead(t.id, i, t.pack)] });
+
+    steps.push({ say: [taskLead(t.id, i, t.pack), taskCue(t.id, i)] });
     steps.push({ task: t.id, args: { pack: t.pack, index: i } });
   }
 
-  window.DIALOGUE = {
-    intro: [],
-    steps,
-  };
+  window.DIALOGUE = { intro: [], steps };
 })();
