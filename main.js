@@ -237,7 +237,7 @@
     const CRACK_AT = [15, 17, 19, 21];
     const SHATTER_AT = 21;
 
-    let guidePath = "emma";
+    let guidePath = "system";
     let paceBias = 0;
 
     const COMPLIANCE_LIMIT = 0.30;
@@ -283,14 +283,14 @@
 
       // Start near center (visible, intentional), then grow outward.
       const cx = w * 0.5, cy = h * 0.5;
-      const minR = Math.min(w, h) * (0.06 + sRand() * 0.06); // 6–12% radius
+      const minR = Math.min(w, h) * (0.00 + sRand() * 0.03); // 0–3% radius (true center start) // 6–12% radius
       const maxJ = Math.min(w, h) * 0.012;                  // small jitter
       const seedAng = sRand() * Math.PI * 2;
       let x = cx + Math.cos(seedAng) * minR + (sRand() - 0.5) * maxJ;
       let y = cy + Math.sin(seedAng) * minR + (sRand() - 0.5) * maxJ;
 
       const pts = [{ x, y }];
-      const steps = 14 + Math.floor(sRand() * 18);
+      const steps = 26 + Math.floor(sRand() * 24);
 
       // Direction tends away from center with noise so cracks "push out".
       for (let i = 0; i < steps; i++) {
@@ -302,7 +302,7 @@
         const wander = (sRand() - 0.5) * (0.55 + i * 0.01);
         const ang = awayAng + wander + (sRand() - 0.5) * 0.25;
 
-        const len = (18 + sRand() * 42) * dpr;
+        const len = (42 + sRand() * 110) * dpr;
         x = last.x + Math.cos(ang) * len;
         y = last.y + Math.sin(ang) * len;
 
@@ -336,7 +336,7 @@
 
     function ensureCracksForStage(stageN) {
       // Keep the early stages readable: 2–3 clear cracks that build off each other.
-      const want = stageN === 0 ? 0 : stageN === 1 ? 3 : stageN === 2 ? 7 : stageN === 3 ? 12 : 18;
+      const want = stageN === 0 ? 0 : stageN === 1 ? 3 : stageN === 2 ? 9 : stageN === 3 ? 16 : 26;
       while (crackState.paths.length < want) crackState.paths.push(newCrackPath());
       while (crackState.paths.length > want) crackState.paths.pop();
     }
@@ -354,8 +354,8 @@
       ctx.lineCap = "round";
 
       // micro-scratches
-      ctx.globalAlpha = 0.10;
-      for (let i = 0; i < 120; i++) {
+      ctx.globalAlpha = 0.06;
+      for (let i = 0; i < 40; i++) {
         const x1 = sRand() * c.width;
         const y1 = sRand() * c.height;
         const x2 = x1 + (sRand() - 0.5) * 80;
@@ -374,8 +374,8 @@
       ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
 
       for (const pts of crackState.paths) {
-        ctx.strokeStyle = "rgba(0,0,0,0.55)";
-        ctx.lineWidth = (1.4 + (crackState.stage - 1) * 0.35) * (window.devicePixelRatio || 1);
+        ctx.strokeStyle = "rgba(0,0,0,0.72)";
+        ctx.lineWidth = (2.4 + (crackState.stage - 1) * 0.65) * (window.devicePixelRatio || 1);
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -580,11 +580,12 @@ async function shatterAndEnterSim() {
       // Over-dramatic shatter: push cracks to max, blast shards, glitch, flash.
       setCrackStage(4);
       document.body.classList.add("shatter-burst");
+      document.body.classList.add("glitch-storm");
       playSfx("glassBreak", { volume: 0.75, overlap: false });
       playSfx("glitch2", { volume: 0.16, overlap: true });
 
-      spawnShards(1800);
-      await runTriGlitch(420);
+      spawnShards(2600);
+      await runTriGlitch(620);
       document.body.classList.add("screen-flash");
       await wait(80);
       document.body.classList.remove("screen-flash");
@@ -595,6 +596,7 @@ async function shatterAndEnterSim() {
 
       setCrackStage(0);
       document.body.classList.remove("shatter-burst");
+      document.body.classList.remove("glitch-storm");
       document.body.classList.remove('page-fracture');
       document.querySelectorAll('.fracture-piece').forEach((el)=>{ el.classList.remove('fracture-piece'); el.style.removeProperty('--fx'); el.style.removeProperty('--fy'); el.style.removeProperty('--fr'); el.style.removeProperty('--fs'); });
 
@@ -733,9 +735,26 @@ async function shatterAndEnterSim() {
       return { speaker, text };
     }
 
-    async function emitLine(line) {
+    
+function resolveLineForPath(line) {
+  // line can be a string OR an object like { system:"...", emma:"...", liam:"..." }
+  if (line && typeof line === "object") {
+    const key = guidePath || "system";
+    const picked =
+      line[key] ??
+      line.system ??
+      line.sys ??
+      line.emma ??
+      line.liam ??
+      line.default;
+    return String(picked ?? "");
+  }
+  return String(line ?? "");
+}
+
+async function emitLine(line) {
       if (ABORTED) return;
-      const raw = String(line || "");
+      const raw = resolveLineForPath(line);
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
       const { speaker, text } = parseSpeakerAndText(raw);
 
@@ -829,7 +848,7 @@ async function shatterAndEnterSim() {
           if (step.choice.lockPath && !step.choice.__locked) {
             step.choice.__locked = true;
             // system path uses the base bed; emma/liam are character accents
-            guidePath = (res === "full") ? "liam" : "emma";
+            guidePath = (res === "comply") ? "system" : (res === "full") ? "liam" : "emma";
           }
 
           try { window.Music?.setGuidePath?.(guidePath); } catch {}
