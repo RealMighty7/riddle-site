@@ -334,9 +334,22 @@
       if (!base || base.length < 3) return null;
 
       // Prefer points near the center (first ~45% of the crack) for branching from origin.
-      const maxIdx = Math.max(2, Math.floor(base.length * 0.45));
-      const idx = 1 + Math.floor(sRand() * (maxIdx - 1));
-      const p = base[idx];
+      // IMPORTANT: guard against sparse/undefined points so we never throw.
+      const maxIdxRaw = Math.max(2, Math.floor(base.length * 0.45));
+      const maxIdx = Math.min(base.length - 1, maxIdxRaw);
+      let idx = 1 + Math.floor(sRand() * Math.max(1, (maxIdx - 1)));
+
+      // Find a valid point.
+      let p = base[idx];
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+        // search nearby
+        for (let k = 0; k < base.length; k++) {
+          const j = (idx + k) % base.length;
+          const q = base[j];
+          if (q && Number.isFinite(q.x) && Number.isFinite(q.y)) { p = q; break; }
+        }
+      }
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
 
       const j = 6; // device px
       return { x: p.x + (sRand() - 0.5) * j, y: p.y + (sRand() - 0.5) * j };
@@ -932,7 +945,7 @@ async function emitLine(line) {
       hackRoom.classList.add("hidden");
 
       // Reset task UI content
-      taskTitle.textContent = `TASK`;
+      taskTitle.textContent = taskId;
       taskDesc.textContent = "";
       taskBody.innerHTML = "";
       taskPrimary.classList.add("hidden");
@@ -1016,26 +1029,17 @@ async function emitLine(line) {
       }
 
       try {
-        // Support BOTH task styles:
-        //  A) returns a Promise that resolves when complete (most packs)
-        //  B) returns nothing but calls ctx.success() later (some tasks)
-        const ret = fn(ctx, args);
-
-        // If the task returned a promise/thenable, await it.
-        if (ret && (typeof ret.then === "function")) {
-          await ret;
+        // Tasks may either call ctx.success() OR (legacy pack tasks) resolve by returning.
+        await fn(ctx, args);
+        if (!done) {
+          done = true;
+          resolver(true);
         }
-
-        // If the task finished synchronously *and* never called success,
-        // we do NOT auto-advance; instead we wait for ctx.success() or Admin Skip.
-        // (This prevents "instant-complete" tasks from skipping user interaction.)
       } catch (e) {
         console.error(e);
         doReset("TASK ERROR", String(e && e.message ? e.message : e));
         return;
       }
-      // If the task returned/awaited a thenable and never called ctx.success(), advance now.
-      if (!done) { done = true; resolver(true); }
 
       await p;
 
