@@ -237,7 +237,7 @@
     const CRACK_AT = [15, 17, 19, 21];
     const SHATTER_AT = 21;
 
-    let guidePath = "system";
+    let guidePath = "emma";
     let paceBias = 0;
 
     const COMPLIANCE_LIMIT = 0.30;
@@ -276,108 +276,58 @@
       drawCracks();
     }
 
-    function newCrackPath(startPt, baseAngle) {
-      // IMPORTANT: cracksCanvas is in device pixels (scaled by DPR in resizeCracksCanvas)
+    function newCrackPath() {
       const c = cracksCanvas;
       const w = c.width, h = c.height;
-      const cx = w * 0.5, cy = h * 0.5;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-      // Start: either a provided branching point OR very near dead-center.
-      let x, y;
-      if (startPt && Number.isFinite(startPt.x) && Number.isFinite(startPt.y)) {
-        x = startPt.x;
-        y = startPt.y;
-      } else {
-        const seedAng = sRand() * Math.PI * 2;
-        const r0 = Math.min(w, h) * (sRand() * 0.02); // 0–2% radius from center
-        const j = Math.min(w, h) * 0.006;
-        x = cx + Math.cos(seedAng) * r0 + (sRand() - 0.5) * j;
-        y = cy + Math.sin(seedAng) * r0 + (sRand() - 0.5) * j;
-      }
+      const edge = Math.floor(sRand() * 4);
+      let x = 0, y = 0;
+      if (edge === 0) { x = sRand() * w; y = 0; }
+      if (edge === 1) { x = w; y = sRand() * h; }
+      if (edge === 2) { x = sRand() * w; y = h; }
+      if (edge === 3) { x = 0; y = sRand() * h; }
 
       const pts = [{ x, y }];
+      const steps = 18 + Math.floor(sRand() * 22);
 
-      // Fewer, longer segments; later stages add more PATHS (branches), not noise.
-      const steps = 18 + Math.floor(sRand() * 14);
-
-      // Direction: away from center, with jaggedness.
-      let ang = Number.isFinite(baseAngle)
-        ? baseAngle
-        : Math.atan2(y - cy, x - cx) + (sRand() - 0.5) * 0.6;
-
+      const cx = w * 0.5, cy = h * 0.5;
       for (let i = 0; i < steps; i++) {
         const last = pts[pts.length - 1];
-        const outward = Math.atan2(last.y - cy, last.x - cx);
+        const toCx = (cx - last.x) / w;
+        const toCy = (cy - last.y) / h;
 
-        // Keep pushing outward, but let it fracture/jag.
-        ang = ang * 0.86 + outward * 0.14 + (sRand() - 0.5) * (0.42 + i * 0.01);
+        let ang = Math.atan2(toCy, toCx) + (sRand() - 0.5) * 1.2;
+        const len = (10 + sRand() * 26) * dpr;
 
-        const len = 70 + sRand() * 160; // in device px
         x = last.x + Math.cos(ang) * len;
         y = last.y + Math.sin(ang) * len;
 
-        // Clamp inside bounds, but allow reaching edges.
-        x = Math.max(2, Math.min(w - 2, x));
-        y = Math.max(2, Math.min(h - 2, y));
-
+        x = Math.max(-40 * dpr, Math.min(w + 40 * dpr, x));
+        y = Math.max(-40 * dpr, Math.min(h + 40 * dpr, y));
         pts.push({ x, y });
-      }
 
+        if (i > 5 && sRand() < 0.16) {
+          const bpts = [{ x: last.x, y: last.y }];
+          let bx = last.x, by = last.y;
+          const bsteps = 5 + Math.floor(sRand() * 9);
+          let bang = ang + (sRand() < 0.5 ? -1 : 1) * (0.35 + sRand() * 0.8);
+          for (let j = 0; j < bsteps; j++) {
+            const blen = (8 + sRand() * 16) * dpr;
+            bx += Math.cos(bang + (sRand() - 0.5) * 0.6) * blen;
+            by += Math.sin(bang + (sRand() - 0.5) * 0.6) * blen;
+            bpts.push({ x: bx, y: by });
+          }
+          crackState.paths.push(bpts);
+        }
+      }
       return pts;
     }
 
-    function pickBranchPoint() {
-      // Choose a point on an existing crack so stages “build off each other”.
-      if (!crackState.paths.length) return null;
-
-      const base = crackState.paths[Math.floor(sRand() * crackState.paths.length)];
-      if (!base || base.length < 3) return null;
-
-      // Prefer points near the center (first ~45% of the crack) for branching from origin.
-      // IMPORTANT: guard against sparse/undefined points so we never throw.
-      const maxIdxRaw = Math.max(2, Math.floor(base.length * 0.45));
-      const maxIdx = Math.min(base.length - 1, maxIdxRaw);
-      let idx = 1 + Math.floor(sRand() * Math.max(1, (maxIdx - 1)));
-
-      // Find a valid point.
-      let p = base[idx];
-      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
-        // search nearby
-        for (let k = 0; k < base.length; k++) {
-          const j = (idx + k) % base.length;
-          const q = base[j];
-          if (q && Number.isFinite(q.x) && Number.isFinite(q.y)) { p = q; break; }
-        }
-      }
-      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
-
-      const j = 6; // device px
-      return { x: p.x + (sRand() - 0.5) * j, y: p.y + (sRand() - 0.5) * j };
-    }
-
     function ensureCracksForStage(stageN) {
-      // Stage 1: 2–3 obvious primaries (CENTER).
-      // Stage 2+: branch off existing, fewer but thicker secondary fractures.
-      const want =
-        stageN === 0 ? 0 :
-        stageN === 1 ? 3 :
-        stageN === 2 ? 7 :
-        stageN === 3 ? 11 :
-        15;
-
-      // Seed primaries once.
-      if (stageN >= 1 && crackState.paths.length === 0) {
-        for (let i = 0; i < 3; i++) crackState.paths.push(newCrackPath(null));
-      }
-
-      // For later stages, add branching cracks off existing ones.
-      while (crackState.paths.length < want) {
-        const start = stageN >= 2 ? pickBranchPoint() : null;
-        const ang = sRand() * Math.PI * 2;
-        crackState.paths.push(newCrackPath(start, ang));
-      }
-
-      // Never remove established cracks; we want escalation, not flicker.
+      const want = stageN === 0 ? 0 : stageN === 1 ? 5 : stageN === 2 ? 11 : stageN === 3 ? 17 : 24;
+      while (crackState.paths.length < want) crackState.paths.push(newCrackPath());
+      while (crackState.paths.length > want) crackState.paths.pop();
     }
 
     function drawCracks() {
@@ -392,51 +342,45 @@
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
 
-      const st = crackState.stage;
-
-      // Micro-scratches ONLY after the main fracture is obvious (so they don’t compete).
-      if (st >= 3) {
-        ctx.globalAlpha = 0.05;
-        ctx.strokeStyle = "rgba(0,0,0,0.22)";
-        ctx.lineWidth = 0.8;
-        const scratches = 10 + (st === 4 ? 8 : 0);
-        for (let i = 0; i < scratches; i++) {
-          const x1 = sRand() * c.width;
-          const y1 = sRand() * c.height;
-          const x2 = x1 + (sRand() - 0.5) * 140;
-          const y2 = y1 + (sRand() - 0.5) * 60;
-          ctx.beginPath();
-          ctx.moveTo(x1, y1);
-          ctx.lineTo(x2, y2);
-          ctx.stroke();
-        }
+      // micro-scratches
+      ctx.globalAlpha = 0.10;
+      for (let i = 0; i < 120; i++) {
+        const x1 = sRand() * c.width;
+        const y1 = sRand() * c.height;
+        const x2 = x1 + (sRand() - 0.5) * 80;
+        const y2 = y1 + (sRand() - 0.5) * 20;
+        ctx.strokeStyle = "rgba(0,0,0,0.25)";
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
       }
 
-      // Main fractures: thicker + higher contrast per stage.
-      ctx.shadowColor = "rgba(0,0,0,0.34)";
-      ctx.shadowBlur = 2.2;
+      // main cracks
+      ctx.globalAlpha = 0.85;
+      ctx.shadowColor = "rgba(0,0,0,0.25)";
+      ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
 
       for (const pts of crackState.paths) {
-        // dark core
-        ctx.globalAlpha = 0.92;
-        ctx.strokeStyle = "rgba(0,0,0,0.78)";
-        ctx.lineWidth = (3.8 + (st - 1) * 1.35);
+        ctx.strokeStyle = "rgba(0,0,0,0.55)";
+        ctx.lineWidth = (1.4 + (crackState.stage - 1) * 0.35) * (window.devicePixelRatio || 1);
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
 
-        // bright edge highlight
         ctx.shadowBlur = 0;
-        ctx.globalAlpha = 0.28 + st * 0.06;
-        ctx.strokeStyle = "rgba(255,255,255,0.28)";
-        ctx.lineWidth = (1.2 + (st - 1) * 0.35);
+        ctx.globalAlpha = 0.28;
+        ctx.strokeStyle = "rgba(255,255,255,0.25)";
+        ctx.lineWidth = (0.8 + (crackState.stage - 1) * 0.2) * (window.devicePixelRatio || 1);
         ctx.beginPath();
-        ctx.moveTo(pts[0].x + 0.8, pts[0].y - 0.6);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8, pts[i].y - 0.6);
+        ctx.moveTo(pts[0].x + 0.6, pts[0].y - 0.4);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.6, pts[i].y - 0.4);
         ctx.stroke();
 
-        ctx.shadowBlur = 2.2;
+        ctx.globalAlpha = 0.85;
+        ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
       }
 
       ctx.restore();
@@ -622,26 +566,18 @@ async function shatterAndEnterSim() {
       if (document.body.classList.contains("sim-transition")) return;
       document.body.classList.add("sim-transition");
 
-      // Over-dramatic shatter: push cracks to max, blast shards, glitch, flash.
-      setCrackStage(4);
-      document.body.classList.add("shatter-burst");
-      document.body.classList.add("glitch-storm");
-      playSfx("glassBreak", { volume: 0.75, overlap: false });
-      playSfx("glitch2", { volume: 0.16, overlap: true });
+      setCrackStage(3);
+      playSfx("glassBreak", { volume: 0.70, overlap: false });
+      playSfx("glitch2", { volume: 0.14, overlap: true });
 
-      spawnShards(2600);
-      await runTriGlitch(620);
-      document.body.classList.add("screen-flash");
-      await wait(80);
-      document.body.classList.remove("screen-flash");
+      spawnShards(1400);
+
 
       // first: visually break the landing UI apart before the security room
-      await fractureLanding(860);
-      await runTriGlitch(980);
+      await fractureLanding(760);
+      await runTriGlitch(1100);
 
       setCrackStage(0);
-      document.body.classList.remove("shatter-burst");
-      document.body.classList.remove("glitch-storm");
       document.body.classList.remove('page-fracture');
       document.querySelectorAll('.fracture-piece').forEach((el)=>{ el.classList.remove('fracture-piece'); el.style.removeProperty('--fx'); el.style.removeProperty('--fy'); el.style.removeProperty('--fr'); el.style.removeProperty('--fs'); });
 
@@ -779,28 +715,69 @@ async function shatterAndEnterSim() {
       const text = (m[2] || "").trim();
       return { speaker, text };
     }
-
-    
-function resolveLineForPath(line) {
-  // line can be a string OR an object like { system:"...", emma:"...", liam:"..." }
-  if (line && typeof line === "object") {
-    const key = guidePath || "system";
-    const picked =
-      line[key] ??
-      line.system ??
-      line.sys ??
-      line.emma ??
-      line.liam ??
-      line.default;
-    return String(picked ?? "");
-  }
-  return String(line ?? "");
+// Chorus selection:
+// If a "line" is an array of candidate lines, pick ONE based on compliance/resistance balance.
+const __RECENT_LINES__ = [];
+function rememberLine(s) {
+  const v = String(s || "").trim();
+  if (!v) return;
+  __RECENT_LINES__.push(v);
+  while (__RECENT_LINES__.length > 18) __RECENT_LINES__.shift();
+}
+function seenRecently(s) {
+  const v = String(s || "").trim();
+  return __RECENT_LINES__.includes(v);
 }
 
-async function emitLine(line) {
+function pickFromPool(pool) {
+  const candidates = (pool || []).map(x => String(x || "")).filter(Boolean);
+  if (!candidates.length) return "";
+
+  // Points are tracked in this file (choiceTotal, compliancePoints, resistancePoints).
+  const c = Number(compliancePoints) || 0;
+  const r = Number(resistancePoints) || 0;
+  const total = Math.max(1, c + r);
+  const bias = clamp((r - c) / total, -1, 1); // -1 = compliance heavy, +1 = resistance heavy
+
+  // weights: System rises with compliance, Liam rises with resistance, Emma in the middle.
+  const wSystem = 1 + (-bias) * 1.25;
+  const wLiam   = 1 + ( bias) * 1.25;
+  const wEmma   = 1 + (1 - Math.abs(bias)) * 0.90;
+
+  // Bucket by speaker prefix
+  const buckets = { System: [], Emma: [], Liam: [], Other: [] };
+  for (const s of candidates) {
+    const p = parseSpeakerAndText(s).speaker;
+    if (p === "System") buckets.System.push(s);
+    else if (p === "Emma") buckets.Emma.push(s);
+    else if (p === "Liam") buckets.Liam.push(s);
+    else buckets.Other.push(s);
+  }
+
+  // Choose speaker first
+  const speakerRoll = Math.random() * (wSystem + wEmma + wLiam);
+  let speaker = "Emma";
+  if (speakerRoll < wSystem) speaker = "System";
+  else if (speakerRoll < wSystem + wEmma) speaker = "Emma";
+  else speaker = "Liam";
+
+  let pickList = buckets[speaker];
+  if (!pickList || !pickList.length) pickList = candidates;
+
+  // Avoid repeating the same exact line too soon
+  const fresh = pickList.filter(s => !seenRecently(s));
+  const finalList = fresh.length ? fresh : pickList;
+
+  const picked = finalList[Math.floor(Math.random() * finalList.length)];
+  rememberLine(picked);
+  return picked;
+}
+
+
+    async function emitLine(line) {
       if (ABORTED) return;
-      const raw = resolveLineForPath(line);
-      const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+      const raw = Array.isArray(line) ? pickFromPool(line) : String(line || "");
+      const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "").replace(/^\s*UI:\s*/i, "");
       const { speaker, text } = parseSpeakerAndText(raw);
 
       // type it
@@ -818,7 +795,9 @@ async function emitLine(line) {
       simText.scrollTop = simText.scrollHeight;
 
       // speak it (body only)
-      try { window.TTS?.enqueue?.(String(text || "").trim(), { speaker }); } catch {}
+      if (speaker !== "UI") {
+        try { window.TTS?.enqueue?.(String(text || "").trim(), { speaker }); } catch {}
+      }
     }
 
     async function playLines(lines) {
@@ -882,21 +861,18 @@ async function emitLine(line) {
 
         if (step.choice) {
           const res = await showChoice(step.choice);
-
-          // scoring
+          // Choice affects “side” + music feel.
           choiceTotal++;
-          if (res === "comply") compliancePoints += 1;
-          if (res === "resist") resistancePoints += 1;
-          if (res === "full") resistancePoints += 2;
+          if (res === "comply") compliancePoints++;
+          if (res === "run") resistancePoints++;
+          if (res === "lie") resistancePoints += 0.5;
 
-          // only the FIRST choice locks the guide path (per design)
-          if (step.choice.lockPath && !step.choice.__locked) {
-            step.choice.__locked = true;
-            // system path uses the base bed; emma/liam are character accents
-            guidePath = (res === "comply") ? "system" : (res === "full") ? "liam" : "emma";
-          }
+          // Guide path: emma (security), liam (worker), system (takeover)
+          if (res === "comply") guidePath = "emma";
+          else if (res === "lie") guidePath = "liam";
+          else guidePath = "sys";
 
-          try { window.Music?.setGuidePath?.(guidePath); } catch {}
+          try { window.Music?.setGuidePath?.(guidePath === "sys" ? "emma" : guidePath); } catch {}
           try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
           continue;
@@ -930,8 +906,8 @@ async function emitLine(line) {
         };
 
         const onNeed = () => { cleanup(); resolve("comply"); };
-        const onLie  = () => { cleanup(); resolve("resist"); };
-        const onRun  = () => { cleanup(); resolve("full"); };
+        const onLie  = () => { cleanup(); resolve("lie"); };
+        const onRun  = () => { cleanup(); resolve("run"); };
 
         choiceNeed?.addEventListener("click", onNeed, { once: true });
         choiceLie?.addEventListener("click", onLie, { once: true });
@@ -1029,12 +1005,7 @@ async function emitLine(line) {
       }
 
       try {
-        // Tasks may either call ctx.success() OR (legacy pack tasks) resolve by returning.
         await fn(ctx, args);
-        if (!done) {
-          done = true;
-          resolver(true);
-        }
       } catch (e) {
         console.error(e);
         doReset("TASK ERROR", String(e && e.message ? e.message : e));
