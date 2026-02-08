@@ -16,28 +16,42 @@
   }
 
   // Pick voices by heuristic (best effort; varies by OS/browser)
-  function pickVoice(list, speaker, map) {
-    const sp = String(speaker || "narr").toLowerCase();
-    if (map) {
-      if (sp === "emma") return map.emma || null;
-      if (sp === "liam") return map.liam || null;
-      if (sp === "system") return map.system || null;
-    }
+// Supports speaker pinning via desiredNameExact.
+function pickVoice(list, speaker, map, desiredNameExact) {
+  const sp = String(speaker || "narr").toLowerCase();
+  const l = (list || []).slice();
+  const norm = (s) => String(s || "").toLowerCase().trim();
 
-    const want = speaker === "system"
-      ? ["microsoft david", "microsoft mark", "google uk english male", "daniel", "fred"]
-      : speaker === "emma"
-      ? ["microsoft zira", "microsoft aria", "google uk english female", "samantha", "victoria"]
-      : ["microsoft guy", "google us english", "alex", "daniel"];
-
-    const l = (list || []).slice();
-    const byName = (needle) => l.find(v => String(v.name || "").toLowerCase().includes(needle));
-    for (const n of want) {
-      const v = byName(n);
-      if (v) return v;
-    }
-    return l.find(v => !/remote|compact/i.test(String(v.name || ""))) || l[0] || null;
+  // Exact-name pin (used for Liam)
+  if (desiredNameExact) {
+    const wantExact = norm(desiredNameExact);
+    const ex = l.find(v => norm(v.name) === wantExact);
+    if (ex) return ex;
   }
+
+  // Stable map if provided
+  if (map) {
+    if (sp === "emma" && map.emma) return map.emma;
+    if (sp === "liam" && map.liam) return map.liam;
+    if (sp === "system" && map.system) return map.system;
+  }
+
+  // Per-speaker preference lists
+  const want = sp === "system"
+    ? ["microsoft david", "microsoft george", "microsoft mark", "google uk english male", "daniel", "fred"]
+    : sp === "emma"
+    ? ["microsoft aria", "microsoft jenny", "microsoft zira", "samantha", "victoria", "female"]
+    : ["microsoft mark - english (united states)", "microsoft mark", "microsoft david", "microsoft guy", "alex", "male"];
+
+  const byNameIncludes = (needle) => l.find(v => norm(v.name).includes(needle));
+  for (const n of want) {
+    const v = byNameIncludes(n);
+    if (v) return v;
+  }
+
+  // fallback: prefer non-compact voices
+  return l.find(v => !/remote|compact/i.test(String(v.name || ""))) || l[0] || null;
+}
 
 
   let _voiceReady = null;
@@ -63,42 +77,63 @@
   }
 
   // Stable per-speaker voice mapping (so Emma/Liam/System don't collapse to one voice)
-  function buildVoiceMap(list) {
-    const v = (list || []).slice();
-    // Prefer English voices, but keep fallback
-    const en = v.filter(x => String(x.lang || "").toLowerCase().startsWith("en"));
-    const pool = en.length ? en : v;
+  // Stable per-speaker voice mapping (LOCKED preferences)
+function buildVoiceMap(list) {
+  const v = (list || []).slice();
+  const en = v.filter(x => String(x.lang || "").toLowerCase().startsWith("en"));
+  const pool = en.length ? en : v;
 
-    const by = (rx) => pool.find(vo => rx.test(String(vo.name || "")) || rx.test(String(vo.voiceURI || "")));
+  const norm = (s) => String(s || "").toLowerCase();
 
-    const emma = by(/zira|aria|samantha|victoria|female/i) || pool[0] || null;
-    const liam = by(/david|guy|mark|alex|male/i) || pool[1] || pool[0] || null;
-    // System: pick something different from Emma/Liam if possible
-    let system = by(/mark|daniel|fred|robot|google uk english male/i) || pool[2] || pool[0] || null;
-    if (system && emma && system.name === emma.name && pool[3]) system = pool[3];
-    if (system && liam && system.name === liam.name && pool[4]) system = pool[4];
+  const findBy = (needles) => {
+    for (const n of needles) {
+      const needle = norm(n);
+      const hit = pool.find(vo => norm(vo.name).includes(needle) || norm(vo.voiceURI).includes(needle));
+      if (hit) return hit;
+    }
+    return null;
+  };
 
-    return { emma, liam, system };
-  }
+  // Emma: closest “Erin-like” in browser TTS (usually Aria/Jenny/Zira)
+  const emma = findBy(["microsoft aria", "microsoft jenny", "microsoft zira", "samantha", "victoria", "female"]) || pool[0] || null;
+
+  // Liam: must be Microsoft Mark - English (United States) if present
+  const liam = pool.find(vo => norm(vo.name) === "microsoft mark - english (united states)") ||
+               findBy(["microsoft mark", "microsoft david", "microsoft guy", "male"]) ||
+               pool[1] || pool[0] || null;
+
+  // System: avoid matching Emma/Liam when possible
+  let system = findBy(["microsoft david", "microsoft george", "microsoft mark", "daniel", "fred", "robot"]) || pool[2] || pool[0] || null;
+  if (system && emma && system.name === emma.name) system = pool.find(x => x && x.name !== emma.name && x.name !== (liam && liam.name)) || system;
+  if (system && liam && system.name === liam.name) system = pool.find(x => x && x.name !== liam.name && x.name !== (emma && emma.name)) || system;
+
+  return { emma, liam, system };
+}
 
   // Base personality tuning
-  const BASE = {
-    emma:   { rate: 0.95, pitch: 0.95, volume: 1.0 },
-    liam:   { rate: 0.99, pitch: 1.06, volume: 0.86 },
-    system: { rate: 0.92, pitch: 0.78, volume: 0.85 },
-  };
+  // Base personality tuning (LOCKED)
+const BASE = {
+  // System: flat + robotic
+  system: { rate: 0.78, pitch: 0.84, volume: 0.88 },
+  // Emma: Erin-like (closest available in browser), stern + cold
+  emma:   { rate: 0.99, pitch: 0.98, volume: 1.00 },
+  // Liam: Microsoft Mark (en-US), hushed + urgent
+  liam:   { rate: 1.12, pitch: 1.06, volume: 0.72 },
+};
+
 
   // Subtle “humanization” jitter per utterance
   function withJitter(base, speaker) {
-    const j = speaker === "system" ? 0.012 : 0.022;
-    const r = base.rate * (1 + (Math.random() * 2 - 1) * j);
-    const p = base.pitch + (Math.random() * 2 - 1) * (speaker === "system" ? 0.02 : 0.04);
-    return {
-      rate: clamp(r, 0.84, 1.18),
-      pitch: clamp(p, 0.55, 1.35),
-      volume: clamp01(base.volume),
-    };
-  }
+  // Keep identities locked; only tiny micro-variation to avoid “robotic” cadence.
+  const j = speaker === "system" ? 0.0 : 0.008;
+  const r = base.rate * (1 + (Math.random() * 2 - 1) * j);
+  const p = base.pitch + (Math.random() * 2 - 1) * (speaker === "system" ? 0.0 : 0.015);
+  return {
+    rate: clamp(r, 0.65, 1.35),
+    pitch: clamp(p, 0.55, 1.45),
+    volume: clamp01(base.volume),
+  };
+}
 
   // System background bed (low volume ambience) — only audible while system speaks
   const bed = new Audio("/assets/ambience.wav");
@@ -106,30 +141,19 @@
   bed.volume = 0;
   bed.preload = "auto";
 
-  let bedTarget = 0;
-  let bedRAF = 0;
-  function bedAnim() {
-    const cur = bed.volume;
-    const next = cur + (bedTarget - cur) * 0.08;
-    bed.volume = clamp01(next);
-    if (Math.abs(bedTarget - next) > 0.004) {
-      bedRAF = requestAnimationFrame(bedAnim);
-    }
-  }
-  async function bedOn() {
-    bedTarget = 0.10;
-    try { if (bed.paused) await bed.play(); } catch {}
-    cancelAnimationFrame(bedRAF);
-    bedRAF = requestAnimationFrame(bedAnim);
-  }
-  function bedOff() {
-    bedTarget = 0;
-    cancelAnimationFrame(bedRAF);
-    bedRAF = requestAnimationFrame(bedAnim);
-    // don't force pause; keep it ready (prevents autoplay re-blocking)
-  }
+  // Instant on/off (NO fade) — only audible while system speaks
+async function bedOn() {
+  try { if (bed.paused) await bed.play(); } catch {}
+  bed.volume = 0.10;
+}
+function bedOff() {
+  bed.volume = 0;
+  // keep it playing silently to avoid autoplay re-blocking
+}
 
   // Queue
+  let voiceMap = null;
+
   const q = [];
   let speaking = false;
   let voices = [];
@@ -171,7 +195,9 @@
     if (!text) return next();
 
     refreshVoices();
-    const voice = pickVoice(voices, speaker);
+    voiceMap = voiceMap || buildVoiceMap(voices);
+    const desired = (speaker === "liam") ? "Microsoft Mark - English (United States)" : null;
+    const voice = pickVoice(voices, speaker, voiceMap, desired);
 
     const base = { ...(BASE[speaker] || BASE.system) };
     if (typeof item.rate === "number") base.rate = item.rate;
