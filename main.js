@@ -277,184 +277,153 @@
     }
 
     function newCrackPath(startPt, baseAngle) {
-  const c = cracksCanvas;
-  const w = c.width, h = c.height;
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
+      // IMPORTANT: cracksCanvas is in device pixels (scaled by DPR in resizeCracksCanvas)
+      const c = cracksCanvas;
+      const w = c.width, h = c.height;
+      const cx = w * 0.5, cy = h * 0.5;
 
-  const cx = w * 0.5, cy = h * 0.5;
+      // Start: either a provided branching point OR very near dead-center.
+      let x, y;
+      if (startPt && Number.isFinite(startPt.x) && Number.isFinite(startPt.y)) {
+        x = startPt.x;
+        y = startPt.y;
+      } else {
+        const seedAng = sRand() * Math.PI * 2;
+        const r0 = Math.min(w, h) * (sRand() * 0.02); // 0–2% radius from center
+        const j = Math.min(w, h) * 0.006;
+        x = cx + Math.cos(seedAng) * r0 + (sRand() - 0.5) * j;
+        y = cy + Math.sin(seedAng) * r0 + (sRand() - 0.5) * j;
+      }
 
-  // Start: either provided (branching) or near dead-center.
-  let x, y;
-  if (startPt && Number.isFinite(startPt.x) && Number.isFinite(startPt.y)) {
-    x = startPt.x;
-    y = startPt.y;
-  } else {
-    const seedAng = sRand() * Math.PI * 2;
-    const r0 = Math.min(w, h) * (sRand() * 0.02); // 0–2% radius from center
-    const j = Math.min(w, h) * 0.006;
-    x = cx + Math.cos(seedAng) * r0 + (sRand() - 0.5) * j;
-    y = cy + Math.sin(seedAng) * r0 + (sRand() - 0.5) * j;
-  }
+      const pts = [{ x, y }];
 
-  const pts = [{ x, y }];
+      // Fewer, longer segments; later stages add more PATHS (branches), not noise.
+      const steps = 18 + Math.floor(sRand() * 14);
 
-  // For readability: fewer, longer segments; later stages add more paths, not more noise.
-  const steps = 18 + Math.floor(sRand() * 14);
+      // Direction: away from center, with jaggedness.
+      let ang = Number.isFinite(baseAngle)
+        ? baseAngle
+        : Math.atan2(y - cy, x - cx) + (sRand() - 0.5) * 0.6;
 
-  // Direction: away from center, with jaggedness.
-  let ang = Number.isFinite(baseAngle) ? baseAngle : Math.atan2(y - cy, x - cx) + (sRand() - 0.5) * 0.6;
+      for (let i = 0; i < steps; i++) {
+        const last = pts[pts.length - 1];
+        const outward = Math.atan2(last.y - cy, last.x - cx);
 
-  for (let i = 0; i < steps; i++) {
-    const last = pts[pts.length - 1];
+        // Keep pushing outward, but let it fracture/jag.
+        ang = ang * 0.86 + outward * 0.14 + (sRand() - 0.5) * (0.42 + i * 0.01);
 
-    const outward = Math.atan2(last.y - cy, last.x - cx);
-    // keep pushing outward, but let it fracture/jag
-    ang = ang * 0.86 + outward * 0.14 + (sRand() - 0.5) * (0.42 + i * 0.01);
+        const len = 70 + sRand() * 160; // in device px
+        x = last.x + Math.cos(ang) * len;
+        y = last.y + Math.sin(ang) * len;
 
-    const len = (70 + sRand() * 160) * dpr;
-    x = last.x + Math.cos(ang) * len;
-    y = last.y + Math.sin(ang) * len;
+        // Clamp inside bounds, but allow reaching edges.
+        x = Math.max(2, Math.min(w - 2, x));
+        y = Math.max(2, Math.min(h - 2, y));
 
-    // Clamp inside bounds, but allow reaching edges.
-    x = Math.max(2, Math.min(w - 2, x));
-    y = Math.max(2, Math.min(h - 2, y));
+        pts.push({ x, y });
+      }
 
-    pts.push({ x, y });
-  }
-
-  return pts;
-}
-
-function pickBranchPoint() {
-  // Choose a point on an existing crack so stages “build off each other”.
-  if (!crackState.paths.length) return null;
-
-  const base = crackState.paths[Math.floor(sRand() * crackState.paths.length)];
-  if (!base || base.length < 3) return null;
-
-  // Prefer points near the center (first ~40% of the crack) for “branching from origin”
-  const maxIdx = Math.max(2, Math.floor(base.length * 0.45));
-  const idx = 1 + Math.floor(sRand() * (maxIdx - 1));
-  const p = base[idx];
-
-  // Slight offset so we don't draw directly on top of the same pixel
-  const j = 6 * (window.devicePixelRatio || 1);
-  return { x: p.x + (sRand() - 0.5) * j, y: p.y + (sRand() - 0.5) * j };
-}
-
-function ensureCracksForStage(stageN) {
-  // Stage 1: 2–3 obvious primaries (CENTER).
-  // Stage 2+: branch off existing, add fewer but thicker secondary fractures.
-  const want =
-    stageN === 0 ? 0 :
-    stageN === 1 ? 3 :
-    stageN === 2 ? 7 :
-    stageN === 3 ? 11 :
-    15;
-
-  // If we’re entering stage 1 fresh, seed primary cracks.
-  if (stageN === 1 && crackState.paths.length === 0) {
-    for (let i = 0; i < 3; i++) crackState.paths.push(newCrackPath(null));
-  }
-
-  // For later stages, add branching cracks off existing ones (builds off each other).
-  while (crackState.paths.length < want) {
-    const start = stageN >= 2 ? pickBranchPoint() : null;
-    const ang = sRand() * Math.PI * 2;
-    crackState.paths.push(newCrackPath(start, ang));
-  }
-
-  // Never remove already-established cracks; keep the build-up feel.
-  // (If stage decreases for any reason, we still keep existing paths.)
-}
-
-function drawCracks() {
-  const c = cracksCanvas;
-  const ctx = c.getContext("2d");
-  if (!ctx) return;
-
-  ctx.clearRect(0, 0, c.width, c.height);
-  if (crackState.stage <= 0) return;
-
-  ctx.save();
-  ctx.lineJoin = "round";
-  ctx.lineCap = "round";
-
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const st = crackState.stage;
-
-  // Micro-scratches only AFTER the main break is obvious (so they don’t compete).
-  if (st >= 3) {
-    ctx.globalAlpha = 0.05;
-    ctx.strokeStyle = "rgba(0,0,0,0.22)";
-    ctx.lineWidth = 0.6 * dpr;
-    const scratches = 10 + (st === 4 ? 8 : 0);
-    for (let i = 0; i < scratches; i++) {
-      const x1 = sRand() * c.width;
-      const y1 = sRand() * c.height;
-      const x2 = x1 + (sRand() - 0.5) * 120;
-      const y2 = y1 + (sRand() - 0.5) * 40;
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
+      return pts;
     }
-  }
 
-  // Main fractures: thicker + higher contrast per stage.
-  ctx.shadowColor = "rgba(0,0,0,0.34)";
-  ctx.shadowBlur = 2.2 * dpr;
+    function pickBranchPoint() {
+      // Choose a point on an existing crack so stages “build off each other”.
+      if (!crackState.paths.length) return null;
 
-  for (const pts of crackState.paths) {
-    // dark core
-    ctx.globalAlpha = 0.92;
-    ctx.strokeStyle = "rgba(0,0,0,0.78)";
-    ctx.lineWidth = (3.8 + (st - 1) * 1.35) * dpr;
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-    ctx.stroke();
+      const base = crackState.paths[Math.floor(sRand() * crackState.paths.length)];
+      if (!base || base.length < 3) return null;
 
-    // bright edge highlight
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 0.28 + st * 0.06;
-    ctx.strokeStyle = "rgba(255,255,255,0.28)";
-    ctx.lineWidth = (1.2 + (st - 1) * 0.35) * dpr;
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
-    ctx.stroke();
+      // Prefer points near the center (first ~45% of the crack) for branching from origin.
+      const maxIdx = Math.max(2, Math.floor(base.length * 0.45));
+      const idx = 1 + Math.floor(sRand() * (maxIdx - 1));
+      const p = base[idx];
 
-    ctx.shadowBlur = 2.2 * dpr;
-  }
+      const j = 6; // device px
+      return { x: p.x + (sRand() - 0.5) * j, y: p.y + (sRand() - 0.5) * j };
+    }
 
-  ctx.restore();
-}
+    function ensureCracksForStage(stageN) {
+      // Stage 1: 2–3 obvious primaries (CENTER).
+      // Stage 2+: branch off existing, fewer but thicker secondary fractures.
+      const want =
+        stageN === 0 ? 0 :
+        stageN === 1 ? 3 :
+        stageN === 2 ? 7 :
+        stageN === 3 ? 11 :
+        15;
 
-      // main cracks
-      ctx.globalAlpha = 0.85;
-      ctx.shadowColor = "rgba(0,0,0,0.25)";
-      ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
+      // Seed primaries once.
+      if (stageN >= 1 && crackState.paths.length === 0) {
+        for (let i = 0; i < 3; i++) crackState.paths.push(newCrackPath(null));
+      }
+
+      // For later stages, add branching cracks off existing ones.
+      while (crackState.paths.length < want) {
+        const start = stageN >= 2 ? pickBranchPoint() : null;
+        const ang = sRand() * Math.PI * 2;
+        crackState.paths.push(newCrackPath(start, ang));
+      }
+
+      // Never remove established cracks; we want escalation, not flicker.
+    }
+
+    function drawCracks() {
+      const c = cracksCanvas;
+      const ctx = c.getContext("2d");
+      if (!ctx) return;
+
+      ctx.clearRect(0, 0, c.width, c.height);
+      if (crackState.stage <= 0) return;
+
+      ctx.save();
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
+      const st = crackState.stage;
+
+      // Micro-scratches ONLY after the main fracture is obvious (so they don’t compete).
+      if (st >= 3) {
+        ctx.globalAlpha = 0.05;
+        ctx.strokeStyle = "rgba(0,0,0,0.22)";
+        ctx.lineWidth = 0.8;
+        const scratches = 10 + (st === 4 ? 8 : 0);
+        for (let i = 0; i < scratches; i++) {
+          const x1 = sRand() * c.width;
+          const y1 = sRand() * c.height;
+          const x2 = x1 + (sRand() - 0.5) * 140;
+          const y2 = y1 + (sRand() - 0.5) * 60;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+      }
+
+      // Main fractures: thicker + higher contrast per stage.
+      ctx.shadowColor = "rgba(0,0,0,0.34)";
+      ctx.shadowBlur = 2.2;
 
       for (const pts of crackState.paths) {
-        ctx.strokeStyle = "rgba(0,0,0,0.72)";
-        ctx.lineWidth = (2.4 + (crackState.stage - 1) * 0.65) * (window.devicePixelRatio || 1);
+        // dark core
+        ctx.globalAlpha = 0.92;
+        ctx.strokeStyle = "rgba(0,0,0,0.78)";
+        ctx.lineWidth = (3.8 + (st - 1) * 1.35);
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
 
+        // bright edge highlight
         ctx.shadowBlur = 0;
-        ctx.globalAlpha = 0.28;
-        ctx.strokeStyle = "rgba(255,255,255,0.25)";
-        ctx.lineWidth = (0.8 + (crackState.stage - 1) * 0.2) * (window.devicePixelRatio || 1);
+        ctx.globalAlpha = 0.28 + st * 0.06;
+        ctx.strokeStyle = "rgba(255,255,255,0.28)";
+        ctx.lineWidth = (1.2 + (st - 1) * 0.35);
         ctx.beginPath();
-        ctx.moveTo(pts[0].x + 0.6, pts[0].y - 0.4);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.6, pts[i].y - 0.4);
+        ctx.moveTo(pts[0].x + 0.8, pts[0].y - 0.6);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8, pts[i].y - 0.6);
         ctx.stroke();
 
-        ctx.globalAlpha = 0.85;
-        ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
+        ctx.shadowBlur = 2.2;
       }
 
       ctx.restore();
@@ -969,18 +938,6 @@ async function emitLine(line) {
       taskPrimary.classList.add("hidden");
       taskSecondary.classList.add("hidden");
 
-
-// Admin panel metadata (admin-only; no task ID in dialogue)
-try {
-  if (adminTask) {
-    const pack = (args && args.pack != null) ? `p${args.pack}` : "—";
-    const ix = (args && args.index != null) ? String(args.index) : "—";
-    adminTask.textContent = `${taskId}  (${pack}:${ix})`;
-  }
-  if (adminAnswer) adminAnswer.value = "";
-  if (adminStoredAnswer) adminStoredAnswer.textContent = (window.__SIM_STATE__ && window.__SIM_STATE__.storedAnswer) ? String(window.__SIM_STATE__.storedAnswer) : "—";
-} catch {}
-
       // ctx for tasks.js
       let done = false;
       let resolver;
@@ -1019,7 +976,6 @@ try {
         // optional helper tasks.js calls in checksum
         setAnswer: (phrase) => {
           simState.storedAnswer = String(phrase || "");
-          try { if (adminStoredAnswer) adminStoredAnswer.textContent = simState.storedAnswer || "—"; } catch {}
         },
       
         success: () => {
