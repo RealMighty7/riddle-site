@@ -47,14 +47,25 @@
     return { system: sys[i % sys.length], emma: emma[i % emma.length], liam: liam[i % liam.length] };
   }
 
-  function taskLead(idx, pack) {
-    // IMPORTANT: do NOT reveal task identity in dialogue (admin panel only).
-    const tag = pack ? `pack ${pack}` : "pack ?";
-    return {
-      system: `System: Task ${idx + 1}/20 queued (${tag}).`,
-      emma:   `Emma (Security): Task ${idx + 1}/20. Keep it clean.`,
-      liam:   `Liam (Worker): Task ${idx + 1}/20. Stay calm.`,
-    };
+  function taskLead(taskId, idx, pack) {
+    // IMPORTANT: Do NOT reveal task IDs / counts in dialogue (admin panel only).
+    // Keep this as a diegetic “instruction” beat.
+    const sys = [
+      "System: Instruction packet delivered.",
+      "System: Execute the prompt exactly.",
+      "System: Confirm output. Continue.",
+    ];
+    const emma = [
+      "Emma (Security): Read it once. Then move.",
+      "Emma (Security): Don’t guess. Verify.",
+      "Emma (Security): Keep it clean. One step.",
+    ];
+    const liam = [
+      "Liam (Worker): Don’t rush. You’ve got time.",
+      "Liam (Worker): Look for the pattern.",
+      "Liam (Worker): Take the safe move. Then commit.",
+    ];
+    return { system: sys[idx % sys.length], emma: emma[idx % emma.length], liam: liam[idx % liam.length] };
   }
 
   function taskCue(taskId, idx) {
@@ -102,7 +113,7 @@
       },
     });
 
-    steps.push({ say: [taskLead(i, t.pack), taskCue(t.id, i)] });
+    steps.push({ say: [taskLead(t.id, i, t.pack), taskCue(t.id, i)] });
     steps.push({ task: t.id, args: { pack: t.pack, index: i } });
   }
 
