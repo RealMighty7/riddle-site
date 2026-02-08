@@ -47,12 +47,13 @@
     return { system: sys[i % sys.length], emma: emma[i % emma.length], liam: liam[i % liam.length] };
   }
 
-  function taskLead(taskId, idx, pack) {
+  function taskLead(idx, pack) {
+    // IMPORTANT: do NOT reveal task identity in dialogue (admin panel only).
     const tag = pack ? `pack ${pack}` : "pack ?";
     return {
-      system: `System: Task ${idx + 1}/20 queued — '${taskId}' (${tag}).`,
-      emma:   `Emma (Security): Task ${idx + 1}/20. Do it clean — '${taskId}'.`,
-      liam:   `Liam (Worker): Task ${idx + 1}/20. Don’t panic — '${taskId}'.`,
+      system: `System: Task ${idx + 1}/20 queued (${tag}).`,
+      emma:   `Emma (Security): Task ${idx + 1}/20. Keep it clean.`,
+      liam:   `Liam (Worker): Task ${idx + 1}/20. Stay calm.`,
     };
   }
 
@@ -101,7 +102,7 @@
       },
     });
 
-    steps.push({ say: [taskLead(t.id, i, t.pack), taskCue(t.id, i)] });
+    steps.push({ say: [taskLead(i, t.pack), taskCue(t.id, i)] });
     steps.push({ task: t.id, args: { pack: t.pack, index: i } });
   }
 
