@@ -1,121 +1,96 @@
-// dialogue.js
-// Exposes window.DIALOGUE used by main.js
-// Structure after cracks:
-//   plot dialogue → (first choice locks guide path) → [ plot → choice → taskline → task ] x20
+/*
+ dialogue.js — REBUILT
+ Lore-driven, non-expository, weighted chorus (System / Emma / Liam)
+ Tasks are NEVER described in dialogue.
+ Tasks are bracketed by a non-voiced system tag.
+*/
 
-(() => {
-  const shuffle = (arr) => arr.slice().sort(() => Math.random() - 0.5);
-  const POOLS = window.TASK_POOLS || {};
+window.DIALOGUE = (() => {
 
-  const pickN = (pool, n) => shuffle(Array.isArray(pool) ? pool : []).slice(0, Math.max(0, n));
+  // Utility: lines can be strings or weighted objects.
+  // main.js resolves which voice speaks based on compliance/resistance weights.
+  const intro = [
+    "System: SESSION INITIALIZED.",
+    "Emma: Stay still. This will go faster if you don’t rush it.",
+    "Liam: …You’re already inside.",
+    "System: SUBJECT DETECTED.",
+  ];
 
-  function buildFirstTen() {
-    // 2 from each pack 1-5 -> 10 total (100 variants total in pools)
-    const picked = [];
-    for (let p = 1; p <= 5; p++) {
-      pickN(POOLS[`pack${p}`] || [], 2).forEach((id) => picked.push({ id, pack: p }));
-    }
-    return shuffle(picked);
+  // Generic reactions (used across steps)
+  const react = {
+    system: [
+      "System: INPUT CONSISTENCY NOTED.",
+      "System: VARIANCE WITHIN ACCEPTABLE RANGE.",
+      "System: CONFIRMATION RECEIVED.",
+      "System: PATTERN STABILIZING.",
+      "System: RE-EVALUATING PARAMETERS.",
+    ],
+    emma: [
+      "Emma: Don’t overthink it. Just keep moving.",
+      "Emma: You’re making this harder than it needs to be.",
+      "Emma: Slow down. Follow the order.",
+      "Emma: That’s… fine. Continue.",
+      "Emma: I need you to stay predictable.",
+    ],
+    liam: [
+      "Liam: Interesting.",
+      "Liam: That still counted.",
+      "Liam: You didn’t do what it expected.",
+      "Liam: Patterns don’t like being watched.",
+      "Liam: Don’t fix it. Let it sit.",
+    ],
+  };
+
+  // Non-voiced task tag helper (rendered by UI, not spoken)
+  function taskTag(name) {
+    return { __taskTag: true, name };
   }
 
-  function buildSecondTen() {
-    const p6 = pickN(POOLS.pack6 || [], 5).map((id) => ({ id, pack: 6 }));
-    const p7 = pickN(POOLS.pack7 || [], 5).map((id) => ({ id, pack: 7 }));
-    return shuffle(p6.concat(p7));
-  }
-
-  function plotBeat(i) {
-    // Same beat, different voice depending on locked guide path (system/emma/liam)
-    const sys = [
-      "System: Session bound. Cursor motion logged.",
-      "System: Deviation increases scrutiny.",
-      "System: Obedience improves stability.",
-      "System: Attention is mandatory.",
-    ];
-    const emma = [
-      "Emma (Security): Keep your hands visible. Follow the prompt, then stop.",
-      "Emma (Security): Don’t improvise. I can’t cover you if you do.",
-      "Emma (Security): Slow is safe. Read it once before you move.",
-      "Emma (Security): You want out? Then stay orderly.",
-    ];
-    const liam = [
-      "Liam (Worker): Don’t let it rush you. Read twice.",
-      "Liam (Worker): If you’re going to fight it, do it clean.",
-      "Liam (Worker): Make it think you’re cooperating. Then pivot.",
-      "Liam (Worker): You’ve got one advantage — it’s predictable.",
-    ];
-    return { system: sys[i % sys.length], emma: emma[i % emma.length], liam: liam[i % liam.length] };
-  }
-
-  function taskLead(taskId, idx, pack) {
-    // IMPORTANT: Do NOT reveal task IDs / counts in dialogue (admin panel only).
-    // Keep this as a diegetic “instruction” beat.
-    const sys = [
-      "System: Instruction packet delivered.",
-      "System: Execute the prompt exactly.",
-      "System: Confirm output. Continue.",
-    ];
-    const emma = [
-      "Emma (Security): Read it once. Then move.",
-      "Emma (Security): Don’t guess. Verify.",
-      "Emma (Security): Keep it clean. One step.",
-    ];
-    const liam = [
-      "Liam (Worker): Don’t rush. You’ve got time.",
-      "Liam (Worker): Look for the pattern.",
-      "Liam (Worker): Take the safe move. Then commit.",
-    ];
-    return { system: sys[idx % sys.length], emma: emma[idx % emma.length], liam: liam[idx % liam.length] };
-  }
-
-  function taskCue(taskId, idx) {
-    // A quick “task dialogue” line before the UI appears, to make the cadence obvious.
-    return {
-      system: "System: Execute. Confirm. Continue.",
-      emma:   "Emma (Security): One action at a time. Don’t spam it.",
-      liam:   "Liam (Worker): Take the point it gives you. Don’t overthink.",
-    };
-  }
-
-  const run = buildFirstTen().concat(buildSecondTen());
-
+  // 20-step loop: dialogue → task tag → task
   const steps = [];
 
-  // Opening beat
-  steps.push({
-    say: [
-      { system: "System: INPUT CHANNEL OPEN.", emma: "System: INPUT CHANNEL OPEN.", liam: "System: INPUT CHANNEL OPEN." },
-      { system: "System: COMPLIANCE CHECK REQUIRED.", emma: "Emma (Security): You weren't scheduled for this.", liam: "Liam (Worker): …keep your voice down." },
-      { system: "System: SIGNAL ACQUIRED.", emma: "System: SIGNAL ACQUIRED.", liam: "System: SIGNAL ACQUIRED." },
-    ],
-  });
-
-  // First choice locks path: comply->system, resist->emma, full->liam
-  steps.push({
-    choice: {
-      lockPath: true,
-      complyLabel: "Comply.",
-      lieLabel: "Question.",
-      runLabel: "Refuse.",
-    },
-  });
-
-  // 20 rounds
-  for (let i = 0; i < run.length; i++) {
-    const t = run[i];
-    steps.push({ say: [plotBeat(i)] });
-
-    steps.push({
-      choice: {
-        complyLabel: "Comply",
-        lieLabel: "Resist",
-        runLabel: "Break protocol",
+  for (let i = 1; i <= 20; i++) {
+    steps.push(
+      {
+        say: [
+          // Chorus-style: engine will bias who appears more often
+          { system: react.system[i % react.system.length] },
+          { emma: react.emma[i % react.emma.length] },
+          { liam: react.liam[i % react.liam.length] },
+        ],
       },
-    });
-
-    steps.push({ say: [taskLead(t.id, i, t.pack), taskCue(t.id, i)] });
-    steps.push({ task: t.id, args: { pack: t.pack, index: i } });
+      taskTag(`TASK_${i}`),
+      {
+        task: `task_${i}`, // resolved in tasks.js
+        args: { index: i },
+      }
+    );
   }
 
-  window.DIALOGUE = { intro: [], steps };
+  const preHack = [
+    "System: EVALUATION INCOMPLETE.",
+    "Emma: …This shouldn’t still be running.",
+    "Liam: Yeah. That’s the point.",
+  ];
+
+  const hackRoom = [
+    "System: UNAUTHORIZED ACCESS.",
+    "Emma: Wait— this isn’t a task.",
+    "Liam: It is. Just not one for you.",
+  ];
+
+  const escape = [
+    "System: SUBJECT STATUS…",
+    "System: …",
+    "Emma: I don’t see you anymore.",
+    "Liam: That’s because you’re not here.",
+  ];
+
+  return {
+    intro,
+    steps,
+    preHack,
+    hackRoom,
+    escape,
+  };
 })();
