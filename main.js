@@ -932,7 +932,7 @@ async function emitLine(line) {
       hackRoom.classList.add("hidden");
 
       // Reset task UI content
-      taskTitle.textContent = taskId;
+      taskTitle.textContent = `TASK`;
       taskDesc.textContent = "";
       taskBody.innerHTML = "";
       taskPrimary.classList.add("hidden");
@@ -1016,17 +1016,26 @@ async function emitLine(line) {
       }
 
       try {
-        // Tasks may either call ctx.success() OR (legacy pack tasks) resolve by returning.
-        await fn(ctx, args);
-        if (!done) {
-          done = true;
-          resolver(true);
+        // Support BOTH task styles:
+        //  A) returns a Promise that resolves when complete (most packs)
+        //  B) returns nothing but calls ctx.success() later (some tasks)
+        const ret = fn(ctx, args);
+
+        // If the task returned a promise/thenable, await it.
+        if (ret && (typeof ret.then === "function")) {
+          await ret;
         }
+
+        // If the task finished synchronously *and* never called success,
+        // we do NOT auto-advance; instead we wait for ctx.success() or Admin Skip.
+        // (This prevents "instant-complete" tasks from skipping user interaction.)
       } catch (e) {
         console.error(e);
         doReset("TASK ERROR", String(e && e.message ? e.message : e));
         return;
       }
+      // If the task returned/awaited a thenable and never called ctx.success(), advance now.
+      if (!done) { done = true; resolver(true); }
 
       await p;
 
