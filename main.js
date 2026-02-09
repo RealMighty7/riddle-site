@@ -237,7 +237,7 @@
     const CRACK_AT = [15, 17, 19, 21];
     const SHATTER_AT = 21;
 
-    let guidePath = "emma";
+    let guidePath = "system";
     let paceBias = 0;
 
     const COMPLIANCE_LIMIT = 0.30;
@@ -254,6 +254,8 @@
       stage: 0,
       seed: (Date.now() ^ (Math.random() * 1e9)) >>> 0,
       paths: [],
+      // Click-origin seeds (stored in canvas pixels; already DPR-scaled)
+      seeds: [],
     };
 
     function sRand() {
@@ -276,8 +278,6 @@
       drawCracks();
     }
 
-    // Crack path that originates at a specific point (usually the player's click)
-    // and fractures outward with jaggedness.
     function newCrackPath(startPt, baseAngle) {
       const c = cracksCanvas;
       const w = c.width, h = c.height;
@@ -285,79 +285,106 @@
 
       const cx = w * 0.5, cy = h * 0.5;
 
-      // Start point: click position (canvas coords). Fallback near center.
+      // Start: either provided (from click or branch) or near center.
       let x, y;
       if (startPt && Number.isFinite(startPt.x) && Number.isFinite(startPt.y)) {
         x = startPt.x;
         y = startPt.y;
       } else {
-        const jitter = Math.min(w, h) * 0.01;
-        x = cx + (sRand() - 0.5) * jitter;
-        y = cy + (sRand() - 0.5) * jitter;
+        const seedAng = sRand() * Math.PI * 2;
+        const r0 = Math.min(w, h) * (sRand() * 0.02); // 0–2% radius from center
+        const j = Math.min(w, h) * 0.006;
+        x = cx + Math.cos(seedAng) * r0 + (sRand() - 0.5) * j;
+        y = cy + Math.sin(seedAng) * r0 + (sRand() - 0.5) * j;
       }
 
       const pts = [{ x, y }];
-      const steps = 16 + Math.floor(sRand() * 18);
 
-      // Direction: random unless supplied.
-      let ang = Number.isFinite(baseAngle) ? baseAngle : (sRand() * Math.PI * 2);
+      // Direction: push outward from seed, but slightly biased away from screen center.
+      let ang = Number.isFinite(baseAngle) ? baseAngle : Math.atan2(y - cy, x - cx) + (sRand() - 0.5) * 0.6;
+      const steps = 18 + Math.floor(sRand() * 14);
 
       for (let i = 0; i < steps; i++) {
         const last = pts[pts.length - 1];
+        const outward = Math.atan2(last.y - cy, last.x - cx);
+        // keep pushing outward, but let it fracture/jag
+        ang = ang * 0.86 + outward * 0.14 + (sRand() - 0.5) * (0.42 + i * 0.01);
 
-        // Mild bias outward from the origin (not from center), plus jag.
-        const outward = ang;
-        ang = ang * 0.78 + outward * 0.22 + (sRand() - 0.5) * (0.55 + i * 0.012);
-
-        const len = (18 + sRand() * 90) * dpr;
+        const len = (70 + sRand() * 160) * dpr;
         x = last.x + Math.cos(ang) * len;
         y = last.y + Math.sin(ang) * len;
 
-        // Keep inside canvas (allow nearing edges).
+        // Clamp inside bounds (slight bleed is OK)
         x = Math.max(2, Math.min(w - 2, x));
         y = Math.max(2, Math.min(h - 2, y));
         pts.push({ x, y });
 
-        // Branches: later segments occasionally fork.
-        if (i > 3 && sRand() < (0.10 + crackState.stage * 0.03)) {
-          const bpts = [{ x: last.x, y: last.y }];
-          let bx = last.x, by = last.y;
-          const bsteps = 4 + Math.floor(sRand() * 10);
-          let bang = ang + (sRand() < 0.5 ? -1 : 1) * (0.35 + sRand() * 0.9);
-          for (let j = 0; j < bsteps; j++) {
-            const blen = (12 + sRand() * 50) * dpr;
-            bang += (sRand() - 0.5) * 0.55;
-            bx = Math.max(2, Math.min(w - 2, bx + Math.cos(bang) * blen));
-            by = Math.max(2, Math.min(h - 2, by + Math.sin(bang) * blen));
-            bpts.push({ x: bx, y: by });
-          }
-          crackState.paths.push(bpts);
+        // Extra micro-branches later stages (helps “build off” without looking like noise).
+        if (i >= 2 && crackState.stage >= 2 && sRand() < (0.08 + crackState.stage * 0.02)) {
+          const bStart = { x: last.x + (sRand() - 0.5) * 6 * dpr, y: last.y + (sRand() - 0.5) * 6 * dpr };
+          crackState.paths.push(newCrackPath(bStart, ang + (sRand() < 0.5 ? -1 : 1) * (0.65 + sRand() * 0.9)));
         }
       }
+
       return pts;
     }
 
-    // Choose a point on an existing crack for branching.
+    function pointerToCanvasPoint(e) {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      // canvas is fullscreen; translate pointer to DPR-scaled canvas coords
+      const x = clamp(e.clientX * dpr, 2, cracksCanvas.width - 2);
+      const y = clamp(e.clientY * dpr, 2, cracksCanvas.height - 2);
+      return { x, y };
+    }
+
+    function addCrackSeed(pt) {
+      if (!pt) return;
+      crackState.seeds.push({ x: pt.x, y: pt.y, t: performance.now() });
+      if (crackState.seeds.length > 6) crackState.seeds.shift();
+    }
+
+    function pickSeedForNewOrigin() {
+      // Prefer most recent clicks so cracks feel “from your action”.
+      if (crackState.seeds.length) {
+        const recent = crackState.seeds[crackState.seeds.length - 1];
+        if (recent) return recent;
+      }
+      return null;
+    }
+
     function pickBranchPoint() {
       if (!crackState.paths.length) return null;
       const base = crackState.paths[Math.floor(sRand() * crackState.paths.length)];
       if (!base || base.length < 3) return null;
-      const maxIdx = Math.max(2, Math.floor(base.length * 0.55));
+      const maxIdx = Math.max(2, Math.floor(base.length * 0.45));
       const idx = 1 + Math.floor(sRand() * (maxIdx - 1));
       const p = base[idx];
       const j = 6 * (window.devicePixelRatio || 1);
       return { x: p.x + (sRand() - 0.5) * j, y: p.y + (sRand() - 0.5) * j };
     }
 
-    function addStressBranches(count = 2) {
-      for (let i = 0; i < count; i++) {
-        const start = pickBranchPoint();
-        if (!start) break;
+    function ensureCracksForStage(stageN) {
+      // Stage 1: 2–3 obvious primaries (from click).
+      // Stage 2+: add branches + occasional new origins from newer clicks.
+      const want =
+        stageN === 0 ? 0 :
+        stageN === 1 ? 3 :
+        stageN === 2 ? 9 :
+        stageN === 3 ? 15 :
+        22;
+
+      // If entering stage 1 with nothing, seed from most recent click.
+      if (stageN === 1 && crackState.paths.length === 0) {
+        const seed = pickSeedForNewOrigin();
+        for (let i = 0; i < 3; i++) crackState.paths.push(newCrackPath(seed, sRand() * Math.PI * 2));
+      }
+
+      while (crackState.paths.length < want) {
+        const start = stageN >= 2 ? (pickBranchPoint() || pickSeedForNewOrigin()) : pickSeedForNewOrigin();
         crackState.paths.push(newCrackPath(start, sRand() * Math.PI * 2));
       }
-      // Keep memory bounded.
-      const cap = 90;
-      if (crackState.paths.length > cap) crackState.paths.splice(0, crackState.paths.length - cap);
+
+      // Never remove existing cracks (build-off feel). If stage decreases, we still keep established paths.
     }
 
     function drawCracks() {
@@ -372,45 +399,52 @@
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
 
-      // micro-scratches
-      ctx.globalAlpha = 0.10;
-      for (let i = 0; i < 120; i++) {
-        const x1 = sRand() * c.width;
-        const y1 = sRand() * c.height;
-        const x2 = x1 + (sRand() - 0.5) * 80;
-        const y2 = y1 + (sRand() - 0.5) * 20;
-        ctx.strokeStyle = "rgba(0,0,0,0.25)";
-        ctx.lineWidth = 0.6;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+      // Micro-scratches only after the main break is obvious (don’t compete).
+      if (crackState.stage >= 3) {
+        ctx.globalAlpha = 0.05;
+        ctx.strokeStyle = "rgba(0,0,0,0.22)";
+        ctx.lineWidth = 0.6 * dpr;
+        const scratches = 10 + (crackState.stage === 4 ? 8 : 0);
+        for (let i = 0; i < scratches; i++) {
+          const x1 = sRand() * c.width;
+          const y1 = sRand() * c.height;
+          const x2 = x1 + (sRand() - 0.5) * 140;
+          const y2 = y1 + (sRand() - 0.5) * 44;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
       }
 
-      // main cracks
-      ctx.globalAlpha = 0.85;
-      ctx.shadowColor = "rgba(0,0,0,0.25)";
-      ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
+      // Main fractures: thick + high contrast per stage.
+      ctx.globalAlpha = 0.92;
+      ctx.shadowColor = "rgba(0,0,0,0.34)";
+      ctx.shadowBlur = 2.2 * dpr;
 
       for (const pts of crackState.paths) {
-        ctx.strokeStyle = "rgba(0,0,0,0.55)";
-        ctx.lineWidth = (1.4 + (crackState.stage - 1) * 0.35) * (window.devicePixelRatio || 1);
+        // dark core
+        ctx.strokeStyle = "rgba(0,0,0,0.78)";
+        ctx.lineWidth = (3.8 + (crackState.stage - 1) * 1.35) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
 
+        // bright edge highlight
         ctx.shadowBlur = 0;
-        ctx.globalAlpha = 0.28;
-        ctx.strokeStyle = "rgba(255,255,255,0.25)";
-        ctx.lineWidth = (0.8 + (crackState.stage - 1) * 0.2) * (window.devicePixelRatio || 1);
+        ctx.globalAlpha = 0.28 + crackState.stage * 0.06;
+        ctx.strokeStyle = "rgba(255,255,255,0.28)";
+        ctx.lineWidth = (1.2 + (crackState.stage - 1) * 0.35) * dpr;
         ctx.beginPath();
-        ctx.moveTo(pts[0].x + 0.6, pts[0].y - 0.4);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.6, pts[i].y - 0.4);
+        ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
         ctx.stroke();
 
-        ctx.globalAlpha = 0.85;
-        ctx.shadowBlur = Math.max(1, (window.devicePixelRatio || 1) * 1.6);
+        ctx.globalAlpha = 0.92;
+        ctx.shadowBlur = 2.2 * dpr;
       }
 
       ctx.restore();
@@ -419,42 +453,12 @@
     window.addEventListener("resize", resizeCracksCanvas);
     resizeCracksCanvas();
 
-    // We record click points even before cracks become visible so stage 1 can
-    // “originate where the player clicked”.
-    const pendingClickPts = [];
-
     let crackStage = 0;
-    function seedFromPending(max = 3) {
-      // Use the most recent points as visible origins.
-      const take = pendingClickPts.slice(-max);
-      if (!take.length) return;
-      for (const p of take) {
-        crackState.paths.push(newCrackPath(p, sRand() * Math.PI * 2));
-      }
-      // keep bounded
-      if (crackState.paths.length > 90) crackState.paths.splice(0, crackState.paths.length - 90);
-    }
-
     function setCrackStage(n) {
-      const prev = crackStage;
       crackStage = clamp(n, 0, 4);
       crackState.stage = crackStage;
-
-      // Stage 0 means “no cracks on screen” (and clears memory).
-      if (crackStage === 0) {
-        crackState.paths.length = 0;
-        drawCracks();
-      } else {
-        // On first appearance, seed origins from the player's real click locations.
-        if (prev === 0) seedFromPending(3);
-
-        // When advancing stages, add stress fractures that branch off what already exists.
-        if (crackStage > prev) {
-          const burst = (crackStage - prev) * 4 + crackStage * 2;
-          addStressBranches(burst);
-        }
-        drawCracks();
-      }
+      ensureCracksForStage(crackStage);
+      drawCracks();
 
       // show/hide overlay container
       cracks.style.opacity = crackStage > 0 ? "1" : "0";
@@ -534,140 +538,6 @@
       document.body.classList.remove("tri-flicker");
       wrap.style.opacity = "0";
       await wait(120);
-    }
-
-    // RGB scanlines + noise curtain (DOM) used during shatter.
-    function ensureGlitchCurtain() {
-      let wrap = document.getElementById("glitchCurtain");
-      if (wrap) return wrap;
-      wrap = document.createElement("div");
-      wrap.id = "glitchCurtain";
-      wrap.innerHTML = `
-        <div class="gc-lines"></div>
-        <div class="gc-noise"></div>
-        <div class="gc-vignette"></div>
-      `;
-      wrap.style.position = "fixed";
-      wrap.style.inset = "0";
-      wrap.style.zIndex = "9998";
-      wrap.style.pointerEvents = "none";
-      wrap.style.opacity = "0";
-      wrap.style.transition = "opacity 120ms ease";
-      document.body.appendChild(wrap);
-      return wrap;
-    }
-
-    async function runGlitchCurtain(msTotal = 900) {
-      const wrap = ensureGlitchCurtain();
-      wrap.style.opacity = "1";
-      const start = performance.now();
-      while (!ABORTED && performance.now() - start < msTotal) {
-        // jitter via CSS vars
-        const jx = (Math.random() * 26 - 13).toFixed(2);
-        const jy = (Math.random() * 18 - 9).toFixed(2);
-        wrap.style.setProperty("--jx", `${jx}px`);
-        wrap.style.setProperty("--jy", `${jy}px`);
-        wrap.style.setProperty("--h", `${(Math.random() * 360).toFixed(1)}deg`);
-        document.body.classList.toggle("gc-flicker", Math.random() > 0.45);
-        await wait(55 + Math.random() * 65);
-      }
-      document.body.classList.remove("gc-flicker");
-      wrap.style.opacity = "0";
-      await wait(120);
-    }
-
-    // Draws big shard polygons + chromatic scanlines on the cracks canvas.
-    async function runCanvasShatter(msTotal = 1200) {
-      const c = cracksCanvas;
-      const ctx = c.getContext("2d");
-      if (!ctx) return;
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-
-      const W = () => c.width;
-      const H = () => c.height;
-
-      // Pre-generate shards.
-      const shards = [];
-      const shardN = 34;
-      for (let i = 0; i < shardN; i++) {
-        const cx = (Math.random() * 0.8 + 0.1) * W();
-        const cy = (Math.random() * 0.8 + 0.1) * H();
-        const r = (60 + Math.random() * 260) * dpr;
-        const sides = 3 + Math.floor(Math.random() * 4);
-        const pts = [];
-        for (let s = 0; s < sides; s++) {
-          const ang = (Math.random() * Math.PI * 2);
-          const rr = r * (0.35 + Math.random() * 0.75);
-          pts.push({ x: cx + Math.cos(ang) * rr, y: cy + Math.sin(ang) * rr });
-        }
-        shards.push({
-          pts,
-          vx: (Math.random() - 0.5) * 520 * dpr,
-          vy: (Math.random() - 0.5) * 620 * dpr,
-          vr: (Math.random() - 0.5) * 0.06,
-          r: (Math.random() - 0.5) * 0.6,
-          a: 0.20 + Math.random() * 0.35,
-        });
-      }
-
-      const start = performance.now();
-      let last = start;
-      while (!ABORTED) {
-        const now = performance.now();
-        const t = now - start;
-        const dt = Math.min(32, now - last) / 1000;
-        last = now;
-        const p = Math.min(1, t / msTotal);
-
-        // Fade to black behind everything.
-        ctx.save();
-        ctx.globalCompositeOperation = "source-over";
-        ctx.fillStyle = `rgba(0,0,0,${0.10 + p * 0.35})`;
-        ctx.fillRect(0, 0, W(), H());
-
-        // RGB scanlines.
-        const lines = 22 + Math.floor(p * 32);
-        for (let i = 0; i < lines; i++) {
-          const x = Math.random() * W();
-          const w = (1 + Math.random() * (6 + p * 22)) * dpr;
-          const a = 0.10 + Math.random() * 0.20;
-          const col = Math.random() < 0.33 ? `rgba(255,0,80,${a})` : Math.random() < 0.5 ? `rgba(0,220,255,${a})` : `rgba(120,255,0,${a})`;
-          ctx.fillStyle = col;
-          ctx.fillRect(x, 0, w, H());
-        }
-
-        // Shards.
-        for (const s of shards) {
-          // drift
-          s.r += s.vr;
-          const ox = s.vx * dt * (0.3 + p * 1.6);
-          const oy = s.vy * dt * (0.25 + p * 1.9);
-          for (const pt of s.pts) { pt.x += ox; pt.y += oy; }
-
-          ctx.save();
-          ctx.globalAlpha = s.a * (1 - p * 0.55);
-          ctx.shadowColor = "rgba(255,255,255,0.22)";
-          ctx.shadowBlur = (6 + p * 12) * dpr;
-          ctx.fillStyle = "rgba(255,255,255,0.22)";
-          ctx.beginPath();
-          ctx.moveTo(s.pts[0].x, s.pts[0].y);
-          for (let i = 1; i < s.pts.length; i++) ctx.lineTo(s.pts[i].x, s.pts[i].y);
-          ctx.closePath();
-          ctx.fill();
-
-          // hard edge
-          ctx.shadowBlur = 0;
-          ctx.strokeStyle = "rgba(255,255,255,0.45)";
-          ctx.lineWidth = (1.0 + p * 1.6) * dpr;
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        ctx.restore();
-
-        if (t >= msTotal) break;
-        await new Promise((r) => requestAnimationFrame(() => r()));
-      }
     }
 
     async function fractureLanding(ms = 900) {
@@ -760,40 +630,31 @@ async function shatterAndEnterSim() {
       if (document.body.classList.contains("sim-transition")) return;
       document.body.classList.add("sim-transition");
 
-      // Max stage for the burst.
+      // Over-dramatic shatter: push cracks to max, blast shards, glitch, flash.
       setCrackStage(4);
-
-      document.body.classList.add("glitch-storm");
       document.body.classList.add("shatter-burst");
-
-      playSfx("glassBreak", { volume: 0.78, overlap: false });
+      document.body.classList.add("glitch-storm");
+      playSfx("glassBreak", { volume: 0.75, overlap: false });
       playSfx("glitch2", { volume: 0.16, overlap: true });
 
-      // Layered transition: RGB curtain + canvas shards + falling debris.
-      spawnShards(2200);
-      const a = runGlitchCurtain(720);
-      const b = runCanvasShatter(1100);
-      await runTriGlitch(520);
-      await Promise.all([a, b]);
-
-      // Flash + break the landing UI apart.
+      spawnShards(2600);
+      await runTriGlitch(620);
       document.body.classList.add("screen-flash");
-      await wait(70);
+      await wait(80);
       document.body.classList.remove("screen-flash");
 
+      // first: visually break the landing UI apart before the security room
       await fractureLanding(860);
       await runTriGlitch(980);
 
-      // Clean slate: cracks vanish entirely after shatter.
       setCrackStage(0);
-      document.body.classList.remove("glitch-storm");
       document.body.classList.remove("shatter-burst");
+      document.body.classList.remove("glitch-storm");
       document.body.classList.remove('page-fracture');
       document.querySelectorAll('.fracture-piece').forEach((el)=>{ el.classList.remove('fracture-piece'); el.style.removeProperty('--fx'); el.style.removeProperty('--fy'); el.style.removeProperty('--fr'); el.style.removeProperty('--fs'); });
 
-      // Hard cut to black, then into the sim.
       document.body.classList.add("cut-black");
-      await wait(170);
+      await wait(160);
       document.body.classList.remove("cut-black");
 
       await openSimRoom();
@@ -821,21 +682,26 @@ async function shatterAndEnterSim() {
       clicks++;
       playSfx("mclick", { volume: 0.30, overlap: true });
 
-      // Record click origin in canvas coordinates.
-      try {
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        const pt = { x: e.clientX * dpr, y: e.clientY * dpr };
-        pendingClickPts.push(pt);
-        if (pendingClickPts.length > 40) pendingClickPts.splice(0, pendingClickPts.length - 40);
+      // Click-origin cracks: every click can seed (stage 1+ uses these).
+      try { addCrackSeed(pointerToCanvasPoint(e)); } catch {}
 
-        // If cracks are already visible, each click can spawn a fresh origin AND
-        // occasionally advance existing networks.
-        if (crackStage > 0) {
+      // Once cracks are visible, each click should also *advance* the existing network
+      // (small new fractures from the click point) even if the stage doesn't change.
+      if (crackStage > 0 && crackState.stage === crackStage) {
+        try {
+          const pt = pointerToCanvasPoint(e);
+          // add a new fracture from click + a branch from existing to keep the network building
           crackState.paths.push(newCrackPath(pt, sRand() * Math.PI * 2));
-          if (crackStage >= 2 && Math.random() < 0.55) addStressBranches(1);
+          if (crackStage >= 2) {
+            const bp = pickBranchPoint();
+            if (bp) crackState.paths.push(newCrackPath(bp, sRand() * Math.PI * 2));
+          }
+          // keep it bounded so late spam doesn't tank performance
+          const cap = crackStage === 1 ? 10 : crackStage === 2 ? 18 : crackStage === 3 ? 26 : 34;
+          while (crackState.paths.length > cap) crackState.paths.shift();
           drawCracks();
-        }
-      } catch {}
+        } catch {}
+      }
 
       maybeAdvanceCracks();
       if (clicks >= SHATTER_AT) shatterAndEnterSim();
@@ -943,9 +809,26 @@ async function shatterAndEnterSim() {
       return { speaker, text };
     }
 
-    async function emitLine(line) {
+    
+function resolveLineForPath(line) {
+  // line can be a string OR an object like { system:"...", emma:"...", liam:"..." }
+  if (line && typeof line === "object") {
+    const key = guidePath || "system";
+    const picked =
+      line[key] ??
+      line.system ??
+      line.sys ??
+      line.emma ??
+      line.liam ??
+      line.default;
+    return String(picked ?? "");
+  }
+  return String(line ?? "");
+}
+
+async function emitLine(line) {
       if (ABORTED) return;
-      const raw = String(line || "");
+      const raw = resolveLineForPath(line);
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
       const { speaker, text } = parseSpeakerAndText(raw);
 
@@ -1028,18 +911,21 @@ async function shatterAndEnterSim() {
 
         if (step.choice) {
           const res = await showChoice(step.choice);
-          // Choice affects “side” + music feel.
+
+          // scoring
           choiceTotal++;
-          if (res === "comply") compliancePoints++;
-          if (res === "run") resistancePoints++;
-          if (res === "lie") resistancePoints += 0.5;
+          if (res === "comply") compliancePoints += 1;
+          if (res === "resist") resistancePoints += 1;
+          if (res === "full") resistancePoints += 2;
 
-          // Guide path: emma (security), liam (worker), system (takeover)
-          if (res === "comply") guidePath = "emma";
-          else if (res === "lie") guidePath = "liam";
-          else guidePath = "sys";
+          // only the FIRST choice locks the guide path (per design)
+          if (step.choice.lockPath && !step.choice.__locked) {
+            step.choice.__locked = true;
+            // system path uses the base bed; emma/liam are character accents
+            guidePath = (res === "comply") ? "system" : (res === "full") ? "liam" : "emma";
+          }
 
-          try { window.Music?.setGuidePath?.(guidePath === "sys" ? "emma" : guidePath); } catch {}
+          try { window.Music?.setGuidePath?.(guidePath); } catch {}
           try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
 
           continue;
@@ -1073,8 +959,8 @@ async function shatterAndEnterSim() {
         };
 
         const onNeed = () => { cleanup(); resolve("comply"); };
-        const onLie  = () => { cleanup(); resolve("lie"); };
-        const onRun  = () => { cleanup(); resolve("run"); };
+        const onLie  = () => { cleanup(); resolve("resist"); };
+        const onRun  = () => { cleanup(); resolve("full"); };
 
         choiceNeed?.addEventListener("click", onNeed, { once: true });
         choiceLie?.addEventListener("click", onLie, { once: true });
@@ -1172,7 +1058,12 @@ async function shatterAndEnterSim() {
       }
 
       try {
+        // Tasks may either call ctx.success() OR (legacy pack tasks) resolve by returning.
         await fn(ctx, args);
+        if (!done) {
+          done = true;
+          resolver(true);
+        }
       } catch (e) {
         console.error(e);
         doReset("TASK ERROR", String(e && e.message ? e.message : e));
