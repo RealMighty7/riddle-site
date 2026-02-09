@@ -319,11 +319,8 @@
         y = Math.max(2, Math.min(h - 2, y));
         pts.push({ x, y });
 
-        // Extra micro-branches later stages (helps “build off” without looking like noise).
-        if (i >= 2 && crackState.stage >= 2 && sRand() < (0.08 + crackState.stage * 0.02)) {
-          const bStart = { x: last.x + (sRand() - 0.5) * 6 * dpr, y: last.y + (sRand() - 0.5) * 6 * dpr };
-          crackState.paths.push(newCrackPath(bStart, ang + (sRand() < 0.5 ? -1 : 1) * (0.65 + sRand() * 0.9)));
-        }
+        // NOTE: do not recurse here (it can explode the call stack). All branching/new origins
+        // are handled in ensureCracksForStage().
       }
 
       return pts;
@@ -359,6 +356,7 @@
       const maxIdx = Math.max(2, Math.floor(base.length * 0.45));
       const idx = 1 + Math.floor(sRand() * (maxIdx - 1));
       const p = base[idx];
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return null;
       const j = 6 * (window.devicePixelRatio || 1);
       return { x: p.x + (sRand() - 0.5) * j, y: p.y + (sRand() - 0.5) * j };
     }
