@@ -809,16 +809,43 @@ async function shatterAndEnterSim() {
 
     
 function resolveLineForPath(line) {
-  // line can be a string OR an object like { system:"...", emma:"...", liam:"..." }
+  // line can be a string OR an object like { system:"System: ...", emma:"Emma: ...", liam:"Liam: ..." }
+  // We *do not* hard-lock to a single guide voice; instead we pick based on resistance/compliance balance
+  // so it feels like a tag-team that shifts over time.
   if (line && typeof line === "object") {
-    const key = guidePath || "system";
-    const picked =
-      line[key] ??
-      line.system ??
-      line.sys ??
-      line.emma ??
-      line.liam ??
-      line.default;
+    const sys = line.system ?? line.sys;
+    const em = line.emma;
+    const li = line.liam;
+    const def = line.default;
+
+    // If it isn't a chorus object, fall back to the previous key-lookup behavior.
+    const looksLikeChorus = (sys || em || li);
+    if (!looksLikeChorus) {
+      const key = guidePath || "system";
+      const picked = line[key] ?? def;
+      return String(picked ?? "");
+    }
+
+    const c = Math.max(0, Number(compliancePoints) || 0);
+    const r = Math.max(0, Number(resistancePoints) || 0);
+    const tot = Math.max(1, c + r);
+    const balance = (r - c) / tot; // -1..+1 (more negative => more compliance)
+
+    // Emma is strongest near 0; System ramps with compliance; Liam ramps with resistance.
+    let wEmma = Math.max(0, 1 - Math.min(1, Math.abs(balance) * 1.7));
+    let wSystem = Math.max(0, 0.55 - balance);
+    let wLiam = Math.max(0, 0.55 + balance);
+
+    // tiny floor so voices can still "bleed" through
+    wEmma += 0.15; wSystem += 0.10; wLiam += 0.10;
+    const sum = wEmma + wSystem + wLiam;
+    wEmma /= sum; wSystem /= sum; wLiam /= sum;
+
+    const roll = Math.random();
+    const picked = (roll < wSystem) ? (sys ?? def ?? em ?? li)
+      : (roll < wSystem + wEmma) ? (em ?? def ?? sys ?? li)
+      : (li ?? def ?? em ?? sys);
+
     return String(picked ?? "");
   }
   return String(line ?? "");
@@ -829,6 +856,17 @@ async function emitLine(line) {
       const raw = resolveLineForPath(line);
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
       const { speaker, text } = parseSpeakerAndText(raw);
+
+      // UI/meta lines should appear instantly and never be spoken.
+      // We accept either "UI: ..." or bracket-style lines.
+      const isUi = /^UI$/i.test(String(speaker || "")) || /^UI\s*:/i.test(String(printed || ""));
+      if (isUi) {
+        // Strip the UI prefix for readability.
+        const uiText = String(printed || "").replace(/^UI\s*:\s*/i, "");
+        simText.textContent += uiText + "\n";
+        simText.scrollTop = simText.scrollHeight;
+        return;
+      }
 
       // type it
       const ms = Math.floor(msToRead(raw) * 1.25);
@@ -881,11 +919,92 @@ async function emitLine(line) {
       playSfx("static1", { volume: 0.22, overlap: false });
 
       // Always run the scripted sequence
-      if (Array.isArray(DIALOGUE.steps)) {
+      if (DIALOGUE && DIALOGUE.plan && typeof DIALOGUE.plan === "object") {
+        await runPlan(DIALOGUE.plan);
+      } else if (Array.isArray(DIALOGUE.steps)) {
         await runSteps(DIALOGUE.steps);
       } else {
         await playLines(DIALOGUE.intro);
       }
+    }
+
+    /* ======================
+       PLAN RUNNER (new flow)
+       intro → first choice → (dialogue + UI tag) → task  x20
+       first 10 from packs 1–5, second 10 from packs 6–7
+    ====================== */
+    function pickFromPoolNames(poolNames, usedSet) {
+      const pools = window.TASK_POOLS || {};
+      const flat = [];
+      for (const pn of poolNames) {
+        const arr = pools[pn];
+        if (Array.isArray(arr)) {
+          for (const id of arr) if (id && !usedSet.has(id)) flat.push({ id, pool: pn });
+        }
+      }
+      if (!flat.length) {
+        // allow repeats if we somehow exhausted
+        for (const pn of poolNames) {
+          const arr = pools[pn];
+          if (Array.isArray(arr)) for (const id of arr) if (id) flat.push({ id, pool: pn });
+        }
+      }
+      if (!flat.length) return null;
+      return flat[Math.floor(Math.random() * flat.length)];
+    }
+
+    async function runPlan(plan) {
+      const used = new Set();
+      const totalTasks = plan.totalTasks || 20;
+      const phase1Count = plan.phase1Count || 10;
+      const phase1Pools = plan.phase1Pools || ["pack1","pack2","pack3","pack4","pack5"];
+      const phase2Pools = plan.phase2Pools || ["pack6","pack7"];
+
+      await playLines(plan.intro || DIALOGUE.intro || []);
+
+      // First choice locks the *initial* bias, but chorus selection remains dynamic via resolveLineForPath.
+      if (plan.firstChoice) {
+        const res = await showChoice(plan.firstChoice);
+        choiceTotal++;
+        if (res === "comply") compliancePoints += 1;
+        if (res === "resist") resistancePoints += 1;
+        if (res === "full") resistancePoints += 2;
+        // Keep legacy guidePath for music accents.
+        guidePath = (res === "comply") ? "system" : (res === "full") ? "liam" : "emma";
+        try { window.Music?.setGuidePath?.(guidePath); } catch {}
+        try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
+        if (Array.isArray(plan.afterFirstChoice)) await playLines(plan.afterFirstChoice);
+      }
+
+      for (let i = 1; i <= totalTasks; i++) {
+        if (ABORTED) return;
+
+        // pre-task story beat
+        const beatPool = plan.taskBeats || DIALOGUE.taskBeats || [];
+        if (beatPool.length) {
+          const beat = beatPool[(i - 1) % beatPool.length];
+          await playLines(Array.isArray(beat) ? beat : [beat]);
+        }
+
+        // UI tag line (visual only)
+        await emitLine(`UI: [ TASK ${i}/${totalTasks} ]`);
+
+        const pools = (i <= phase1Count) ? phase1Pools : phase2Pools;
+        const picked = pickFromPoolNames(pools, used);
+        if (!picked || !picked.id) {
+          doReset("TASK POOLS", "No tasks were available in the configured pools.");
+          return;
+        }
+        used.add(picked.id);
+
+        // args include pool info for the admin panel
+        const poolArr = (window.TASK_POOLS && Array.isArray(window.TASK_POOLS[picked.pool])) ? window.TASK_POOLS[picked.pool] : [];
+        const idx = poolArr.indexOf(picked.id);
+        await runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i, total: totalTasks });
+      }
+
+      // End-of-phase beat (hack/escape gating is handled elsewhere in your codebase)
+      if (Array.isArray(plan.afterTasks)) await playLines(plan.afterTasks);
     }
 
     /* ======================
@@ -983,6 +1102,9 @@ async function emitLine(line) {
       let resolver;
       const p = new Promise((r) => (resolver = r));
 
+      // Per-task attempt tracking for scoring and reset logic.
+      let attempts = 0;
+
       // persistent sim task state (survives across tasks)
       window.__SIM_STATE__ = window.__SIM_STATE__ || {};
       const simState = window.__SIM_STATE__;
@@ -1021,6 +1143,10 @@ async function emitLine(line) {
         success: () => {
           if (done) return;
           done = true;
+
+          // Scoring: right first try = +1 compliance
+          if (attempts === 0) compliancePoints += 1;
+          try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
       
           // mark checksum “first done” only when it actually succeeds
           if (String(taskId) === "checksum") simState.__checksumFirstDone = true;
@@ -1032,6 +1158,14 @@ async function emitLine(line) {
           try { playSfx("mclick", { volume: 0.25, overlap: true }); } catch {}
           taskUI.classList.add("task-bad");
           setTimeout(() => taskUI.classList.remove("task-bad"), 180);
+
+          // Scoring: wrong = +3 resistance; 3 wrong attempts resets to landing.
+          attempts += 1;
+          resistancePoints += 3;
+          try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
+          if (attempts >= 3) {
+            doReset("LOCKOUT", "Too many incorrect attempts.");
+          }
         },
       
         doReset,
