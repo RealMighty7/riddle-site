@@ -528,7 +528,7 @@
 
   // Register
   reg(defs);
-  regPool("pack7", [
+  regPool("phase2_pack7", [
     "p7_minisudoku",
     "p7_memoryflash",
     "p7_sortstack",
