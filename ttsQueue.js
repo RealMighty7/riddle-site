@@ -176,6 +176,7 @@ function bedOff() {
         rate: textOrObj.rate,
         pitch: textOrObj.pitch,
         volume: textOrObj.volume,
+        _resolve: null,
       };
     }
     return {
@@ -184,12 +185,14 @@ function bedOff() {
       rate: opts?.rate,
       pitch: opts?.pitch,
       volume: opts?.volume,
+      _resolve: null,
     };
   }
 
   function next() {
     if (speaking) return;
     const item = q.shift();
+    const itemResolve = item && item._resolve;
     if (!item) return;
     const { text, speaker } = item;
     if (!text) return next();
@@ -219,6 +222,7 @@ function bedOff() {
     if (speaker === "system") bedOn(); else bedOff();
 
     const done = () => {
+      try { if (typeof itemResolve === "function") itemResolve(true); } catch {}
       speaking = false;
       if (speaker === "system") bedOff();
       setTimeout(next, 40);
@@ -239,6 +243,24 @@ function bedOff() {
     q.push(item);
     next();
   };
+
+  // Promise-based enqueue (resolves when utterance finishes)
+  TTS.enqueueAsync = (textOrObj, opts) => {
+    return new Promise((resolve) => {
+      const item = normalizeArgs(textOrObj, opts);
+      item._resolve = resolve;
+      q.push(item);
+      next();
+    });
+  };
+
+  // Expose current base tuning for sync typing
+  TTS.getTuning = (speaker) => {
+    const sp = normSpeaker(speaker);
+    const b = BASE[sp] || BASE.system;
+    return { rate: b.rate, pitch: b.pitch, volume: b.volume };
+  };
+
 
   TTS.stop = () => {
     q.length = 0;
