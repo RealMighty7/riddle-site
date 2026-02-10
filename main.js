@@ -185,7 +185,7 @@
       window.location.href = window.location.href.split("#")[0];
     }
 
-    function doReset(reasonTitle, reasonBody, delayMs = 1800) {
+    function doReset(reasonTitle, reasonBody) {
       if (ABORTED) return;
       ABORTED = true;
 
@@ -195,12 +195,13 @@
       resetTitle.textContent = reasonTitle || "RESET";
       resetBody.textContent = reasonBody || "";
       resetOverlay.classList.remove("hidden");
+      try { hudShow(false); } catch {}
+
 
       try { window.AudioPlayer?.stop?.(); } catch {}
       try { window.TTS?.stop?.(); } catch {}
 
-      const d = Math.max(250, Math.min(8000, Number(delayMs) || 1800));
-      setTimeout(hardReload, d);
+      setTimeout(hardReload, 1800);
     }
 
     /* ====================== AUDIO UNLOCK ====================== */
@@ -678,6 +679,12 @@ async function shatterAndEnterSim() {
       if (now - lastClick < CLICK_COOLDOWN) return;
       lastClick = now;
 
+      // store crack origin at click point
+      try {
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        crackOrigin = { x: clamp(e.clientX * dpr, 0, cracksCanvas.width), y: clamp(e.clientY * dpr, 0, cracksCanvas.height) };
+      } catch {}
+
       clicks++;
       playSfx("mclick", { volume: 0.30, overlap: true });
 
@@ -720,6 +727,56 @@ async function shatterAndEnterSim() {
       return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
     }
 
+
+    function makeAdminDraggable(panel) {
+      const handle = panel.querySelector(".adminDrag") || panel;
+      const POS_KEY = "tnr_admin_pos_v1";
+      try {
+        const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
+        if (saved && typeof saved.x === "number" && typeof saved.y === "number") {
+          panel.style.left = saved.x + "px";
+          panel.style.top = saved.y + "px";
+          panel.style.right = "auto";
+          panel.style.bottom = "auto";
+          panel.style.position = "fixed";
+        }
+      } catch {}
+
+      let drag = null;
+      const onDown = (e) => {
+        if (!isAdmin) return;
+        e.preventDefault();
+        const r = panel.getBoundingClientRect();
+        drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+        panel.classList.add("dragging");
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp, { once: true });
+      };
+      const onMove = (e) => {
+        if (!drag) return;
+        const x = clamp(e.clientX - drag.dx, 8, window.innerWidth - 260);
+        const y = clamp(e.clientY - drag.dy, 8, window.innerHeight - 80);
+        panel.style.position = "fixed";
+        panel.style.left = x + "px";
+        panel.style.top = y + "px";
+        panel.style.right = "auto";
+        panel.style.bottom = "auto";
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        panel.classList.remove("dragging");
+        if (!drag) return;
+        drag = null;
+        try {
+          const r = panel.getBoundingClientRect();
+          localStorage.setItem(POS_KEY, JSON.stringify({ x: r.left, y: r.top }));
+        } catch {}
+      };
+
+      handle.addEventListener("pointerdown", onDown);
+    }
+
+
     function setAdminUI(on) {
       isAdmin = !!on;
       sessionStorage.setItem("tnr_is_admin", on ? "1" : "0");
@@ -738,6 +795,8 @@ async function shatterAndEnterSim() {
     }
 
     if (els.adminPanel) {
+      try { makeAdminDraggable(els.adminPanel); } catch {}
+
       if (els.adminToggle) els.adminToggle.addEventListener("click", () => setAdminUI(!isAdmin));
       else setAdminUI(isAdmin);
 
@@ -852,6 +911,7 @@ function resolveLineForPath(line) {
   return String(line ?? "");
 }
 
+
 async function emitLine(line) {
       if (ABORTED) return;
       const raw = resolveLineForPath(line);
@@ -859,18 +919,33 @@ async function emitLine(line) {
       const { speaker, text } = parseSpeakerAndText(raw);
 
       // UI/meta lines should appear instantly and never be spoken.
-      // We accept either "UI: ..." or bracket-style lines.
       const isUi = /^UI$/i.test(String(speaker || "")) || /^UI\s*:/i.test(String(printed || ""));
       if (isUi) {
-        // Strip the UI prefix for readability.
         const uiText = String(printed || "").replace(/^UI\s*:\s*/i, "");
         simText.textContent += uiText + "\n";
         simText.scrollTop = simText.scrollHeight;
         return;
       }
 
-      // type it
-      const ms = Math.floor(msToRead(raw) * 1.25);
+      // Start speech FIRST (so typing can sync with audio as it plays)
+      let speakP = null;
+      try {
+        if (window.TTS?.enqueueAsync) speakP = window.TTS.enqueueAsync(String(text || "").trim(), { speaker });
+        else if (window.TTS?.enqueue) { window.TTS.enqueue(String(text || "").trim(), { speaker }); }
+      } catch {}
+
+      // Estimate duration using tuning rate when available
+      let ms = Math.floor(msToRead(raw) * 1.15);
+      try {
+        const t = window.TTS?.getTuning?.(speaker);
+        const m = (t && t.rate) ? String(t.rate).trim().match(/([+-]?\d+(?:\.\d+)?)%/) : null;
+        if (m) {
+          const pct = parseFloat(m[1]);
+          const mult = Math.max(0.55, Math.min(1.6, 1 + pct / 100)); // speech rate factor
+          ms = Math.floor(ms / mult);
+        }
+      } catch {}
+
       const chars = [...printed];
       const per = ms / Math.max(1, chars.length);
 
@@ -883,9 +958,10 @@ async function emitLine(line) {
       simText.textContent += "\n";
       simText.scrollTop = simText.scrollHeight;
 
-      // speak it (body only)
-      try { window.TTS?.enqueue?.(String(text || "").trim(), { speaker }); } catch {}
+      // If speech is longer than typing, wait a little so it doesn't feel desynced
+      try { if (speakP) await Promise.race([speakP, wait(800)]); } catch {}
     }
+
 
     async function playLines(lines) {
       for (const line of lines || []) {
@@ -904,12 +980,16 @@ async function emitLine(line) {
         await window.Music?.unlock?.();
         await window.Music?.loadAll?.();
         window.Music?.setScene?.("sim");
-        window.Music?.setGuidePath?.(guidePath);
-        window.Music?.setResistancePoints?.(resistancePoints);
+        window.Music?.setScores?.(compliancePoints, resistancePoints);
+        window.Music?.setTasksDone?.(window.__SIM_STATE__?.tasksDone || 0);
       } catch {}
 
       document.body.classList.add("in-sim");
       subs?.classList.remove("hidden");
+      hudShow(true);
+      hudUpdate();
+      hudSetTimer(150000,150000);
+
 
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
@@ -972,8 +1052,7 @@ async function emitLine(line) {
         if (res === "full") resistancePoints += 2;
         // Keep legacy guidePath for music accents.
         guidePath = (res === "comply") ? "system" : (res === "full") ? "liam" : "emma";
-        try { window.Music?.setGuidePath?.(guidePath); } catch {}
-        try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
+        hudUpdate();
         if (Array.isArray(plan.afterFirstChoice)) await playLines(plan.afterFirstChoice);
       }
 
@@ -1043,8 +1122,7 @@ async function emitLine(line) {
             guidePath = (res === "comply") ? "system" : (res === "full") ? "liam" : "emma";
           }
 
-          try { window.Music?.setGuidePath?.(guidePath); } catch {}
-          try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
+          hudUpdate();
 
           continue;
         }
@@ -1086,10 +1164,15 @@ async function emitLine(line) {
       });
     }
 
-    async function runTask(taskId, args) {
+    
+async function runTask(taskId, args) {
+      console.debug("[TNR] task:start", taskId, args);
       simChoices.classList.add("hidden");
       taskUI.classList.remove("hidden");
       hackRoom.classList.add("hidden");
+
+      // Music: task intensity scene
+      try { window.Music?.setScene?.("task"); } catch {}
 
       // Reset task UI content
       taskTitle.textContent = taskId;
@@ -1098,116 +1181,139 @@ async function emitLine(line) {
       taskPrimary.classList.add("hidden");
       taskSecondary.classList.add("hidden");
 
-      // ctx for tasks.js
+      // Admin panel metadata
+      try {
+        if (els.adminTask) {
+          const pack = (args && args.pack != null) ? `p${args.pack}` : (args && args.pool ? String(args.pool) : "—");
+          const ix = (args && args.index != null) ? String(args.index) : "—";
+          els.adminTask.textContent = `task: ${taskId}  (${pack}:${ix})`;
+        }
+        if (els.adminAnswer) els.adminAnswer.value = "";
+        if (els.adminStoredAnswer) els.adminStoredAnswer.textContent = (window.__SIM_STATE__ && window.__SIM_STATE__.storedAnswer) ? String(window.__SIM_STATE__.storedAnswer) : "—";
+      } catch {}
+
       let done = false;
       let resolver;
       const p = new Promise((r) => (resolver = r));
 
-      // Per-task attempt tracking for scoring and reset logic.
-      let attempts = 0;
-      // Task timer: 2m30s base, speeds up 5% per resistance point.
-      const BASE_TASK_MS = 150000;
-      const speedMul = 1 + (0.05 * Math.max(0, resistancePoints));
-      const taskLimitMs = Math.max(15000, Math.floor(BASE_TASK_MS / speedMul));
-      let taskTimer = setTimeout(() => {
-        if (done || ABORTED) return;
-        done = true;
-        try { playSfx("glitch2", { volume: 0.14, overlap: true }); } catch {}
-        doReset("TIME EXPIRED", "Task timer elapsed.", 1400);
-      }, taskLimitMs);
-
-
-
-      // persistent sim task state (survives across tasks)
       window.__SIM_STATE__ = window.__SIM_STATE__ || {};
       const simState = window.__SIM_STATE__;
-      
+
+      // per-task attempt tracking
+      let wrong = 0;
+      let startedAt = performance.now();
+
+      // Task timer: 2m30s base, speeds up 5% per resistance point
+      const BASE_MS = 150000;
+      const speed = 1 + (resistancePoints * 0.05);
+      const totalMs = Math.floor(BASE_MS / Math.max(0.25, speed));
+      let timerStop = false;
+
+      const tickTimer = async () => {
+        while (!timerStop && !done && !ABORTED) {
+          const elapsed = performance.now() - startedAt;
+          const left = Math.max(0, totalMs - elapsed);
+          hudSetTimer(left, totalMs);
+          if (left <= 0) {
+            console.debug("[TNR] task:timeout", taskId);
+            doReset("TIMEOUT", "You hesitated.");
+            return;
+          }
+          await wait(120);
+        }
+      };
+      tickTimer();
+
       const resetTaskButtons = () => {
-        // Always clear handlers to avoid “stacking” onclicks across tasks
         try { taskPrimary.onclick = null; } catch {}
         try { taskSecondary.onclick = null; } catch {}
         taskPrimary.classList.remove("hidden");
         taskSecondary.classList.add("hidden");
       };
-      
+
       const ctx = {
-        // DOM refs tasks.js expects
         taskUI,
         taskBody,
         taskTitle,
         taskDesc,
         taskPrimary,
         taskSecondary,
-      
-        // persistent state tasks can use
+
         state: simState,
-      
+
         showTaskUI: (title, desc) => {
           if (title) taskTitle.textContent = String(title);
           if (desc) taskDesc.textContent = String(desc);
           resetTaskButtons();
         },
-      
-        // optional helper tasks.js calls in checksum
+
+        // packs call this to store per-task answer for admin
         setAnswer: (phrase) => {
           simState.storedAnswer = String(phrase || "");
+          try {
+            if (els.adminStoredAnswer) els.adminStoredAnswer.textContent = simState.storedAnswer || "—";
+            if (els.adminAnswer) els.adminAnswer.value = simState.storedAnswer || "";
+          } catch {}
         },
-      
+
         success: () => {
           if (done) return;
           done = true;
+          timerStop = true;
 
-          // Scoring: right first try = +1 compliance
-          if (attempts === 0) compliancePoints += 1;
-          try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
-      
-          // mark checksum “first done” only when it actually succeeds
-          if (String(taskId) === "checksum") simState.__checksumFirstDone = true;
-      
+          // scoring: first-try success = +1 compliance
+          if (wrong === 0) compliancePoints += 1;
+          console.debug("[TNR] task:success", taskId, { wrong });
+
+          // tasks completed
+          simState.tasksDone = Math.max(0, (simState.tasksDone || 0)) + 1;
+          try { window.Music?.setTasksDone?.(simState.tasksDone); } catch {}
+
+          hudUpdate();
           resolver(true);
         },
-      
+
         penalize: () => {
+          if (done) return;
+          wrong++;
+          resistancePoints += 3;
+          console.debug("[TNR] task:wrong", taskId, { wrong });
+
+          hudUpdate();
+
           try { playSfx("mclick", { volume: 0.25, overlap: true }); } catch {}
           taskUI.classList.add("task-bad");
           setTimeout(() => taskUI.classList.remove("task-bad"), 180);
 
-          // Scoring: wrong = +3 resistance; 3 wrong attempts resets to landing.
-          attempts += 1;
-          resistancePoints += 3;
-          try { window.Music?.setResistancePoints?.(resistancePoints); } catch {}
-          if (attempts >= 3) {
-            doReset("LOCKOUT", "Too many incorrect attempts.");
+          if (wrong >= 3) {
+            console.debug("[TNR] task:fail3_reset", taskId);
+            doReset("CAUGHT", "Too many incorrect attempts.");
           }
         },
-      
+
         doReset,
       };
-      
 
-      // Admin skip: allow skipping while the task is active
       __ADMIN_CAN_SKIP__ = () => {
         if (done) return;
+        console.debug("[TNR] task:admin_skip", taskId);
         done = true;
+        timerStop = true;
         resolver(true);
       };
 
-      // Run the task
-      
       const fn = window.TASKS?.[taskId];
       if (typeof fn !== "function") {
-        taskDesc.textContent = "missing task handler";
-        await wait(400);
+        console.error("[TNR] missing task handler", taskId);
         doReset("MISSING TASK", `Task '${taskId}' is not registered.`);
         return;
       }
 
       try {
-        // Tasks may either call ctx.success() OR (legacy pack tasks) resolve by returning.
         await fn(ctx, args);
         if (!done) {
-          done = true;
-          resolver(true);
+          // If task returned without calling success/penalize, treat as success
+          ctx.success();
         }
       } catch (e) {
         console.error(e);
@@ -1216,18 +1322,20 @@ async function emitLine(line) {
       }
 
       await p;
-      try { clearTimeout(taskTimer); } catch {}
-
-
       __ADMIN_CAN_SKIP__ = false;
+      timerStop = true;
 
       // Hide task UI, return to sim
       taskUI.classList.add("hidden");
       simRoom.classList.remove("hidden");
 
-      // Back to sim room music
+      // back to sim scene
       try { window.Music?.setScene?.("sim"); } catch {}
+      console.debug("[TNR] task:end", taskId);
+
+      await wait(120);
     }
+
 
     /* ====================== LANDING: timestamp tick ====================== */
     if (els.timestamp) {
