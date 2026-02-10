@@ -185,7 +185,7 @@
       window.location.href = window.location.href.split("#")[0];
     }
 
-    function doReset(reasonTitle, reasonBody) {
+    function doReset(reasonTitle, reasonBody, delayMs = 1800) {
       if (ABORTED) return;
       ABORTED = true;
 
@@ -199,7 +199,8 @@
       try { window.AudioPlayer?.stop?.(); } catch {}
       try { window.TTS?.stop?.(); } catch {}
 
-      setTimeout(hardReload, 1800);
+      const d = Math.max(250, Math.min(8000, Number(delayMs) || 1800));
+      setTimeout(hardReload, d);
     }
 
     /* ====================== AUDIO UNLOCK ====================== */
@@ -1104,6 +1105,18 @@ async function emitLine(line) {
 
       // Per-task attempt tracking for scoring and reset logic.
       let attempts = 0;
+      // Task timer: 2m30s base, speeds up 5% per resistance point.
+      const BASE_TASK_MS = 150000;
+      const speedMul = 1 + (0.05 * Math.max(0, resistancePoints));
+      const taskLimitMs = Math.max(15000, Math.floor(BASE_TASK_MS / speedMul));
+      let taskTimer = setTimeout(() => {
+        if (done || ABORTED) return;
+        done = true;
+        try { playSfx("glitch2", { volume: 0.14, overlap: true }); } catch {}
+        doReset("TIME EXPIRED", "Task timer elapsed.", 1400);
+      }, taskLimitMs);
+
+
 
       // persistent sim task state (survives across tasks)
       window.__SIM_STATE__ = window.__SIM_STATE__ || {};
@@ -1203,6 +1216,8 @@ async function emitLine(line) {
       }
 
       await p;
+      try { clearTimeout(taskTimer); } catch {}
+
 
       __ADMIN_CAN_SKIP__ = false;
 
