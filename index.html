@@ -193,6 +193,31 @@
     <div id="subsText"></div>
   </section>
 
+  
+  <!-- HUD -->
+  <section id="hud" class="hud hidden" aria-hidden="true">
+    <div class="hudRow">
+      <div class="hudMeter">
+        <div class="hudLabel">compliance</div>
+        <div class="hudBar"><div id="hudCompliance" class="hudFill"></div></div>
+        <div id="hudComplianceTxt" class="hudVal">0</div>
+      </div>
+
+      <div class="hudMeter">
+        <div class="hudLabel">resistance</div>
+        <div class="hudBar"><div id="hudResistance" class="hudFill"></div></div>
+        <div id="hudResistanceTxt" class="hudVal">0</div>
+      </div>
+
+      <div class="hudMeter hudTimer">
+        <div class="hudLabel">task timer</div>
+        <div class="hudBar"><div id="hudTimer" class="hudFill"></div></div>
+        <div id="hudTimerTxt" class="hudVal">02:30</div>
+      </div>
+    </div>
+  </section>
+
+
   <!-- IMPORTANT script order -->
   <script src="/tasks.js?v=1001"></script>
   <script src="/packs/pack1.js?v=1001"></script>
