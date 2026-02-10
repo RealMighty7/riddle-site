@@ -662,7 +662,7 @@
 
   // Register
   reg(defs);
-  regPool("pack6", [
+  regPool("phase2_pack6", [
     "p6_rotors",
     "p6_wordsplice",
     "p6_freqdial",
