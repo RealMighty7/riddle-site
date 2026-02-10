@@ -581,9 +581,45 @@ body.in-sim #adminPanel{
   position:fixed;
   top:12px;
   right:12px;
-  z-index:140;
-  max-width:320px;
+  z-index:160;
+  width:340px;
+  max-width:calc(100vw - 24px);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size:12px;
+  line-height:1.25;
 }
+#adminPanel .apWrap{
+  background:rgba(10,10,12,0.86);
+  border:1px solid rgba(255,255,255,0.14);
+  border-radius:12px;
+  overflow:hidden;
+}
+#adminPanel .apHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 10px;
+  background:rgba(255,255,255,0.06);
+  border-bottom:1px solid rgba(255,255,255,0.10);
+  cursor:grab;
+  user-select:none;
+}
+#adminPanel .apHead:active{ cursor:grabbing; }
+#adminPanel .apBody{ padding:10px; display:grid; gap:8px; }
+#adminPanel input, #adminPanel textarea{
+  width:100%;
+  background:rgba(0,0,0,0.55);
+  color:rgba(255,255,255,0.92);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:10px;
+  padding:8px;
+  outline:none;
+}
+#adminPanel .apRow{display:flex; gap:8px; align-items:center; justify-content:space-between;}
+#adminPanel button{
+  pointer-events:auto;
+}
+
 
 /* Hack terminal: no scroll-back, just falling text */
 .hackView{
@@ -966,3 +1002,14 @@ body.glitch-storm::before{
   padding:8px 10px;
   font-size:12px;
 }
+
+/* Admin console polish */
+#adminPanel{cursor:default;}
+#adminPanel .card{background:rgba(10,10,12,0.86) !important; border:1px solid rgba(255,255,255,0.14) !important;}
+#adminPanel .adminCard{display:flex; gap:10px;}
+#adminPanel #adminDragHandle{cursor:grab; user-select:none;}
+#adminPanel #adminDragHandle:active{cursor:grabbing;}
+#adminPanel .adminTitle{font-weight:700; letter-spacing:0.2px;}
+#adminPanel .pill{background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.10);}
+#adminPanel input.adminAnswer{width:160px;}
+#adminPanel .muted{opacity:0.72;}
