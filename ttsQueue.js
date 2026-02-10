@@ -94,16 +94,19 @@ function buildVoiceMap(list) {
     return null;
   };
 
-  // Emma: closest “Erin-like” in browser TTS (usually Aria/Jenny/Zira)
-  const emma = findBy(["microsoft aria", "microsoft jenny", "microsoft zira", "samantha", "victoria", "female"]) || pool[0] || null;
+  // Emma: pinned to the closest match to en-US-ErinNeural (Edge/Windows usually provides "Microsoft Emma Online (Natural) - English (United States)")
+  const emma = pool.find(vo => norm(vo.name) === "microsoft emma online (natural) - english (united states)") ||
+               pool.find(vo => norm(vo.name) === "microsoft emma - english (united states)") ||
+               findBy(["microsoft emma", "microsoft aria", "microsoft jenny", "microsoft zira", "female"]) || pool[0] || null;
 
   // Liam: must be Microsoft Mark - English (United States) if present
   const liam = pool.find(vo => norm(vo.name) === "microsoft mark - english (united states)") ||
                findBy(["microsoft mark", "microsoft david", "microsoft guy", "male"]) ||
                pool[1] || pool[0] || null;
 
-  // System: avoid matching Emma/Liam when possible
-  let system = findBy(["microsoft david", "microsoft george", "microsoft mark", "daniel", "fred", "robot"]) || pool[2] || pool[0] || null;
+  // System: pinned to Microsoft Mark (flat + robotic) when available
+  let system = pool.find(vo => norm(vo.name) === "microsoft mark - english (united states)") ||
+               findBy(["microsoft mark", "microsoft david", "microsoft guy", "male", "robot"]) || pool[0] || null;
   if (system && emma && system.name === emma.name) system = pool.find(x => x && x.name !== emma.name && x.name !== (liam && liam.name)) || system;
   if (system && liam && system.name === liam.name) system = pool.find(x => x && x.name !== liam.name && x.name !== (emma && emma.name)) || system;
 
