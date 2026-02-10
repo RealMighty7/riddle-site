@@ -1,40 +1,43 @@
 // music_player.js
 // Stem mixer for /music/*.ogg plus scene tracks FinalHack.WAV / Escaped.WAV
-// Rules (from design):
-// - Landing: silent (no stems)
-// - Simulation: 01 bed always.
-//   Compliance-heavy: add 02, and if very compliant add 03.
-//   Balanced: add 04 (task 1-10) and swap to 05 after task 10.
-//   Resistance-heavy: add 06, and if very resistant add 07.
-//   Task pressure: 08 very quiet at task1, +3% per completed task (cap 80% at task20).
-//   Resistance adds 09 & 10 with: vol = (resistance + tasksDone - compliance) + 10%.
-// - Final hack: crossfade to FinalHack.WAV (no timer bar) ...
-// - Escaped: crossfade to Escaped.WAV.
+// Filename mapping (confirmed by user):
+// 01_Bed_Pad.ogg = always-on simulation bed
+// 02_System_Drone_Dramatic.ogg = compliant overlay
+// 03_System_Stabs_Takeover.ogg = very compliant overlay
+// 04_Security_Patrol_Controlled.ogg = balanced overlay (tasks 1-10)
+// 05_Security_Click_Edge.ogg = balanced overlay (tasks 11-20)
+// 06_Worker_Motif_Loose.ogg = resistant overlay
+// 07_Worker_Air_Open.ogg = very resistant overlay
+// 08_Sub_Bass_Confinement.ogg = progression overlay (task1 quiet; +3% per task finished; cap 80%)
+// 09_Task_Heartbeat_Pressure.ogg = pressure overlay (driven by (resistance + tasksCompleted - compliance)+10%)
+// 10_Micro_Glitch_Events.ogg = microglitch overlay (same drive as 09 but lighter)
+// FinalHack.WAV / Escaped.WAV = scene tracks (no ogg stems while active)
 
 (() => {
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
   const FILES = {
-    s1: "/music/01_Bed_Pad.ogg",
-    s2: "/music/02_System_Drone_Dramatic.ogg",
-    s3: "/music/03_System_Stabs_Takeover.ogg",
-    s4: "/music/04_Security_Patrol_Controlled.ogg",
-    s5: "/music/05_Security_Click_Edge.ogg",
-    s6: "/music/06_Worker_Motif_Loose.ogg",
-    s7: "/music/07_Worker_Air_Open.ogg",
-    s8: "/music/08_Sub_Bass_Confinement.ogg",
-    s9: "/music/09_Task_Heartbeat_Pressure.ogg",
-    s10:"/music/10_Micro_Glitch_Events.ogg",
+    // stems
+    s1:  "/music/01_Bed_Pad.ogg",
+    s2:  "/music/02_System_Drone_Dramatic.ogg",
+    s3:  "/music/03_System_Stabs_Takeover.ogg",
+    s4:  "/music/04_Security_Patrol_Controlled.ogg",
+    s5:  "/music/05_Security_Click_Edge.ogg",
+    s6:  "/music/06_Worker_Motif_Loose.ogg",
+    s7:  "/music/07_Worker_Air_Open.ogg",
+    s8:  "/music/08_Sub_Bass_Confinement.ogg",
+    s9:  "/music/09_Task_Heartbeat_Pressure.ogg",
+    s10: "/music/10_Micro_Glitch_Events.ogg",
+    // scene
     finalHack: "/music/FinalHack.WAV",
-    escaped:  "/music/Escaped.WAV",
+    escaped:   "/music/Escaped.WAV",
   };
 
-  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
-
   class StemMixer {
-    constructor(){
+    constructor() {
       this.ctx = null;
       this.master = null;
-      this.buffers = new Map();
-      this.nodes = new Map(); // key -> {src,gain}
+      this.nodes = new Map(); // key -> { audio, gain }
       this.unlocked = false;
       this.loaded = false;
 
@@ -43,189 +46,203 @@
         compliance: 0,
         resistance: 0,
         tasksDone: 0,
+        taskIndex: 0, // 1..20 (current task ordinal), 0 if none started
       };
     }
 
-    _ensure(){
-      if (this.ctx) return;
-      const AC = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AC();
+    async unlock() {
+      if (this.unlocked) return;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      this.ctx = new Ctx();
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.92;
       this.master.connect(this.ctx.destination);
-    }
 
-    async unlock(){
-      this._ensure();
-      if (this.unlocked) return;
-      try { await this.ctx.resume(); } catch {}
+      // iOS/Chrome unlock
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      g.gain.value = 0.00001;
+      o.connect(g); g.connect(this.master);
+      o.start(); o.stop(this.ctx.currentTime + 0.02);
+
       this.unlocked = true;
     }
 
-    async loadAll(){
-      this._ensure();
+    async loadAll() {
       if (this.loaded) return;
-      const entries = Object.entries(FILES);
-      await Promise.all(entries.map(async ([k, url]) => {
-        try{
-          const res = await fetch(url, { cache: "force-cache" });
-          const ab = await res.arrayBuffer();
-          const buf = await this.ctx.decodeAudioData(ab.slice(0));
-          this.buffers.set(k, buf);
-        }catch(e){
-          console.warn("stem missing:", k, url);
-        }
-      }));
+      if (!this.unlocked) await this.unlock();
+      if (!this.ctx) return;
+
+      // create nodes lazily; just mark loaded if AudioContext exists
+      for (const k of Object.keys(FILES)) {
+        this._ensure(k);
+      }
       this.loaded = true;
+      this._apply();
     }
 
-    _start(key){
-      if (this.nodes.has(key)) return;
-      const buf = this.buffers.get(key);
-      if (!buf) return;
-      const src = this.ctx.createBufferSource();
-      src.buffer = buf;
-      src.loop = true;
-      const g = this.ctx.createGain();
-      g.gain.value = 0.0001;
-      src.connect(g);
-      g.connect(this.master);
-      src.start(0);
-      this.nodes.set(key, { src, gain: g });
+    _ensure(key) {
+      if (this.nodes.has(key)) return this.nodes.get(key);
+      const url = FILES[key];
+      if (!url || !this.ctx) return null;
+
+      const audio = new Audio();
+      audio.src = url;
+      audio.loop = (key.startsWith("s")); // stems loop, scene tracks loop too (safe for long sessions)
+      audio.crossOrigin = "anonymous";
+      audio.preload = "auto";
+
+      const src = this.ctx.createMediaElementSource(audio);
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0.0;
+      src.connect(gain);
+      gain.connect(this.master);
+
+      const node = { audio, gain };
+      this.nodes.set(key, node);
+      return node;
     }
 
-    _stop(key){
+    _start(key) {
+      const n = this._ensure(key);
+      if (!n) return;
+      if (n.audio.paused) {
+        try { n.audio.currentTime = n.audio.currentTime || 0; } catch {}
+        const p = n.audio.play();
+        if (p && typeof p.catch === "function") p.catch(()=>{});
+      }
+    }
+
+    _stop(key) {
       const n = this.nodes.get(key);
       if (!n) return;
-      try { n.src.stop(); } catch {}
-      try { n.src.disconnect(); } catch {}
-      try { n.gain.disconnect(); } catch {}
-      this.nodes.delete(key);
+      try { n.gain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.03); } catch {}
+      try { n.audio.pause(); } catch {}
     }
 
-    _fade(key, target, ms=260){
+    _fade(key, target, ms=320) {
       const n = this.nodes.get(key);
-      if (!n) return;
+      if (!n || !this.ctx) return;
       const t = this.ctx.currentTime;
-      const g = n.gain.gain;
-      try{
-        g.cancelScheduledValues(t);
-        g.setValueAtTime(g.value, t);
-        g.linearRampToValueAtTime(clamp(target, 0, 1), t + ms/1000);
-      }catch{}
+      const v = clamp(Number(target)||0, 0, 1);
+      const tc = clamp(ms / 1000, 0.06, 1.5);
+      try { n.gain.gain.setTargetAtTime(v, t, tc / 6); } catch {}
     }
 
-    _stopAll(){
-      for (const k of Array.from(this.nodes.keys())) this._stop(k);
+    stopAll() {
+      for (const k of this.nodes.keys()) this._stop(k);
     }
 
-    stopAll(){ this._stopAll(); }
-
-    setScene(scene){
+    setScene(scene) {
       this.mode.scene = scene || "landing";
       this._apply();
     }
 
-    setScores(compliance, resistance){
-      this.mode.compliance = Math.max(0, Number(compliance)||0);
-      this.mode.resistance = Math.max(0, Number(resistance)||0);
+    setScores(compliance, resistance) {
+      this.mode.compliance = Math.max(0, Number(compliance) || 0);
+      this.mode.resistance = Math.max(0, Number(resistance) || 0);
       this._apply();
     }
 
-    setTasksDone(n){
-      this.mode.tasksDone = Math.max(0, Math.floor(Number(n)||0));
+    setTasksDone(n) {
+      this.mode.tasksDone = Math.max(0, Math.floor(Number(n) || 0));
       this._apply();
     }
 
-    _apply(){
+    setTaskIndex(n) {
+      this.mode.taskIndex = Math.max(0, Math.floor(Number(n) || 0));
+      this._apply();
+    }
+
+    setState(state = {}) {
+      if (!state || typeof state !== "object") return;
+      if (state.scene) this.mode.scene = state.scene;
+      if (state.compliance != null) this.mode.compliance = Math.max(0, Number(state.compliance) || 0);
+      if (state.resistance != null) this.mode.resistance = Math.max(0, Number(state.resistance) || 0);
+      if (state.tasksDone != null) this.mode.tasksDone = Math.max(0, Math.floor(Number(state.tasksDone) || 0));
+      if (state.taskIndex != null) this.mode.taskIndex = Math.max(0, Math.floor(Number(state.taskIndex) || 0));
+      this._apply();
+    }
+
+    _apply() {
       if (!this.unlocked || !this.loaded) return;
-
       const s = this.mode.scene;
 
-      if (s === "landing"){
-        this._stopAll();
+      if (s === "landing") {
+        this.stopAll();
         return;
       }
 
-      // Always on in sim/task
-      const wants = new Set();
-      if (s === "sim" || s === "task"){
-        wants.add("s1"); // bed always
-        // base atmosphere always present a bit
-        wants.add("s8"); // sub confinement
-      }
-
-      if (s === "finalhack"){
-        wants.add("finalHack");
-      }
-
-      if (s === "escaped"){
-        wants.add("escaped");
-      }
-
-      // If in finalhack/escaped, we strip ogg stems for clarity.
-      if (s === "finalhack" || s === "escaped"){
-        for (const key of Object.keys(FILES)){
-          if (key !== "finalHack" && key !== "escaped") this._stop(key);
+      // Final scenes: kill stems, only play scene track
+      if (s === "finalhack" || s === "escaped") {
+        for (const k of Object.keys(FILES)) {
+          if (k !== "finalHack" && k !== "escaped") this._stop(k);
         }
-        // start the scene track
-        this._start(s === "finalhack" ? "finalHack" : "escaped");
-        this._fade(s === "finalhack" ? "finalHack" : "escaped", 0.9, 420);
+        const k = (s === "finalhack") ? "finalHack" : "escaped";
+        this._start(k);
+        this._fade(k, 0.92, 420);
         return;
       }
 
-      // Start any wanted stems
-      for (const k of wants) this._start(k);
-
-      // Ensure all other sim stems started lazily when needed
-      ["s2","s3","s4","s5","s6","s7","s9","s10"].forEach(k => this._start(k));
+      // Sim/task scenes: start stems we might need
+      const stems = ["s1","s2","s3","s4","s5","s6","s7","s8","s9","s10"];
+      stems.forEach(k => this._start(k));
 
       const c = this.mode.compliance;
       const r = this.mode.resistance;
-      const t = this.mode.tasksDone;
+      const tDone = this.mode.tasksDone;
+      const tIndex = this.mode.taskIndex;
 
+      // ratio: 0 compliant, 1 resistant
       const total = c + r;
-      const ratio = total ? (r/total) : 0.5; // 0 = fully compliant, 1 = fully resistant
+      const ratio = total ? (r / total) : 0.5;
 
-      // Compliance layer thresholds
-      const veryCompliant = ratio <= 0.25;
-      const compliant = ratio <= 0.40;
+      // thresholds tuned to feel reactive without flipping constantly
+      const moreCompliant = ratio <= 0.45;
+      const veryCompliant = ratio <= 0.22;
 
-      // Resistance thresholds
-      const veryResistant = ratio >= 0.75;
-      const resistant = ratio >= 0.60;
+      const moreResistant = ratio >= 0.55;
+      const veryResistant = (r >= (c + 4)) || ratio >= 0.82; // “no compliance / very resistant” feel
 
-      // Balanced = none of the above
-      const balanced = !compliant && !resistant;
+      const balanced = !moreCompliant && !moreResistant;
 
-      // Bed always
-      this._fade("s1", 0.55, 320);
-      this._fade("s8", 0.18, 320);
+      // 01 bed always
+      this._fade("s1", 0.62, 360);
 
-      // System overlays
-      this._fade("s2", compliant ? 0.22 : 0.0, 320);
-      this._fade("s3", veryCompliant ? 0.18 : 0.0, 320);
+      // Compliance overlays
+      this._fade("s2", moreCompliant ? 0.22 : 0.0, 360);
+      this._fade("s3", veryCompliant ? 0.18 : 0.0, 360);
 
-      // Emma overlays (balanced): 04 for tasks1-10; replace with 05 after task10
-      const emmaA = balanced && t < 10;
-      const emmaB = balanced && t >= 10;
-      this._fade("s4", emmaA ? 0.22 : 0.0, 320);
-      this._fade("s5", emmaB ? 0.20 : 0.0, 320);
+      // Balanced overlays (04 tasks 1-10, 05 tasks 11-20)
+      const use4 = balanced && tIndex > 0 && tIndex <= 10;
+      const use5 = balanced && tIndex > 10;
+      this._fade("s4", use4 ? 0.22 : 0.0, 360);
+      this._fade("s5", use5 ? 0.20 : 0.0, 360);
 
-      // Liam overlays
-      this._fade("s6", resistant ? 0.24 : 0.0, 320);
-      this._fade("s7", veryResistant ? 0.26 : 0.0, 320);
+      // Resistance overlays
+      const s6v = moreResistant ? (veryResistant ? 0.07 : 0.22) : 0.0;
+      const s7v = veryResistant ? 0.26 : 0.0;
+      this._fade("s6", s6v, 360);
+      this._fade("s7", s7v, 360);
 
-      // Task progression layer (08): starts task1 very quiet, +3% per task, cap 80% at task20
-      const prog = clamp((Math.max(1, t) * 0.03), 0.03, 0.80);
-      this._fade("s8", 0.18, 320);
-      this._fade("s9", (s === "task") ? clamp(prog * 0.35, 0.03, 0.28) : 0.0, 260);
+      // 08 progression overlay:
+      // Starting at task 1: very quiet overlay; each task finished +3%; cap 80% at task 20.
+      let prog = 0.0;
+      if (tIndex >= 1) {
+        prog = clamp(0.02 + (tDone * 0.03), 0.02, 0.80);
+      }
+      this._fade("s8", prog, 360);
 
-      // Pressure stems (09 & 10) driven by (r + tasksDone - c)+10%
-      const drivePct = (r + t - c) + 10;
-      const drive = clamp(drivePct / 100, 0, 0.85);
-      this._fade("s9", (s === "task") ? clamp(0.06 + drive * 0.42, 0.06, 0.60) : 0.0, 260);
-      this._fade("s10", clamp(0.02 + drive * 0.22, 0.02, 0.28), 320);
+      // 09 & 10 pressure overlays:
+      // volume = (resistance + tasksCompleted - compliance) + 10 (%)
+      const drivePct = (r + tDone - c) + 10;
+      const drive = clamp(drivePct / 100, 0.0, 0.95);
+
+      // Only really present during tasks; faint in sim to hint pressure
+      const inTask = (s === "task");
+      this._fade("s9", inTask ? clamp(0.06 + drive * 0.58, 0.0, 0.82) : clamp(drive * 0.10, 0.0, 0.10), 360);
+      this._fade("s10", inTask ? clamp(0.03 + drive * 0.30, 0.0, 0.42) : 0.0, 360);
     }
   }
 
