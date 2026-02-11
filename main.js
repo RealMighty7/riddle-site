@@ -271,7 +271,8 @@
       try { await window.TTS?.unlock?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
-      // Start subtle landing campaign music once audio is unlocked.
+      // Landing must remain silent. Do not start music here.
+      // Music begins only after entering the simulation room.
       try { window.Music?.setScene?.("landing"); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
