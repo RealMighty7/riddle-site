@@ -103,9 +103,13 @@
 
   const finish = (ctx, resolve, answer) => {
     try { ctx.setAnswer?.(answer); } catch {}
+    try { ctx.taskPrimary.classList.remove("hidden"); } catch {}
     ctx.taskPrimary.textContent = "continue";
     ctx.taskPrimary.disabled = false;
-    ctx.taskPrimary.onclick = () => resolve();
+    ctx.taskPrimary.onclick = () => {
+      try { ctx.success?.(); } catch {}
+      try { resolve?.(); } catch {}
+    };
   };
 
   const wrong = (ctx, msgEl, text, reason) => {
