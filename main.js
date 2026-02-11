@@ -271,7 +271,7 @@
       try { await window.TTS?.unlock?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
-      // Start subtle landing campaign music once audio is unlocked.
+      // Landing is silent. Music starts only after entering the simulation room.
       try { window.Music?.setScene?.("landing"); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
@@ -463,7 +463,7 @@
       // Micro-scratches only after the main break is obvious (don’t compete).
       if (crackState.stage >= 3) {
         ctx.globalAlpha = 0.05;
-        ctx.strokeStyle = "rgba(0,0,0,0.22)";
+        ctx.strokeStyle = "rgba(225,248,255,0.08)";
         ctx.lineWidth = 0.6 * dpr;
         const scratches = 10 + (crackState.stage === 4 ? 8 : 0);
         for (let i = 0; i < scratches; i++) {
@@ -485,7 +485,7 @@
 
       for (const pts of crackState.paths) {
         // dark core
-        ctx.strokeStyle = "rgba(0,0,0,0.78)";
+        ctx.strokeStyle = "rgba(20,24,32,0.34)";
         ctx.lineWidth = (3.8 + (crackState.stage - 1) * 1.35) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
@@ -495,12 +495,24 @@
         // bright edge highlight
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 0.28 + crackState.stage * 0.06;
-        ctx.strokeStyle = "rgba(255,255,255,0.28)";
+        ctx.strokeStyle = "rgba(225,248,255,0.34)";
         ctx.lineWidth = (1.2 + (crackState.stage - 1) * 0.35) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
         ctx.stroke();
+        // subtle refraction "duplicate" (tiny offset, screen blend) — sells glass, avoids black ink lines
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        ctx.globalAlpha = 0.10 + crackState.stage * 0.03;
+        ctx.strokeStyle = "rgba(170,235,255,0.55)";
+        ctx.lineWidth = (2.0 + (crackState.stage - 1) * 0.25) * dpr;
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x - 1.4 * dpr, pts[0].y + 1.0 * dpr);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 1.4 * dpr, pts[i].y + 1.0 * dpr);
+        ctx.stroke();
+        ctx.restore();
+
 
         ctx.globalAlpha = 0.92;
         ctx.shadowBlur = 2.2 * dpr;
@@ -1377,11 +1389,14 @@ async function runTask(taskId, args) {
       }
 
       try {
-        await fn(ctx, args);
-        if (!done) {
-          // If task returned without calling success/penalize, treat as success
-          ctx.success();
-        }
+        // Many tasks (especially packs 6–7) are "setup" tasks: they build UI, attach handlers,
+        // and complete later via ctx.success()/ctx.penalize() from user interaction.
+        // Do NOT auto-succeed if the task function returns.
+        const maybe = fn(ctx, args);
+        if (maybe && typeof maybe.catch === "function") maybe.catch((err) => { throw err; });
+
+        // Wait until the task signals completion.
+        await p;
       } catch (e) {
         console.error(e);
         doReset("TASK ERROR", String(e && e.message ? e.message : e));
