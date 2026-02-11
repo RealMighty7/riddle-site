@@ -271,6 +271,7 @@
       try { await window.TTS?.unlock?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
+      try { window.Music?.setScene?.("landing"); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
@@ -1255,8 +1256,8 @@ async function emitLine(line) {
 /* ======================
        STEPS RUNNER (dialogue → choice → task)
     ====================== */
-    let __ADMIN_CAN_SKIP__ = false;
-    window.__TNR_ADMIN_SKIP__ = () => { if (__ADMIN_CAN_SKIP__) __ADMIN_CAN_SKIP__(); };
+    let __ADMIN_SKIP_FN__ = null;
+    window.__TNR_ADMIN_SKIP__ = () => { try { if (typeof __ADMIN_SKIP_FN__ === "function") __ADMIN_SKIP_FN__(); } catch {} };
 
     async function runSteps(steps) {
       // Start with the intro beat (your “security room” opening)
@@ -1340,7 +1341,7 @@ async function runTask(taskId, args) {
       try { window.Music?.setScene?.("task"); } catch {}
 
       // Reset task UI content
-      taskTitle.textContent = taskId;
+      taskTitle.textContent = "";
       taskDesc.textContent = "";
       taskBody.innerHTML = "";
       taskPrimary.classList.add("hidden");
@@ -1406,6 +1407,10 @@ async function runTask(taskId, args) {
 
         state: simState,
 
+        getCompliance: () => Number(compliancePoints)||0,
+        getResistance: () => Number(resistancePoints)||0,
+
+
         showTaskUI: (title, desc) => {
           if (title) taskTitle.textContent = String(title);
           if (desc) taskDesc.textContent = String(desc);
@@ -1442,6 +1447,9 @@ async function runTask(taskId, args) {
           resolver(true);
         },
 
+        // backwards alias
+        succes: function() { return this.success(); },
+
         penalize: () => {
           if (done) return;
           wrong++;
@@ -1464,12 +1472,22 @@ async function runTask(taskId, args) {
         doReset,
       };
 
-      __ADMIN_CAN_SKIP__ = () => {
+      __ADMIN_SKIP_FN__ = () => {
         if (done) return;
         console.debug("[TNR] task:admin_skip", taskId);
-        done = true;
-        timerStop = true;
-        resolver(true);
+
+        // Many tasks have a verify → continue gate. To skip reliably:
+        // 1) click the current primary handler (often "verify")
+        // 2) yield a tick (handler may swap button to "continue")
+        // 3) click again
+        // 4) if still not done, force success.
+        try { if (typeof taskPrimary.onclick === "function") taskPrimary.onclick(); } catch {}
+        Promise.resolve().then(() => {
+          try { if (typeof taskPrimary.onclick === "function") taskPrimary.onclick(); } catch {}
+          if (!done) {
+            try { ctx.success("admin_skip"); } catch {}
+          }
+        });
       };
 
       const fn = window.TASKS?.[taskId];
@@ -1504,7 +1522,7 @@ async function runTask(taskId, args) {
       }
 
       await p;
-      __ADMIN_CAN_SKIP__ = false;
+      __ADMIN_SKIP_FN__ = null;
       timerStop = true;
 
       // Hide task UI, return to sim
