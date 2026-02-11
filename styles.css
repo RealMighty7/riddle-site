@@ -65,7 +65,7 @@ body.crack4 #glassFX::before{ opacity:0.42; }
   0%   { transform: translate(0,0) rotate(0deg) scale(1); filter: blur(0px); opacity: 1; }
   30%  { filter: blur(0.6px) contrast(1.05); }
   60%  { opacity: 0.9; }
-  100% { transform: translate(calc(var(--fx,0) * 1.10), calc(var(--fy,0) + 420px)) rotate(calc(var(--fr,0deg) * 2.6)) scale(var(--fs,1)) skewX(calc(var(--fx,0) * 0.002)); opacity: 0.0; filter: blur(2.1px) contrast(1.35); }
+  100% { transform: translate(calc(var(--fx,0) * 1.05), calc(var(--fy,0) + 220px)) rotate(calc(var(--fr,0deg) * 2.1)) scale(var(--fs,1)); opacity: 0.0; filter: blur(1.4px) contrast(1.25); }
 }
 
 @keyframes triGlitch {
@@ -106,12 +106,10 @@ body.page-fracture .fracture-piece{
   height:100%;
   /* stretch/squish OK */
   display:block;
-  mix-blend-mode: screen;
-
   opacity:1;
   transform:none;
   filter:
-    drop-shadow(0 0 6px rgba(220,245,255,.22))
+    drop-shadow(0 0 3px rgba(0,0,0,.30))
     drop-shadow(0 0 22px rgba(0,0,0,.22))
     contrast(1.08);
 }
@@ -1016,3 +1014,86 @@ body.glitch-storm::before{
 #adminPanel .pill{background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.10);}
 #adminPanel input.adminAnswer{width:160px;}
 #adminPanel .muted{opacity:0.72;}
+
+
+
+/* ===================== SIM LAYOUT POLISH (boxed zones) ===================== */
+body.in-sim{
+  background:
+    radial-gradient(900px 420px at 50% 10%, rgba(255,255,255,0.06), rgba(0,0,0,0) 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0));
+}
+
+/* faint boxed zones to “dock” dialogue / task / admin */
+body.in-sim::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+  background:
+    linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0.06)) 50% 84px / min(980px, 92vw) 260px no-repeat,
+    linear-gradient(rgba(255,255,255,0.04), rgba(255,255,255,0.04)) 50% calc(84px + 280px) / min(980px, 92vw) calc(100vh - 420px) no-repeat,
+    linear-gradient(rgba(255,255,255,0.055), rgba(255,255,255,0.055)) 26px calc(100vh - 260px) / 360px 230px no-repeat;
+  filter: blur(0.2px);
+  opacity:0.22;
+  border-radius:18px;
+}
+
+#simRoom{ z-index: 50; }
+#taskUI{ z-index: 120; }
+#adminPanel{ z-index: 140; }
+
+/* Admin console tighter + less “sloppy” */
+#adminPanel .card{
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(10,12,16,0.68);
+  box-shadow: 0 18px 48px rgba(0,0,0,0.42);
+}
+#adminPanel .adminTitle{
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+}
+#adminPanel .adminPills{
+  gap:8px;
+}
+#adminPanel .pill{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+#adminPanel .adminAnswer{
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+/* Keep admin docked and readable */
+body.in-sim #adminPanel{
+  position: fixed !important;
+  left: 18px;
+  bottom: 18px;
+  top: auto !important;
+  right: auto !important;
+  width: 420px;
+}
+
+/* Transition: prevent landing flash */
+body.cut-black #wrap{ opacity: 0 !important; }
+body.sim-transition #wrap{ opacity: 0 !important; }
+body.in-sim #wrap{ display:none !important; }
+
+/* Cracks: more “glass/refraction” feel */
+#cracks{
+  mix-blend-mode: lighten;
+  opacity: 1;
+}
+#cracks::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  backdrop-filter: blur(2.2px) saturate(1.25) contrast(1.05);
+  opacity:0.16;
+}
+body.shatter-burst #cracks::before{
+  opacity:0.26;
+}
