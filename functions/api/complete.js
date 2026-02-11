@@ -105,7 +105,6 @@ export async function onRequestPost({ request, env }) {
         "there is no riddle — escape code",
         `user: ${discord}
 submitted: ${answer}
-reward: ${code}
 `
       );
     } catch (e) {
