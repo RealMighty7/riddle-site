@@ -90,7 +90,83 @@
       return;
     }
 
-    // Keep admin panel visible in simulation (the sim hides #wrap).
+    
+    /* ======================
+       TELEMETRY (reactive barks)
+    ====================== */
+    const TELEMETRY = {
+      armed: false,
+      inTaskGraceUntil: 0,
+      inChoice: false,
+      inTask: false,
+    };
+
+    function now(){ return performance.now(); }
+
+    function markInput(){
+      GAME.memory.lastInputAt = now();
+    }
+
+    function markMove(){
+      GAME.memory.lastMoveAt = now();
+    }
+
+    // click clustering for "poking UI" vs normal task clicks
+    function recordClick(e){
+      markInput();
+      const t = e.target;
+      const insideTask = !!(t && t.closest && t.closest("#taskUI"));
+      const insideChoices = !!(t && t.closest && t.closest("#simChoices"));
+      const insideAdmin = !!(t && t.closest && t.closest("#adminPanel"));
+      const insideDialogue = !!(t && t.closest && t.closest("#simText"));
+      const allowed = insideTask || insideChoices || insideAdmin || insideDialogue;
+      const ts = now();
+      GAME.memory.spamClickWindow.push(ts);
+      GAME.memory.spamClickWindow = GAME.memory.spamClickWindow.filter(x => ts - x < 1500);
+      if (GAME.memory.spamClickWindow.length >= 9 && (GAME.memory.lastBarkTypeAt.spam||0) + 6000 < ts){
+        GAME.facts.spamClusters++;
+        resistancePoints += 1;
+        syncMetersToUI();
+        maybeBark("spam");
+        GAME.memory.lastBarkTypeAt.spam = ts;
+      }
+
+      if (!allowed){
+        GAME.memory.strayClickWindow.push(ts);
+        GAME.memory.strayClickWindow = GAME.memory.strayClickWindow.filter(x => ts - x < 2500);
+        if (GAME.memory.strayClickWindow.length >= 3 && (GAME.memory.lastBarkTypeAt.stray||0) + 7000 < ts){
+          GAME.facts.strayClickClusters++;
+          resistancePoints += 1;
+          syncMetersToUI();
+          maybeBark("click");
+          GAME.memory.lastBarkTypeAt.stray = ts;
+        } else {
+          // single stray click still gets a light bark occasionally in later stages
+          if (GAME.stage >= 2) maybeBark("click_soft");
+        }
+      }
+    }
+
+    function telemetryTick(){
+      const ts = now();
+      // idle bark (but not during "stay still" grace window, and not while choices visible)
+      if (GAME.scene === "sim" && !TELEMETRY.inChoice && !TELEMETRY.inTask){
+        const idleFor = ts - Math.max(GAME.memory.lastInputAt, GAME.memory.lastMoveAt);
+        if (idleFor > 12000 && (GAME.memory.lastBarkTypeAt.idle||0)+14000 < ts){
+          GAME.facts.idleHints++;
+          maybeBark("idle");
+          GAME.memory.lastBarkTypeAt.idle = ts;
+        }
+      }
+      requestAnimationFrame(telemetryTick);
+    }
+
+    window.addEventListener("mousemove", markMove, { passive: true });
+    window.addEventListener("keydown", markInput, { passive: true });
+    window.addEventListener("pointerdown", recordClick, { passive: true });
+    requestAnimationFrame(telemetryTick);
+
+// Keep admin panel visible in simulation (the sim hides #wrap).
     try {
       const ap = els.adminPanel;
       if (ap && ap.parentElement && ap.parentElement.id === "wrap") {
@@ -271,6 +347,8 @@
       try { await window.TTS?.unlock?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
+      // Start subtle landing campaign music once audio is unlocked.
+      try { window.Music?.setScene?.("landing"); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
@@ -306,13 +384,41 @@
     let compliancePoints = 0;
     let resistancePoints = 0;
 
+
     /* ======================
-       CORE GAME STATE (phase1 rebuild)
-       - deterministic narrative stage mapping
-       - meters are signals (not morality) and only evaluated at end
+       CORE STATE (Phase 1/2)
     ====================== */
-    function stageForTaskOrdinal(n) {
-      // 1-3, 4-6, 7-9, 10-13, 14-17, 18-20
+    const GAME = (window.__GAME__ = window.__GAME__ || {
+      scene: "landing",
+      phase: "idle",          // idle | transition | sim | hack | ending
+      stage: 1,               // 1..6 narrative stage (mapped from task ordinal)
+      taskOrdinal: 0,         // 0..totalTasks
+      totalTasks: 20,
+      meters: { compliance: 0, resistance: 0 }, // 0..100 integers (UI)
+      facts: {
+        perfectRun: true,
+        failures: 0,
+        strayClickClusters: 0,
+        spamClusters: 0,
+        idleHints: 0,
+        predictionErrorUsed: false,
+        assistsUsed: 0,
+        lastAssistAt: 0,
+      },
+      memory: {
+        lastSpeakers: [],
+        lastLines: [],
+        lastBarkAt: 0,
+        lastBarkTypeAt: {},
+        lastInputAt: performance.now(),
+        lastMoveAt: performance.now(),
+        strayClickWindow: [],
+        spamClickWindow: [],
+      },
+      ending: null,           // worker | reinsertion | invisibility
+    });
+
+    function stageForOrdinal(n){
       if (n <= 3) return 1;
       if (n <= 6) return 2;
       if (n <= 9) return 3;
@@ -321,133 +427,21 @@
       return 6;
     }
 
-    const GAME = (window.__GAME__ = window.__GAME__ || {
-      scene: "landing",           // landing | transition | sim
-      phase: "idle",              // idle | dialogue | choice | task | resolve
-      stage: 1,                   // 1..6 narrative stage
-      taskOrdinal: 0,             // 1..20
-      totalTasks: 20,
-      phase1Count: 10,
-      // signals
-      compliance: 0,
-      resistance: 0,
-      // memory facts for callbacks later
-      facts: {
-        idleSeconds: 0,
-        spamClusters: 0,
-        strayClicks: 0,
-        taskFails: 0,
-        taskPerfects: 0
-      },
-      // guards
-      _lastInputAt: performance.now(),
-      _spam: { t0: 0, n: 0, armed: false }
-    });
+    function clampInt(n,a,b){ n = Math.round(Number(n)||0); return Math.max(a, Math.min(b, n)); }
 
-    function gameSyncMeters() {
-      GAME.compliance = Math.max(0, Number(compliancePoints) || 0);
-      GAME.resistance = Math.max(0, Number(resistancePoints) || 0);
+    function syncMetersToUI(){
+      // keep legacy points but expose visible meter scale (0..100)
+      // points are small integers; we map using observed activity + points
+      const c = compliancePoints;
+      const r = resistancePoints;
+      // base: each task can add up to ~5 points. Normalize to 0..100 over 20 tasks.
+      const denom = Math.max(1, GAME.totalTasks * 5);
+      const comp = clampInt((c / denom) * 100, 0, 100);
+      const resi = clampInt((r / denom) * 100, 0, 100);
+      GAME.meters.compliance = comp;
+      GAME.meters.resistance = resi;
+      try { window.Music?.setScores?.(compliancePoints, resistancePoints); } catch {}
     }
-
-    function gameAddCompliance(n) {
-      compliancePoints = Math.max(0, (Number(compliancePoints) || 0) + (Number(n) || 0));
-      gameSyncMeters();
-      hudUpdate();
-    }
-
-    function gameAddResistance(n) {
-      resistancePoints = Math.max(0, (Number(resistancePoints) || 0) + (Number(n) || 0));
-      gameSyncMeters();
-      hudUpdate();
-    }
-
-    function gameSetScene(scene) {
-      GAME.scene = scene;
-    }
-
-    function gameSetPhase(phase) {
-      GAME.phase = phase;
-    }
-
-    function gameSetTaskOrdinal(n) {
-      GAME.taskOrdinal = n;
-      GAME.stage = stageForTaskOrdinal(n);
-    }
-
-    // Lightweight input telemetry used for meters + later memory callbacks
-    function gameTouchInput() {
-      GAME._lastInputAt = performance.now();
-    }
-
-    // click clustering: treat rapid stray clicks as "testing"
-    function gameRegisterClick(isStray) {
-      gameTouchInput();
-      if (!isStray) return;
-      GAME.facts.strayClicks = (GAME.facts.strayClicks || 0) + 1;
-
-      const now = performance.now();
-      const s = GAME._spam;
-      if (!s.t0 || (now - s.t0) > 1500) { s.t0 = now; s.n = 0; s.armed = true; }
-      s.n++;
-
-      // only count once per cluster window
-      if (s.armed && s.n >= 8) {
-        s.armed = false;
-        GAME.facts.spamClusters = (GAME.facts.spamClusters || 0) + 1;
-        gameAddResistance(1);
-      }
-    }
-
-    // Idle fact accumulator (only for later callbacks, does not change outcome mid-run)
-    setInterval(() => {
-      const now = performance.now();
-      const idleMs = Math.max(0, now - (GAME._lastInputAt || now));
-      GAME.facts.idleSeconds = Math.floor(idleMs / 1000);
-    }, 1000);
-
-    // End-of-run evaluation (no redirects in phase1)
-    function evaluateEnding() {
-      const c = Math.max(0, Number(compliancePoints) || 0);
-      const r = Math.max(0, Number(resistancePoints) || 0);
-      const tot = Math.max(1, c + r);
-      const cp = c / tot;
-      const rp = r / tot;
-
-      const perfect = (r <= 0.001)
-        && (GAME.facts.taskFails || 0) === 0
-        && (GAME.facts.spamClusters || 0) === 0
-        && (GAME.facts.strayClicks || 0) === 0;
-
-      if (perfect) return { ending: "worker", cp, rp };
-      // too resistant
-      if (rp >= 0.65 && cp < 0.40) return { ending: "reinsertion", cp, rp };
-      // invisibility window
-      if (cp >= 0.40 && cp <= 0.60 && rp >= 0.30 && rp <= 0.60) return { ending: "invisibility", cp, rp };
-
-      // fallbacks: lean toward reinsertion if high resistance, else absorption-ish
-      if (rp > 0.60) return { ending: "reinsertion", cp, rp };
-      return { ending: "invisibility", cp, rp }; // default to forward path (phase2 will branch fully)
-    }
-
-    window.__EVALUATE_ENDING__ = evaluateEnding;
-
-
-    /* ====================== INPUT TELEMETRY (phase1) ====================== */
-    // Records signals for meters + later memory callbacks.
-    document.addEventListener("pointerdown", (e) => {
-      try {
-        // only track once sim is entered
-        if (GAME.scene !== "sim") return;
-        const t = e.target;
-        const ok = (t && (t.closest("#taskUI") || t.closest("#simChoices") || t.closest("#adminPanel")));
-        gameRegisterClick(!ok);
-      } catch {}
-    }, true);
-
-    document.addEventListener("keydown", () => { try { gameTouchInput(); } catch {} }, true);
-    document.addEventListener("mousemove", () => { try { gameTouchInput(); } catch {} }, true);
-
-
     /* ======================
        CANVAS CRACKS (NO cracksImg)
     ====================== */
@@ -857,15 +851,6 @@ async function shatterAndEnterSim() {
       document.querySelectorAll('.fracture-piece').forEach((el)=>{ el.classList.remove('fracture-piece'); el.style.removeProperty('--fx'); el.style.removeProperty('--fy'); el.style.removeProperty('--fr'); el.style.removeProperty('--fs'); });
 
       document.body.classList.add("cut-black");
-      try { gameSetScene("transition"); } catch {}
-      // Pre-stage sim styling while black (prevents landing flash)
-      try { els.system && els.system.classList.add("hidden"); } catch {}
-      // Enter sim visual state BEFORE un-hiding sim room to prevent landing flash.
-      document.body.classList.add("in-sim");
-      try { gameSetScene("sim"); } catch {}
-      try { els.system?.classList?.add("hidden"); } catch {}
-      try { document.body.classList.remove("landing-bright"); } catch {}
-
       await wait(160);
       document.body.classList.remove("cut-black");
 
@@ -941,7 +926,7 @@ async function shatterAndEnterSim() {
 
 
     function makeAdminDraggable(panel) {
-      const handle = panel.querySelector("#adminDragHandle") || panel.querySelector(".adminLeft") || panel;
+      const handle = panel.querySelector(".adminDrag") || panel;
       const POS_KEY = "tnr_admin_pos_v1";
       try {
         const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
@@ -966,10 +951,8 @@ async function shatterAndEnterSim() {
       };
       const onMove = (e) => {
         if (!drag) return;
-        const pw = panel.offsetWidth || 340;
-        const ph = panel.offsetHeight || 140;
-        const x = clamp(e.clientX - drag.dx, 8, window.innerWidth - pw - 8);
-        const y = clamp(e.clientY - drag.dy, 8, window.innerHeight - ph - 8);
+        const x = clamp(e.clientX - drag.dx, 8, window.innerWidth - 260);
+        const y = clamp(e.clientY - drag.dy, 8, window.innerHeight - 80);
         panel.style.position = "fixed";
         panel.style.left = x + "px";
         panel.style.top = y + "px";
@@ -1033,6 +1016,7 @@ async function shatterAndEnterSim() {
       btn.addEventListener("click", async () => {
         try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
         await unlockAudio();
+        try { window.Music?.setScene?.("sim"); } catch {}
         if (status) status.textContent = "status: viewer staged";
         if (box) box.classList.remove("hidden");
         if (keyInput) keyInput.focus();
@@ -1080,10 +1064,7 @@ async function shatterAndEnterSim() {
       return { speaker, text };
     }
 
-    // Speaker streak guard (prevents one voice from dominating)
-    let __LAST_SPK = "";
-    let __STREAK = 0;
-
+    
 function resolveLineForPath(line) {
   // line can be a string OR an object like { system:"System: ...", emma:"Emma: ...", liam:"Liam: ..." }
   // We *do not* hard-lock to a single guide voice; instead we pick based on resistance/compliance balance
@@ -1118,25 +1099,8 @@ function resolveLineForPath(line) {
     wEmma /= sum; wSystem /= sum; wLiam /= sum;
 
     const roll = Math.random();
-
-    // pick a speaker key first (so we can apply streak suppression)
-    let key = (roll < wSystem) ? "system"
-      : (roll < wSystem + wEmma) ? "emma"
-      : "liam";
-
-    if (key === __LAST_SPK) __STREAK++; else { __LAST_SPK = key; __STREAK = 1; }
-
-    if (__STREAK >= 3) {
-      // force a switch to avoid dominance
-      key = (key === "system") ? (emma ? "emma" : "liam")
-          : (key === "emma") ? (li ? "liam" : "system")
-          : (sys ? "system" : "emma");
-      __LAST_SPK = key;
-      __STREAK = 1;
-    }
-
-    const picked = (key === "system") ? (sys ?? def ?? em ?? li)
-      : (key === "emma") ? (em ?? def ?? sys ?? li)
+    const picked = (roll < wSystem) ? (sys ?? def ?? em ?? li)
+      : (roll < wSystem + wEmma) ? (em ?? def ?? sys ?? li)
       : (li ?? def ?? em ?? sys);
 
     return String(picked ?? "");
@@ -1196,7 +1160,56 @@ async function emitLine(line) {
     }
 
 
-    async function playLines(lines) {
+    
+    /* ======================
+       REACTIVE BARKS (chatty, stage-gated)
+    ====================== */
+    function recentHas(text){
+      const t = String(text||"").trim();
+      if (!t) return false;
+      return GAME.memory.lastLines.slice(-10).includes(t);
+    }
+
+    function pushRecent(text){
+      const t = String(text||"").trim();
+      if (!t) return;
+      GAME.memory.lastLines.push(t);
+      if (GAME.memory.lastLines.length > 40) GAME.memory.lastLines.splice(0, GAME.memory.lastLines.length-40);
+    }
+
+    function maybeBark(type){
+      if (!DIALOGUE || !DIALOGUE.barks) return;
+      if (GAME.scene !== "sim") return;
+      const ts = now();
+      // global bark cooldown to avoid overlap
+      if (GAME.memory.lastBarkAt + 4500 > ts) return;
+      // don't bark during task grace/read window
+      if (TELEMETRY.inTask && TELEMETRY.inTaskGraceUntil > ts) return;
+      // don't bark while choice UI is actively waiting for click
+      if (TELEMETRY.inChoice) return;
+
+      const stage = GAME.stage || 1;
+      const stageBarks = DIALOGUE.barks[String(stage)] || DIALOGUE.barks[stage] || DIALOGUE.barks.any;
+      if (!stageBarks) return;
+
+      const pool = stageBarks[type] || stageBarks[type.replace(/_soft$/,'')] || [];
+      if (!pool.length) return;
+
+      // pick a non-recent line
+      let pick = "";
+      for (let k=0;k<6;k++){
+        const cand = pool[Math.floor(Math.random()*pool.length)];
+        const line = resolveLineForPath(cand);
+        if (line && !recentHas(line)){ pick = line; break; }
+      }
+      if (!pick) return;
+
+      GAME.memory.lastBarkAt = ts;
+      pushRecent(pick);
+      // Bark is just another line, but do not block tasks; fire-and-forget
+      speakLine(pick, { isBark: true, instantUI: false }).catch(()=>{});
+    }
+async function playLines(lines) {
       for (const line of lines || []) {
         if (ABORTED) return;
         await emitLine(line);
@@ -1206,6 +1219,11 @@ async function emitLine(line) {
 
     async function openSimRoom() {
       stage = 99;
+      GAME.scene = "sim";
+      GAME.phase = "sim";
+      GAME.memory.lastInputAt = performance.now();
+      GAME.memory.lastMoveAt = performance.now();
+      try { window.Music?.setHum?.(true); } catch {}
       await unlockAudio();
 
       // Music: simulation uses stem mixer (3 “songs” via guidePath + intensity via resistance)
@@ -1217,12 +1235,7 @@ async function emitLine(line) {
         window.Music?.setTasksDone?.(window.__SIM_STATE__?.tasksDone || 0);
       } catch {}
 
-      // Enter sim visual state BEFORE un-hiding sim room to prevent landing flash.
       document.body.classList.add("in-sim");
-      try { gameSetScene("sim"); } catch {}
-      try { els.system?.classList?.add("hidden"); } catch {}
-      try { document.body.classList.remove("landing-bright"); } catch {}
-
       subs?.classList.remove("hidden");
       hudShow(true);
       hudUpdate();
@@ -1252,157 +1265,172 @@ async function emitLine(line) {
        intro → first choice → (dialogue + UI tag) → task  x20
        first 10 from packs 1–5, second 10 from packs 6–7
     ====================== */
-    
-    /* ======================
-       PLAN RUNNER (mirror flow)
-       dialogue → choice → task → resolve   (repeat)
-       first 10 from packs 1–5, second 10 from packs 6–7
-    ====================== */
-
-    function normalizePoolName(n) {
-      // Back-compat aliases
-      if (n === "pack6") return "phase2_pack6";
-      if (n === "pack7") return "phase2_pack7";
-      return n;
-    }
-
-    function buildMirrorQueue(phasePools, targetCount) {
+    function pickFromPoolNames(poolNames, usedSet) {
       const pools = window.TASK_POOLS || {};
-      const queue = [];
-      const used = new Set();
-
-      // deterministic: walk pools in order, consume their ids in order, loop until target reached
-      const lists = phasePools
-        .map(normalizePoolName)
-        .map((name) => ({ name, ids: Array.isArray(pools[name]) ? pools[name].slice() : [] }));
-
-      let guard = 0;
-      while (queue.length < targetCount && guard++ < 9999) {
-        let progressed = false;
-        for (const L of lists) {
-          while (L.ids.length && queue.length < targetCount) {
-            const id = L.ids.shift();
-            if (!id || used.has(id)) continue;
-            used.add(id);
-            queue.push({ id, pool: L.name });
-            progressed = true;
-            break; // interleave pools instead of draining one completely
-          }
-          if (queue.length >= targetCount) break;
+      // Back-compat aliases: older plan configs may refer to pack6/pack7.
+      const alias = (n) => (n === "pack6" ? "phase2_pack6" : (n === "pack7" ? "phase2_pack7" : n));
+      const flat = [];
+      for (const pn of poolNames) {
+        const key = alias(pn);
+        const arr = pools[key];
+        if (Array.isArray(arr)) {
+          for (const id of arr) if (id && !usedSet.has(id)) flat.push({ id, pool: key });
         }
-        if (!progressed) break;
       }
-      return queue;
+      if (!flat.length) {
+        // allow repeats if we somehow exhausted
+        for (const pn of poolNames) {
+        const key = alias(pn);
+          const arr = pools[key];
+          if (Array.isArray(arr)) for (const id of arr) if (id) flat.push({ id, pool: key });
+        }
+      }
+      if (!flat.length) return null;
+      return flat[Math.floor(Math.random() * flat.length)];
     }
 
-    function defaultLoopChoice(plan) {
-      // Use plan.loopChoice if provided, else reuse firstChoice labels.
-      return plan.loopChoice || plan.firstChoice || {
-        complyLabel: "Okay.",
-        lieLabel: "…",
-        runLabel: "No."
-      };
-    }
-
-    const RESOLVE_BEATS = {
-      clean: [
-        { system: "System: ACCEPTED.", emma: "Emma (Security): Good. Keep it that way.", liam: "Liam (Worker): Nice. Quiet wins." },
-        { system: "System: CHECK COMPLETE.", emma: "Emma (Security): Don’t get comfortable.", liam: "Liam (Worker): Keep moving—don’t let it pattern you." },
-      ],
-      messy: [
-        { system: "System: ANOMALY REGISTERED.", emma: "Emma (Security): Stop improvising.", liam: "Liam (Worker): Good. Messy—but controlled." },
-        { system: "System: VARIANCE: noted.", emma: "Emma (Security): You’re making this harder.", liam: "Liam (Worker): That’s it. Make it look human." },
-      ],
-    };
-
-    async function runPlan(plan) {
+    
+async function runPlan(plan) {
+      const used = new Set();
       const totalTasks = plan.totalTasks || 20;
       const phase1Count = plan.phase1Count || 10;
       const phase1Pools = plan.phase1Pools || ["pack1","pack2","pack3","pack4","pack5"];
       const phase2Pools = plan.phase2Pools || ["phase2_pack6","phase2_pack7","pack6","pack7"];
 
-      // Build deterministic queues (mirror flow)
-      const q1 = buildMirrorQueue(phase1Pools, phase1Count);
-      const q2 = buildMirrorQueue(phase2Pools, Math.max(0, totalTasks - phase1Count));
-      const queue = q1.concat(q2);
-
-      if (queue.length < totalTasks) {
-        doReset("TASK POOLS", "Not enough tasks were available in the configured pools.");
-        return;
-      }
+      GAME.totalTasks = totalTasks;
 
       await playLines(plan.intro || DIALOGUE.intro || []);
 
+      // First choice sets initial bias + guidePath (music accent), but dialogue selection stays dynamic.
       if (plan.firstChoice) {
+        TELEMETRY.inChoice = true;
         const res = await showChoice(plan.firstChoice);
+        TELEMETRY.inChoice = false;
+
         choiceTotal++;
-        if (res === "comply") gameAddCompliance(1);
-        if (res === "resist") gameAddResistance(1);
-        if (res === "full") gameAddResistance(2);
+        if (res === "comply") compliancePoints += 1;
+        if (res === "resist") resistancePoints += 1;
+        if (res === "full") resistancePoints += 2;
+
         guidePath = (res === "comply") ? "system" : (res === "full") ? "liam" : "emma";
+        syncMetersToUI();
         hudUpdate();
         if (Array.isArray(plan.afterFirstChoice)) await playLines(plan.afterFirstChoice);
       }
 
-      // Core loop: dialogue → choice → task → resolve
-      for (let i = 0; i < totalTasks; i++) {
-        if (ABORTED) return;
-        try { gameSetTaskOrdinal(i + 1); } catch {}
+      // helper: stage-gated pre-task beat to avoid scrambled feel
+      const beatState = { idx: {1:0,2:0,3:0,4:0,5:0,6:0}, lastStage: 1 };
 
-        try { gameSetPhase("dialogue"); } catch {}
-        const beatPool = plan.taskBeats || DIALOGUE.taskBeats || [];
-        if (beatPool.length) {
-          const beat = beatPool[i % beatPool.length];
-          await playLines(Array.isArray(beat) ? beat : [beat]);
+      async function playStageBeat(kind, stageNum){
+        const s = String(stageNum);
+        const stageObj = (plan.stages && (plan.stages[s] || plan.stages[stageNum])) || (DIALOGUE.stages && (DIALOGUE.stages[s] || DIALOGUE.stages[stageNum])) || null;
+        const pool = stageObj && stageObj[kind] ? stageObj[kind] : [];
+        if (!pool || !pool.length) return;
+        const i = beatState.idx[stageNum] % pool.length;
+        beatState.idx[stageNum] = i + 1;
+        const beat = pool[i];
+        await playLines(Array.isArray(beat) ? beat : [beat]);
+      }
+
+      for (let i = 1; i <= totalTasks; i++) {
+        if (ABORTED) return;
+
+        GAME.taskOrdinal = i;
+        GAME.stage = stageForOrdinal(i);
+        beatState.lastStage = GAME.stage;
+
+        // Stage pivot beats at the first task of each stage
+        const stageStarts = {1:1,2:4,3:7,4:10,5:14,6:18};
+        if (i === stageStarts[GAME.stage]) {
+          await playStageBeat("pivot", GAME.stage);
         }
 
-        try { gameSetPhase("choice"); } catch {}
-        const loopChoice = defaultLoopChoice(plan);
-        const decision = await showChoice(loopChoice);
-        choiceTotal++;
+        // Per-task pre-beat
+        await playStageBeat("preTask", GAME.stage);
 
-        if (decision === "comply") gameAddCompliance(1);
-        if (decision === "resist") gameAddResistance(1);
-        if (decision === "full") gameAddResistance(2);
-        hudUpdate();
+        // Pick task from pools
+        const pools = (i <= phase1Count) ? phase1Pools : phase2Pools;
+        const picked = pickFromPoolNames(pools, used);
+        if (!picked || !picked.id) {
+          doReset("TASK POOLS", "No tasks were available in the configured pools.");
+          return;
+        }
+        used.add(picked.id);
 
-        const picked = queue[i];
+        // args include pool info for admin panel
         const poolArr = (window.TASK_POOLS && Array.isArray(window.TASK_POOLS[picked.pool])) ? window.TASK_POOLS[picked.pool] : [];
         const idx = poolArr.indexOf(picked.id);
 
-        // task
-        try { gameSetPhase("task"); } catch {}
-        await runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i + 1, total: totalTasks });
+        await runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i, total: totalTasks });
 
-                // (phase1) hack/ending hooks run after task 20 only.
+        // Post-task resolve beat (short)
+        await playStageBeat("resolve", GAME.stage);
 
-        try { gameSetPhase("resolve"); } catch {}
+        syncMetersToUI();
+        hudUpdate();
 
-        // resolve (based on whether the last task had wrong attempts)
-        const simState = window.__SIM_STATE__ || {};
-        const lastWrong = Number(simState.lastWrong || 0);
-        const pool = (lastWrong > 0) ? RESOLVE_BEATS.messy : RESOLVE_BEATS.clean;
-        const line = pool[i % pool.length];
-        await playLines([line]);
+        // Pressure chatter (stage-gated)
+        const comp = GAME.meters.compliance;
+        const resi = GAME.meters.resistance;
+
+        if (GAME.stage >= 2) {
+          if (resi >= 65) await playStageBeat("pressureHighResistance", GAME.stage);
+          if (comp >= 70) await playStageBeat("pressureHighCompliance", GAME.stage);
+        }
+
+        // Prediction error moment (single use) around stage 5
+        if (!GAME.facts.predictionErrorUsed && GAME.stage >= 5 && i >= 14) {
+          GAME.facts.predictionErrorUsed = true;
+          await playStageBeat("predictionError", 5);
+        }
       }
 
-      // Phase1: evaluate ending only at the end (no redirect yet; phase2 will branch scenes)
-      try {
-        gameSetPhase("idle");
-        const ev = evaluateEnding();
-        window.__ENDING_EVAL__ = ev;
-        // small HUD sanity sync
-        hudUpdate();
-      } catch {}
+      // End-of-run evaluation (only here)
+      const result = evaluateEnding();
+      GAME.ending = result;
+      window.__ENDING_EVAL__ = { ending: result, meters: {...GAME.meters}, points: { compliancePoints, resistancePoints }, facts: {...GAME.facts} };
 
-      if (Array.isArray(plan.afterTasks)) await playLines(plan.afterTasks);
+      // Final beats + branching
+      if (result === "worker") {
+        await playStageBeat("endingWorker", 6);
+        doFinalOverlay("RECLASSIFIED", "Your session stabilizes. You are recognized as staff. The door opens because it no longer needs to remember you.");
+        return;
+      }
+
+      if (result === "reinsertion") {
+        await playStageBeat("endingReinsertion", 6);
+        doReset("REINSERTED", "Containment window stabilized. You are returned to the simulation.");
+        return;
+      }
+
+      // invisibility (default): run final hack task
+      await playStageBeat("endingInvisibility", 6);
+      await runTask("hack_final", { ordinal: totalTasks + 1, total: totalTasks + 1 });
     }
 
+    function evaluateEnding(){
+      // Strict worker ending: perfect run + very low resistance
+      const comp = GAME.meters.compliance;
+      const resi = GAME.meters.resistance;
+
+      const perfect = GAME.facts.perfectRun && GAME.facts.failures === 0 && GAME.facts.strayClickClusters === 0 && GAME.facts.spamClusters === 0;
+      if (perfect && comp >= 95 && resi <= 5) return "worker";
+
+      // reinsertion: high resistance and low compliance
+      if (resi >= 65 && comp < 40) return "reinsertion";
+
+      // invisibility window: balanced
+      if (comp >= 40 && comp <= 60 && resi >= 30 && resi <= 60) return "invisibility";
+
+      // otherwise prefer invisibility (gameplay) over reinsertion unless extremely messy
+      if (resi >= 80 && comp < 30) return "reinsertion";
+      return "invisibility";
+    }
 /* ======================
        STEPS RUNNER (dialogue → choice → task)
     ====================== */
     let __ADMIN_SKIP_FN__ = null;
-    window.__TNR_ADMIN_SKIP__ = () => { try { if (typeof __ADMIN_SKIP_FN__ === "function") __ADMIN_SKIP_FN__(); } catch {} };
+    window.__TNR_ADMIN_SKIP__ = () => { try { __ADMIN_SKIP_FN__ && __ADMIN_SKIP_FN__(); } catch {} };
 
     async function runSteps(steps) {
       // Start with the intro beat (your “security room” opening)
@@ -1422,9 +1450,9 @@ async function emitLine(line) {
 
           // scoring
           choiceTotal++;
-          if (res === "comply") gameAddCompliance(1);
-          if (res === "resist") gameAddResistance(1);
-          if (res === "full") gameAddResistance(2);
+          if (res === "comply") compliancePoints += 1;
+          if (res === "resist") resistancePoints += 1;
+          if (res === "full") resistancePoints += 2;
 
           // only the FIRST choice locks the guide path (per design)
           if (step.choice.lockPath && !step.choice.__locked) {
@@ -1451,6 +1479,7 @@ async function emitLine(line) {
     }
 
     async function showChoice(choiceObj) {
+      TELEMETRY.inChoice = true;
       setChoicesVisible(true);
 
       if (choiceNeed) choiceNeed.textContent = choiceObj.complyLabel || "Okay.";
@@ -1463,11 +1492,8 @@ async function emitLine(line) {
           try { choiceLie?.removeEventListener("click", onLie); } catch {}
           try { choiceRun?.removeEventListener("click", onRun); } catch {}
           setChoicesVisible(false);
-          __ADMIN_SKIP_FN__ = null;
+          TELEMETRY.inChoice = false;
         };
-
-        // Allow admin skip during choice (defaults to comply).
-        __ADMIN_SKIP_FN__ = () => { try { cleanup(); resolve("comply"); } catch {} };
 
         const onNeed = () => { cleanup(); resolve("comply"); };
         const onLie  = () => { cleanup(); resolve("resist"); };
@@ -1482,6 +1508,10 @@ async function emitLine(line) {
     
 async function runTask(taskId, args) {
       console.debug("[TNR] task:start", taskId, args);
+      TELEMETRY.inTask = true;
+      TELEMETRY.inTaskGraceUntil = performance.now() + 3000; // read window for "no move" style tasks
+      document.body.classList.add("task-open");
+
       simChoices.classList.add("hidden");
       taskUI.classList.remove("hidden");
       hackRoom.classList.add("hidden");
@@ -1517,6 +1547,24 @@ async function runTask(taskId, args) {
       // per-task attempt tracking
       let wrong = 0;
       let startedAt = performance.now();
+
+      // Rare assist system (Phase 2): a single shield or margin adjustment based on affinity.
+      const aff = (() => {
+        const comp = GAME.meters.compliance, resi = GAME.meters.resistance;
+        if (comp >= 65 && resi < 45) return "emma";
+        if (resi >= 65 && comp < 55) return "liam";
+        return "system";
+      })();
+
+      let assist = null;
+      const tNow = performance.now();
+      const canAssist = (GAME.facts.assistsUsed < 3) && (tNow - (GAME.facts.lastAssistAt||0) > 45000) && (Math.random() < 0.14) && (GAME.stage >= 4);
+      if (canAssist) {
+        assist = { by: aff, shield: 1 };
+        GAME.facts.assistsUsed += 1;
+        GAME.facts.lastAssistAt = tNow;
+      }
+
 
       // Task timer: 2m30s base, speeds up 5% per resistance point
       const BASE_MS = 150000;
@@ -1577,12 +1625,13 @@ async function runTask(taskId, args) {
           timerStop = true;
 
           // scoring: first-try success = +1 compliance
-          if (wrong === 0) { try { GAME.facts.taskPerfects = (GAME.facts.taskPerfects||0)+1; } catch {} gameAddCompliance(1); } else { try { GAME.facts.taskFails = (GAME.facts.taskFails||0)+1; } catch {} }
-          console.debug("[TNR] task:success", taskId, { wrong });
+          if (wrong === 0) compliancePoints += 1;
+          if (wrong !== 0) GAME.facts.perfectRun = false;
+          // A clean pass reduces perceived resistance slightly (soft)
+          if (wrong === 0 && resistancePoints > 0 && GAME.stage >= 4) resistancePoints = Math.max(0, resistancePoints - 0.2);
+          syncMetersToUI();
 
-          // tasks completed
-          // expose last wrong count for resolve beats
-          simState.lastWrong = wrong;
+          console.debug("[TNR] task:success", taskId, { wrong });
 
           // tasks completed
           simState.tasksDone = Math.max(0, (simState.tasksDone || 0)) + 1;
@@ -1594,9 +1643,20 @@ async function runTask(taskId, args) {
 
         penalize: () => {
           if (done) return;
+          if (assist && assist.shield > 0) {
+            assist.shield -= 1;
+            // announce assist once
+            try {
+              const msg = (assist.by === "liam") ? "Liam (Worker): I bent it. Don’t waste it." : (assist.by === "emma") ? "Emma (Security): One warning. Do it clean." : "System: CORRECTION APPLIED.";
+              speakLine(msg, { isBark: true }).catch(()=>{});
+            } catch {}
+            return;
+          }
           wrong++;
-          simState.lastWrong = wrong;
-          gameAddResistance(3);
+          resistancePoints += 2;
+          GAME.facts.failures += 1;
+          GAME.facts.perfectRun = false;
+          syncMetersToUI();
           console.debug("[TNR] task:wrong", taskId, { wrong });
 
           hudUpdate();
@@ -1617,7 +1677,12 @@ async function runTask(taskId, args) {
       __ADMIN_SKIP_FN__ = () => {
         if (done) return;
         console.debug("[TNR] task:admin_skip", taskId);
-        try { ctx.success?.("admin_skip"); } catch { done = true; timerStop = true; resolver(true); }
+        try { ctx.success?.("admin_skip"); } catch {}
+        if (!done) {
+          done = true;
+          timerStop = true;
+          resolver(true);
+        }
       };
 
       const fn = window.TASKS?.[taskId];
@@ -1629,21 +1694,9 @@ async function runTask(taskId, args) {
 
       try {
         await fn(ctx, args);
-
-        // IMPORTANT: many packs wire UI handlers and return immediately.
-        // Do NOT auto-success here — we must wait for ctx.success()/ctx.penalize() or admin skip.
         if (!done) {
-          const primHas = typeof taskPrimary.onclick === "function";
-          const secHas = typeof taskSecondary.onclick === "function";
-          if (!primHas && !secHas) {
-            // Safe fallback: expose a continue button so the run cannot deadlock.
-            try {
-              taskPrimary.textContent = "continue";
-              taskPrimary.classList.remove("hidden");
-              taskSecondary.classList.add("hidden");
-              taskPrimary.onclick = () => ctx.success();
-            } catch {}
-          }
+          // If task returned without calling success/penalize, treat as success
+          ctx.success();
         }
       } catch (e) {
         console.error(e);
@@ -1654,12 +1707,15 @@ async function runTask(taskId, args) {
       await p;
       __ADMIN_SKIP_FN__ = null;
       timerStop = true;
+      TELEMETRY.inTask = false;
+      document.body.classList.remove("task-open");
 
       // Hide task UI, return to sim
       taskUI.classList.add("hidden");
       simRoom.classList.remove("hidden");
 
       // back to sim scene
+      try { window.Music?.setScene?.("sim"); } catch {}
       console.debug("[TNR] task:end", taskId);
 
       await wait(120);
