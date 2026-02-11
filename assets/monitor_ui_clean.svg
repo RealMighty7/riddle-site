@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1017"/>
+      <stop offset="1" stop-color="#05070b"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0e1620" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#070b10" stop-opacity="0.92"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <!-- Subtle grid -->
+  <g opacity="0.18" stroke="#1a2a3b" stroke-width="1">
+    <path d="M160 0V1080M320 0V1080M480 0V1080M640 0V1080M800 0V1080M960 0V1080M1120 0V1080M1280 0V1080M1440 0V1080M1600 0V1080M1760 0V1080"/>
+    <path d="M0 120H1920M0 240H1920M0 360H1920M0 480H1920M0 600H1920M0 720H1920M0 840H1920M0 960H1920"/>
+  </g>
+
+  <!-- Main frame -->
+  <rect x="90" y="70" width="1740" height="940" rx="34" fill="url(#panel)" stroke="#1a2a3b" stroke-width="2"/>
+  <rect x="110" y="90" width="1700" height="900" rx="28" fill="none" stroke="#112235" stroke-width="1" opacity="0.9"/>
+
+  <!-- Top strip (unlabeled) -->
+  <rect x="140" y="120" width="1640" height="76" rx="18" fill="#070b10" opacity="0.70" stroke="#112235" stroke-width="1"/>
+
+  <!-- HUD blocks (unlabeled) -->
+  <g>
+    <rect x="1320" y="134" width="140" height="48" rx="12" fill="#0a111a" stroke="#112235" stroke-width="1"/>
+    <rect x="1470" y="134" width="140" height="48" rx="12" fill="#0a111a" stroke="#112235" stroke-width="1"/>
+    <rect x="1620" y="134" width="160" height="48" rx="12" fill="#0a111a" stroke="#112235" stroke-width="1"/>
+  </g>
+
+  <!-- Dialogue window chrome only -->
+  <rect x="150" y="220" width="1200" height="330" rx="22" fill="#060a10" opacity="0.80" stroke="#14283c" stroke-width="1.2"/>
+  <circle cx="170" cy="238" r="6" fill="#8f3f3f" opacity="0.9"/>
+  <circle cx="190" cy="238" r="6" fill="#8a7a3a" opacity="0.9"/>
+  <circle cx="210" cy="238" r="6" fill="#3b7e4a" opacity="0.9"/>
+
+  <!-- Choices strip -->
+  <rect x="150" y="565" width="1200" height="120" rx="22" fill="#060a10" opacity="0.74" stroke="#14283c" stroke-width="1.2"/>
+  <rect x="180" y="612" width="360" height="54" rx="16" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+  <rect x="560" y="612" width="360" height="54" rx="16" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+  <rect x="940" y="612" width="380" height="54" rx="16" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+
+  <!-- Task area -->
+  <rect x="150" y="710" width="1200" height="300" rx="22" fill="#060a10" opacity="0.80" stroke="#14283c" stroke-width="1.2"/>
+  <rect x="180" y="758" width="1140" height="56" rx="18" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+  <rect x="180" y="824" width="1140" height="132" rx="18" fill="#070d14" stroke="#13263a" stroke-width="1"/>
+  <rect x="980" y="968" width="165" height="40" rx="14" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+  <rect x="1155" y="968" width="165" height="40" rx="14" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+
+  <!-- Admin -->
+  <rect x="1385" y="220" width="435" height="240" rx="22" fill="#060a10" opacity="0.80" stroke="#14283c" stroke-width="1.2"/>
+  <rect x="1415" y="298" width="385" height="52" rx="16" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+  <rect x="1415" y="360" width="385" height="52" rx="16" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+  <rect x="1670" y="420" width="130" height="40" rx="14" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+
+  <!-- Log -->
+  <rect x="1385" y="480" width="435" height="530" rx="22" fill="#060a10" opacity="0.74" stroke="#14283c" stroke-width="1.2"/>
+  <rect x="1415" y="558" width="385" height="410" rx="18" fill="#070d14" stroke="#13263a" stroke-width="1"/>
+
+  <!-- Bottom rail -->
+  <rect x="260" y="1020" width="1400" height="18" rx="9" fill="#0b121b" stroke="#112235" stroke-width="1" opacity="0.85"/>
+</svg>
