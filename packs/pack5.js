@@ -120,13 +120,9 @@
 
   const finish = (ctx, resolve, answer) => {
     try { ctx.setAnswer?.(answer); } catch {}
-    try { ctx.taskPrimary.classList.remove("hidden"); } catch {}
     ctx.taskPrimary.textContent = "continue";
     ctx.taskPrimary.disabled = false;
-    ctx.taskPrimary.onclick = () => {
-      try { ctx.success?.(); } catch {}
-      try { resolve?.(); } catch {}
-    };
+    ctx.taskPrimary.onclick = () => resolve();
   };
 
   const wrong = (ctx, msgEl, text, reason) => {
@@ -349,6 +345,7 @@
 
       const L = scoped();
       let inside = false;
+      const armedAt = performance.now() + 3000; // read window
 
       L.on(box, "mouseenter", () => { inside = true; });
       L.on(box, "mouseleave", () => { inside = false; });
@@ -360,6 +357,12 @@
         const t = (performance.now() - start) / 1000;
         const left = Math.max(0, Math.ceil(sec - t));
         label.textContent = `time: ${left}s`;
+
+        if (performance.now() < armedAt) {
+          msg.textContent = "Move into the box…";
+          requestAnimationFrame(tick);
+          return;
+        }
 
         if (!inside) {
           wrong(ctx, msg, "You slipped.", "steady_hand slip");
