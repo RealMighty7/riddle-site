@@ -271,6 +271,8 @@
       try { await window.TTS?.unlock?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
+      // Start subtle landing campaign music once audio is unlocked.
+      try { window.Music?.setScene?.("landing"); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
@@ -612,6 +614,10 @@
         el.style.setProperty('--fy', `${ry}px`);
         el.style.setProperty('--fr', `${rz}deg`);
         el.style.setProperty('--fs', sc);
+        const dly = Math.floor(40 + Math.random()*240);
+        const dur = Math.floor(680 + Math.random()*520);
+        el.style.setProperty('--fdelay', `${dly}ms`);
+        el.style.setProperty('--fdur', `${dur}ms`);
         el.classList.add('fracture-piece');
       }
       // ramp intensity based on crack stage
@@ -1073,18 +1079,22 @@ async function emitLine(line) {
     ====================== */
     function pickFromPoolNames(poolNames, usedSet) {
       const pools = window.TASK_POOLS || {};
+      // Back-compat aliases: older plan configs may refer to pack6/pack7.
+      const alias = (n) => (n === "pack6" ? "phase2_pack6" : (n === "pack7" ? "phase2_pack7" : n));
       const flat = [];
       for (const pn of poolNames) {
-        const arr = pools[pn];
+        const key = alias(pn);
+        const arr = pools[key];
         if (Array.isArray(arr)) {
-          for (const id of arr) if (id && !usedSet.has(id)) flat.push({ id, pool: pn });
+          for (const id of arr) if (id && !usedSet.has(id)) flat.push({ id, pool: key });
         }
       }
       if (!flat.length) {
         // allow repeats if we somehow exhausted
         for (const pn of poolNames) {
-          const arr = pools[pn];
-          if (Array.isArray(arr)) for (const id of arr) if (id) flat.push({ id, pool: pn });
+        const key = alias(pn);
+          const arr = pools[key];
+          if (Array.isArray(arr)) for (const id of arr) if (id) flat.push({ id, pool: key });
         }
       }
       if (!flat.length) return null;
@@ -1096,7 +1106,7 @@ async function emitLine(line) {
       const totalTasks = plan.totalTasks || 20;
       const phase1Count = plan.phase1Count || 10;
       const phase1Pools = plan.phase1Pools || ["pack1","pack2","pack3","pack4","pack5"];
-      const phase2Pools = plan.phase2Pools || ["pack6","pack7"];
+      const phase2Pools = plan.phase2Pools || ["phase2_pack6","phase2_pack7","pack6","pack7"];
 
       await playLines(plan.intro || DIALOGUE.intro || []);
 
@@ -1124,7 +1134,7 @@ async function emitLine(line) {
         }
 
         // UI tag line (visual only)
-        await emitLine(`UI: [ TASK ${i}/${totalTasks} ]`);
+        // (removed) task ordinal UI text — keep progression invisible to the player.
 
         const pools = (i <= phase1Count) ? phase1Pools : phase2Pools;
         const picked = pickFromPoolNames(pools, used);
