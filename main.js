@@ -271,9 +271,6 @@
       try { await window.TTS?.unlock?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
-      // Landing must remain silent. Do not start music here.
-      // Music begins only after entering the simulation room.
-      try { window.Music?.setScene?.("landing"); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
@@ -503,17 +500,6 @@
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
         ctx.stroke();
 
-        // subtle “refraction/duplicate” pass (faint ghost line offset) to sell reflection near fractures
-        ctx.globalCompositeOperation = "screen";
-        ctx.globalAlpha = 0.10 + crackState.stage * 0.02;
-        ctx.strokeStyle = "rgba(210,235,255,0.25)";
-        ctx.lineWidth = (2.0 + (crackState.stage - 1) * 0.25) * dpr;
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x - 2.2 * dpr, pts[0].y + 1.8 * dpr);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 2.2 * dpr, pts[i].y + 1.8 * dpr);
-        ctx.stroke();
-        ctx.globalCompositeOperation = "source-over";
-
         ctx.globalAlpha = 0.92;
         ctx.shadowBlur = 2.2 * dpr;
       }
@@ -729,10 +715,10 @@ async function shatterAndEnterSim() {
       document.querySelectorAll('.fracture-piece').forEach((el)=>{ el.classList.remove('fracture-piece'); el.style.removeProperty('--fx'); el.style.removeProperty('--fy'); el.style.removeProperty('--fr'); el.style.removeProperty('--fs'); });
 
       document.body.classList.add("cut-black");
-      await wait(140);
-      await openSimRoom();
-      await wait(80);
+      await wait(160);
       document.body.classList.remove("cut-black");
+
+      await openSimRoom();
 
       document.body.classList.remove("sim-transition");
     }
@@ -804,7 +790,7 @@ async function shatterAndEnterSim() {
 
 
     function makeAdminDraggable(panel) {
-      const handle = panel.querySelector(".adminDrag") || panel;
+      const handle = panel.querySelector("#adminDragHandle") || panel.querySelector(".adminLeft") || panel;
       const POS_KEY = "tnr_admin_pos_v1";
       try {
         const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
@@ -829,8 +815,10 @@ async function shatterAndEnterSim() {
       };
       const onMove = (e) => {
         if (!drag) return;
-        const x = clamp(e.clientX - drag.dx, 8, window.innerWidth - 260);
-        const y = clamp(e.clientY - drag.dy, 8, window.innerHeight - 80);
+        const pw = panel.offsetWidth || 340;
+        const ph = panel.offsetHeight || 140;
+        const x = clamp(e.clientX - drag.dx, 8, window.innerWidth - pw - 8);
+        const y = clamp(e.clientY - drag.dy, 8, window.innerHeight - ph - 8);
         panel.style.position = "fixed";
         panel.style.left = x + "px";
         panel.style.top = y + "px";
@@ -894,6 +882,7 @@ async function shatterAndEnterSim() {
       btn.addEventListener("click", async () => {
         try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
         await unlockAudio();
+        try { window.Music?.setScene?.("sim"); } catch {}
         if (status) status.textContent = "status: viewer staged";
         if (box) box.classList.remove("hidden");
         if (keyInput) keyInput.focus();
@@ -942,11 +931,6 @@ async function shatterAndEnterSim() {
     }
 
     
-    // Chorus variety guard
-    let __LAST_SPK__ = null;
-    let __LAST_SPK_N__ = 0;
-
-
 function resolveLineForPath(line) {
   // line can be a string OR an object like { system:"System: ...", emma:"Emma: ...", liam:"Liam: ..." }
   // We *do not* hard-lock to a single guide voice; instead we pick based on resistance/compliance balance
@@ -979,14 +963,6 @@ function resolveLineForPath(line) {
     wEmma += 0.15; wSystem += 0.10; wLiam += 0.10;
     const sum = wEmma + wSystem + wLiam;
     wEmma /= sum; wSystem /= sum; wLiam /= sum;
-
-    // Prevent one speaker from dominating for long streaks
-    const penalize = (__LAST_SPK_N__ >= 2) ? 0.35 : (__LAST_SPK_N__ === 1 ? 0.65 : 1.0);
-    if (__LAST_SPK__ === "system") wSystem *= penalize;
-    if (__LAST_SPK__ === "emma") wEmma *= penalize;
-    if (__LAST_SPK__ === "liam") wLiam *= penalize;
-    const sum2 = wEmma + wSystem + wLiam;
-    wEmma /= sum2; wSystem /= sum2; wLiam /= sum2;
 
     const roll = Math.random();
     const picked = (roll < wSystem) ? (sys ?? def ?? em ?? li)
@@ -1148,38 +1124,17 @@ async function emitLine(line) {
       }
 
       for (let i = 1; i <= totalTasks; i++) {
-              if (ABORTED) return;
+        if (ABORTED) return;
 
-        // pre-task story beat (dialogue)
+        // pre-task story beat
         const beatPool = plan.taskBeats || DIALOGUE.taskBeats || [];
         if (beatPool.length) {
           const beat = beatPool[(i - 1) % beatPool.length];
           await playLines(Array.isArray(beat) ? beat : [beat]);
         }
 
-        // Choice BEFORE every task (mirror cycle)
-        const perChoice = plan.choiceEachTask || plan.firstChoice;
-        if (perChoice) {
-          const res = await showChoice(perChoice);
-          choiceTotal++;
-
-          if (res === "comply") compliancePoints += 1;
-          if (res === "resist") resistancePoints += 1;
-          if (res === "full") resistancePoints += 2;
-
-          hudUpdate();
-
-          // Optional after-choice beat
-          const afterChoice = plan.afterChoiceEachTask || plan.afterEachChoice;
-          if (afterChoice) {
-            const pick = (res === "comply") ? afterChoice.comply : (res === "full") ? afterChoice.full : afterChoice.resist;
-            if (pick) await playLines(Array.isArray(pick) ? pick : [pick]);
-          } else if (Array.isArray(plan.afterFirstChoice) && plan.afterFirstChoice.length) {
-            // use a short slice so it doesn't feel identical every time
-            const ix = (i - 1) % plan.afterFirstChoice.length;
-            await playLines([plan.afterFirstChoice[ix]]);
-          }
-        }
+        // UI tag line (visual only)
+        // (removed) task ordinal UI text — keep progression invisible to the player.
 
         const pools = (i <= phase1Count) ? phase1Pools : phase2Pools;
         const picked = pickFromPoolNames(pools, used);
@@ -1192,37 +1147,11 @@ async function emitLine(line) {
         // args include pool info for the admin panel
         const poolArr = (window.TASK_POOLS && Array.isArray(window.TASK_POOLS[picked.pool])) ? window.TASK_POOLS[picked.pool] : [];
         const idx = poolArr.indexOf(picked.id);
-
         await runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i, total: totalTasks });
-
-        // Resolve AFTER every task (mirror cycle)
-        const resolvePool = plan.taskResolveBeats || DIALOGUE.taskResolveBeats || null;
-        if (Array.isArray(resolvePool) && resolvePool.length) {
-          const rb = resolvePool[(i - 1) % resolvePool.length];
-          await playLines(Array.isArray(rb) ? rb : [rb]);
-        } else {
-          await playLines([{
-            system: "System: CHECK REGISTERED. CONTINUE.",
-            emma: "Emma (Security): Don’t drift. Next one.",
-            liam: "Liam (Worker): Good. Keep it messy—controlled."
-          }]);
-        }
-runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i, total: totalTasks });
       }
 
       // End-of-phase beat (hack/escape gating is handled elsewhere in your codebase)
       if (Array.isArray(plan.afterTasks)) await playLines(plan.afterTasks);
-
-      // After tasks: enter hack room (final hack)
-      try {
-        hackRoom.classList.remove("hidden");
-        taskUI.classList.add("hidden");
-        simChoices.classList.add("hidden");
-        // Music scene for hack
-        try { window.Music?.setScene?.("hack"); } catch {}
-      } catch {}
-      await runTask("hack_final", { user: (simState && simState.discordUser) ? simState.discordUser : "" });
-
     }
 
     /* ======================
@@ -1449,8 +1378,10 @@ async function runTask(taskId, args) {
 
       try {
         await fn(ctx, args);
-        // IMPORTANT: tasks must call ctx.success() themselves.
-        // If a task returns early, we simply wait for ctx.success() (or timeout/reset).
+        if (!done) {
+          // If task returned without calling success/penalize, treat as success
+          ctx.success();
+        }
       } catch (e) {
         console.error(e);
         doReset("TASK ERROR", String(e && e.message ? e.message : e));
@@ -1466,6 +1397,7 @@ async function runTask(taskId, args) {
       simRoom.classList.remove("hidden");
 
       // back to sim scene
+      try { window.Music?.setScene?.("sim"); } catch {}
       console.debug("[TNR] task:end", taskId);
 
       await wait(120);
