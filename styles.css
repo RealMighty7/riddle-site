@@ -296,10 +296,11 @@ body.in-sim::before{
   inset: 0;
   pointer-events: none;
   z-index: 100;
-  background: url("/assets/monitor_ui.svg") center/cover no-repeat;
-  opacity: 0.95;
-  mix-blend-mode: screen;
-  filter: contrast(1.05) brightness(1.02);
+  /* Clean overlay frame (fills included) */
+  background: url("/assets/monitor_ui_clean.svg") center/cover no-repeat;
+  opacity: 0.92;
+  mix-blend-mode: normal;
+  filter: contrast(1.02) brightness(0.98);
 }
 
 /* Different "modes" slightly tint the monitor */
