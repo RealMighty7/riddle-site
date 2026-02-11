@@ -138,39 +138,78 @@ const BASE = {
   };
 }
 
-  // System background bed (low volume ambience) — only audible while system speaks
-  // System background bed (low volume static) — only audible while system speaks
-  const bed = new Audio("/assets/static2.wav");
-  bed.loop = true;
-  bed.volume = 0;
-  bed.preload = "auto";
+  // System background bed (continuous hum) — audible while system speaks.
+// Implemented as WebAudio filtered noise (no obvious loop).
+let _noiseCtx = null;
+let _noiseSrc = null;
+let _noiseGain = null;
+let _noiseLP = null;
+let _noiseHP = null;
 
-  // Instant on/off (NO fade) — only audible while system speaks
-let _bedGlitchTimer = null;
+function _ensureNoise() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!_noiseCtx) _noiseCtx = new AC();
+
+  if (!_noiseGain) {
+    _noiseGain = _noiseCtx.createGain();
+    _noiseGain.gain.value = 0;
+
+    _noiseHP = _noiseCtx.createBiquadFilter();
+    _noiseHP.type = "highpass";
+    _noiseHP.frequency.value = 60;
+
+    _noiseLP = _noiseCtx.createBiquadFilter();
+    _noiseLP.type = "lowpass";
+    _noiseLP.frequency.value = 900;
+
+    _noiseHP.connect(_noiseLP);
+    _noiseLP.connect(_noiseGain);
+    _noiseGain.connect(_noiseCtx.destination);
+  }
+
+  if (!_noiseSrc) {
+    // Long buffer to avoid perceptible looping.
+    const seconds = 12;
+    const sr = _noiseCtx.sampleRate || 48000;
+    const buf = _noiseCtx.createBuffer(1, seconds * sr, sr);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      // White noise with very slight bias to feel more like "air/hum" than static.
+      data[i] = (Math.random() * 2 - 1) * 0.65 + (Math.random() * 2 - 1) * 0.05;
+    }
+    _noiseSrc = _noiseCtx.createBufferSource();
+    _noiseSrc.buffer = buf;
+    _noiseSrc.loop = true;
+    _noiseSrc.connect(_noiseHP);
+    try { _noiseSrc.start(0, Math.random() * 3.0); } catch {}
+  }
+
+  return _noiseCtx;
+}
+
 async function bedOn() {
-  try { if (bed.paused) await bed.play(); } catch {}
-  bed.volume = 0.11;
-  // tiny intermittent glitch clicks while the system speaks (kept very subtle)
+  const ctx = _ensureNoise();
+  if (!ctx || !_noiseGain) return;
+  try { if (ctx.state === "suspended") await ctx.resume(); } catch {}
+  const t = ctx.currentTime;
   try {
-    if (_bedGlitchTimer) return;
-    _bedGlitchTimer = setInterval(() => {
-      try {
-        if (bed.volume <= 0.001) return;
-        // 12% chance per tick
-        if (Math.random() < 0.12 && window.playSfx) window.playSfx("staticSoft", { volume: 0.05, overlap: true });
-      } catch {}
-    }, 420);
+    _noiseGain.gain.cancelScheduledValues(t);
+    _noiseGain.gain.setValueAtTime(_noiseGain.gain.value, t);
+    _noiseGain.gain.linearRampToValueAtTime(0.12, t + 0.06);
   } catch {}
 }
+
 function bedOff() {
-  bed.volume = 0;
-  try { if (_bedGlitchTimer) { clearInterval(_bedGlitchTimer); _bedGlitchTimer = null; } } catch {}
-  // pause shortly after so it can’t get “stuck” audible
+  if (!_noiseCtx || !_noiseGain) return;
+  const t = _noiseCtx.currentTime;
   try {
-    clearTimeout(bedOff._t);
-    bedOff._t = setTimeout(() => { try { bed.pause(); } catch {} }, 220);
+    _noiseGain.gain.cancelScheduledValues(t);
+    _noiseGain.gain.setValueAtTime(_noiseGain.gain.value, t);
+    _noiseGain.gain.linearRampToValueAtTime(0.0, t + 0.08);
   } catch {}
 }
+
 
   // Queue
   let voiceMap = null;
