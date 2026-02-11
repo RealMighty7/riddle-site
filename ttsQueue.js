@@ -121,14 +121,14 @@ const BASE = {
   // Emma: Erin-like (closest available in browser), stern + cold
   emma:   { rate: 0.99, pitch: 0.98, volume: 1.00 },
   // Liam: Microsoft Mark (en-US), hushed + urgent
-  liam:   { rate: 1.12, pitch: 1.06, volume: 0.72 },
+  liam:   { rate: 1.02, pitch: 1.00, volume: 0.84 },
 };
 
 
   // Subtle “humanization” jitter per utterance
   function withJitter(base, speaker) {
   // Keep identities locked; only tiny micro-variation to avoid “robotic” cadence.
-  const j = speaker === "system" ? 0.0 : 0.008;
+  const j = speaker === "system" ? 0.0 : (speaker === "liam" ? 0.014 : 0.008);
   const r = base.rate * (1 + (Math.random() * 2 - 1) * j);
   const p = base.pitch + (Math.random() * 2 - 1) * (speaker === "system" ? 0.0 : 0.015);
   return {
@@ -139,18 +139,32 @@ const BASE = {
 }
 
   // System background bed (low volume ambience) — only audible while system speaks
-  const bed = new Audio("/assets/ambience.wav");
+  // System background bed (low volume static) — only audible while system speaks
+  const bed = new Audio("/assets/static2.wav");
   bed.loop = true;
   bed.volume = 0;
   bed.preload = "auto";
 
   // Instant on/off (NO fade) — only audible while system speaks
+let _bedGlitchTimer = null;
 async function bedOn() {
   try { if (bed.paused) await bed.play(); } catch {}
-  bed.volume = 0.10;
+  bed.volume = 0.14;
+  // tiny intermittent glitch clicks while the system speaks (kept very subtle)
+  try {
+    if (_bedGlitchTimer) return;
+    _bedGlitchTimer = setInterval(() => {
+      try {
+        if (bed.volume <= 0.001) return;
+        // 12% chance per tick
+        if (Math.random() < 0.12 && window.playSfx) window.playSfx("staticSoft", { volume: 0.05, overlap: true });
+      } catch {}
+    }, 420);
+  } catch {}
 }
 function bedOff() {
   bed.volume = 0;
+  try { if (_bedGlitchTimer) { clearInterval(_bedGlitchTimer); _bedGlitchTimer = null; } } catch {}
   // keep it playing silently to avoid autoplay re-blocking
 }
 
