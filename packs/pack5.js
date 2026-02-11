@@ -154,7 +154,10 @@
       msg.style.color = "rgba(255,190,190,.95)";
       ctx.taskBody.appendChild(msg);
 
-      const flashMs = clamp(1100 - (ctx.difficultyBoost?.() ?? 0) * 90, 420, 1100);
+            // Memorize window: base 10s, reduced 5% per resistance point
+      const r = Number(ctx.getResistance?.() ?? 0);
+      const memSec = Math.max(2.5, Math.min(10, 10 * (1 - 0.05 * r)));
+      const flashMs = Math.floor(memSec * 1000);
       display.textContent = `code: ${code}`;
       await wait(flashMs);
       display.textContent = "code: ••••";
@@ -209,12 +212,26 @@
     // 2) Wire cut — pick safe wire
     wire_cut: async (ctx) => {
       begin(ctx, "WIRES", "Cut the safe wire. One cut only.");
-      const wires = shuffle(["RED", "BLUE", "GREEN", "WHITE"]);
+            const wires = shuffle(["RED", "BLUE", "GREEN", "WHITE"]);
       const safe = "WHITE";
       ctx.setAnswer?.(safe);
 
-      const msg = note("");
+      // No guessing: player must scan first, then cut.
+      let scanned = false;
+const msg = note("");
       msg.style.color = "rgba(255,190,190,.95)";
+
+      const scan = el("button", "sim-btn", "scan");
+      scan.style.marginTop = "12px";
+      scan.onclick = () => {
+        if (scanned) return;
+        scanned = true;
+        msg.style.color = "rgba(232,237,247,0.85)";
+        msg.textContent = "Scan complete. Continuity stable on WHITE.";
+        // enable cut buttons
+        ctx.taskBody.querySelectorAll("button[data-wire]").forEach((b) => (b.disabled = false));
+      };
+      ctx.taskBody.appendChild(scan);
 
       const row = el("div");
       row.style.marginTop = "12px";
@@ -226,7 +243,14 @@
 
       wires.forEach((w) => {
         const b = el("button", "sim-btn", `cut ${w}`);
+        b.dataset.wire = "1";
+        b.disabled = true;
         b.onclick = () => {
+          if (!scanned) {
+            msg.style.color = "rgba(255,190,190,.95)";
+            msg.textContent = "Scan first. One cut only.";
+            return;
+          }
           if (w !== safe) return wrong(ctx, msg, "Wrong wire. Surge detected.", "wire surge");
           msg.style.color = "rgba(232,237,247,0.85)";
           msg.textContent = "Safe wire cut.";
