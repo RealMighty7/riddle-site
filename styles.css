@@ -65,7 +65,7 @@ body.crack4 #glassFX::before{ opacity:0.42; }
   0%   { transform: translate(0,0) rotate(0deg) scale(1); filter: blur(0px); opacity: 1; }
   30%  { filter: blur(0.6px) contrast(1.05); }
   60%  { opacity: 0.9; }
-  100% { transform: translate(var(--fx,0), calc(var(--fy,0) + 140px)) rotate(calc(var(--fr,0deg) * 1.6)) scale(var(--fs,1)); opacity: 0.0; filter: blur(1.2px) contrast(1.2); }
+  100% { transform: translate(calc(var(--fx,0) * 1.05), calc(var(--fy,0) + 220px)) rotate(calc(var(--fr,0deg) * 2.1)) scale(var(--fs,1)); opacity: 0.0; filter: blur(1.4px) contrast(1.25); }
 }
 
 @keyframes triGlitch {
@@ -87,7 +87,8 @@ body.page-fracture #wrap{
 
 body.page-fracture .fracture-piece{
   opacity: 0.95;
-  animation: fractureFall 760ms cubic-bezier(.2,.8,.2,1) both;
+  animation: fractureFall var(--fdur,760ms) cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: var(--fdelay,0ms);
 }
 
 /* PNG CRACK OVERLAY */
