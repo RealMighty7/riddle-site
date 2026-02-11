@@ -70,6 +70,8 @@
       "taskActions",
       "timestamp",
       "build",
+
+      // HUD
       "hud",
       "hudCompliance",
       "hudResistance",
@@ -139,7 +141,7 @@
     const subsName = els.subsName;
     const subsText = els.subsText;
 
-    // HUD (bottom)
+    /* ====================== HUD (compliance/resistance/timer) ====================== */
     const hud = els.hud;
     const hudCompliance = els.hudCompliance;
     const hudResistance = els.hudResistance;
@@ -148,17 +150,49 @@
     const hudResistanceTxt = els.hudResistanceTxt;
     const hudTimerTxt = els.hudTimerTxt;
 
+    function hudShow(on) {
+      if (!hud) return;
+      hud.classList.toggle("hidden", !on);
+      hud.setAttribute("aria-hidden", on ? "false" : "true");
+    }
+
+    function hudFmtMs(ms) {
+      const t = Math.max(0, Math.floor(ms / 1000));
+      const m = Math.floor(t / 60);
+      const s = t % 60;
+      return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    }
+
+    let __HUD_TIMER_TOTAL__ = 150000;
+    let __HUD_TIMER_LEFT__ = 150000;
+
+    function hudSetTimer(leftMs, totalMs) {
+      if (Number.isFinite(totalMs)) __HUD_TIMER_TOTAL__ = Math.max(1, Math.floor(totalMs));
+      if (Number.isFinite(leftMs)) __HUD_TIMER_LEFT__ = Math.max(0, Math.floor(leftMs));
+      if (hudTimer) {
+        const pct = Math.max(0, Math.min(1, __HUD_TIMER_LEFT__ / __HUD_TIMER_TOTAL__));
+        hudTimer.style.width = (pct * 100).toFixed(1) + "%";
+      }
+      if (hudTimerTxt) hudTimerTxt.textContent = hudFmtMs(__HUD_TIMER_LEFT__);
+    }
+
+    function hudUpdate() {
+      // Bars are relative to total points accumulated this run.
+      const c = Math.max(0, Number(compliancePoints) || 0);
+      const r = Math.max(0, Number(resistancePoints) || 0);
+      const tot = Math.max(1, c + r);
+      const cp = c / tot;
+      const rp = r / tot;
+      if (hudCompliance) hudCompliance.style.width = (cp * 100).toFixed(1) + "%";
+      if (hudResistance) hudResistance.style.width = (rp * 100).toFixed(1) + "%";
+      if (hudComplianceTxt) hudComplianceTxt.textContent = String(Math.floor(c));
+      if (hudResistanceTxt) hudResistanceTxt.textContent = String(Math.floor(r));
+    }
+
     resetOverlay.classList.add("hidden");
     systemBox.textContent = "This page is currently under revision.";
 
     /* ====================== ABORT FLAG ====================== */
-    function dbg(msg, data) {
-      try {
-        if (data !== undefined) console.log("[TNR]", msg, data);
-        else console.log("[TNR]", msg);
-      } catch {}
-    }
-
     let ABORTED = false;
 
     /* ====================== SFX ====================== */
@@ -254,23 +288,6 @@
     }
 
     /* ====================== STATE ====================== */
-    // Activity tracking for contextual dialogue
-    let simLastInputAt = 0;
-    let simInputBurst = 0;
-    let simBurstWindowAt = 0;
-    function markSimInput() {
-      const now = performance.now();
-      simLastInputAt = now;
-      if (now - simBurstWindowAt > 2200) { simBurstWindowAt = now; simInputBurst = 0; }
-      simInputBurst++;
-    }
-    document.addEventListener("pointerdown", () => {
-      if (document.body.classList.contains("in-sim")) markSimInput();
-    }, { passive: true });
-    document.addEventListener("keydown", () => {
-      if (document.body.classList.contains("in-sim")) markSimInput();
-    }, { passive: true });
-
     let stage = 1;
     let clicks = 0;
     let lastClick = 0;
@@ -288,7 +305,6 @@
     let choiceTotal = 0;
     let compliancePoints = 0;
     let resistancePoints = 0;
-    let wrongCount = 0;
 
     /* ======================
        CANVAS CRACKS (NO cracksImg)
@@ -472,22 +488,6 @@
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.stroke();
-
-        // cyan fringe (refraction)
-        ctx.globalAlpha = 0.16 + crackState.stage * 0.02;
-        ctx.strokeStyle = "rgba(90,255,255,0.35)";
-        ctx.lineWidth = (1.0 + (crackState.stage - 1) * 0.25) * dpr;
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x + 1.8 * dpr, pts[0].y);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 1.8 * dpr, pts[i].y);
-        ctx.stroke();
-
-        ctx.globalAlpha = 0.12 + crackState.stage * 0.02;
-        ctx.strokeStyle = "rgba(255,90,255,0.28)";
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x - 1.6 * dpr, pts[0].y);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 1.6 * dpr, pts[i].y);
         ctx.stroke();
 
         // bright edge highlight
@@ -705,8 +705,6 @@ async function shatterAndEnterSim() {
       await runTriGlitch(980);
 
       setCrackStage(0);
-      try { crackState.paths = []; crackState.origins = []; } catch {}
-
       document.body.classList.remove("shatter-burst");
       document.body.classList.remove("glitch-storm");
       document.body.classList.remove('page-fracture');
@@ -746,16 +744,6 @@ async function shatterAndEnterSim() {
 
       clicks++;
       playSfx("mclick", { volume: 0.30, overlap: true });
-
-      // store click-origin for crack generation
-      try {
-        const rect = cracksCanvas.getBoundingClientRect();
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        const x = (e.clientX - rect.left) * dpr;
-        const y = (e.clientY - rect.top) * dpr;
-        crackState.origins.push({ x, y });
-        if (crackState.origins.length > 6) crackState.origins.shift();
-      } catch {}
 
       // Click-origin cracks: every click can seed (stage 1+ uses these).
       try { addCrackSeed(pointerToCanvasPoint(e)); } catch {}
@@ -888,7 +876,7 @@ async function shatterAndEnterSim() {
       btn.addEventListener("click", async () => {
         try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
         await unlockAudio();
-                // Do NOT start simulation music on landing.
+        try { window.Music?.setScene?.("sim"); } catch {}
         if (status) status.textContent = "status: viewer staged";
         if (box) box.classList.remove("hidden");
         if (keyInput) keyInput.focus();
@@ -983,45 +971,40 @@ function resolveLineForPath(line) {
 
 async function emitLine(line) {
       if (ABORTED) return;
-
-      let raw = resolveLineForPath(line);
-
-      // contextual replacement (keeps illusion)
-      try {
-        const now = performance.now();
-        const idleMs = now - (simLastInputAt || now);
-        const active = simInputBurst >= 5;
-
-        if (/click was logged/i.test(raw) && idleMs > 3200) {
-          raw = raw.replace(/click was logged\.?/ig, "no input was logged.");
-        }
-        if (/that click/i.test(raw) && idleMs > 3200) {
-          raw = raw.replace(/that click/ig, "that hesitation");
-        }
-        if (/stay still/i.test(raw) && active) {
-          raw = raw.replace(/stay still/ig, "stop moving.");
-        }
-        if (/don'?t touch anything/i.test(raw) && active) {
-          raw = raw.replace(/don'?t touch anything/ig, "hands off. now.");
-        }
-      } catch {}
-
-      const printed = String(raw || "").replace(/^\s*\[\d{1,4}\]\s*/, "");
+      const raw = resolveLineForPath(line);
+      const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
       const { speaker, text } = parseSpeakerAndText(raw);
 
-      // Type it at a pace locked to speech queue start (typed == spoken)
-      // We wait for the TTS queue to start the utterance, then type over its estimated duration.
-      let speechMs = msToRead(raw);
+      // UI/meta lines should appear instantly and never be spoken.
+      const isUi = /^UI$/i.test(String(speaker || "")) || /^UI\s*:/i.test(String(printed || ""));
+      if (isUi) {
+        const uiText = String(printed || "").replace(/^UI\s*:\s*/i, "");
+        simText.textContent += uiText + "\n";
+        simText.scrollTop = simText.scrollHeight;
+        return;
+      }
+
+      // Start speech FIRST (so typing can sync with audio as it plays)
+      let speakP = null;
       try {
-        const est = window.TTS?.estimateMs?.(String(text || ""));
-        if (Number.isFinite(est) && est > 300) speechMs = est;
+        if (window.TTS?.enqueueAsync) speakP = window.TTS.enqueueAsync(String(text || "").trim(), { speaker });
+        else if (window.TTS?.enqueue) { window.TTS.enqueue(String(text || "").trim(), { speaker }); }
       } catch {}
 
-      // enqueue speech first; returns immediately, but we can ask if queue is active
-      try { window.TTS?.enqueue?.(String(text || "").trim(), { speaker }); } catch {}
+      // Estimate duration using tuning rate when available
+      let ms = Math.floor(msToRead(raw) * 1.15);
+      try {
+        const t = window.TTS?.getTuning?.(speaker);
+        const m = (t && t.rate) ? String(t.rate).trim().match(/([+-]?\d+(?:\.\d+)?)%/) : null;
+        if (m) {
+          const pct = parseFloat(m[1]);
+          const mult = Math.max(0.55, Math.min(1.6, 1 + pct / 100)); // speech rate factor
+          ms = Math.floor(ms / mult);
+        }
+      } catch {}
 
       const chars = [...printed];
-      const per = speechMs / Math.max(1, chars.length);
+      const per = ms / Math.max(1, chars.length);
 
       for (const ch of chars) {
         if (ABORTED) return;
@@ -1032,11 +1015,12 @@ async function emitLine(line) {
       simText.textContent += "\n";
       simText.scrollTop = simText.scrollHeight;
 
-      // small buffer so lines don’t collide
-      await wait(80);
+      // If speech is longer than typing, wait a little so it doesn't feel desynced
+      try { if (speakP) await Promise.race([speakP, wait(800)]); } catch {}
     }
 
-async function playLines(lines) {
+
+    async function playLines(lines) {
       for (const line of lines || []) {
         if (ABORTED) return;
         await emitLine(line);
@@ -1058,9 +1042,6 @@ async function playLines(lines) {
       } catch {}
 
       document.body.classList.add("in-sim");
-      hudUpdate();
-      try { if (hudTimer) hudTimer.style.width = "100%"; if (hudTimerTxt) hudTimerTxt.textContent = "02:30"; } catch {}
-
       subs?.classList.remove("hidden");
       hudShow(true);
       hudUpdate();
@@ -1142,6 +1123,8 @@ async function playLines(lines) {
           await playLines(Array.isArray(beat) ? beat : [beat]);
         }
 
+        // UI tag line (visual only)
+        await emitLine(`UI: [ TASK ${i}/${totalTasks} ]`);
 
         const pools = (i <= phase1Count) ? phase1Pools : phase2Pools;
         const picked = pickFromPoolNames(pools, used);
@@ -1255,49 +1238,6 @@ async function runTask(taskId, args) {
       taskPrimary.classList.add("hidden");
       taskSecondary.classList.add("hidden");
 
-      dbg("Task start", { taskId, ordinal: taskOrdinal });
-
-      // ===== Task timer / scoring =====
-      const TASK_TIMER_MS = 150000; // 2m30s
-      const taskOrdinal = Number(args && args.ordinal) || 0;
-      const totalTasks = Number(args && args.total) || 20;
-
-      // Music state
-      try {
-        window.Music?.setTaskIndex?.(taskOrdinal);
-        window.Music?.setTasksDone?.(window.__SIM_STATE__?.tasksDone || 0);
-        window.Music?.setScores?.(compliancePoints, resistancePoints);
-        window.Music?.setScene?.("task");
-      } catch {}
-
-      let taskStartAt = performance.now();
-      let taskTimerAbort = false;
-      const speedMul = () => 1 + (resistancePoints * 0.05); // each resistance point -> 5% faster bar
-      const fmt = (ms) => {
-        ms = Math.max(0, Math.floor(ms));
-        const s = Math.floor(ms / 1000);
-        const mm = String(Math.floor(s / 60)).padStart(2,"0");
-        const ss = String(s % 60).padStart(2,"0");
-        return `${mm}:${ss}`;
-      };
-
-      (function timerTick(){
-        if (ABORTED || taskTimerAbort) return;
-        const elapsed = (performance.now() - taskStartAt) * speedMul();
-        const left = Math.max(0, TASK_TIMER_MS - elapsed);
-        const p = clamp(left / TASK_TIMER_MS, 0, 1);
-        try {
-          if (hudTimer) hudTimer.style.width = `${Math.round(p*100)}%`;
-          if (hudTimerTxt) hudTimerTxt.textContent = fmt(left);
-        } catch {}
-        if (left <= 0) {
-          dbg("task timer expired", { taskId, taskOrdinal });
-          doReset("TIMEOUT", "Task timer expired.");
-          return;
-        }
-        requestAnimationFrame(timerTick);
-      })();
-
       // Admin panel metadata
       try {
         if (els.adminTask) {
@@ -1376,35 +1316,35 @@ async function runTask(taskId, args) {
         success: () => {
           if (done) return;
           done = true;
+          timerStop = true;
 
-          // score: right on first try => +1 compliance
-          if (attempts === 0) compliancePoints += 1;
+          // scoring: first-try success = +1 compliance
+          if (wrong === 0) compliancePoints += 1;
+          console.debug("[TNR] task:success", taskId, { wrong });
+
+          // tasks completed
+          simState.tasksDone = Math.max(0, (simState.tasksDone || 0)) + 1;
+          try { window.Music?.setTasksDone?.(simState.tasksDone); } catch {}
+
           hudUpdate();
-          try { window.Music?.setScores?.(compliancePoints, resistancePoints); } catch {}
-
-          // task progression
-          simState.tasksDone = Math.max(0, Math.floor(simState.tasksDone || 0)) + 1;
-          try {
-            window.Music?.setTasksDone?.(simState.tasksDone);
-          } catch {}
-
           resolver(true);
         },
 
         penalize: () => {
-          // wrong attempt: +3 resistance, speed timer, strike counter
-          try { playSfx("mclick", { volume: 0.25, overlap: true }); } catch {}
-          wrongCount += 1;
-          attempts += 1;
+          if (done) return;
+          wrong++;
           resistancePoints += 3;
+          console.debug("[TNR] task:wrong", taskId, { wrong });
+
           hudUpdate();
-          try { window.Music?.setScores?.(compliancePoints, resistancePoints); } catch {}
+
+          try { playSfx("mclick", { volume: 0.25, overlap: true }); } catch {}
           taskUI.classList.add("task-bad");
           setTimeout(() => taskUI.classList.remove("task-bad"), 180);
 
-          if (wrongCount >= 3) {
-            dbg("3 wrong attempts -> reset", { taskId });
-            doReset("CAUGHT", "Too many failed attempts.");
+          if (wrong >= 3) {
+            console.debug("[TNR] task:fail3_reset", taskId);
+            doReset("CAUGHT", "Too many incorrect attempts.");
           }
         },
 
