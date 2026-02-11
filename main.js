@@ -717,7 +717,11 @@ async function shatterAndEnterSim() {
       document.body.classList.add("cut-black");
       // Pre-stage sim styling while black (prevents landing flash)
       try { els.system && els.system.classList.add("hidden"); } catch {}
+      // Enter sim visual state BEFORE un-hiding sim room to prevent landing flash.
       document.body.classList.add("in-sim");
+      try { els.system?.classList?.add("hidden"); } catch {}
+      try { document.body.classList.remove("landing-bright"); } catch {}
+
       await wait(160);
       document.body.classList.remove("cut-black");
 
@@ -885,7 +889,6 @@ async function shatterAndEnterSim() {
       btn.addEventListener("click", async () => {
         try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
         await unlockAudio();
-        try { window.Music?.setScene?.("sim"); } catch {}
         if (status) status.textContent = "status: viewer staged";
         if (box) box.classList.remove("hidden");
         if (keyInput) keyInput.focus();
@@ -1070,7 +1073,11 @@ async function emitLine(line) {
         window.Music?.setTasksDone?.(window.__SIM_STATE__?.tasksDone || 0);
       } catch {}
 
+      // Enter sim visual state BEFORE un-hiding sim room to prevent landing flash.
       document.body.classList.add("in-sim");
+      try { els.system?.classList?.add("hidden"); } catch {}
+      try { document.body.classList.remove("landing-bright"); } catch {}
+
       subs?.classList.remove("hidden");
       hudShow(true);
       hudUpdate();
@@ -1218,6 +1225,17 @@ async function emitLine(line) {
         // task
         await runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i + 1, total: totalTasks });
 
+        // After the first 10 tasks, force the final hack (delete lines) before continuing.
+        if (i === (phase1Count - 1)) {
+          const st = window.__SIM_STATE__ || {};
+          if (!st.__hack_done__) {
+            st.__hack_done__ = true;
+            await playLines(["System: FINAL CHECK REQUIRED.", "System: OPENING RESTRICTED TERMINAL."]);
+            await runTask("hack_final", { pack: "final", ordinal: "hack", total: totalTasks });
+            await playLines(["System: TERMINAL CLOSED. CONTINUE."]);
+          }
+        }
+
         // resolve (based on whether the last task had wrong attempts)
         const simState = window.__SIM_STATE__ || {};
         const lastWrong = Number(simState.lastWrong || 0);
@@ -1232,8 +1250,8 @@ async function emitLine(line) {
 /* ======================
        STEPS RUNNER (dialogue → choice → task)
     ====================== */
-    let __ADMIN_CAN_SKIP__ = false;
-    window.__TNR_ADMIN_SKIP__ = () => { if (__ADMIN_CAN_SKIP__) __ADMIN_CAN_SKIP__(); };
+    let __ADMIN_SKIP_FN__ = null;
+    window.__TNR_ADMIN_SKIP__ = () => { try { if (typeof __ADMIN_SKIP_FN__ === "function") __ADMIN_SKIP_FN__(); } catch {} };
 
     async function runSteps(steps) {
       // Start with the intro beat (your “security room” opening)
@@ -1294,7 +1312,11 @@ async function emitLine(line) {
           try { choiceLie?.removeEventListener("click", onLie); } catch {}
           try { choiceRun?.removeEventListener("click", onRun); } catch {}
           setChoicesVisible(false);
+          __ADMIN_SKIP_FN__ = null;
         };
+
+        // Allow admin skip during choice (defaults to comply).
+        __ADMIN_SKIP_FN__ = () => { try { cleanup(); resolve("comply"); } catch {} };
 
         const onNeed = () => { cleanup(); resolve("comply"); };
         const onLie  = () => { cleanup(); resolve("resist"); };
@@ -1441,12 +1463,10 @@ async function runTask(taskId, args) {
         doReset,
       };
 
-      __ADMIN_CAN_SKIP__ = () => {
+      __ADMIN_SKIP_FN__ = () => {
         if (done) return;
         console.debug("[TNR] task:admin_skip", taskId);
-        done = true;
-        timerStop = true;
-        resolver(true);
+        try { ctx.success?.("admin_skip"); } catch { done = true; timerStop = true; resolver(true); }
       };
 
       const fn = window.TASKS?.[taskId];
@@ -1481,7 +1501,7 @@ async function runTask(taskId, args) {
       }
 
       await p;
-      __ADMIN_CAN_SKIP__ = false;
+      __ADMIN_SKIP_FN__ = null;
       timerStop = true;
 
       // Hide task UI, return to sim
@@ -1489,7 +1509,6 @@ async function runTask(taskId, args) {
       simRoom.classList.remove("hidden");
 
       // back to sim scene
-      try { window.Music?.setScene?.("sim"); } catch {}
       console.debug("[TNR] task:end", taskId);
 
       await wait(120);
