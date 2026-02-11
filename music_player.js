@@ -18,19 +18,19 @@
 
   const FILES = {
     // stems
-    s1:  "/music/01_Bed_Pad.ogg",
-    s2:  "/music/02_System_Drone_Dramatic.ogg",
-    s3:  "/music/03_System_Stabs_Takeover.ogg",
-    s4:  "/music/04_Security_Patrol_Controlled.ogg",
-    s5:  "/music/05_Security_Click_Edge.ogg",
-    s6:  "/music/06_Worker_Motif_Loose.ogg",
-    s7:  "/music/07_Worker_Air_Open.ogg",
-    s8:  "/music/08_Sub_Bass_Confinement.ogg",
-    s9:  "/music/09_Task_Heartbeat_Pressure.ogg",
-    s10: "/music/10_Micro_Glitch_Events.ogg",
+    s1:  "./music/01_Bed_Pad.ogg",
+    s2:  "./music/02_System_Drone_Dramatic.ogg",
+    s3:  "./music/03_System_Stabs_Takeover.ogg",
+    s4:  "./music/04_Security_Patrol_Controlled.ogg",
+    s5:  "./music/05_Security_Click_Edge.ogg",
+    s6:  "./music/06_Worker_Motif_Loose.ogg",
+    s7:  "./music/07_Worker_Air_Open.ogg",
+    s8:  "./music/08_Sub_Bass_Confinement.ogg",
+    s9:  "./music/09_Task_Heartbeat_Pressure.ogg",
+    s10: "./music/10_Micro_Glitch_Events.ogg",
     // scene
-    finalHack: "/music/FinalHack.WAV",
-    escaped:   "/music/Escaped.WAV",
+    finalHack: "./music/FinalHack.WAV",
+    escaped:   "./music/Escaped.WAV",
   };
 
   class StemMixer {
@@ -59,7 +59,7 @@
       if (!Ctx) return;
       this.ctx = new Ctx();
       this.master = this.ctx.createGain();
-      this.master.gain.value = 0.92;
+      this.master.gain.value = 1.0;
       this.master.connect(this.ctx.destination);
       this._initHum();
 
