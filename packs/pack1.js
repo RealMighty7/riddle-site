@@ -256,8 +256,11 @@
       shown.style.marginTop = "12px";
       ctx.taskBody.appendChild(shown);
 
-      await wait(2500 + Math.min(2000, (ctx.difficultyBoost?.() ?? 0) * 250));
-      shown.textContent = "—";
+            // Memorize window: base 10s, reduced 5% per resistance point
+      const r = Number(ctx.getResistance?.() ?? 0);
+      const memSec = Math.max(2.5, Math.min(10, 10 * (1 - 0.05 * r)));
+      await wait(Math.floor(memSec * 1000));
+shown.textContent = "—";
 
       const inp = makeInput("retype the exact line…");
       ctx.taskBody.appendChild(inp);
