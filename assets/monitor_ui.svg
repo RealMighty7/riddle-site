@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="35%" r="80%">
+      <stop offset="0%" stop-color="#0c1118"/>
+      <stop offset="55%" stop-color="#070b11"/>
+      <stop offset="100%" stop-color="#04070c"/>
+    </radialGradient>
+
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0H0V64" fill="none" stroke="#0f1a26" stroke-width="1" opacity="0.55"/>
+      <path d="M32 0V64M0 32H64" fill="none" stroke="#0b1420" stroke-width="1" opacity="0.55"/>
+    </pattern>
+
+    <pattern id="scan" width="6" height="6" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="6" height="1" fill="#0a0f16" opacity="0.35"/>
+    </pattern>
+
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+
+    <filter id="innerGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur"/>
+      <feComposite in="blur" in2="SourceAlpha" operator="out" result="inner"/>
+      <feColorMatrix in="inner" type="matrix"
+        values="0 0 0 0 0.05
+                0 0 0 0 0.12
+                0 0 0 0 0.20
+                0 0 0 0.55 0" result="glow"/>
+      <feComposite in="glow" in="SourceGraphic" operator="over"/>
+    </filter>
+
+    <linearGradient id="glassSheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.35" stop-color="#ffffff" stop-opacity="0.02"/>
+      <stop offset="0.65" stop-color="#ffffff" stop-opacity="0.00"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.06"/>
+    </linearGradient>
+
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b111a" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#070b11" stop-opacity="0.92"/>
+    </linearGradient>
+
+    <linearGradient id="stroke" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1a2a3b" stop-opacity="0.85"/>
+      <stop offset="0.5" stop-color="#0f1e2e" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#1a2a3b" stop-opacity="0.85"/>
+    </linearGradient>
+
+    <g id="ticks" opacity="0.55">
+      <path d="M0 18H18" stroke="#17324a" stroke-width="2"/>
+      <path d="M0 18V0" stroke="#17324a" stroke-width="2"/>
+    </g>
+
+    <style>
+      .label { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 14px; letter-spacing: 0.5px; fill: #9fb0c3; opacity: 0.9; }
+      .labelDim { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; letter-spacing: 0.6px; fill: #7f94aa; opacity: 0.8; }
+      .tiny { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 11px; letter-spacing: 0.6px; fill: #7f94aa; opacity: 0.75; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bgGlow)"/>
+  <rect width="1920" height="1080" fill="url(#grid)" opacity="0.85"/>
+  <rect width="1920" height="1080" fill="url(#scan)" opacity="0.35"/>
+
+  <g filter="url(#softShadow)">
+    <rect x="90" y="70" width="1740" height="940" rx="34" fill="url(#panel)" stroke="url(#stroke)" stroke-width="2.2" filter="url(#innerGlow)"/>
+    <rect x="110" y="90" width="1700" height="900" rx="28" fill="none" stroke="#0f1b2a" stroke-width="1.2" opacity="0.9"/>
+    <rect x="118" y="98" width="1684" height="884" rx="24" fill="none" stroke="#102235" stroke-width="1" opacity="0.65"/>
+    <rect x="110" y="90" width="1700" height="900" rx="28" fill="url(#glassSheen)" opacity="0.6"/>
+  </g>
+
+  <g>
+    <rect x="140" y="120" width="1640" height="76" rx="18" fill="#070b10" opacity="0.68" stroke="#102236" stroke-width="1"/>
+    <text x="170" y="166" class="label">SIMULATION ROOM / SESSION</text>
+
+    <g opacity="0.95">
+      <rect x="1320" y="134" width="140" height="48" rx="12" fill="#0a111a" stroke="#102236" stroke-width="1"/>
+      <rect x="1470" y="134" width="140" height="48" rx="12" fill="#0a111a" stroke="#102236" stroke-width="1"/>
+      <rect x="1620" y="134" width="160" height="48" rx="12" fill="#0a111a" stroke="#102236" stroke-width="1"/>
+      <text x="1340" y="165" class="labelDim">COMPL</text>
+      <text x="1490" y="165" class="labelDim">RESIST</text>
+      <text x="1640" y="165" class="labelDim">TIMER</text>
+    </g>
+  </g>
+
+  <g>
+    <rect x="150" y="220" width="1200" height="330" rx="22" fill="#060a10" opacity="0.78" stroke="#14283c" stroke-width="1.2"/>
+    <text x="180" y="252" class="label">DIALOGUE</text>
+
+    <g opacity="0.85">
+      <circle cx="170" cy="238" r="6" fill="#8f3f3f"/>
+      <circle cx="190" cy="238" r="6" fill="#8a7a3a"/>
+      <circle cx="210" cy="238" r="6" fill="#3b7e4a"/>
+    </g>
+
+    <g transform="translate(150 220)"><use href="#ticks"/></g>
+    <g transform="translate(1350 220) scale(-1 1)"><use href="#ticks"/></g>
+    <g transform="translate(150 550) scale(1 -1)"><use href="#ticks"/></g>
+    <g transform="translate(1350 550) scale(-1 -1)"><use href="#ticks"/></g>
+  </g>
+
+  <g>
+    <rect x="150" y="565" width="1200" height="120" rx="22" fill="#060a10" opacity="0.70" stroke="#14283c" stroke-width="1.2"/>
+    <text x="180" y="597" class="label">CHOICES</text>
+
+    <rect x="180" y="612" width="360" height="54" rx="16" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+    <rect x="560" y="612" width="360" height="54" rx="16" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+    <rect x="940" y="612" width="380" height="54" rx="16" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+    <text x="210" y="646" class="tiny">CHOICE A</text>
+    <text x="590" y="646" class="tiny">CHOICE B</text>
+    <text x="970" y="646" class="tiny">CHOICE C</text>
+  </g>
+
+  <g>
+    <rect x="150" y="710" width="1200" height="300" rx="22" fill="#060a10" opacity="0.78" stroke="#14283c" stroke-width="1.2"/>
+    <text x="180" y="742" class="label">TASK</text>
+
+    <rect x="180" y="758" width="1140" height="56" rx="18" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+    <text x="210" y="793" class="labelDim">PROMPT / INSTRUCTIONS</text>
+
+    <rect x="180" y="824" width="1140" height="132" rx="18" fill="#070d14" stroke="#13263a" stroke-width="1"/>
+    <text x="210" y="852" class="labelDim">INTERACTION AREA</text>
+
+    <rect x="980" y="968" width="165" height="40" rx="14" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+    <rect x="1155" y="968" width="165" height="40" rx="14" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+    <text x="1018" y="994" class="tiny">PRIMARY</text>
+    <text x="1192" y="994" class="tiny">SECONDARY</text>
+  </g>
+
+  <g>
+    <rect x="1385" y="220" width="435" height="240" rx="22" fill="#060a10" opacity="0.78" stroke="#14283c" stroke-width="1.2"/>
+    <text x="1415" y="252" class="label">ADMIN CONSOLE</text>
+    <text x="1415" y="276" class="labelDim">restricted / session tools</text>
+
+    <rect x="1415" y="298" width="385" height="52" rx="16" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+    <rect x="1415" y="360" width="385" height="52" rx="16" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+    <text x="1435" y="328" class="tiny">TASK:</text>
+    <text x="1435" y="390" class="tiny">ANSWER:</text>
+
+    <rect x="1670" y="420" width="130" height="40" rx="14" fill="#0b121b" stroke="#13263a" stroke-width="1"/>
+    <text x="1698" y="446" class="tiny">SKIP STEP</text>
+  </g>
+
+  <g>
+    <rect x="1385" y="480" width="435" height="530" rx="22" fill="#060a10" opacity="0.72" stroke="#14283c" stroke-width="1.2"/>
+    <text x="1415" y="512" class="label">SYSTEM LOG</text>
+    <text x="1415" y="536" class="labelDim">stream / errors / trace</text>
+
+    <g opacity="0.85">
+      <rect x="1415" y="558" width="385" height="410" rx="18" fill="#070d14" stroke="#13263a" stroke-width="1"/>
+      <text x="1440" y="590" class="tiny">[00:00:07] init / session</text>
+      <text x="1440" y="618" class="tiny">[00:00:09] auth / pending</text>
+      <text x="1440" y="646" class="tiny">[00:00:12] trace / low</text>
+      <text x="1440" y="674" class="tiny">[00:00:15] ...</text>
+    </g>
+  </g>
+
+  <g opacity="0.8">
+    <rect x="260" y="1020" width="1400" height="18" rx="9" fill="#0b121b" stroke="#102236" stroke-width="1"/>
+  </g>
+
+  <g opacity="0.55">
+    <path d="M120 140H180M120 140V200" stroke="#16324a" stroke-width="2"/>
+    <path d="M1800 140H1740M1800 140V200" stroke="#16324a" stroke-width="2"/>
+    <path d="M120 940H180M120 940V880" stroke="#16324a" stroke-width="2"/>
+    <path d="M1800 940H1740M1800 940V880" stroke="#16324a" stroke-width="2"/>
+  </g>
+</svg>
