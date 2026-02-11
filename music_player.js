@@ -170,7 +170,16 @@
       const s = this.mode.scene;
 
       if (s === "landing") {
-        this.stopAll();
+        // Landing campaign: subtle bed + microglitch so the page feels "alive" before entry.
+        // Keep volumes low; this should not fight dialogue later.
+        // (Requires unlock + loadAll)
+        const stems = ["s1","s10"];
+        stems.forEach(k => this._start(k));
+        this._fade("s1", 0.22, 420);
+        this._fade("s10", 0.05, 420);
+        // Ensure scene tracks are stopped
+        this._stop("finalHack");
+        this._stop("escaped");
         return;
       }
 
