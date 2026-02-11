@@ -90,83 +90,7 @@
       return;
     }
 
-    
-    /* ======================
-       TELEMETRY (reactive barks)
-    ====================== */
-    const TELEMETRY = {
-      armed: false,
-      inTaskGraceUntil: 0,
-      inChoice: false,
-      inTask: false,
-    };
-
-    function now(){ return performance.now(); }
-
-    function markInput(){
-      GAME.memory.lastInputAt = now();
-    }
-
-    function markMove(){
-      GAME.memory.lastMoveAt = now();
-    }
-
-    // click clustering for "poking UI" vs normal task clicks
-    function recordClick(e){
-      markInput();
-      const t = e.target;
-      const insideTask = !!(t && t.closest && t.closest("#taskUI"));
-      const insideChoices = !!(t && t.closest && t.closest("#simChoices"));
-      const insideAdmin = !!(t && t.closest && t.closest("#adminPanel"));
-      const insideDialogue = !!(t && t.closest && t.closest("#simText"));
-      const allowed = insideTask || insideChoices || insideAdmin || insideDialogue;
-      const ts = now();
-      GAME.memory.spamClickWindow.push(ts);
-      GAME.memory.spamClickWindow = GAME.memory.spamClickWindow.filter(x => ts - x < 1500);
-      if (GAME.memory.spamClickWindow.length >= 9 && (GAME.memory.lastBarkTypeAt.spam||0) + 6000 < ts){
-        GAME.facts.spamClusters++;
-        resistancePoints += 1;
-        syncMetersToUI();
-        maybeBark("spam");
-        GAME.memory.lastBarkTypeAt.spam = ts;
-      }
-
-      if (!allowed){
-        GAME.memory.strayClickWindow.push(ts);
-        GAME.memory.strayClickWindow = GAME.memory.strayClickWindow.filter(x => ts - x < 2500);
-        if (GAME.memory.strayClickWindow.length >= 3 && (GAME.memory.lastBarkTypeAt.stray||0) + 7000 < ts){
-          GAME.facts.strayClickClusters++;
-          resistancePoints += 1;
-          syncMetersToUI();
-          maybeBark("click");
-          GAME.memory.lastBarkTypeAt.stray = ts;
-        } else {
-          // single stray click still gets a light bark occasionally in later stages
-          if (GAME.stage >= 2) maybeBark("click_soft");
-        }
-      }
-    }
-
-    function telemetryTick(){
-      const ts = now();
-      // idle bark (but not during "stay still" grace window, and not while choices visible)
-      if (GAME.scene === "sim" && !TELEMETRY.inChoice && !TELEMETRY.inTask){
-        const idleFor = ts - Math.max(GAME.memory.lastInputAt, GAME.memory.lastMoveAt);
-        if (idleFor > 12000 && (GAME.memory.lastBarkTypeAt.idle||0)+14000 < ts){
-          GAME.facts.idleHints++;
-          maybeBark("idle");
-          GAME.memory.lastBarkTypeAt.idle = ts;
-        }
-      }
-      requestAnimationFrame(telemetryTick);
-    }
-
-    window.addEventListener("mousemove", markMove, { passive: true });
-    window.addEventListener("keydown", markInput, { passive: true });
-    window.addEventListener("pointerdown", recordClick, { passive: true });
-    requestAnimationFrame(telemetryTick);
-
-// Keep admin panel visible in simulation (the sim hides #wrap).
+    // Keep admin panel visible in simulation (the sim hides #wrap).
     try {
       const ap = els.adminPanel;
       if (ap && ap.parentElement && ap.parentElement.id === "wrap") {
@@ -346,8 +270,7 @@
       try { window.TTS?.unlockOnce?.(); } catch {}
       try { await window.TTS?.unlock?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
-      // NOTE: Do NOT load stems or start any music on landing. Music starts only after sim entry.
-
+      try { await window.Music?.loadAll?.(); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
@@ -383,64 +306,6 @@
     let compliancePoints = 0;
     let resistancePoints = 0;
 
-
-    /* ======================
-       CORE STATE (Phase 1/2)
-    ====================== */
-    const GAME = (window.__GAME__ = window.__GAME__ || {
-      scene: "landing",
-      phase: "idle",          // idle | transition | sim | hack | ending
-      stage: 1,               // 1..6 narrative stage (mapped from task ordinal)
-      taskOrdinal: 0,         // 0..totalTasks
-      totalTasks: 20,
-      meters: { compliance: 0, resistance: 0 }, // 0..100 integers (UI)
-      facts: {
-        perfectRun: true,
-        failures: 0,
-        strayClickClusters: 0,
-        spamClusters: 0,
-        idleHints: 0,
-        predictionErrorUsed: false,
-        assistsUsed: 0,
-        lastAssistAt: 0,
-      },
-      memory: {
-        lastSpeakers: [],
-        lastLines: [],
-        lastBarkAt: 0,
-        lastBarkTypeAt: {},
-        lastInputAt: performance.now(),
-        lastMoveAt: performance.now(),
-        strayClickWindow: [],
-        spamClickWindow: [],
-      },
-      ending: null,           // worker | reinsertion | invisibility
-    });
-
-    function stageForOrdinal(n){
-      if (n <= 3) return 1;
-      if (n <= 6) return 2;
-      if (n <= 9) return 3;
-      if (n <= 13) return 4;
-      if (n <= 17) return 5;
-      return 6;
-    }
-
-    function clampInt(n,a,b){ n = Math.round(Number(n)||0); return Math.max(a, Math.min(b, n)); }
-
-    function syncMetersToUI(){
-      // keep legacy points but expose visible meter scale (0..100)
-      // points are small integers; we map using observed activity + points
-      const c = compliancePoints;
-      const r = resistancePoints;
-      // base: each task can add up to ~5 points. Normalize to 0..100 over 20 tasks.
-      const denom = Math.max(1, GAME.totalTasks * 5);
-      const comp = clampInt((c / denom) * 100, 0, 100);
-      const resi = clampInt((r / denom) * 100, 0, 100);
-      GAME.meters.compliance = comp;
-      GAME.meters.resistance = resi;
-      try { window.Music?.setScores?.(compliancePoints, resistancePoints); } catch {}
-    }
     /* ======================
        CANVAS CRACKS (NO cracksImg)
     ====================== */
@@ -596,7 +461,7 @@
       // Micro-scratches only after the main break is obvious (don’t compete).
       if (crackState.stage >= 3) {
         ctx.globalAlpha = 0.05;
-        ctx.strokeStyle = "rgba(0,0,0,0.22)";
+        ctx.strokeStyle = "rgba(180,220,255,0.22)";
         ctx.lineWidth = 0.6 * dpr;
         const scratches = 10 + (crackState.stage === 4 ? 8 : 0);
         for (let i = 0; i < scratches; i++) {
@@ -611,32 +476,32 @@
         }
       }
 
-      // Main fractures: thick + high contrast per stage.
-      ctx.globalAlpha = 0.92;
-      ctx.shadowColor = "rgba(0,0,0,0.34)";
-      ctx.shadowBlur = 2.2 * dpr;
+      // Main fractures: refracted edges + glow, not black marker lines.
+      ctx.globalAlpha = 1;
+      ctx.shadowColor = "rgba(120,190,255,0.28)";
+      ctx.shadowBlur = 10 * dpr;
 
       for (const pts of crackState.paths) {
-        // dark core
-        ctx.strokeStyle = "rgba(0,0,0,0.78)";
-        ctx.lineWidth = (3.8 + (crackState.stage - 1) * 1.35) * dpr;
+        // under-glow
+        ctx.strokeStyle = "rgba(120,190,255,0.22)";
+        ctx.lineWidth = (7.2 + (crackState.stage - 1) * 1.6) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
 
-        // bright edge highlight
-        ctx.shadowBlur = 0;
-        ctx.globalAlpha = 0.28 + crackState.stage * 0.06;
-        ctx.strokeStyle = "rgba(255,255,255,0.28)";
-        ctx.lineWidth = (1.2 + (crackState.stage - 1) * 0.35) * dpr;
+        // inner line (sharp)
+        ctx.shadowBlur = 2 * dpr;
+        ctx.globalAlpha = 0.46 + crackState.stage * 0.06;
+        ctx.strokeStyle = "rgba(230,245,255,0.34)";
+        ctx.lineWidth = (2.1 + (crackState.stage - 1) * 0.5) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
         ctx.stroke();
 
-        ctx.globalAlpha = 0.92;
-        ctx.shadowBlur = 2.2 * dpr;
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 10 * dpr;
       }
 
       ctx.restore();
@@ -850,6 +715,9 @@ async function shatterAndEnterSim() {
       document.querySelectorAll('.fracture-piece').forEach((el)=>{ el.classList.remove('fracture-piece'); el.style.removeProperty('--fx'); el.style.removeProperty('--fy'); el.style.removeProperty('--fr'); el.style.removeProperty('--fs'); });
 
       document.body.classList.add("cut-black");
+      // Pre-stage sim styling while black (prevents landing flash)
+      try { els.system && els.system.classList.add("hidden"); } catch {}
+      document.body.classList.add("in-sim");
       await wait(160);
       document.body.classList.remove("cut-black");
 
@@ -925,7 +793,7 @@ async function shatterAndEnterSim() {
 
 
     function makeAdminDraggable(panel) {
-      const handle = panel.querySelector(".adminDrag") || panel;
+      const handle = panel.querySelector("#adminDragHandle") || panel.querySelector(".adminLeft") || panel;
       const POS_KEY = "tnr_admin_pos_v1";
       try {
         const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
@@ -950,8 +818,10 @@ async function shatterAndEnterSim() {
       };
       const onMove = (e) => {
         if (!drag) return;
-        const x = clamp(e.clientX - drag.dx, 8, window.innerWidth - 260);
-        const y = clamp(e.clientY - drag.dy, 8, window.innerHeight - 80);
+        const pw = panel.offsetWidth || 340;
+        const ph = panel.offsetHeight || 140;
+        const x = clamp(e.clientX - drag.dx, 8, window.innerWidth - pw - 8);
+        const y = clamp(e.clientY - drag.dy, 8, window.innerHeight - ph - 8);
         panel.style.position = "fixed";
         panel.style.left = x + "px";
         panel.style.top = y + "px";
@@ -1014,8 +884,8 @@ async function shatterAndEnterSim() {
 
       btn.addEventListener("click", async () => {
         try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
+        // Landing button should never start music. Only unlock the AudioContext.
         await unlockAudio();
-        // Do not start music here; launch only stages the key UI.
         if (status) status.textContent = "status: viewer staged";
         if (box) box.classList.remove("hidden");
         if (keyInput) keyInput.focus();
@@ -1063,7 +933,10 @@ async function shatterAndEnterSim() {
       return { speaker, text };
     }
 
-    
+    // Speaker streak guard (prevents one voice from dominating)
+    let __LAST_SPK = "";
+    let __STREAK = 0;
+
 function resolveLineForPath(line) {
   // line can be a string OR an object like { system:"System: ...", emma:"Emma: ...", liam:"Liam: ..." }
   // We *do not* hard-lock to a single guide voice; instead we pick based on resistance/compliance balance
@@ -1098,8 +971,25 @@ function resolveLineForPath(line) {
     wEmma /= sum; wSystem /= sum; wLiam /= sum;
 
     const roll = Math.random();
-    const picked = (roll < wSystem) ? (sys ?? def ?? em ?? li)
-      : (roll < wSystem + wEmma) ? (em ?? def ?? sys ?? li)
+
+    // pick a speaker key first (so we can apply streak suppression)
+    let key = (roll < wSystem) ? "system"
+      : (roll < wSystem + wEmma) ? "emma"
+      : "liam";
+
+    if (key === __LAST_SPK) __STREAK++; else { __LAST_SPK = key; __STREAK = 1; }
+
+    if (__STREAK >= 3) {
+      // force a switch to avoid dominance
+      key = (key === "system") ? (emma ? "emma" : "liam")
+          : (key === "emma") ? (li ? "liam" : "system")
+          : (sys ? "system" : "emma");
+      __LAST_SPK = key;
+      __STREAK = 1;
+    }
+
+    const picked = (key === "system") ? (sys ?? def ?? em ?? li)
+      : (key === "emma") ? (em ?? def ?? sys ?? li)
       : (li ?? def ?? em ?? sys);
 
     return String(picked ?? "");
@@ -1159,83 +1049,7 @@ async function emitLine(line) {
     }
 
 
-    
-    /* ======================
-       REACTIVE BARKS (chatty, stage-gated)
-    ====================== */
-    function recentHas(text){
-      const t = String(text||"").trim();
-      if (!t) return false;
-      return GAME.memory.lastLines.slice(-10).includes(t);
-    }
-
-    function pushRecent(text){
-      const t = String(text||"").trim();
-      if (!t) return;
-      GAME.memory.lastLines.push(t);
-      if (GAME.memory.lastLines.length > 40) GAME.memory.lastLines.splice(0, GAME.memory.lastLines.length-40);
-    }
-
-    function maybeBark(type){
-      if (!DIALOGUE || !DIALOGUE.barks) return;
-      if (GAME.scene !== "sim") return;
-      const ts = now();
-      // global bark cooldown to avoid overlap
-      if (GAME.memory.lastBarkAt + 4500 > ts) return;
-      // don't bark during task grace/read window
-      if (TELEMETRY.inTask && TELEMETRY.inTaskGraceUntil > ts) return;
-      // don't bark while choice UI is actively waiting for click
-      if (TELEMETRY.inChoice) return;
-
-      const stage = GAME.stage || 1;
-      const stageBarks = DIALOGUE.barks[String(stage)] || DIALOGUE.barks[stage] || DIALOGUE.barks.any;
-      if (!stageBarks) return;
-
-      const pool = stageBarks[type] || stageBarks[type.replace(/_soft$/,'')] || [];
-      if (!pool.length) return;
-
-      // pick a non-recent line
-      let pick = "";
-      for (let k=0;k<6;k++){
-        const cand = pool[Math.floor(Math.random()*pool.length)];
-        const line = resolveLineForPath(cand);
-        if (line && !recentHas(line)){ pick = line; break; }
-      }
-      if (!pick) return;
-
-      GAME.memory.lastBarkAt = ts;
-      pushRecent(pick);
-      // Bark is just another line, but do not block tasks; fire-and-forget
-      speakLine(pick, { isBark: true, instantUI: false }).catch(()=>{});
-    }
-
-async function speakLine(rawLine, opts = {}) {
-      const { isBark = false } = opts || {};
-      // Barks should not interleave with the main typewriter stream; serialize them.
-      if (!window.__BARK_CHAIN__) window.__BARK_CHAIN__ = Promise.resolve();
-      const run = async () => {
-        if (ABORTED) return;
-        const raw = resolveLineForPath(rawLine);
-        const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
-        const { speaker, text } = parseSpeakerAndText(raw);
-        // Append instantly (no typewriter) to avoid overlapping streams.
-        try {
-          simText.textContent += printed + "\n";
-          simText.scrollTop = simText.scrollHeight;
-        } catch {}
-        // Speak (fire-and-forget safe)
-        try {
-          if (window.TTS?.enqueueAsync) await window.TTS.enqueueAsync(String(text || "").trim(), { speaker, bark: true });
-          else if (window.TTS?.enqueue) window.TTS.enqueue(String(text || "").trim(), { speaker, bark: true });
-        } catch {}
-      };
-      if (isBark) {
-        window.__BARK_CHAIN__ = window.__BARK_CHAIN__.then(run).catch(()=>{});
-        return window.__BARK_CHAIN__;
-      }
-      return run();
-    }
-async function playLines(lines) {
+    async function playLines(lines) {
       for (const line of lines || []) {
         if (ABORTED) return;
         await emitLine(line);
@@ -1245,11 +1059,6 @@ async function playLines(lines) {
 
     async function openSimRoom() {
       stage = 99;
-      GAME.scene = "sim";
-      GAME.phase = "sim";
-      GAME.memory.lastInputAt = performance.now();
-      GAME.memory.lastMoveAt = performance.now();
-      try { window.Music?.setHum?.(true); } catch {}
       await unlockAudio();
 
       // Music: simulation uses stem mixer (3 “songs” via guidePath + intensity via resistance)
@@ -1291,172 +1100,163 @@ async function playLines(lines) {
        intro → first choice → (dialogue + UI tag) → task  x20
        first 10 from packs 1–5, second 10 from packs 6–7
     ====================== */
-    function pickFromPoolNames(poolNames, usedSet) {
-      const pools = window.TASK_POOLS || {};
-      // Back-compat aliases: older plan configs may refer to pack6/pack7.
-      const alias = (n) => (n === "pack6" ? "phase2_pack6" : (n === "pack7" ? "phase2_pack7" : n));
-      const flat = [];
-      for (const pn of poolNames) {
-        const key = alias(pn);
-        const arr = pools[key];
-        if (Array.isArray(arr)) {
-          for (const id of arr) if (id && !usedSet.has(id)) flat.push({ id, pool: key });
-        }
-      }
-      if (!flat.length) {
-        // allow repeats if we somehow exhausted
-        for (const pn of poolNames) {
-        const key = alias(pn);
-          const arr = pools[key];
-          if (Array.isArray(arr)) for (const id of arr) if (id) flat.push({ id, pool: key });
-        }
-      }
-      if (!flat.length) return null;
-      return flat[Math.floor(Math.random() * flat.length)];
+    
+    /* ======================
+       PLAN RUNNER (mirror flow)
+       dialogue → choice → task → resolve   (repeat)
+       first 10 from packs 1–5, second 10 from packs 6–7
+    ====================== */
+
+    function normalizePoolName(n) {
+      // Back-compat aliases
+      if (n === "pack6") return "phase2_pack6";
+      if (n === "pack7") return "phase2_pack7";
+      return n;
     }
 
-    
-async function runPlan(plan) {
+    function buildMirrorQueue(phasePools, targetCount) {
+      const pools = window.TASK_POOLS || {};
+      const queue = [];
       const used = new Set();
+
+      // deterministic: walk pools in order, consume their ids in order, loop until target reached
+      const lists = phasePools
+        .map(normalizePoolName)
+        .map((name) => ({ name, ids: Array.isArray(pools[name]) ? pools[name].slice() : [] }));
+
+      let guard = 0;
+      while (queue.length < targetCount && guard++ < 9999) {
+        let progressed = false;
+        for (const L of lists) {
+          while (L.ids.length && queue.length < targetCount) {
+            const id = L.ids.shift();
+            if (!id || used.has(id)) continue;
+            used.add(id);
+            queue.push({ id, pool: L.name });
+            progressed = true;
+            break; // interleave pools instead of draining one completely
+          }
+          if (queue.length >= targetCount) break;
+        }
+        if (!progressed) break;
+      }
+      return queue;
+    }
+
+    function defaultLoopChoice(plan) {
+      // Use plan.loopChoice if provided, else reuse firstChoice labels.
+      return plan.loopChoice || plan.firstChoice || {
+        complyLabel: "Okay.",
+        lieLabel: "…",
+        runLabel: "No."
+      };
+    }
+
+    const RESOLVE_BEATS = {
+      clean: [
+        { system: "System: ACCEPTED.", emma: "Emma (Security): Good. Keep it that way.", liam: "Liam (Worker): Nice. Quiet wins." },
+        { system: "System: CHECK COMPLETE.", emma: "Emma (Security): Don’t get comfortable.", liam: "Liam (Worker): Keep moving—don’t let it pattern you." },
+      ],
+      messy: [
+        { system: "System: ANOMALY REGISTERED.", emma: "Emma (Security): Stop improvising.", liam: "Liam (Worker): Good. Messy—but controlled." },
+        { system: "System: VARIANCE: noted.", emma: "Emma (Security): You’re making this harder.", liam: "Liam (Worker): That’s it. Make it look human." },
+      ],
+    };
+
+    async function runPlan(plan) {
       const totalTasks = plan.totalTasks || 20;
       const phase1Count = plan.phase1Count || 10;
       const phase1Pools = plan.phase1Pools || ["pack1","pack2","pack3","pack4","pack5"];
       const phase2Pools = plan.phase2Pools || ["phase2_pack6","phase2_pack7","pack6","pack7"];
 
-      GAME.totalTasks = totalTasks;
+      // Build deterministic queues (mirror flow)
+      const q1 = buildMirrorQueue(phase1Pools, phase1Count);
+      const q2 = buildMirrorQueue(phase2Pools, Math.max(0, totalTasks - phase1Count));
+      const queue = q1.concat(q2);
+
+      if (queue.length < totalTasks) {
+        doReset("TASK POOLS", "Not enough tasks were available in the configured pools.");
+        return;
+      }
 
       await playLines(plan.intro || DIALOGUE.intro || []);
 
-      // First choice sets initial bias + guidePath (music accent), but dialogue selection stays dynamic.
       if (plan.firstChoice) {
-        TELEMETRY.inChoice = true;
         const res = await showChoice(plan.firstChoice);
-        TELEMETRY.inChoice = false;
-
         choiceTotal++;
         if (res === "comply") compliancePoints += 1;
         if (res === "resist") resistancePoints += 1;
         if (res === "full") resistancePoints += 2;
-
         guidePath = (res === "comply") ? "system" : (res === "full") ? "liam" : "emma";
-        syncMetersToUI();
         hudUpdate();
         if (Array.isArray(plan.afterFirstChoice)) await playLines(plan.afterFirstChoice);
       }
 
-      // helper: stage-gated pre-task beat to avoid scrambled feel
-      const beatState = { idx: {1:0,2:0,3:0,4:0,5:0,6:0}, lastStage: 1 };
+      // Core loop: dialogue → choice → task → resolve
+      // Avoid obvious repetition by cycling beats in a shuffled order.
+      const beatPool = plan.taskBeats || DIALOGUE.taskBeats || [];
+      let beatOrder = [];
+      let beatPtr = 0;
+      let lastBeat = -1;
+      const shuffle = (arr) => {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      };
+      const nextBeat = () => {
+        if (!beatPool.length) return null;
+        if (!beatOrder.length || beatOrder.length !== beatPool.length || beatPtr >= beatOrder.length) {
+          beatOrder = shuffle([...Array(beatPool.length).keys()]);
+          beatPtr = 0;
+          if (beatOrder.length > 1 && beatOrder[0] === lastBeat) {
+            [beatOrder[0], beatOrder[1]] = [beatOrder[1], beatOrder[0]];
+          }
+        }
+        const idx = beatOrder[beatPtr++];
+        lastBeat = idx;
+        return beatPool[idx];
+      };
 
-      async function playStageBeat(kind, stageNum){
-        const s = String(stageNum);
-        const stageObj = (plan.stages && (plan.stages[s] || plan.stages[stageNum])) || (DIALOGUE.stages && (DIALOGUE.stages[s] || DIALOGUE.stages[stageNum])) || null;
-        const pool = stageObj && stageObj[kind] ? stageObj[kind] : [];
-        if (!pool || !pool.length) return;
-        const i = beatState.idx[stageNum] % pool.length;
-        beatState.idx[stageNum] = i + 1;
-        const beat = pool[i];
-        await playLines(Array.isArray(beat) ? beat : [beat]);
-      }
-
-      for (let i = 1; i <= totalTasks; i++) {
+      for (let i = 0; i < totalTasks; i++) {
         if (ABORTED) return;
 
-        GAME.taskOrdinal = i;
-        GAME.stage = stageForOrdinal(i);
-        beatState.lastStage = GAME.stage;
+        const beat = nextBeat();
+        if (beat) await playLines(Array.isArray(beat) ? beat : [beat]);
 
-        // Stage pivot beats at the first task of each stage
-        const stageStarts = {1:1,2:4,3:7,4:10,5:14,6:18};
-        if (i === stageStarts[GAME.stage]) {
-          await playStageBeat("pivot", GAME.stage);
-        }
+        const loopChoice = defaultLoopChoice(plan);
+        const decision = await showChoice(loopChoice);
+        choiceTotal++;
 
-        // Per-task pre-beat
-        await playStageBeat("preTask", GAME.stage);
+        if (decision === "comply") compliancePoints += 1;
+        if (decision === "resist") resistancePoints += 1;
+        if (decision === "full") resistancePoints += 2;
+        hudUpdate();
 
-        // Pick task from pools
-        const pools = (i <= phase1Count) ? phase1Pools : phase2Pools;
-        const picked = pickFromPoolNames(pools, used);
-        if (!picked || !picked.id) {
-          doReset("TASK POOLS", "No tasks were available in the configured pools.");
-          return;
-        }
-        used.add(picked.id);
-
-        // args include pool info for admin panel
+        const picked = queue[i];
         const poolArr = (window.TASK_POOLS && Array.isArray(window.TASK_POOLS[picked.pool])) ? window.TASK_POOLS[picked.pool] : [];
         const idx = poolArr.indexOf(picked.id);
 
-        await runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i, total: totalTasks });
+        // task
+        await runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i + 1, total: totalTasks });
 
-        // Post-task resolve beat (short)
-        await playStageBeat("resolve", GAME.stage);
-
-        syncMetersToUI();
-        hudUpdate();
-
-        // Pressure chatter (stage-gated)
-        const comp = GAME.meters.compliance;
-        const resi = GAME.meters.resistance;
-
-        if (GAME.stage >= 2) {
-          if (resi >= 65) await playStageBeat("pressureHighResistance", GAME.stage);
-          if (comp >= 70) await playStageBeat("pressureHighCompliance", GAME.stage);
-        }
-
-        // Prediction error moment (single use) around stage 5
-        if (!GAME.facts.predictionErrorUsed && GAME.stage >= 5 && i >= 14) {
-          GAME.facts.predictionErrorUsed = true;
-          await playStageBeat("predictionError", 5);
-        }
+        // resolve (based on whether the last task had wrong attempts)
+        const simState = window.__SIM_STATE__ || {};
+        const lastWrong = Number(simState.lastWrong || 0);
+        const pool = (lastWrong > 0) ? RESOLVE_BEATS.messy : RESOLVE_BEATS.clean;
+        const line = pool[i % pool.length];
+        await playLines([line]);
       }
 
-      // End-of-run evaluation (only here)
-      const result = evaluateEnding();
-      GAME.ending = result;
-      window.__ENDING_EVAL__ = { ending: result, meters: {...GAME.meters}, points: { compliancePoints, resistancePoints }, facts: {...GAME.facts} };
-
-      // Final beats + branching
-      if (result === "worker") {
-        await playStageBeat("endingWorker", 6);
-        doFinalOverlay("RECLASSIFIED", "Your session stabilizes. You are recognized as staff. The door opens because it no longer needs to remember you.");
-        return;
-      }
-
-      if (result === "reinsertion") {
-        await playStageBeat("endingReinsertion", 6);
-        doReset("REINSERTED", "Containment window stabilized. You are returned to the simulation.");
-        return;
-      }
-
-      // invisibility (default): run final hack task
-      await playStageBeat("endingInvisibility", 6);
-      await runTask("hack_final", { ordinal: totalTasks + 1, total: totalTasks + 1 });
+      if (Array.isArray(plan.afterTasks)) await playLines(plan.afterTasks);
     }
 
-    function evaluateEnding(){
-      // Strict worker ending: perfect run + very low resistance
-      const comp = GAME.meters.compliance;
-      const resi = GAME.meters.resistance;
-
-      const perfect = GAME.facts.perfectRun && GAME.facts.failures === 0 && GAME.facts.strayClickClusters === 0 && GAME.facts.spamClusters === 0;
-      if (perfect && comp >= 95 && resi <= 5) return "worker";
-
-      // reinsertion: high resistance and low compliance
-      if (resi >= 65 && comp < 40) return "reinsertion";
-
-      // invisibility window: balanced
-      if (comp >= 40 && comp <= 60 && resi >= 30 && resi <= 60) return "invisibility";
-
-      // otherwise prefer invisibility (gameplay) over reinsertion unless extremely messy
-      if (resi >= 80 && comp < 30) return "reinsertion";
-      return "invisibility";
-    }
 /* ======================
        STEPS RUNNER (dialogue → choice → task)
     ====================== */
-    let __ADMIN_SKIP_FN__ = null;
-    window.__TNR_ADMIN_SKIP__ = () => { try { __ADMIN_SKIP_FN__ && __ADMIN_SKIP_FN__(); } catch {} };
+    let __ADMIN_CAN_SKIP__ = false;
+    window.__TNR_ADMIN_SKIP__ = () => { if (__ADMIN_CAN_SKIP__) __ADMIN_CAN_SKIP__(); };
 
     async function runSteps(steps) {
       // Start with the intro beat (your “security room” opening)
@@ -1505,7 +1305,6 @@ async function runPlan(plan) {
     }
 
     async function showChoice(choiceObj) {
-      TELEMETRY.inChoice = true;
       setChoicesVisible(true);
 
       if (choiceNeed) choiceNeed.textContent = choiceObj.complyLabel || "Okay.";
@@ -1518,7 +1317,6 @@ async function runPlan(plan) {
           try { choiceLie?.removeEventListener("click", onLie); } catch {}
           try { choiceRun?.removeEventListener("click", onRun); } catch {}
           setChoicesVisible(false);
-          TELEMETRY.inChoice = false;
         };
 
         const onNeed = () => { cleanup(); resolve("comply"); };
@@ -1534,10 +1332,6 @@ async function runPlan(plan) {
     
 async function runTask(taskId, args) {
       console.debug("[TNR] task:start", taskId, args);
-      TELEMETRY.inTask = true;
-      TELEMETRY.inTaskGraceUntil = performance.now() + 3000; // read window for "no move" style tasks
-      document.body.classList.add("task-open");
-
       simChoices.classList.add("hidden");
       taskUI.classList.remove("hidden");
       hackRoom.classList.add("hidden");
@@ -1573,24 +1367,6 @@ async function runTask(taskId, args) {
       // per-task attempt tracking
       let wrong = 0;
       let startedAt = performance.now();
-
-      // Rare assist system (Phase 2): a single shield or margin adjustment based on affinity.
-      const aff = (() => {
-        const comp = GAME.meters.compliance, resi = GAME.meters.resistance;
-        if (comp >= 65 && resi < 45) return "emma";
-        if (resi >= 65 && comp < 55) return "liam";
-        return "system";
-      })();
-
-      let assist = null;
-      const tNow = performance.now();
-      const canAssist = (GAME.facts.assistsUsed < 3) && (tNow - (GAME.facts.lastAssistAt||0) > 45000) && (Math.random() < 0.14) && (GAME.stage >= 4);
-      if (canAssist) {
-        assist = { by: aff, shield: 1 };
-        GAME.facts.assistsUsed += 1;
-        GAME.facts.lastAssistAt = tNow;
-      }
-
 
       // Task timer: 2m30s base, speeds up 5% per resistance point
       const BASE_MS = 150000;
@@ -1652,12 +1428,11 @@ async function runTask(taskId, args) {
 
           // scoring: first-try success = +1 compliance
           if (wrong === 0) compliancePoints += 1;
-          if (wrong !== 0) GAME.facts.perfectRun = false;
-          // A clean pass reduces perceived resistance slightly (soft)
-          if (wrong === 0 && resistancePoints > 0 && GAME.stage >= 4) resistancePoints = Math.max(0, resistancePoints - 0.2);
-          syncMetersToUI();
-
           console.debug("[TNR] task:success", taskId, { wrong });
+
+          // tasks completed
+          // expose last wrong count for resolve beats
+          simState.lastWrong = wrong;
 
           // tasks completed
           simState.tasksDone = Math.max(0, (simState.tasksDone || 0)) + 1;
@@ -1669,20 +1444,9 @@ async function runTask(taskId, args) {
 
         penalize: () => {
           if (done) return;
-          if (assist && assist.shield > 0) {
-            assist.shield -= 1;
-            // announce assist once
-            try {
-              const msg = (assist.by === "liam") ? "Liam (Worker): I bent it. Don’t waste it." : (assist.by === "emma") ? "Emma (Security): One warning. Do it clean." : "System: CORRECTION APPLIED.";
-              speakLine(msg, { isBark: true }).catch(()=>{});
-            } catch {}
-            return;
-          }
           wrong++;
-          resistancePoints += 2;
-          GAME.facts.failures += 1;
-          GAME.facts.perfectRun = false;
-          syncMetersToUI();
+          simState.lastWrong = wrong;
+          resistancePoints += 3;
           console.debug("[TNR] task:wrong", taskId, { wrong });
 
           hudUpdate();
@@ -1700,15 +1464,12 @@ async function runTask(taskId, args) {
         doReset,
       };
 
-      __ADMIN_SKIP_FN__ = () => {
+      __ADMIN_CAN_SKIP__ = () => {
         if (done) return;
         console.debug("[TNR] task:admin_skip", taskId);
-        try { ctx.success?.("admin_skip"); } catch {}
-        if (!done) {
-          done = true;
-          timerStop = true;
-          resolver(true);
-        }
+        done = true;
+        timerStop = true;
+        resolver(true);
       };
 
       const fn = window.TASKS?.[taskId];
@@ -1720,9 +1481,21 @@ async function runTask(taskId, args) {
 
       try {
         await fn(ctx, args);
+
+        // IMPORTANT: many packs wire UI handlers and return immediately.
+        // Do NOT auto-success here — we must wait for ctx.success()/ctx.penalize() or admin skip.
         if (!done) {
-          // If task returned without calling success/penalize, treat as success
-          ctx.success();
+          const primHas = typeof taskPrimary.onclick === "function";
+          const secHas = typeof taskSecondary.onclick === "function";
+          if (!primHas && !secHas) {
+            // Safe fallback: expose a continue button so the run cannot deadlock.
+            try {
+              taskPrimary.textContent = "continue";
+              taskPrimary.classList.remove("hidden");
+              taskSecondary.classList.add("hidden");
+              taskPrimary.onclick = () => ctx.success();
+            } catch {}
+          }
         }
       } catch (e) {
         console.error(e);
@@ -1731,10 +1504,8 @@ async function runTask(taskId, args) {
       }
 
       await p;
-      __ADMIN_SKIP_FN__ = null;
+      __ADMIN_CAN_SKIP__ = false;
       timerStop = true;
-      TELEMETRY.inTask = false;
-      document.body.classList.remove("task-open");
 
       // Hide task UI, return to sim
       taskUI.classList.add("hidden");
