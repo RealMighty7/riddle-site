@@ -170,83 +170,20 @@
       const s = this.mode.scene;
 
       if (s === "landing") {
-        // Landing must be silent. No music until the simulation room.
-        // Keep everything stopped even if audio is unlocked.
-        for (const k of Object.keys(FILES)) this._stop(k);
-        return;
-      }
-
-      // Final scenes: kill stems, only play scene track
-      if (s === "finalhack" || s === "escaped") {
-        for (const k of Object.keys(FILES)) {
-          if (k !== "finalHack" && k !== "escaped") this._stop(k);
+        // Landing must be SILENT. (Audio is unlocked elsewhere, but we do not play any music here.)
+        // Ensure any previously-started stems are faded out and stopped.
+        for (const k of this.nodes.keys()) {
+          if (String(k).startsWith("s") || String(k).startsWith("scene")) this._fade(k, 0.0, 220);
         }
-        const k = (s === "finalhack") ? "finalHack" : "escaped";
-        this._start(k);
-        this._fade(k, 0.92, 420);
+        // Stop after a short grace to prevent “stuck” playback.
+        setTimeout(() => {
+          try {
+            for (const k of this.nodes.keys()) {
+              if (String(k).startsWith("s") || String(k).startsWith("scene")) this._stop(k);
+            }
+          } catch {}
+        }, 260);
         return;
       }
 
-      // Sim/task scenes: start stems we might need
-      const stems = ["s1","s2","s3","s4","s5","s6","s7","s8","s9","s10"];
-      stems.forEach(k => this._start(k));
-
-      const c = this.mode.compliance;
-      const r = this.mode.resistance;
-      const tDone = this.mode.tasksDone;
-      const tIndex = this.mode.taskIndex;
-
-      // ratio: 0 compliant, 1 resistant
-      const total = c + r;
-      const ratio = total ? (r / total) : 0.5;
-
-      // thresholds tuned to feel reactive without flipping constantly
-      const moreCompliant = ratio <= 0.45;
-      const veryCompliant = ratio <= 0.22;
-
-      const moreResistant = ratio >= 0.55;
-      const veryResistant = (r >= (c + 4)) || ratio >= 0.82; // “no compliance / very resistant” feel
-
-      const balanced = !moreCompliant && !moreResistant;
-
-      // 01 bed always
-      this._fade("s1", 0.62, 360);
-
-      // Compliance overlays
-      this._fade("s2", moreCompliant ? 0.22 : 0.0, 360);
-      this._fade("s3", veryCompliant ? 0.18 : 0.0, 360);
-
-      // Balanced overlays (04 tasks 1-10, 05 tasks 11-20)
-      const use4 = balanced && tIndex > 0 && tIndex <= 10;
-      const use5 = balanced && tIndex > 10;
-      this._fade("s4", use4 ? 0.22 : 0.0, 360);
-      this._fade("s5", use5 ? 0.20 : 0.0, 360);
-
-      // Resistance overlays
-      const s6v = moreResistant ? (veryResistant ? 0.07 : 0.22) : 0.0;
-      const s7v = veryResistant ? 0.26 : 0.0;
-      this._fade("s6", s6v, 360);
-      this._fade("s7", s7v, 360);
-
-      // 08 progression overlay:
-      // Starting at task 1: very quiet overlay; each task finished +3%; cap 80% at task 20.
-      let prog = 0.0;
-      if (tIndex >= 1) {
-        prog = clamp(0.02 + (tDone * 0.03), 0.02, 0.80);
-      }
-      this._fade("s8", prog, 360);
-
-      // 09 & 10 pressure overlays:
-      // volume = (resistance + tasksCompleted - compliance) + 10 (%)
-      const drivePct = (r + tDone - c) + 10;
-      const drive = clamp(drivePct / 100, 0.0, 0.95);
-
-      // Only really present during tasks; faint in sim to hint pressure
-      const inTask = (s === "task");
-      this._fade("s9", inTask ? clamp(0.06 + drive * 0.58, 0.0, 0.82) : clamp(drive * 0.10, 0.0, 0.10), 360);
-      this._fade("s10", inTask ? clamp(0.03 + drive * 0.30, 0.0, 0.42) : 0.0, 360);
-    }
-  }
-
-  window.Music = new StemMixer();
-})();
+      
