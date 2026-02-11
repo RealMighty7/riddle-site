@@ -229,14 +229,10 @@ setScene(scene) {
       const s = this.mode.scene;
 
       if (s === "landing") {
-        // Landing campaign: subtle bed + microglitch so the page feels "alive" before entry.
-        // Keep volumes low; this should not fight dialogue later.
-        // (Requires unlock + loadAll)
-        const stems = ["s1","s10"];
-        stems.forEach(k => this._start(k));
-        this._fade("s1", 0.22, 420);
-        this._fade("s10", 0.05, 420);
-        // Ensure scene tracks are stopped
+        // Landing should be silent (no music). Keep everything stopped.
+        for (const k of Object.keys(FILES)) {
+          if (k !== "finalHack" && k !== "escaped") this._stop(k);
+        }
         this._stop("finalHack");
         this._stop("escaped");
         return;
@@ -275,17 +271,20 @@ setScene(scene) {
 
       const balanced = !moreCompliant && !moreResistant;
 
+      const SCALE_SIM = 1.14;
+      const S = (v) => Math.max(0, Math.min(1, v * SCALE_SIM));
+
       // 01 bed always
-      this._fade("s1", 0.62, 360);
+      this._fade("s1", S(0.62), 360);
 
       // Compliance overlays
-      this._fade("s2", moreCompliant ? 0.22 : 0.0, 360);
-      this._fade("s3", veryCompliant ? 0.18 : 0.0, 360);
+      this._fade("s2", moreCompliant ? S(0.22) : 0.0, 360);
+      this._fade("s3", veryCompliant ? S(0.18) : 0.0, 360);
 
       // Balanced overlays (04 tasks 1-10, 05 tasks 11-20)
       const use4 = balanced && tIndex > 0 && tIndex <= 10;
       const use5 = balanced && tIndex > 10;
-      this._fade("s4", use4 ? 0.22 : 0.0, 360);
+      this._fade("s4", use4 ? S(0.22) : 0.0, 360);
       this._fade("s5", use5 ? 0.20 : 0.0, 360);
 
       // Resistance overlays
