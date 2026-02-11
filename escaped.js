@@ -4,18 +4,13 @@
   const user = (sessionStorage.getItem("tnr_discord") || "").trim();
 
   if (!ok || !user) {
-    window.location.replace("/"); // cannot bypass
+    window.location.replace("./"); // cannot bypass
     return;
   }
 
-  // User request: background music only in the simulation room.
+  // Escaped page has its own cue (no sim stems).
   try { window.Music?.stopAll?.(); } catch {}
-  try { window.Music?.setScene?.("landing"); } catch {}
-
-  // User request: background music only in the simulation room.
-  // Ensure stems are silenced on escaped page.
-  try { window.Music?.stopAll?.(); } catch {}
-  try { window.Music?.setScene?.("landing"); } catch {}
+  try { window.Music?.setScene?.("escaped"); } catch {}
 
   const userEl = document.getElementById("escapeUser");
   const codeEl = document.getElementById("escapeCode");
@@ -25,18 +20,11 @@
 
   if (verifyBtn) verifyBtn.classList.add("hidden");
 
-  function makeCode() {
-    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let out = "";
-    for (let i = 0; i < 8; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
-    return out;
-  }
-
-  const code = makeCode();
-  sessionStorage.setItem("tnr_escape_code", code);
+  // We no longer generate or display a reward code.
+  sessionStorage.removeItem("tnr_escape_code");
 
   if (userEl) userEl.textContent = `user: ${user}`;
-  if (codeEl) codeEl.textContent = `code: ${code}`;
+  if (codeEl) codeEl.textContent = "";
 
   async function submit() {
     try {
@@ -45,7 +33,6 @@
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           discord: user,
-          answer: code,
           // Turnstile optional; keep empty if not present
           turnstile: "",
         }),
@@ -63,5 +50,5 @@
   // Auto-send on load (no button)
   submit();
 
-    if (backBtn) backBtn.onclick = () => { window.location.href = "/"; };
+    if (backBtn) backBtn.onclick = () => { window.location.href = "./"; };
 })();
