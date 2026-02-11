@@ -157,8 +157,12 @@
       msg.style.marginTop = "10px";
       ctx.taskBody.appendChild(msg);
 
+      // Grace period so the player can read before the window becomes "armed".
+      const graceMs = 3000;
+      let armed = false;
       let moved = false;
-      const onMove = () => { moved = true; };
+      const armAt = performance.now() + graceMs;
+      const onMove = () => { if (armed) moved = true; };
       window.addEventListener("mousemove", onMove, { passive: true });
 
       let resolve;
@@ -171,6 +175,8 @@
       const tick = () => {
         const t = performance.now() - start;
         fill.style.width = `${Math.min(100, (t / ms) * 100)}%`;
+
+        if (!armed && performance.now() >= armAt) armed = true;
 
         if (moved) {
           msg.textContent = "You moved. Window invalidated.";
