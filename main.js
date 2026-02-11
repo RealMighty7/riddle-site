@@ -271,7 +271,7 @@
       try { await window.TTS?.unlock?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
       try { await window.Music?.loadAll?.(); } catch {}
-      // Landing is silent. Music starts only after entering the simulation room.
+      // Start subtle landing campaign music once audio is unlocked.
       try { window.Music?.setScene?.("landing"); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
@@ -463,7 +463,7 @@
       // Micro-scratches only after the main break is obvious (don’t compete).
       if (crackState.stage >= 3) {
         ctx.globalAlpha = 0.05;
-        ctx.strokeStyle = "rgba(225,248,255,0.08)";
+        ctx.strokeStyle = "rgba(0,0,0,0.22)";
         ctx.lineWidth = 0.6 * dpr;
         const scratches = 10 + (crackState.stage === 4 ? 8 : 0);
         for (let i = 0; i < scratches; i++) {
@@ -485,7 +485,7 @@
 
       for (const pts of crackState.paths) {
         // dark core
-        ctx.strokeStyle = "rgba(20,24,32,0.34)";
+        ctx.strokeStyle = "rgba(0,0,0,0.78)";
         ctx.lineWidth = (3.8 + (crackState.stage - 1) * 1.35) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
@@ -495,24 +495,23 @@
         // bright edge highlight
         ctx.shadowBlur = 0;
         ctx.globalAlpha = 0.28 + crackState.stage * 0.06;
-        ctx.strokeStyle = "rgba(225,248,255,0.34)";
+        ctx.strokeStyle = "rgba(255,255,255,0.28)";
         ctx.lineWidth = (1.2 + (crackState.stage - 1) * 0.35) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
         ctx.stroke();
-        // subtle refraction "duplicate" (tiny offset, screen blend) — sells glass, avoids black ink lines
-        ctx.save();
+
+        // subtle “refraction/duplicate” pass (faint ghost line offset) to sell reflection near fractures
         ctx.globalCompositeOperation = "screen";
-        ctx.globalAlpha = 0.10 + crackState.stage * 0.03;
-        ctx.strokeStyle = "rgba(170,235,255,0.55)";
+        ctx.globalAlpha = 0.10 + crackState.stage * 0.02;
+        ctx.strokeStyle = "rgba(210,235,255,0.25)";
         ctx.lineWidth = (2.0 + (crackState.stage - 1) * 0.25) * dpr;
         ctx.beginPath();
-        ctx.moveTo(pts[0].x - 1.4 * dpr, pts[0].y + 1.0 * dpr);
-        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 1.4 * dpr, pts[i].y + 1.0 * dpr);
+        ctx.moveTo(pts[0].x - 2.2 * dpr, pts[0].y + 1.8 * dpr);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 2.2 * dpr, pts[i].y + 1.8 * dpr);
         ctx.stroke();
-        ctx.restore();
-
+        ctx.globalCompositeOperation = "source-over";
 
         ctx.globalAlpha = 0.92;
         ctx.shadowBlur = 2.2 * dpr;
@@ -729,10 +728,10 @@ async function shatterAndEnterSim() {
       document.querySelectorAll('.fracture-piece').forEach((el)=>{ el.classList.remove('fracture-piece'); el.style.removeProperty('--fx'); el.style.removeProperty('--fy'); el.style.removeProperty('--fr'); el.style.removeProperty('--fs'); });
 
       document.body.classList.add("cut-black");
-      await wait(160);
-      document.body.classList.remove("cut-black");
-
+      await wait(140);
       await openSimRoom();
+      await wait(80);
+      document.body.classList.remove("cut-black");
 
       document.body.classList.remove("sim-transition");
     }
@@ -894,7 +893,6 @@ async function shatterAndEnterSim() {
       btn.addEventListener("click", async () => {
         try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
         await unlockAudio();
-        try { window.Music?.setScene?.("sim"); } catch {}
         if (status) status.textContent = "status: viewer staged";
         if (box) box.classList.remove("hidden");
         if (keyInput) keyInput.focus();
@@ -943,6 +941,11 @@ async function shatterAndEnterSim() {
     }
 
     
+    // Chorus variety guard
+    let __LAST_SPK__ = null;
+    let __LAST_SPK_N__ = 0;
+
+
 function resolveLineForPath(line) {
   // line can be a string OR an object like { system:"System: ...", emma:"Emma: ...", liam:"Liam: ..." }
   // We *do not* hard-lock to a single guide voice; instead we pick based on resistance/compliance balance
@@ -975,6 +978,14 @@ function resolveLineForPath(line) {
     wEmma += 0.15; wSystem += 0.10; wLiam += 0.10;
     const sum = wEmma + wSystem + wLiam;
     wEmma /= sum; wSystem /= sum; wLiam /= sum;
+
+    // Prevent one speaker from dominating for long streaks
+    const penalize = (__LAST_SPK_N__ >= 2) ? 0.35 : (__LAST_SPK_N__ === 1 ? 0.65 : 1.0);
+    if (__LAST_SPK__ === "system") wSystem *= penalize;
+    if (__LAST_SPK__ === "emma") wEmma *= penalize;
+    if (__LAST_SPK__ === "liam") wLiam *= penalize;
+    const sum2 = wEmma + wSystem + wLiam;
+    wEmma /= sum2; wSystem /= sum2; wLiam /= sum2;
 
     const roll = Math.random();
     const picked = (roll < wSystem) ? (sys ?? def ?? em ?? li)
@@ -1136,17 +1147,38 @@ async function emitLine(line) {
       }
 
       for (let i = 1; i <= totalTasks; i++) {
-        if (ABORTED) return;
+              if (ABORTED) return;
 
-        // pre-task story beat
+        // pre-task story beat (dialogue)
         const beatPool = plan.taskBeats || DIALOGUE.taskBeats || [];
         if (beatPool.length) {
           const beat = beatPool[(i - 1) % beatPool.length];
           await playLines(Array.isArray(beat) ? beat : [beat]);
         }
 
-        // UI tag line (visual only)
-        // (removed) task ordinal UI text — keep progression invisible to the player.
+        // Choice BEFORE every task (mirror cycle)
+        const perChoice = plan.choiceEachTask || plan.firstChoice;
+        if (perChoice) {
+          const res = await showChoice(perChoice);
+          choiceTotal++;
+
+          if (res === "comply") compliancePoints += 1;
+          if (res === "resist") resistancePoints += 1;
+          if (res === "full") resistancePoints += 2;
+
+          hudUpdate();
+
+          // Optional after-choice beat
+          const afterChoice = plan.afterChoiceEachTask || plan.afterEachChoice;
+          if (afterChoice) {
+            const pick = (res === "comply") ? afterChoice.comply : (res === "full") ? afterChoice.full : afterChoice.resist;
+            if (pick) await playLines(Array.isArray(pick) ? pick : [pick]);
+          } else if (Array.isArray(plan.afterFirstChoice) && plan.afterFirstChoice.length) {
+            // use a short slice so it doesn't feel identical every time
+            const ix = (i - 1) % plan.afterFirstChoice.length;
+            await playLines([plan.afterFirstChoice[ix]]);
+          }
+        }
 
         const pools = (i <= phase1Count) ? phase1Pools : phase2Pools;
         const picked = pickFromPoolNames(pools, used);
@@ -1159,11 +1191,37 @@ async function emitLine(line) {
         // args include pool info for the admin panel
         const poolArr = (window.TASK_POOLS && Array.isArray(window.TASK_POOLS[picked.pool])) ? window.TASK_POOLS[picked.pool] : [];
         const idx = poolArr.indexOf(picked.id);
+
         await runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i, total: totalTasks });
+
+        // Resolve AFTER every task (mirror cycle)
+        const resolvePool = plan.taskResolveBeats || DIALOGUE.taskResolveBeats || null;
+        if (Array.isArray(resolvePool) && resolvePool.length) {
+          const rb = resolvePool[(i - 1) % resolvePool.length];
+          await playLines(Array.isArray(rb) ? rb : [rb]);
+        } else {
+          await playLines([{
+            system: "System: CHECK REGISTERED. CONTINUE.",
+            emma: "Emma (Security): Don’t drift. Next one.",
+            liam: "Liam (Worker): Good. Keep it messy—controlled."
+          }]);
+        }
+runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i, total: totalTasks });
       }
 
       // End-of-phase beat (hack/escape gating is handled elsewhere in your codebase)
       if (Array.isArray(plan.afterTasks)) await playLines(plan.afterTasks);
+
+      // After tasks: enter hack room (final hack)
+      try {
+        hackRoom.classList.remove("hidden");
+        taskUI.classList.add("hidden");
+        simChoices.classList.add("hidden");
+        // Music scene for hack
+        try { window.Music?.setScene?.("hack"); } catch {}
+      } catch {}
+      await runTask("hack_final", { user: (simState && simState.discordUser) ? simState.discordUser : "" });
+
     }
 
     /* ======================
@@ -1389,14 +1447,9 @@ async function runTask(taskId, args) {
       }
 
       try {
-        // Many tasks (especially packs 6–7) are "setup" tasks: they build UI, attach handlers,
-        // and complete later via ctx.success()/ctx.penalize() from user interaction.
-        // Do NOT auto-succeed if the task function returns.
-        const maybe = fn(ctx, args);
-        if (maybe && typeof maybe.catch === "function") maybe.catch((err) => { throw err; });
-
-        // Wait until the task signals completion.
-        await p;
+        await fn(ctx, args);
+        // IMPORTANT: tasks must call ctx.success() themselves.
+        // If a task returns early, we simply wait for ctx.success() (or timeout/reset).
       } catch (e) {
         console.error(e);
         doReset("TASK ERROR", String(e && e.message ? e.message : e));
@@ -1412,7 +1465,6 @@ async function runTask(taskId, args) {
       simRoom.classList.remove("hidden");
 
       // back to sim scene
-      try { window.Music?.setScene?.("sim"); } catch {}
       console.debug("[TNR] task:end", taskId);
 
       await wait(120);
