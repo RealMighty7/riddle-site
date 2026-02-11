@@ -715,6 +715,9 @@ async function shatterAndEnterSim() {
       document.querySelectorAll('.fracture-piece').forEach((el)=>{ el.classList.remove('fracture-piece'); el.style.removeProperty('--fx'); el.style.removeProperty('--fy'); el.style.removeProperty('--fr'); el.style.removeProperty('--fs'); });
 
       document.body.classList.add("cut-black");
+      // Pre-stage sim styling while black (prevents landing flash)
+      try { els.system && els.system.classList.add("hidden"); } catch {}
+      document.body.classList.add("in-sim");
       await wait(160);
       document.body.classList.remove("cut-black");
 
@@ -930,7 +933,10 @@ async function shatterAndEnterSim() {
       return { speaker, text };
     }
 
-    
+    // Speaker streak guard (prevents one voice from dominating)
+    let __LAST_SPK = "";
+    let __STREAK = 0;
+
 function resolveLineForPath(line) {
   // line can be a string OR an object like { system:"System: ...", emma:"Emma: ...", liam:"Liam: ..." }
   // We *do not* hard-lock to a single guide voice; instead we pick based on resistance/compliance balance
@@ -965,8 +971,25 @@ function resolveLineForPath(line) {
     wEmma /= sum; wSystem /= sum; wLiam /= sum;
 
     const roll = Math.random();
-    const picked = (roll < wSystem) ? (sys ?? def ?? em ?? li)
-      : (roll < wSystem + wEmma) ? (em ?? def ?? sys ?? li)
+
+    // pick a speaker key first (so we can apply streak suppression)
+    let key = (roll < wSystem) ? "system"
+      : (roll < wSystem + wEmma) ? "emma"
+      : "liam";
+
+    if (key === __LAST_SPK) __STREAK++; else { __LAST_SPK = key; __STREAK = 1; }
+
+    if (__STREAK >= 3) {
+      // force a switch to avoid dominance
+      key = (key === "system") ? (emma ? "emma" : "liam")
+          : (key === "emma") ? (li ? "liam" : "system")
+          : (sys ? "system" : "emma");
+      __LAST_SPK = key;
+      __STREAK = 1;
+    }
+
+    const picked = (key === "system") ? (sys ?? def ?? em ?? li)
+      : (key === "emma") ? (em ?? def ?? sys ?? li)
       : (li ?? def ?? em ?? sys);
 
     return String(picked ?? "");
@@ -1077,84 +1100,136 @@ async function emitLine(line) {
        intro → first choice → (dialogue + UI tag) → task  x20
        first 10 from packs 1–5, second 10 from packs 6–7
     ====================== */
-    function pickFromPoolNames(poolNames, usedSet) {
-      const pools = window.TASK_POOLS || {};
-      // Back-compat aliases: older plan configs may refer to pack6/pack7.
-      const alias = (n) => (n === "pack6" ? "phase2_pack6" : (n === "pack7" ? "phase2_pack7" : n));
-      const flat = [];
-      for (const pn of poolNames) {
-        const key = alias(pn);
-        const arr = pools[key];
-        if (Array.isArray(arr)) {
-          for (const id of arr) if (id && !usedSet.has(id)) flat.push({ id, pool: key });
-        }
-      }
-      if (!flat.length) {
-        // allow repeats if we somehow exhausted
-        for (const pn of poolNames) {
-        const key = alias(pn);
-          const arr = pools[key];
-          if (Array.isArray(arr)) for (const id of arr) if (id) flat.push({ id, pool: key });
-        }
-      }
-      if (!flat.length) return null;
-      return flat[Math.floor(Math.random() * flat.length)];
+    
+    /* ======================
+       PLAN RUNNER (mirror flow)
+       dialogue → choice → task → resolve   (repeat)
+       first 10 from packs 1–5, second 10 from packs 6–7
+    ====================== */
+
+    function normalizePoolName(n) {
+      // Back-compat aliases
+      if (n === "pack6") return "phase2_pack6";
+      if (n === "pack7") return "phase2_pack7";
+      return n;
     }
 
-    async function runPlan(plan) {
+    function buildMirrorQueue(phasePools, targetCount) {
+      const pools = window.TASK_POOLS || {};
+      const queue = [];
       const used = new Set();
+
+      // deterministic: walk pools in order, consume their ids in order, loop until target reached
+      const lists = phasePools
+        .map(normalizePoolName)
+        .map((name) => ({ name, ids: Array.isArray(pools[name]) ? pools[name].slice() : [] }));
+
+      let guard = 0;
+      while (queue.length < targetCount && guard++ < 9999) {
+        let progressed = false;
+        for (const L of lists) {
+          while (L.ids.length && queue.length < targetCount) {
+            const id = L.ids.shift();
+            if (!id || used.has(id)) continue;
+            used.add(id);
+            queue.push({ id, pool: L.name });
+            progressed = true;
+            break; // interleave pools instead of draining one completely
+          }
+          if (queue.length >= targetCount) break;
+        }
+        if (!progressed) break;
+      }
+      return queue;
+    }
+
+    function defaultLoopChoice(plan) {
+      // Use plan.loopChoice if provided, else reuse firstChoice labels.
+      return plan.loopChoice || plan.firstChoice || {
+        complyLabel: "Okay.",
+        lieLabel: "…",
+        runLabel: "No."
+      };
+    }
+
+    const RESOLVE_BEATS = {
+      clean: [
+        { system: "System: ACCEPTED.", emma: "Emma (Security): Good. Keep it that way.", liam: "Liam (Worker): Nice. Quiet wins." },
+        { system: "System: CHECK COMPLETE.", emma: "Emma (Security): Don’t get comfortable.", liam: "Liam (Worker): Keep moving—don’t let it pattern you." },
+      ],
+      messy: [
+        { system: "System: ANOMALY REGISTERED.", emma: "Emma (Security): Stop improvising.", liam: "Liam (Worker): Good. Messy—but controlled." },
+        { system: "System: VARIANCE: noted.", emma: "Emma (Security): You’re making this harder.", liam: "Liam (Worker): That’s it. Make it look human." },
+      ],
+    };
+
+    async function runPlan(plan) {
       const totalTasks = plan.totalTasks || 20;
       const phase1Count = plan.phase1Count || 10;
       const phase1Pools = plan.phase1Pools || ["pack1","pack2","pack3","pack4","pack5"];
       const phase2Pools = plan.phase2Pools || ["phase2_pack6","phase2_pack7","pack6","pack7"];
 
+      // Build deterministic queues (mirror flow)
+      const q1 = buildMirrorQueue(phase1Pools, phase1Count);
+      const q2 = buildMirrorQueue(phase2Pools, Math.max(0, totalTasks - phase1Count));
+      const queue = q1.concat(q2);
+
+      if (queue.length < totalTasks) {
+        doReset("TASK POOLS", "Not enough tasks were available in the configured pools.");
+        return;
+      }
+
       await playLines(plan.intro || DIALOGUE.intro || []);
 
-      // First choice locks the *initial* bias, but chorus selection remains dynamic via resolveLineForPath.
       if (plan.firstChoice) {
         const res = await showChoice(plan.firstChoice);
         choiceTotal++;
         if (res === "comply") compliancePoints += 1;
         if (res === "resist") resistancePoints += 1;
         if (res === "full") resistancePoints += 2;
-        // Keep legacy guidePath for music accents.
         guidePath = (res === "comply") ? "system" : (res === "full") ? "liam" : "emma";
         hudUpdate();
         if (Array.isArray(plan.afterFirstChoice)) await playLines(plan.afterFirstChoice);
       }
 
-      for (let i = 1; i <= totalTasks; i++) {
+      // Core loop: dialogue → choice → task → resolve
+      for (let i = 0; i < totalTasks; i++) {
         if (ABORTED) return;
 
-        // pre-task story beat
         const beatPool = plan.taskBeats || DIALOGUE.taskBeats || [];
         if (beatPool.length) {
-          const beat = beatPool[(i - 1) % beatPool.length];
+          const beat = beatPool[i % beatPool.length];
           await playLines(Array.isArray(beat) ? beat : [beat]);
         }
 
-        // UI tag line (visual only)
-        // (removed) task ordinal UI text — keep progression invisible to the player.
+        const loopChoice = defaultLoopChoice(plan);
+        const decision = await showChoice(loopChoice);
+        choiceTotal++;
 
-        const pools = (i <= phase1Count) ? phase1Pools : phase2Pools;
-        const picked = pickFromPoolNames(pools, used);
-        if (!picked || !picked.id) {
-          doReset("TASK POOLS", "No tasks were available in the configured pools.");
-          return;
-        }
-        used.add(picked.id);
+        if (decision === "comply") compliancePoints += 1;
+        if (decision === "resist") resistancePoints += 1;
+        if (decision === "full") resistancePoints += 2;
+        hudUpdate();
 
-        // args include pool info for the admin panel
+        const picked = queue[i];
         const poolArr = (window.TASK_POOLS && Array.isArray(window.TASK_POOLS[picked.pool])) ? window.TASK_POOLS[picked.pool] : [];
         const idx = poolArr.indexOf(picked.id);
-        await runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i, total: totalTasks });
+
+        // task
+        await runTask(picked.id, { pack: picked.pool, index: idx >= 0 ? idx : null, ordinal: i + 1, total: totalTasks });
+
+        // resolve (based on whether the last task had wrong attempts)
+        const simState = window.__SIM_STATE__ || {};
+        const lastWrong = Number(simState.lastWrong || 0);
+        const pool = (lastWrong > 0) ? RESOLVE_BEATS.messy : RESOLVE_BEATS.clean;
+        const line = pool[i % pool.length];
+        await playLines([line]);
       }
 
-      // End-of-phase beat (hack/escape gating is handled elsewhere in your codebase)
       if (Array.isArray(plan.afterTasks)) await playLines(plan.afterTasks);
     }
 
-    /* ======================
+/* ======================
        STEPS RUNNER (dialogue → choice → task)
     ====================== */
     let __ADMIN_CAN_SKIP__ = false;
@@ -1333,6 +1408,10 @@ async function runTask(taskId, args) {
           console.debug("[TNR] task:success", taskId, { wrong });
 
           // tasks completed
+          // expose last wrong count for resolve beats
+          simState.lastWrong = wrong;
+
+          // tasks completed
           simState.tasksDone = Math.max(0, (simState.tasksDone || 0)) + 1;
           try { window.Music?.setTasksDone?.(simState.tasksDone); } catch {}
 
@@ -1343,6 +1422,7 @@ async function runTask(taskId, args) {
         penalize: () => {
           if (done) return;
           wrong++;
+          simState.lastWrong = wrong;
           resistancePoints += 3;
           console.debug("[TNR] task:wrong", taskId, { wrong });
 
@@ -1378,9 +1458,21 @@ async function runTask(taskId, args) {
 
       try {
         await fn(ctx, args);
+
+        // IMPORTANT: many packs wire UI handlers and return immediately.
+        // Do NOT auto-success here — we must wait for ctx.success()/ctx.penalize() or admin skip.
         if (!done) {
-          // If task returned without calling success/penalize, treat as success
-          ctx.success();
+          const primHas = typeof taskPrimary.onclick === "function";
+          const secHas = typeof taskSecondary.onclick === "function";
+          if (!primHas && !secHas) {
+            // Safe fallback: expose a continue button so the run cannot deadlock.
+            try {
+              taskPrimary.textContent = "continue";
+              taskPrimary.classList.remove("hidden");
+              taskSecondary.classList.add("hidden");
+              taskPrimary.onclick = () => ctx.success();
+            } catch {}
+          }
         }
       } catch (e) {
         console.error(e);
