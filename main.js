@@ -346,9 +346,8 @@
       try { window.TTS?.unlockOnce?.(); } catch {}
       try { await window.TTS?.unlock?.(); } catch {}
       try { await window.Music?.unlock?.(); } catch {}
-      try { await window.Music?.loadAll?.(); } catch {}
-      // Start subtle landing campaign music once audio is unlocked.
-      try { window.Music?.setScene?.("landing"); } catch {}
+      // NOTE: Do NOT load stems or start any music on landing. Music starts only after sim entry.
+
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
@@ -1016,7 +1015,7 @@ async function shatterAndEnterSim() {
       btn.addEventListener("click", async () => {
         try { playSfx("glitch1", { volume: 0.12, overlap: true }); } catch {}
         await unlockAudio();
-        try { window.Music?.setScene?.("sim"); } catch {}
+        // Do not start music here; launch only stages the key UI.
         if (status) status.textContent = "status: viewer staged";
         if (box) box.classList.remove("hidden");
         if (keyInput) keyInput.focus();
@@ -1208,6 +1207,33 @@ async function emitLine(line) {
       pushRecent(pick);
       // Bark is just another line, but do not block tasks; fire-and-forget
       speakLine(pick, { isBark: true, instantUI: false }).catch(()=>{});
+    }
+
+async function speakLine(rawLine, opts = {}) {
+      const { isBark = false } = opts || {};
+      // Barks should not interleave with the main typewriter stream; serialize them.
+      if (!window.__BARK_CHAIN__) window.__BARK_CHAIN__ = Promise.resolve();
+      const run = async () => {
+        if (ABORTED) return;
+        const raw = resolveLineForPath(rawLine);
+        const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
+        const { speaker, text } = parseSpeakerAndText(raw);
+        // Append instantly (no typewriter) to avoid overlapping streams.
+        try {
+          simText.textContent += printed + "\n";
+          simText.scrollTop = simText.scrollHeight;
+        } catch {}
+        // Speak (fire-and-forget safe)
+        try {
+          if (window.TTS?.enqueueAsync) await window.TTS.enqueueAsync(String(text || "").trim(), { speaker, bark: true });
+          else if (window.TTS?.enqueue) window.TTS.enqueue(String(text || "").trim(), { speaker, bark: true });
+        } catch {}
+      };
+      if (isBark) {
+        window.__BARK_CHAIN__ = window.__BARK_CHAIN__.then(run).catch(()=>{});
+        return window.__BARK_CHAIN__;
+      }
+      return run();
     }
 async function playLines(lines) {
       for (const line of lines || []) {
