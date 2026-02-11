@@ -121,7 +121,7 @@ const BASE = {
   // Emma: Erin-like (closest available in browser), stern + cold
   emma:   { rate: 0.99, pitch: 0.98, volume: 1.00 },
   // Liam: Microsoft Mark (en-US), hushed + urgent
-  liam:   { rate: 1.02, pitch: 1.00, volume: 0.84 },
+  liam:   { rate: 0.92, pitch: 0.96, volume: 0.92 },
 };
 
 
@@ -149,21 +149,32 @@ const BASE = {
 let _bedGlitchTimer = null;
 async function bedOn() {
   try { if (bed.paused) await bed.play(); } catch {}
-  bed.volume = 0.14;
+  bed.volume = 0.09;
   // tiny intermittent glitch clicks while the system speaks (kept very subtle)
   try {
     if (_bedGlitchTimer) return;
     _bedGlitchTimer = setInterval(() => {
       try {
         if (bed.volume <= 0.001) return;
-        // 12% chance per tick
-        if (Math.random() < 0.12 && window.playSfx) window.playSfx("staticSoft", { volume: 0.05, overlap: true });
+        // sparse random ticks
+        if (Math.random() < 0.16 && window.playSfx) window.playSfx("staticSoft", { volume: 0.035, overlap: true });
       } catch {}
-    }, 420);
+    }, 320 + Math.floor(Math.random() * 260));
   } catch {}
 }
 function bedOff() {
-  bed.volume = 0;
+  try {
+    const start = bed.volume || 0;
+    const t0 = performance.now();
+    const dur = 140;
+    const tick = () => {
+      const a = Math.min(1, (performance.now() - t0) / dur);
+      bed.volume = start * (1 - a);
+      if (a < 1) requestAnimationFrame(tick);
+      else bed.volume = 0;
+    };
+    requestAnimationFrame(tick);
+  } catch { bed.volume = 0; }
   try { if (_bedGlitchTimer) { clearInterval(_bedGlitchTimer); _bedGlitchTimer = null; } } catch {}
   // keep it playing silently to avoid autoplay re-blocking
 }
