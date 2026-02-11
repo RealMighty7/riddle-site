@@ -117,18 +117,18 @@ function buildVoiceMap(list) {
   // Base personality tuning (LOCKED)
 const BASE = {
   // System: flat + robotic
-  system: { rate: 0.78, pitch: 0.84, volume: 0.88 },
+  system: { rate: 0.70, pitch: 0.74, volume: 0.92 },
   // Emma: Erin-like (closest available in browser), stern + cold
   emma:   { rate: 0.99, pitch: 0.98, volume: 1.00 },
   // Liam: Microsoft Mark (en-US), hushed + urgent
-  liam:   { rate: 0.92, pitch: 0.96, volume: 0.92 },
+  liam:   { rate: 0.94, pitch: 0.92, volume: 0.98 },
 };
 
 
   // Subtle “humanization” jitter per utterance
   function withJitter(base, speaker) {
   // Keep identities locked; only tiny micro-variation to avoid “robotic” cadence.
-  const j = speaker === "system" ? 0.0 : (speaker === "liam" ? 0.014 : 0.008);
+  const j = speaker === "system" ? 0.010 : (speaker === "liam" ? 0.012 : 0.008);
   const r = base.rate * (1 + (Math.random() * 2 - 1) * j);
   const p = base.pitch + (Math.random() * 2 - 1) * (speaker === "system" ? 0.0 : 0.015);
   return {
@@ -149,34 +149,27 @@ const BASE = {
 let _bedGlitchTimer = null;
 async function bedOn() {
   try { if (bed.paused) await bed.play(); } catch {}
-  bed.volume = 0.09;
+  bed.volume = 0.11;
   // tiny intermittent glitch clicks while the system speaks (kept very subtle)
   try {
     if (_bedGlitchTimer) return;
     _bedGlitchTimer = setInterval(() => {
       try {
         if (bed.volume <= 0.001) return;
-        // sparse random ticks
-        if (Math.random() < 0.16 && window.playSfx) window.playSfx("staticSoft", { volume: 0.035, overlap: true });
+        // 12% chance per tick
+        if (Math.random() < 0.12 && window.playSfx) window.playSfx("staticSoft", { volume: 0.05, overlap: true });
       } catch {}
-    }, 320 + Math.floor(Math.random() * 260));
+    }, 420);
   } catch {}
 }
 function bedOff() {
-  try {
-    const start = bed.volume || 0;
-    const t0 = performance.now();
-    const dur = 140;
-    const tick = () => {
-      const a = Math.min(1, (performance.now() - t0) / dur);
-      bed.volume = start * (1 - a);
-      if (a < 1) requestAnimationFrame(tick);
-      else bed.volume = 0;
-    };
-    requestAnimationFrame(tick);
-  } catch { bed.volume = 0; }
+  bed.volume = 0;
   try { if (_bedGlitchTimer) { clearInterval(_bedGlitchTimer); _bedGlitchTimer = null; } } catch {}
-  // keep it playing silently to avoid autoplay re-blocking
+  // pause shortly after so it can’t get “stuck” audible
+  try {
+    clearTimeout(bedOff._t);
+    bedOff._t = setTimeout(() => { try { bed.pause(); } catch {} }, 220);
+  } catch {}
 }
 
   // Queue
@@ -237,8 +230,18 @@ function bedOff() {
 
     const tuned = withJitter(base, speaker);
 
+    // Speaker-specific text shaping (no SSML; use punctuation for pauses)
+    let shaped = String(text || "");
+    if (speaker === "liam") {
+      shaped = shaped.replace(/—/g, ". ").replace(/\s{2,}/g, " ");
+    }
+    if (speaker === "system") {
+      // tighten & harden the cadence a bit
+      shaped = shaped.replace(/\.\.\./g, ".");
+    }
+
     // Build utterance
-    const u = new SpeechSynthesisUtterance(text);
+    const u = new SpeechSynthesisUtterance(shaped);
     if (voice) u.voice = voice;
     u.rate = tuned.rate;
     u.pitch = tuned.pitch;
