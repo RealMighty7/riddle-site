@@ -1033,3 +1033,78 @@ body.in-sim #system{ display:none; }
   pointer-events:none;
 }
 #simRoom{ background: radial-gradient(1400px 900px at 50% 10%, rgba(255,255,255,.06), rgba(0,0,0,1) 60%); }
+
+
+/* =========================
+   Monitor layout pass (B)
+   Align HUD / dialogue / choices / admin with monitor UI frame
+   ========================= */
+body.sim-open #simRoom{
+  position:fixed;
+  inset:0;
+  display:block;
+  padding:0;
+  z-index:110;
+  pointer-events:none; /* re-enable on children */
+}
+
+body.sim-open #simRoom .simCard{
+  position:fixed;
+  left:6.5vw;
+  top:13.5vh;
+  width:57vw;
+  height:33vh;
+  max-width:none;
+  margin:0;
+  pointer-events:auto;
+  overflow:auto;
+}
+
+body.sim-open #simChoices{
+  position:fixed;
+  left:6.5vw;
+  top:49.5vh;
+  width:57vw;
+  gap:14px;
+  justify-content:space-between;
+  pointer-events:auto;
+}
+
+body.sim-open #hud{
+  position:fixed;
+  left:6.5vw;
+  top:6.3vh;
+  pointer-events:auto;
+}
+
+body.sim-open #adminPanel{
+  position:fixed;
+  right:6.0vw;
+  top:13.5vh;
+  width:29vw;
+  max-width:520px;
+  margin:0;
+  pointer-events:auto;
+}
+
+body.sim-open #adminPanel .card{
+  margin-top:0 !important;
+}
+
+/* keep task overlay centered without washing out background */
+body.task-open #taskUI{
+  backdrop-filter: blur(8px);
+}
+body.task-open #taskUI::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background: rgba(0,0,0,0.35);
+  pointer-events:none;
+}
+
+/* Ensure monitor overlay is visible (not just the corner glow) */
+body::before{
+  opacity: 1 !important;
+  filter: contrast(1.08) brightness(1.06) !important;
+}
