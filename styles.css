@@ -298,9 +298,9 @@ body.in-sim::before{
   z-index: 100;
   /* Clean overlay frame (fills included) */
   background: url("/assets/monitor_ui_clean.svg") center/cover no-repeat;
-  opacity: 0.92;
+  opacity: 1;
   mix-blend-mode: normal;
-  filter: contrast(1.02) brightness(0.98);
+  filter: contrast(1.18) brightness(1.12) drop-shadow(0 0 22px rgba(120,200,255,0.08));
 }
 
 /* Different "modes" slightly tint the monitor */
@@ -564,7 +564,7 @@ body.ui-pulse .hackCard{
 .hackLine{
   padding:3px 6px;
   border-radius:6px;
-  opacity:0.92;
+  opacity: 1;
   cursor:pointer;
   user-select:none;
   white-space:pre;
