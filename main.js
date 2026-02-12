@@ -117,6 +117,19 @@
     const taskPrimary = els.taskPrimary;
     const taskSecondary = els.taskSecondary;
 
+    // Make "continue" resilient even when packs overwrite onclick handlers.
+    // This runs after any per-task click handler.
+    try {
+      taskPrimary.addEventListener("click", () => {
+        setTimeout(() => {
+          const lbl = (taskPrimary.textContent || "").trim().toLowerCase();
+          if (lbl !== "continue") return;
+          const ctx = window.__TNR_CURRENT_CTX__;
+          if (ctx && typeof ctx.success === "function") ctx.success();
+        }, 0);
+      });
+    } catch {}
+
     const resetOverlay = els.resetOverlay;
     const resetTitle = els.resetTitle;
     const resetBody = els.resetBody;
@@ -290,6 +303,35 @@
 
     /* ====================== STATE ====================== */
     let stage = 1;
+
+    // Stable debug/state surface (used for console testing + avoids "undefined" state reads)
+    // Keep this separate from the gameplay state to prevent accidental mutation.
+    const GAME = (window.__GAME__ = window.__GAME__ || {
+      scene: "Landing",
+      stage: 1,
+      taskOrdinal: 0,
+      totalTasks: 20,
+      phase: "phase1",
+      compliance: 0,
+      resistance: 0,
+      lastTaskId: null,
+      lastPool: null,
+    });
+
+    function syncGameState(extra) {
+      try {
+        GAME.scene = document.body.classList.contains("in-sim") ? "Sim" : "Landing";
+        GAME.stage = stage;
+        const simState = window.__SIM_STATE__;
+        const done = simState && typeof simState.tasksDone === "number" ? simState.tasksDone : 0;
+        GAME.taskOrdinal = done;
+        GAME.totalTasks = 20;
+        GAME.phase = done >= 10 ? "phase2" : "phase1";
+        GAME.compliance = Number(compliancePoints) || 0;
+        GAME.resistance = Number(resistancePoints) || 0;
+        if (extra) Object.assign(GAME, extra);
+      } catch {}
+    }
     let clicks = 0;
     let lastClick = 0;
     const CLICK_COOLDOWN = 650;
@@ -917,7 +959,24 @@ async function shatterAndEnterSim() {
         }
       }
 
-      if (enterBtn) enterBtn.addEventListener("click", tryKey);
+      // "enter" should actually start the simulation flow.
+      // If a key is provided, attempt verification first (admin only), but viewers always proceed.
+      async function enterFlow() {
+        try {
+          if ((keyInput?.value || "").trim()) {
+            await tryKey();
+          }
+        } catch {}
+        // Begin the shatter transition into the sim.
+        try {
+          syncGameState();
+          await shatterAndEnterSim();
+        } catch (e) {
+          console.error("[TNR] enterFlow failed", e);
+        }
+      }
+
+      if (enterBtn) enterBtn.addEventListener("click", enterFlow);
       if (keyInput) keyInput.addEventListener("keydown", (e) => { if (e.key === "Enter") tryKey(); });
     }
 
@@ -1073,6 +1132,7 @@ async function emitLine(line) {
 
     async function openSimRoom() {
       stage = 99;
+      syncGameState({ stage });
       await unlockAudio();
 
       // Music: start only once we are actually in the sim (never on the landing page).
@@ -1106,6 +1166,10 @@ async function emitLine(line) {
 
       simText.textContent = "";
       playSfx("static1", { volume: 0.22, overlap: false });
+
+      // Ensure the public debug surface exists once the sim starts.
+      window.__SIM_STATE__ = window.__SIM_STATE__ || { tasksDone: 0 };
+      syncGameState();
 
       // Always run the scripted sequence
       if (DIALOGUE && DIALOGUE.plan && typeof DIALOGUE.plan === "object") {
@@ -1463,6 +1527,7 @@ async function runTask(taskId, args) {
           // tasks completed
           simState.tasksDone = Math.max(0, (simState.tasksDone || 0)) + 1;
           try { window.Music?.setTasksDone?.(simState.tasksDone); } catch {}
+          syncGameState({ lastTaskId: taskId, lastPool: args?.pool || null });
 
           hudUpdate();
           resolver(true);
@@ -1520,6 +1585,9 @@ async function runTask(taskId, args) {
           }
         });
       };
+
+      // Expose current task context for robust continue + admin tools.
+      try { window.__TNR_CURRENT_CTX__ = ctx; } catch {}
 
       const fn = window.TASKS?.[taskId];
       if (typeof fn !== "function") {
