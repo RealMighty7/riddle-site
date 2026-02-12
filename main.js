@@ -719,10 +719,11 @@ async function shatterAndEnterSim() {
       // Pre-stage sim styling while black (prevents landing flash)
       try { els.system && els.system.classList.add("hidden"); } catch {}
       document.body.classList.add("in-sim");
-      await wait(160);
-      document.body.classList.remove("cut-black");
 
+      // Open the sim while fully black to avoid any landing flash.
       await openSimRoom();
+      await wait(60);
+      requestAnimationFrame(() => document.body.classList.remove("cut-black"));
 
       document.body.classList.remove("sim-transition");
     }
@@ -982,7 +983,7 @@ function resolveLineForPath(line) {
 
     if (__STREAK >= 3) {
       // force a switch to avoid dominance
-      key = (key === "system") ? (emma ? "emma" : "liam")
+      key = (key === "system") ? (em ? "emma" : "liam")
           : (key === "emma") ? (li ? "liam" : "system")
           : (sys ? "system" : "emma");
       __LAST_SPK = key;
@@ -1004,6 +1005,18 @@ async function emitLine(line) {
       const raw = resolveLineForPath(line);
       const printed = raw.replace(/^\s*\[\d{1,4}\]\s*/, "");
       const { speaker, text } = parseSpeakerAndText(raw);
+      // Suppress rapid repeats (keeps the script from feeling like colliding loops)
+      try {
+        window.__TNR_RECENT_LINES = window.__TNR_RECENT_LINES || [];
+        const recent = window.__TNR_RECENT_LINES;
+        const keyLine = String(printed || "").trim();
+        if (keyLine && recent.slice(-4).includes(keyLine)) {
+          return; // drop repeat
+        }
+        recent.push(keyLine);
+        if (recent.length > 30) recent.splice(0, recent.length - 30);
+      } catch {}
+
 
       // UI/meta lines should appear instantly and never be spoken.
       const isUi = /^UI$/i.test(String(speaker || "")) || /^UI\s*:/i.test(String(printed || ""));
@@ -1062,9 +1075,17 @@ async function emitLine(line) {
       stage = 99;
       await unlockAudio();
 
-      // Music: simulation uses stem mixer (3 “songs” via guidePath + intensity via resistance)
+      // Music: start only once we are actually in the sim (never on the landing page).
       try {
         await window.Music?.unlock?.();
+        // Wait until the blackout transition is finished so the landing never "plays music".
+        await new Promise((res) => {
+          const tick = () => {
+            if (!document.body.classList.contains("cut-black")) return res();
+            requestAnimationFrame(tick);
+          };
+          tick();
+        });
         await window.Music?.loadAll?.();
         window.Music?.setScene?.("sim");
         window.Music?.setScores?.(compliancePoints, resistancePoints);
@@ -1156,7 +1177,7 @@ async function emitLine(line) {
     const RESOLVE_BEATS = {
       clean: [
         { system: "System: ACCEPTED.", emma: "Emma (Security): Good. Keep it that way.", liam: "Liam (Worker): Nice. Quiet wins." },
-        { system: "System: CHECK COMPLETE.", emma: "Emma (Security): Don’t get comfortable.", liam: "Liam (Worker): Keep moving—don’t let it pattern you." },
+        { system: "System: CHECK COMPLETE.", emma: "Emma (Security): Don’t get comfortable.", liam: "Liam (Worker): Keep moving—don’t let it learn your pattern." },
       ],
       messy: [
         { system: "System: ANOMALY REGISTERED.", emma: "Emma (Security): Stop improvising.", liam: "Liam (Worker): Good. Messy—but controlled." },
@@ -1470,7 +1491,17 @@ async function runTask(taskId, args) {
         },
 
         doReset,
-      };
+      };      // Universal 'continue' handler: if the primary label is 'continue' (often after verify),
+      // always advance by calling ctx.success(), even if a pack only resolves its own promise.
+      try {
+        if (taskPrimary.__tnrContFn) taskPrimary.removeEventListener("click", taskPrimary.__tnrContFn, true);
+        taskPrimary.__tnrContFn = () => {
+          const label = (taskPrimary.textContent || "").trim().toLowerCase();
+          if (label !== "continue") return;
+          Promise.resolve().then(() => { try { if (!done) ctx.success(); } catch {} });
+        };
+        taskPrimary.addEventListener("click", taskPrimary.__tnrContFn, true);
+      } catch {}
 
       __ADMIN_SKIP_FN__ = () => {
         if (done) return;
@@ -1499,6 +1530,24 @@ async function runTask(taskId, args) {
 
       try {
         await fn(ctx, args);
+
+        // Normalize pack-style tasks: many packs resolve their own Promise on "continue"
+        // but do not call ctx.success(). If the primary button reads 'continue', we force
+        // ctx.success() on click (after running any existing handler).
+        try {
+          const wrapContinue = (btn) => {
+            if (!btn) return;
+            const label = (btn.textContent || "").trim().toLowerCase();
+            if (label !== "continue") return;
+            const prev = btn.onclick;
+            btn.onclick = () => {
+              try { if (typeof prev === "function") prev(); } catch (e) { console.error(e); }
+              try { ctx.success(); } catch (e) { console.error(e); }
+            };
+          };
+          wrapContinue(taskPrimary);
+          wrapContinue(taskSecondary);
+        } catch {}
 
         // IMPORTANT: many packs wire UI handlers and return immediately.
         // Do NOT auto-success here — we must wait for ctx.success()/ctx.penalize() or admin skip.
