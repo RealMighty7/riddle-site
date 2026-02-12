@@ -62,7 +62,7 @@ body.crack4 #glassFX::before{ opacity:0.42; }
 
 
 @keyframes fractureFall {
-  0%   { transform: translate(0,0) rotate(0deg) scale(1); filter: blur(0px); opacity: 1; }
+  0%   { transform: translate(0,0) rotate(0deg) scale(1); filter: blur(0px); opacity: 0.92; }
   30%  { filter: blur(0.6px) contrast(1.05); }
   60%  { opacity: 0.9; }
   100% { transform: translate(calc(var(--fx,0) * 1.05), calc(var(--fy,0) + 220px)) rotate(calc(var(--fr,0deg) * 2.1)) scale(var(--fs,1)); opacity: 0.0; filter: blur(1.4px) contrast(1.25); }
@@ -299,14 +299,14 @@ body.in-sim::before{
   z-index: 100;
   /* Clean overlay frame (fills included) */
   background: url("./assets/monitor_ui_clean.svg") center/cover no-repeat;
-  opacity: 1;
+  opacity: 0.92;
   mix-blend-mode: normal;
-  filter: contrast(1.03) brightness(1.01);
+  filter: contrast(1.10) brightness(1.08);
 }
 
 /* Different "modes" slightly tint the monitor */
-body.hack-open::before{ filter: contrast(1.03) brightness(1.01); }
-body.task-open::before{ filter: contrast(1.03) brightness(1.01); }
+body.hack-open::before{ filter: contrast(1.10) brightness(1.08); }
+body.task-open::before{ filter: contrast(1.10) brightness(1.08); }
 
 /* global scanlines live above the bezel but below text */
 body.in-sim::after{
@@ -911,7 +911,7 @@ body.glitch-storm::before{
 
 .p6-lamp{ width: 100%; height: 84px; border-radius: 12px; border:1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.55); position:relative; overflow:hidden; }
 .p6-lamp::after{ content:""; position:absolute; inset:-2px; background: radial-gradient(closest-side, rgba(255,255,255,.22), rgba(0,0,0,0) 65%); opacity:0; transition: opacity 70ms ease; }
-.p6-lamp.on::after{ opacity: 1; }
+.p6-lamp.on::after{ opacity: 0.92; }
 .p6-input{ flex:1; padding:10px 12px; border-radius: 10px; border:1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.35); color: rgba(255,255,255,.92); }
 .p6-help{ margin-top:10px; }
 
