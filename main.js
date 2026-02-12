@@ -334,7 +334,10 @@
     }
     let clicks = 0;
     let lastClick = 0;
-    const CLICK_COOLDOWN = 650;
+    // Landing crack progression should feel responsive.
+    // Keep a small cooldown so holding the mouse doesn't insta-shatter,
+    // but don't require ~15s of clicking to reach the transition.
+    const CLICK_COOLDOWN = 140;
 
     const CRACK_AT = [15, 17, 19, 21];
     const SHATTER_AT = 21;
@@ -503,10 +506,10 @@
 
       // Micro-scratches only after the main break is obvious (don’t compete).
       if (crackState.stage >= 3) {
-        ctx.globalAlpha = 0.05;
-        ctx.strokeStyle = "rgba(180,220,255,0.22)";
+        ctx.globalAlpha = 0.06;
+        ctx.strokeStyle = "rgba(0,0,0,0.22)";
         // Hairline scratches
-        ctx.lineWidth = 0.35 * dpr;
+        ctx.lineWidth = 0.28 * dpr;
         const scratches = 10 + (crackState.stage === 4 ? 8 : 0);
         for (let i = 0; i < scratches; i++) {
           const x1 = sRand() * c.width;
@@ -520,35 +523,36 @@
         }
       }
 
-      // Main fractures: hairline fractures with a subtle refracted edge (not thick marker lines).
+      // Main fractures: hairline fractures with a subtle refracted edge (avoid thick marker lines).
       ctx.globalAlpha = 1;
-      ctx.shadowColor = "rgba(120,190,255,0.28)";
-      ctx.shadowBlur = 4 * dpr;
+      // Very soft bloom so it reads as glass, not neon.
+      ctx.shadowColor = "rgba(0,0,0,0.14)";
+      ctx.shadowBlur = 2.2 * dpr;
 
       for (const pts of crackState.paths) {
-        // under-glow (thin)
-        ctx.strokeStyle = "rgba(120,190,255,0.18)";
-        ctx.lineWidth = (1.6 + (crackState.stage - 1) * 0.35) * dpr;
+        // primary fracture (hairline)
+        ctx.strokeStyle = "rgba(0,0,0,0.22)";
+        ctx.lineWidth = (0.62 + (crackState.stage - 1) * 0.10) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
 
-        // Subtle split-refraction ghost (gives the "mirrored" feel without heavy filters)
-        // This is intentionally very faint so it reads as glass distortion, not a second crack.
-        ctx.globalAlpha = 0.10;
-        ctx.strokeStyle = "rgba(160,230,255,0.22)";
-        ctx.lineWidth = (0.55 + (crackState.stage - 1) * 0.10) * dpr;
+        // Split-refraction ghost (the "mirrored" feel) — keep it *extremely* faint.
+        // (Looks like nearby pixels duplicating, not like a second crack.)
+        ctx.globalAlpha = 0.06;
+        ctx.strokeStyle = "rgba(255,255,255,0.18)";
+        ctx.lineWidth = (0.42 + (crackState.stage - 1) * 0.06) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x - 1.1 * dpr, pts[0].y + 0.9 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 1.1 * dpr, pts[i].y + 0.9 * dpr);
         ctx.stroke();
 
-        // inner line (hairline)
-        ctx.shadowBlur = 1 * dpr;
-        ctx.globalAlpha = 0.40 + crackState.stage * 0.05;
-        ctx.strokeStyle = "rgba(235,248,255,0.32)";
-        ctx.lineWidth = (0.75 + (crackState.stage - 1) * 0.12) * dpr;
+        // highlight edge (thin)
+        ctx.shadowBlur = 0.8 * dpr;
+        ctx.globalAlpha = 0.10 + crackState.stage * 0.03;
+        ctx.strokeStyle = "rgba(255,255,255,0.22)";
+        ctx.lineWidth = (0.36 + (crackState.stage - 1) * 0.06) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
