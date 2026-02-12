@@ -289,6 +289,16 @@
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
 
+    // Start sim-room music exactly once (never on landing).
+    let __SIM_MUSIC_STARTED__ = false;
+    async function startSimMusicOnce() {
+      if (__SIM_MUSIC_STARTED__) return;
+      __SIM_MUSIC_STARTED__ = true;
+      try { await window.Music?.setScene?.('sim'); } catch {}
+      try { await window.Music?.start?.('sim'); } catch {}
+    }
+
+
     /* ====================== TIMING ====================== */
     const BASE_WPM = 300;
     const MS_PER_WORD = 60000 / BASE_WPM;
@@ -334,7 +344,8 @@
     }
     let clicks = 0;
     let lastClick = 0;
-    const CLICK_COOLDOWN = 140;
+    let lastClickPos = { x: -1, y: -1 };
+    const CLICK_COOLDOWN = 520;
 
     const CRACK_AT = [15, 17, 19, 21];
     const SHATTER_AT = 21;
@@ -506,7 +517,7 @@
         ctx.globalAlpha = 0.05;
         ctx.strokeStyle = "rgba(0,0,0,0.10)";
         // Hairline scratches
-        ctx.lineWidth = 0.35 * dpr;
+        ctx.lineWidth = 0.22 * dpr;
         const scratches = 10 + (crackState.stage === 4 ? 8 : 0);
         for (let i = 0; i < scratches; i++) {
           const x1 = sRand() * c.width;
@@ -528,7 +539,7 @@
       for (const pts of crackState.paths) {
         // under-glow (thin)
         ctx.strokeStyle = "rgba(0,0,0,0.18)";
-        ctx.lineWidth = (0.6 + (crackState.stage - 1) * 0.10) * dpr;
+        ctx.lineWidth = (0.34 + (crackState.stage - 1) * 0.05) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -538,7 +549,7 @@
         // This is intentionally very faint so it reads as glass distortion, not a second crack.
         ctx.globalAlpha = 0.10;
         ctx.strokeStyle = "rgba(255,255,255,0.10)";
-        ctx.lineWidth = (0.55 + (crackState.stage - 1) * 0.10) * dpr;
+        ctx.lineWidth = (0.32 + (crackState.stage - 1) * 0.05) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x - 1.1 * dpr, pts[0].y + 0.9 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 1.1 * dpr, pts[i].y + 0.9 * dpr);
@@ -548,7 +559,7 @@
         ctx.shadowBlur = 1 * dpr;
         ctx.globalAlpha = 0.40 + crackState.stage * 0.05;
         ctx.strokeStyle = "rgba(0,0,0,0.42)";
-        ctx.lineWidth = (0.42 + (crackState.stage - 1) * 0.06) * dpr;
+        ctx.lineWidth = (0.28 + (crackState.stage - 1) * 0.04) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
@@ -829,7 +840,10 @@ async function shatterAndEnterSim() {
       // Open the sim while fully black to avoid any landing flash.
       await openSimRoom();
       await wait(60);
-      requestAnimationFrame(() => document.body.classList.remove("cut-black"));
+      requestAnimationFrame(() => {
+        document.body.classList.remove("cut-black");
+        startSimMusicOnce();
+      });
 
       document.body.classList.remove("sim-transition");
     }
@@ -851,6 +865,14 @@ async function shatterAndEnterSim() {
 
       const now = Date.now();
       if (now - lastClick < CLICK_COOLDOWN) return;
+
+      // Prevent holding or micro-jitter spam from counting as real progression.
+      const cx = (e?.clientX ?? -999);
+      const cy = (e?.clientY ?? -999);
+      const dx = cx - (lastClickPos.x ?? -999);
+      const dy = cy - (lastClickPos.y ?? -999);
+      if (dx*dx + dy*dy < 16*16 && now - lastClick < 900) return;
+      lastClickPos = { x: cx, y: cy };
       lastClick = now;
 
       // store crack origin at click point
@@ -1206,14 +1228,7 @@ async function emitLine(line) {
       // Music: start only once we are actually in the sim (never on the landing page).
       try {
         await window.Music?.unlock?.();
-        // Wait until the blackout transition is finished so the landing never "plays music".
-        await new Promise((res) => {
-          const tick = () => {
-            if (!document.body.classList.contains("cut-black")) return res();
-            requestAnimationFrame(tick);
-          };
-          tick();
-        });
+        // NOTE: do not wait on the blackout flag here (it is cleared *after* openSimRoom returns).
         await window.Music?.loadAll?.();
         window.Music?.setScene?.("sim");
         window.Music?.setScores?.(compliancePoints, resistancePoints);
