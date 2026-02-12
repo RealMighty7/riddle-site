@@ -282,9 +282,9 @@
       try { await window.AudioPlayer?.unlock?.(); } catch {}
       try { window.TTS?.unlockOnce?.(); } catch {}
       try { await window.TTS?.unlock?.(); } catch {}
+      // IMPORTANT: never start or preload background music on the landing page.
+      // We only unlock the underlying AudioContext(s) here.
       try { await window.Music?.unlock?.(); } catch {}
-      try { await window.Music?.loadAll?.(); } catch {}
-      try { window.Music?.setScene?.("landing"); } catch {}
     }
     window.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
     window.addEventListener("keydown", unlockAudio, { once: true, capture: true });
@@ -505,7 +505,8 @@
       if (crackState.stage >= 3) {
         ctx.globalAlpha = 0.05;
         ctx.strokeStyle = "rgba(180,220,255,0.22)";
-        ctx.lineWidth = 0.6 * dpr;
+        // Hairline scratches
+        ctx.lineWidth = 0.35 * dpr;
         const scratches = 10 + (crackState.stage === 4 ? 8 : 0);
         for (let i = 0; i < scratches; i++) {
           const x1 = sRand() * c.width;
@@ -519,32 +520,42 @@
         }
       }
 
-      // Main fractures: refracted edges + glow, not black marker lines.
+      // Main fractures: hairline fractures with a subtle refracted edge (not thick marker lines).
       ctx.globalAlpha = 1;
       ctx.shadowColor = "rgba(120,190,255,0.28)";
-      ctx.shadowBlur = 10 * dpr;
+      ctx.shadowBlur = 4 * dpr;
 
       for (const pts of crackState.paths) {
-        // under-glow
-        ctx.strokeStyle = "rgba(120,190,255,0.22)";
-        ctx.lineWidth = (7.2 + (crackState.stage - 1) * 1.6) * dpr;
+        // under-glow (thin)
+        ctx.strokeStyle = "rgba(120,190,255,0.18)";
+        ctx.lineWidth = (1.6 + (crackState.stage - 1) * 0.35) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
 
-        // inner line (sharp)
-        ctx.shadowBlur = 2 * dpr;
-        ctx.globalAlpha = 0.46 + crackState.stage * 0.06;
-        ctx.strokeStyle = "rgba(230,245,255,0.34)";
-        ctx.lineWidth = (2.1 + (crackState.stage - 1) * 0.5) * dpr;
+        // Subtle split-refraction ghost (gives the "mirrored" feel without heavy filters)
+        // This is intentionally very faint so it reads as glass distortion, not a second crack.
+        ctx.globalAlpha = 0.10;
+        ctx.strokeStyle = "rgba(160,230,255,0.22)";
+        ctx.lineWidth = (0.55 + (crackState.stage - 1) * 0.10) * dpr;
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x - 1.1 * dpr, pts[0].y + 0.9 * dpr);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 1.1 * dpr, pts[i].y + 0.9 * dpr);
+        ctx.stroke();
+
+        // inner line (hairline)
+        ctx.shadowBlur = 1 * dpr;
+        ctx.globalAlpha = 0.40 + crackState.stage * 0.05;
+        ctx.strokeStyle = "rgba(235,248,255,0.32)";
+        ctx.lineWidth = (0.75 + (crackState.stage - 1) * 0.12) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
         ctx.stroke();
 
         ctx.globalAlpha = 1;
-        ctx.shadowBlur = 10 * dpr;
+        ctx.shadowBlur = 4 * dpr;
       }
 
       ctx.restore();
@@ -774,6 +785,8 @@ async function shatterAndEnterSim() {
       const t = e.target;
       if (!t) return true;
       if (t.closest && t.closest("input, textarea, select")) return false;
+      // Landing UI buttons/fields must NOT count toward crack progression.
+      if (t.closest && t.closest("#viewerToken, #launchBtn")) return false;
       if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
       return true;
     }
@@ -961,22 +974,24 @@ async function shatterAndEnterSim() {
 
       // "enter" should actually start the simulation flow.
       // If a key is provided, attempt verification first (admin only), but viewers always proceed.
-      async function enterFlow() {
+      // NOTE: viewers must NOT be able to enter the sim via the landing "enter" button.
+      // Entry into the sim is only through the click/crack progression.
+      async function enterFlowLandingOnly() {
         try {
-          if ((keyInput?.value || "").trim()) {
-            await tryKey();
-          }
+          // Optional admin unlock.
+          if ((keyInput?.value || "").trim()) await tryKey();
         } catch {}
-        // Begin the shatter transition into the sim.
+
+        // For non-admin users, this is just an acknowledgement.
         try {
-          syncGameState();
-          await shatterAndEnterSim();
-        } catch (e) {
-          console.error("[TNR] enterFlow failed", e);
-        }
+          if (status) status.textContent = "status: viewer authorized";
+          if (keyMsg && !isAdmin) keyMsg.textContent = "status: interaction required";
+        } catch {}
+
+        // Never transition to sim here.
       }
 
-      if (enterBtn) enterBtn.addEventListener("click", enterFlow);
+      if (enterBtn) enterBtn.addEventListener("click", enterFlowLandingOnly);
       if (keyInput) keyInput.addEventListener("keydown", (e) => { if (e.key === "Enter") tryKey(); });
     }
 
