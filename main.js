@@ -334,9 +334,6 @@
     }
     let clicks = 0;
     let lastClick = 0;
-    // Landing crack progression should feel responsive.
-    // Keep a small cooldown so holding the mouse doesn't insta-shatter,
-    // but don't require ~15s of clicking to reach the transition.
     const CLICK_COOLDOWN = 140;
 
     const CRACK_AT = [15, 17, 19, 21];
@@ -506,10 +503,10 @@
 
       // Micro-scratches only after the main break is obvious (don’t compete).
       if (crackState.stage >= 3) {
-        ctx.globalAlpha = 0.06;
-        ctx.strokeStyle = "rgba(0,0,0,0.22)";
+        ctx.globalAlpha = 0.05;
+        ctx.strokeStyle = "rgba(0,0,0,0.10)";
         // Hairline scratches
-        ctx.lineWidth = 0.28 * dpr;
+        ctx.lineWidth = 0.35 * dpr;
         const scratches = 10 + (crackState.stage === 4 ? 8 : 0);
         for (let i = 0; i < scratches; i++) {
           const x1 = sRand() * c.width;
@@ -523,36 +520,35 @@
         }
       }
 
-      // Main fractures: hairline fractures with a subtle refracted edge (avoid thick marker lines).
+      // Main fractures: hairline fractures with a subtle refracted edge (not thick marker lines).
       ctx.globalAlpha = 1;
-      // Very soft bloom so it reads as glass, not neon.
-      ctx.shadowColor = "rgba(0,0,0,0.14)";
-      ctx.shadowBlur = 2.2 * dpr;
+      ctx.shadowColor = "rgba(0,0,0,0.22)";
+      ctx.shadowBlur = 4 * dpr;
 
       for (const pts of crackState.paths) {
-        // primary fracture (hairline)
-        ctx.strokeStyle = "rgba(0,0,0,0.22)";
-        ctx.lineWidth = (0.62 + (crackState.stage - 1) * 0.10) * dpr;
+        // under-glow (thin)
+        ctx.strokeStyle = "rgba(0,0,0,0.18)";
+        ctx.lineWidth = (0.6 + (crackState.stage - 1) * 0.10) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
 
-        // Split-refraction ghost (the "mirrored" feel) — keep it *extremely* faint.
-        // (Looks like nearby pixels duplicating, not like a second crack.)
-        ctx.globalAlpha = 0.06;
-        ctx.strokeStyle = "rgba(255,255,255,0.18)";
-        ctx.lineWidth = (0.42 + (crackState.stage - 1) * 0.06) * dpr;
+        // Subtle split-refraction ghost (gives the "mirrored" feel without heavy filters)
+        // This is intentionally very faint so it reads as glass distortion, not a second crack.
+        ctx.globalAlpha = 0.10;
+        ctx.strokeStyle = "rgba(255,255,255,0.10)";
+        ctx.lineWidth = (0.55 + (crackState.stage - 1) * 0.10) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x - 1.1 * dpr, pts[0].y + 0.9 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 1.1 * dpr, pts[i].y + 0.9 * dpr);
         ctx.stroke();
 
-        // highlight edge (thin)
-        ctx.shadowBlur = 0.8 * dpr;
-        ctx.globalAlpha = 0.10 + crackState.stage * 0.03;
-        ctx.strokeStyle = "rgba(255,255,255,0.22)";
-        ctx.lineWidth = (0.36 + (crackState.stage - 1) * 0.06) * dpr;
+        // inner line (hairline)
+        ctx.shadowBlur = 1 * dpr;
+        ctx.globalAlpha = 0.40 + crackState.stage * 0.05;
+        ctx.strokeStyle = "rgba(0,0,0,0.42)";
+        ctx.lineWidth = (0.42 + (crackState.stage - 1) * 0.06) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
@@ -569,6 +565,58 @@
     resizeCracksCanvas();
 
     let crackStage = 0;
+    
+    /* ======================
+       Refraction shards (landing distortion)
+    ====================== */
+    function ensureRefractionLayer() {
+      let layer = document.getElementById("refractionLayer");
+      if (layer) return layer;
+      layer = document.createElement("div");
+      layer.id = "refractionLayer";
+      document.body.appendChild(layer);
+      return layer;
+    }
+
+    function randomPoly() {
+      // jagged polygon in % space
+      const pts = [];
+      const n = 8 + Math.floor(Math.random()*5);
+      for (let i=0;i<n;i++){
+        const x = Math.round(Math.random()*100);
+        const y = Math.round(Math.random()*100);
+        pts.push(`${x}% ${y}%`);
+      }
+      return `polygon(${pts.join(",")})`;
+    }
+
+    function updateRefraction(stage) {
+      const layer = ensureRefractionLayer();
+      if (stage < 2) { layer.innerHTML = ""; return; }
+      // rebuild shards on each stage step for a "refractive duplicate" vibe
+      layer.innerHTML = "";
+      const count = stage === 2 ? 6 : stage === 3 ? 10 : 14;
+      const w = window.innerWidth, h = window.innerHeight;
+      for (let i=0;i<count;i++){
+        const s = document.createElement("div");
+        s.className = "refShard";
+        const rw = Math.max(180, Math.floor(w*(0.18 + Math.random()*0.22)));
+        const rh = Math.max(140, Math.floor(h*(0.12 + Math.random()*0.18)));
+        const rx = Math.floor(Math.random()*(w-rw));
+        const ry = Math.floor(Math.random()*(h-rh));
+        s.style.left = rx + "px";
+        s.style.top = ry + "px";
+        s.style.width = rw + "px";
+        s.style.height = rh + "px";
+        s.style.clipPath = randomPoly();
+        const dx = (-8 + Math.random()*16).toFixed(2);
+        const dy = (-6 + Math.random()*12).toFixed(2);
+        s.style.transform = `translate(${dx}px, ${dy}px)`;
+        layer.appendChild(s);
+        requestAnimationFrame(()=>{ s.style.opacity = stage === 4 ? "0.22" : "0.14"; });
+      }
+    }
+
     function setCrackStage(n) {
       crackStage = clamp(n, 0, 4);
       crackState.stage = crackStage;
@@ -581,6 +629,7 @@
       // stage classes for CSS hooks
       document.body.classList.remove("crack1","crack2","crack3","crack4");
       if (crackStage > 0) document.body.classList.add(`crack${crackStage}`);
+      try { updateRefraction(crackStage); } catch {}
     }
 
     function maybeAdvanceCracks() {
@@ -790,7 +839,7 @@ async function shatterAndEnterSim() {
       if (!t) return true;
       if (t.closest && t.closest("input, textarea, select")) return false;
       // Landing UI buttons/fields must NOT count toward crack progression.
-      if (t.closest && t.closest("#viewerToken, #launchBtn")) return false;
+      if (t.closest && t.closest("#viewerToken, #launchBtn, #viewerEnter")) return false;
       if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
       return true;
     }
