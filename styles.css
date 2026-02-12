@@ -838,7 +838,7 @@ body.hudNoTimer #hud .hudTimer{opacity: 0.45;}
 
 
 /* ===== Stronger crack presence + dramatic transition ===== */
-body.crack1 #cracksCanvas{ filter: drop-shadow(0 0 10px rgba(0,0,0,.85)) contrast(1.12); }
+body.crack1 #cracksCanvas{ filter: drop-shadow(0 0 10px rgba(0,0,0,.45)) contrast(1.12); }
 /* Cracks should read as refracted light, not black marker lines */
 body.crack2 #cracksCanvas{ filter: drop-shadow(0 0 14px rgba(120,190,255,.18)) contrast(1.10) brightness(1.08); }
 body.crack3 #cracksCanvas{ filter: drop-shadow(0 0 18px rgba(120,190,255,.22)) contrast(1.14) brightness(1.12); }
@@ -1108,3 +1108,15 @@ body::before{
   opacity: 1 !important;
   filter: contrast(1.08) brightness(1.06) !important;
 }
+
+
+/* ==== Refraction shards (landing crack distortion) ==== */
+#refractionLayer{position:fixed;inset:0;pointer-events:none;z-index:40;}
+.refShard{position:absolute;inset:auto;opacity:0;transition:opacity 280ms ease, transform 560ms ease;will-change:transform,opacity;backdrop-filter: blur(1.2px) saturate(1.2) contrast(1.05);
+  -webkit-backdrop-filter: blur(1.2px) saturate(1.2) contrast(1.05);
+  border: 1px solid rgba(255,255,255,.06);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.12) inset;
+}
+body.crack-stage-2 .refShard, body.crack-stage-3 .refShard, body.crack-stage-4 .refShard{opacity:.11;}
+body.crack-stage-3 .refShard{opacity:.14;}
+body.crack-stage-4 .refShard{opacity:.18;}
