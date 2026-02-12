@@ -838,7 +838,7 @@ body.hudNoTimer #hud .hudTimer{opacity: 0.45;}
 
 
 /* ===== Stronger crack presence + dramatic transition ===== */
-body.crack1 #cracksCanvas{ filter: drop-shadow(0 0 10px rgba(0,0,0,.45)) contrast(1.12); }
+body.crack1 #cracksCanvas{ filter: drop-shadow(0 0 10px rgba(0,0,0,.85)) contrast(1.12); }
 /* Cracks should read as refracted light, not black marker lines */
 body.crack2 #cracksCanvas{ filter: drop-shadow(0 0 14px rgba(120,190,255,.18)) contrast(1.10) brightness(1.08); }
 body.crack3 #cracksCanvas{ filter: drop-shadow(0 0 18px rgba(120,190,255,.22)) contrast(1.14) brightness(1.12); }
