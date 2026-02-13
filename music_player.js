@@ -61,7 +61,6 @@
       this.master = this.ctx.createGain();
       this.master.gain.value = 1.0;
       this.master.connect(this.ctx.destination);
-      this._initHum();
 
       // iOS/Chrome unlock
       const o = this.ctx.createOscillator();
@@ -184,8 +183,7 @@
     setHum(on) {
       this.hum.enabled = !!on;
       try {
-        this._initHum();
-        if (!this.hum.gain) return;
+          if (!this.hum.gain) return;
         const target = on ? 0.08 : 0.0; // subtle by default
         const now = this.ctx.currentTime;
         this.hum.gain.gain.cancelScheduledValues(now);
