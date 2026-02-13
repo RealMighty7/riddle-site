@@ -113,7 +113,12 @@
   // p7_memoryflash — sequence flash, then repeat (FIXES old sleep bug)
   // -------------------------------------------------
   defs.p7_memoryflash = async (ctx) => {
+    const ui = getTaskUI(ctx);
     ctx.showTaskUI?.("memoryflash", "watch the sequence, then repeat" );
+    if (!ctx.showTaskUI) {
+      if (ui.title) ui.title.textContent = "MEMORY FLASH";
+      if (ui.desc) ui.desc.textContent = "watch the sequence, then repeat";
+    }
     const seqLen = 5;
     const seq = Array.from({ length: seqLen }, () => rint(0, 8));
     setAnswer(ctx, seq.map((n) => n + 1).join("-"));
@@ -122,7 +127,7 @@
     const grid = el("div", { class: "grid3 p7-grid" });
     const msg = el("div", { class: "muted", text: "watch" });
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "sequence" }), msg]), grid);
-    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    if (!ui.taskBody) { console.error('[p7_memoryflash] Missing taskBody element.'); return; }
     ui.taskBody.append(wrap);
 
     const btns = [];
@@ -163,7 +168,12 @@
   // p7_sortstack — drag reorder into ascending order
   // -------------------------------------------------
   defs.p7_sortstack = async (ctx) => {
+    const ui = getTaskUI(ctx);
     ctx.showTaskUI?.("sortstack", "drag cards into ascending order" );
+    if (!ctx.showTaskUI) {
+      if (ui.title) ui.title.textContent = "SORT STACK";
+      if (ui.desc) ui.desc.textContent = "drag cards into ascending order";
+    }
     const nums = Array.from({ length: 5 }, () => rint(10, 99));
     const sorted = [...nums].sort((a, b) => a - b);
     setAnswer(ctx, sorted.join("-"));
@@ -224,7 +234,12 @@
   // p7_ciphershift — slider shift until readable word
   // -------------------------------------------------
   defs.p7_ciphershift = async (ctx) => {
+    const ui = getTaskUI(ctx);
     ctx.showTaskUI?.("ciphershift", "slide until it becomes readable" );
+    if (!ctx.showTaskUI) {
+      if (ui.title) ui.title.textContent = "CIPHER SHIFT";
+      if (ui.desc) ui.desc.textContent = "slide until it becomes readable";
+    }
     const word = ["WORKER", "STATION", "ACCESS", "ORIGIN", "ESCAPE", "VECTOR"][Math.floor(Math.random() * 6)];
     const shift = rint(1, 25);
     const enc = (s, k) => s.replace(/[A-Z]/g, (ch) => String.fromCharCode(((ch.charCodeAt(0) - 65 + k) % 26) + 65));
@@ -245,7 +260,7 @@
     update();
 
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "caesar" }), msg]), out, slider);
-    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    if (!ui.taskBody) { console.error('[p7_ciphershift] Missing taskBody element.'); return; }
     ui.taskBody.append(wrap);
 
     if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
@@ -259,7 +274,12 @@
   // p7_parity — click bits to match target parity
   // -------------------------------------------------
   defs.p7_parity = async (ctx) => {
+    const ui = getTaskUI(ctx);
     ctx.showTaskUI?.("parity", "toggle bits until the parity matches" );
+    if (!ctx.showTaskUI) {
+      if (ui.title) ui.title.textContent = "PARITY";
+      if (ui.desc) ui.desc.textContent = "toggle bits until the parity matches";
+    }
     const bits = Array.from({ length: 8 }, () => rint(0, 1));
     const wantEven = Math.random() < 0.5;
     const ones = () => bits.reduce((a, b) => a + b, 0);
@@ -304,7 +324,12 @@
   // p7_patternflip — keep concept, add stronger visuals
   // -------------------------------------------------
   defs.p7_patternflip = async (ctx) => {
+    const ui = getTaskUI(ctx);
     ctx.showTaskUI?.("patternflip", "flip all tiles to OFF" );
+    if (!ctx.showTaskUI) {
+      if (ui.title) ui.title.textContent = "PATTERN FLIP";
+      if (ui.desc) ui.desc.textContent = "flip all tiles to OFF";
+    }
     const n = 12;
     const state = Array.from({ length: n }, () => Math.random() < 0.5);
     setAnswer(ctx, "all off");
@@ -345,7 +370,12 @@
   // p7_keymaze — drag through grid without hitting walls
   // -------------------------------------------------
   defs.p7_keymaze = async (ctx) => {
+    const ui = getTaskUI(ctx);
     ctx.showTaskUI?.("keymaze", "drag from S to E without touching walls" );
+    if (!ctx.showTaskUI) {
+      if (ui.title) ui.title.textContent = "KEY MAZE";
+      if (ui.desc) ui.desc.textContent = "drag from S to E without touching walls";
+    }
     const wrap = el("div", { class: "p7-panel" });
     const grid = el("div", { class: "grid3 p7-maze" });
     const msg = el("div", { class: "muted", text: "" });
@@ -419,7 +449,12 @@
   // p7_anagram — drag letters into order (like a quick decode)
   // -------------------------------------------------
   defs.p7_anagram = async (ctx) => {
+    const ui = getTaskUI(ctx);
     ctx.showTaskUI?.("anagram", "reorder the letters" );
+    if (!ctx.showTaskUI) {
+      if (ui.title) ui.title.textContent = "ANAGRAM";
+      if (ui.desc) ui.desc.textContent = "reorder the letters";
+    }
     const words = ["WORKER", "EMERGE", "MIRROR", "VECTOR", "FILTER", "ACCESS"]; 
     const word = words[Math.floor(Math.random() * words.length)];
     const shuffled = word.split("").sort(() => Math.random() - 0.5);
@@ -468,10 +503,15 @@
   // p7_gridroute — draw a route by dragging through lit checkpoints
   // -------------------------------------------------
   defs.p7_gridroute = async (ctx) => {
+    const ui = getTaskUI(ctx);
     ctx.showTaskUI?.(
       "gridroute",
       "Drag from START to END. Pass through all lit checkpoints, then verify."
     );
+    if (!ctx.showTaskUI) {
+      if (ui.title) ui.title.textContent = "GRID ROUTE";
+      if (ui.desc) ui.desc.textContent = "Drag from START to END. Pass through all lit checkpoints, then verify.";
+    }
     // Pick 4 checkpoint cells, plus distinct start/end.
     const checkpoints = [0, 2, 4, 6, 8].sort(() => Math.random() - 0.5).slice(0, 4);
     const non = Array.from({ length: 9 }, (_, i) => i).filter((i) => !checkpoints.includes(i));
@@ -562,7 +602,12 @@
   // p7_timerlock — ring indicator timing
   // -------------------------------------------------
   defs.p7_timerlock = async (ctx) => {
+    const ui = getTaskUI(ctx);
     ctx.showTaskUI?.("timerlock", "press when the ring hits the gate" );
+    if (!ctx.showTaskUI) {
+      if (ui.title) ui.title.textContent = "TIMER LOCK";
+      if (ui.desc) ui.desc.textContent = "press when the ring hits the gate";
+    }
     const period = 1400;
     const gate = rint(0, 359);
     const tol = 18;
