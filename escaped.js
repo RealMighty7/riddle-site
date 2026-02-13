@@ -8,7 +8,6 @@
     return;
   }
 
-  // Prevent refresh spam: once we send, a reload should bounce to index.
   try {
     const nav = performance.getEntriesByType?.("navigation")?.[0];
     const isReload = nav && nav.type === "reload";
@@ -21,7 +20,6 @@
     }
   } catch {}
 
-  // Escaped page has its own cue (no sim stems).
   try { window.Music?.stopAll?.(); } catch {}
   try { window.Music?.setScene?.("escaped"); } catch {}
 
@@ -33,7 +31,6 @@
 
   if (verifyBtn) verifyBtn.classList.add("hidden");
 
-  // We no longer generate or display a reward code.
   sessionStorage.removeItem("tnr_escape_code");
 
   if (userEl) userEl.textContent = `user: ${user}`;
@@ -61,7 +58,6 @@
     }
   }
 
-  // Auto-send on load (no button)
   submit();
 
     if (backBtn) backBtn.onclick = () => { window.location.href = "./"; };
