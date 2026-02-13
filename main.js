@@ -299,9 +299,18 @@
     let __SIM_MUSIC_STARTED__ = false;
     async function startSimMusicOnce() {
       if (__SIM_MUSIC_STARTED__) return;
-      __SIM_MUSIC_STARTED__ = true;
-      try { await window.Music?.setScene?.('sim'); } catch {}
-      try { await window.Music?.start?.('sim'); } catch {}
+
+      // Ensure audio is actually unlocked; if start fails, allow retry.
+      try { await unlockAudio(); } catch {}
+
+      try { await window.Music?.setScene?.("sim"); } catch {}
+
+      try {
+        await window.Music?.start?.("sim");
+        __SIM_MUSIC_STARTED__ = true;
+      } catch {
+        __SIM_MUSIC_STARTED__ = false;
+      }
     }
 
 
@@ -1751,18 +1760,9 @@ async function runTask(taskId, args) {
         if (done) return;
         console.debug("[TNR] task:admin_skip", taskId);
 
-        // Many tasks have a verify → continue gate. To skip reliably:
-        // 1) click the current primary handler (often "verify")
-        // 2) yield a tick (handler may swap button to "continue")
-        // 3) click again
-        // 4) if still not done, force success.
-        try { if (typeof taskPrimary.onclick === "function") taskPrimary.onclick(); } catch {}
-        Promise.resolve().then(() => {
-          try { if (typeof taskPrimary.onclick === "function") taskPrimary.onclick(); } catch {}
-          if (!done) {
-            try { ctx.success("admin_skip"); } catch {}
-          }
-        });
+        // Admin skip must NEVER count as a wrong answer.
+        // Do not trigger any task button handlers (many call ctx.penalize on failure).
+        try { ctx.success("admin_skip"); } catch {}
       };
 
       // Expose current task context for robust continue + admin tools.
