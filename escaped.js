@@ -2,6 +2,13 @@
 (() => {
   const ok = sessionStorage.getItem("tnr_escape_ok") === "1";
   const user = (sessionStorage.getItem("tnr_discord") || "").trim();
+  const sent = sessionStorage.getItem("tnr_escape_sent") === "1";
+  if (sent) {
+    // Prevent refresh abuse / duplicate emails
+    sessionStorage.removeItem("tnr_escape_ok");
+    window.location.replace("index.html");
+    return;
+  }
 
   if (!ok || !user) {
     window.location.replace("./"); // cannot bypass
