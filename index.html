@@ -39,6 +39,16 @@
         <button class="sim-btn" id="reportBtn" disabled>report issue</button>
       </div>
 
+      
+      <div id="impossibleBox" class="impossibleBox" aria-label="verification">
+        <div class="impossibleTitle">verification</div>
+        <div class="muted">Confirm you&apos;re authorized.</div>
+        <div class="impossibleTrack" id="impossibleTrack">
+          <button id="impossibleToggle" class="impossibleToggle" type="button" aria-pressed="false">◻</button>
+          <div class="impossibleHint muted" id="impossibleHint">attempts: <span id="impossibleCount">0</span></div>
+        </div>
+      </div>
+
       <div id="launchStatus" class="muted" style="margin-top:10px;">status: idle</div>
       <div id="timestamp" class="muted" style="margin-top:6px;"></div>
       <div id="build" class="muted" style="margin-top:6px;"></div>
