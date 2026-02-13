@@ -71,6 +71,11 @@
       "timestamp",
       "build",
 
+      "impossibleTrack",
+      "impossibleToggle",
+      "impossibleCount",
+      "impossibleHint",
+
       // HUD
       "hud",
       "hudCompliance",
@@ -1028,7 +1033,49 @@ async function shatterAndEnterSim() {
         if (keyMsg) keyMsg.textContent = isAdmin ? "status: admin session active" : "status: awaiting key";
       });
 
-      async function tryKey() {
+      
+      // "Impossible" authorization toggle (pure JS; harmless, just flavor).
+      // It dodges the cursor a few times before allowing a click. Does NOT affect sim entry.
+      try {
+        const trackEl = els.impossibleTrack || document.getElementById("impossibleTrack");
+        const toggleEl = els.impossibleToggle || document.getElementById("impossibleToggle");
+        const countEl = els.impossibleCount || document.getElementById("impossibleCount");
+        const hintEl = els.impossibleHint || document.getElementById("impossibleHint");
+        if (trackEl && toggleEl) {
+          let attempts = 0;
+          const moveToggle = () => {
+            const w = trackEl.clientWidth || 200;
+            const pad = 10;
+            const maxLeft = Math.max(pad, w - 40 - pad);
+            const left = Math.floor(pad + Math.random() * (maxLeft - pad));
+            toggleEl.style.left = left + "px";
+          };
+          toggleEl.addEventListener("mouseenter", () => {
+            if (toggleEl.classList.contains("is-on")) return;
+            if (isAdmin) return;
+            if (attempts < 6) {
+              attempts++;
+              if (countEl) countEl.textContent = String(attempts);
+              moveToggle();
+              // small annoyance sfx only
+              try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
+              if (hintEl && attempts >= 4) hintEl.textContent = "attempts: " + attempts + " (stop chasing it)";
+            }
+          });
+          toggleEl.addEventListener("click", () => {
+            if (toggleEl.classList.contains("is-on")) return;
+            // after a few attempts, allow it.
+            if (!isAdmin && attempts < 4) { moveToggle(); return; }
+            toggleEl.classList.add("is-on");
+            toggleEl.setAttribute("aria-pressed", "true");
+            if (hintEl) hintEl.textContent = "authorized";
+            if (status) status.textContent = "status: viewer authorized";
+          });
+          // initial random position
+          moveToggle();
+        }
+      } catch {}
+async function tryKey() {
         const raw = (keyInput?.value || "").trim();
         if (!raw) { if (keyMsg) keyMsg.textContent = "status: enter a key"; return; }
         if (keyMsg) keyMsg.textContent = "status: verifying…";
@@ -1294,27 +1341,37 @@ async function emitLine(line) {
       const queue = [];
       const used = new Set();
 
-      // deterministic: walk pools in order, consume their ids in order, loop until target reached
-      const lists = phasePools
-        .map(normalizePoolName)
-        .map((name) => ({ name, ids: Array.isArray(pools[name]) ? pools[name].slice() : [] }));
+      // Normalize + de-duplicate pool names so we don't accidentally double-consume the same pool.
+      const uniqPools = [];
+      for (const raw of (phasePools || [])) {
+        const n = normalizePoolName(raw);
+        if (!n) continue;
+        if (!uniqPools.includes(n)) uniqPools.push(n);
+      }
+
+      // Copy + shuffle each pool's ids (true randomness each run; avoids obvious repeats)
+      const lists = uniqPools.map((name) => {
+        const ids = Array.isArray(pools[name]) ? pools[name].slice() : [];
+        for (let i = ids.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [ids[i], ids[j]] = [ids[j], ids[i]];
+        }
+        return { name, ids };
+      });
 
       let guard = 0;
       while (queue.length < targetCount && guard++ < 9999) {
-        let progressed = false;
-        for (const L of lists) {
-          while (L.ids.length && queue.length < targetCount) {
-            const id = L.ids.shift();
-            if (!id || used.has(id)) continue;
-            used.add(id);
-            queue.push({ id, pool: L.name });
-            progressed = true;
-            break; // interleave pools instead of draining one completely
-          }
-          if (queue.length >= targetCount) break;
-        }
-        if (!progressed) break;
+        const avail = lists.filter((L) => L.ids.length);
+        if (!avail.length) break;
+
+        // Pick a random pool that still has tasks, then consume one.
+        const L = avail[Math.floor(Math.random() * avail.length)];
+        const id = L.ids.shift();
+        if (!id || used.has(id)) continue;
+        used.add(id);
+        queue.push({ id, pool: L.name });
       }
+
       return queue;
     }
 
@@ -1342,7 +1399,7 @@ async function emitLine(line) {
       const totalTasks = plan.totalTasks || 20;
       const phase1Count = plan.phase1Count || 10;
       const phase1Pools = plan.phase1Pools || ["pack1","pack2","pack3","pack4","pack5"];
-      const phase2Pools = plan.phase2Pools || ["phase2_pack6","phase2_pack7","pack6","pack7"];
+      const phase2Pools = plan.phase2Pools || ["phase2_pack6","phase2_pack7"];
 
       // Build deterministic queues (mirror flow)
       const q1 = buildMirrorQueue(phase1Pools, phase1Count);
