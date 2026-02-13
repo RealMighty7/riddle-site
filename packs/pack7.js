@@ -468,9 +468,17 @@
   // p7_gridroute — draw a route by dragging through lit checkpoints
   // -------------------------------------------------
   defs.p7_gridroute = async (ctx) => {
-    ctx.showTaskUI?.("gridroute", "drag through all checkpoints" );
+    ctx.showTaskUI?.(
+      "gridroute",
+      "Drag from START to END. Pass through all lit checkpoints, then verify."
+    );
+    // Pick 4 checkpoint cells, plus distinct start/end.
     const checkpoints = [0, 2, 4, 6, 8].sort(() => Math.random() - 0.5).slice(0, 4);
-    setAnswer(ctx, checkpoints.map((n) => n + 1).join("-"));
+    const non = Array.from({ length: 9 }, (_, i) => i).filter((i) => !checkpoints.includes(i));
+    const start = non[Math.floor(Math.random() * non.length)];
+    const non2 = non.filter((i) => i !== start);
+    const end = non2[Math.floor(Math.random() * non2.length)];
+    setAnswer(ctx, `S${start + 1}-E${end + 1};C${checkpoints.map((n) => n + 1).join("-")}`);
 
     const wrap = el("div", { class: "p7-panel" });
     const msg = el("div", { class: "muted", text: "" });
@@ -482,23 +490,57 @@
     const cells = [];
     for (let i = 0; i < 9; i++) {
       const c = el("div", { class: "p7-routeCell" });
+      c.dataset.idx = String(i);
       if (checkpoints.includes(i)) c.classList.add("checkpoint");
+      if (i === start) c.classList.add("start");
+      if (i === end) c.classList.add("end");
+      // Visible cues so the player understands what's interactable.
+      if (i === start) c.textContent = "START";
+      else if (i === end) c.textContent = "END";
+      else {
+        const pos = checkpoints.indexOf(i);
+        if (pos !== -1) c.textContent = String(pos + 1);
+      }
       grid.appendChild(c);
       cells.push(c);
     }
 
     let dragging = false;
+    let started = false;
+    let endedOnEnd = false;
     const hit = new Set();
+    const reset = () => {
+      dragging = false;
+      started = false;
+      endedOnEnd = false;
+      hit.clear();
+      cells.forEach((c) => c.classList.remove("hit"));
+      update();
+    };
     const update = () => {
-      msg.textContent = `checkpoints: ${hit.size}/${checkpoints.length}`;
-      if (hit.size >= checkpoints.length) ctx.success?.("ok");
+      msg.textContent = `checkpoints: ${hit.size}/${checkpoints.length}  •  drag START → END  •  then verify`;
     };
     update();
 
-    grid.addEventListener("pointerdown", (e) => { dragging = true; grid.setPointerCapture?.(e.pointerId); });
-    grid.addEventListener("pointerup", () => { dragging = false; });
+    grid.addEventListener("pointerdown", (e) => {
+      const idx = cells.indexOf(e.target);
+      if (idx !== start) {
+        // Wrong starting cell: reset feedback but do not penalize instantly.
+        reset();
+        return;
+      }
+      reset();
+      started = true;
+      dragging = true;
+      grid.setPointerCapture?.(e.pointerId);
+    });
+    grid.addEventListener("pointerup", (e) => {
+      dragging = false;
+      const idx = cells.indexOf(e.target);
+      endedOnEnd = started && idx === end;
+    });
     grid.addEventListener("pointermove", (e) => {
-      if (!dragging) return;
+      if (!dragging || !started) return;
       const idx = cells.indexOf(e.target);
       if (idx < 0) return;
       if (checkpoints.includes(idx)) {
@@ -507,6 +549,13 @@
         update();
       }
     });
+
+    if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
+    if (ui.taskPrimary) ui.taskPrimary.onclick = () => {
+      if (hit.size >= checkpoints.length && endedOnEnd) return ctx.success?.("ok");
+      reset();
+      ctx.penalize?.();
+    };
   };
 
   // -------------------------------------------------
