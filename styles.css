@@ -126,7 +126,9 @@ body.page-fracture .fracture-piece{
   filter:
     drop-shadow(0 0 6px rgba(120,190,255,.12))
     drop-shadow(0 0 26px rgba(120,190,255,.10))
-    contrast(1.06) brightness(1.08);
+    contrast(1.06) brightness(0.54);
+  /* darker crack presence (requested) */
+  opacity: 0.55;
 }
 
 /* shatter burst boosts crack readability */
@@ -134,7 +136,7 @@ body.shatter-burst #cracksCanvas{
   filter:
     drop-shadow(0 0 12px rgba(120,190,255,.22))
     drop-shadow(0 0 44px rgba(120,190,255,.18))
-    contrast(1.12) brightness(1.18) saturate(1.06);
+    contrast(1.12) brightness(0.59) saturate(1.06);
 }
 
 /* quick white flash during transition */
@@ -854,9 +856,9 @@ body.hudNoTimer #hud .hudTimer{opacity: 0.45;}
 /* ===== Stronger crack presence + dramatic transition ===== */
 body.crack1 #cracksCanvas{ filter: drop-shadow(0 0 10px rgba(0,0,0,.45)) contrast(1.12); }
 /* Cracks should read as refracted light, not black marker lines */
-body.crack2 #cracksCanvas{ filter: drop-shadow(0 0 14px rgba(120,190,255,.18)) contrast(1.10) brightness(1.08); }
-body.crack3 #cracksCanvas{ filter: drop-shadow(0 0 18px rgba(120,190,255,.22)) contrast(1.14) brightness(1.12); }
-body.crack4 #cracksCanvas{ filter: drop-shadow(0 0 22px rgba(120,190,255,.28)) contrast(1.18) brightness(1.16); }
+body.crack2 #cracksCanvas{ filter: drop-shadow(0 0 14px rgba(120,190,255,.18)) contrast(1.10) brightness(0.54); }
+body.crack3 #cracksCanvas{ filter: drop-shadow(0 0 18px rgba(120,190,255,.22)) contrast(1.14) brightness(0.56); }
+body.crack4 #cracksCanvas{ filter: drop-shadow(0 0 22px rgba(120,190,255,.28)) contrast(1.18) brightness(0.58); }
 
 @keyframes crack_zoom {
   0%{ transform: scale(1) rotate(0deg); }
