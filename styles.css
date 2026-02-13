@@ -12,6 +12,20 @@
   --ok: rgba(30,140,70,.92);
 }
 
+/* Task: scrub / switches (make state obvious) */
+.scrubBox label{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.20);}
+.scrubBox input[type="checkbox"]{width:18px;height:18px;accent-color:#ffffff;}
+
+/* Task: gridroute */
+.p7-routeGrid{display:grid;grid-template-columns:repeat(3,72px);gap:12px;justify-content:center;margin:12px 0;}
+.p7-routeCell{width:72px;height:72px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;user-select:none;}
+.p7-routeCell.checkpoint{outline:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);}
+.p7-routeCell.start{outline:2px solid rgba(120,255,160,.24);background:rgba(120,255,160,.06);}
+.p7-routeCell.end{outline:2px solid rgba(255,120,120,.24);background:rgba(255,120,120,.06);}
+.p7-routeCell.hot{outline:2px solid rgba(255,255,255,.12);}
+.p7-routeCell.done{outline:2px solid rgba(180,255,255,.26);background:rgba(180,255,255,.08);}
+.p7-routeCell .tag{font-family:ui-monospace,Consolas,monospace;font-size:14px;color:rgba(255,255,255,.85);letter-spacing:.02em;}
+
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
 html{ background:#f6f7fb; }
@@ -912,7 +926,7 @@ body.glitch-storm::before{
 .p6-lamp{ width: 100%; height: 84px; border-radius: 12px; border:1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.55); position:relative; overflow:hidden; }
 .p6-lamp::after{ content:""; position:absolute; inset:-2px; background: radial-gradient(closest-side, rgba(255,255,255,.22), rgba(0,0,0,0) 65%); opacity:0; transition: opacity 70ms ease; }
 .p6-lamp.on::after{ opacity: 0.92; }
-.p6-input{ flex:1; padding:10px 12px; border-radius: 10px; border:1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.35); color: rgba(255,255,255,.92); }
+.p6-input{ flex:1; padding:10px 12px; border-radius: 10px; border:1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.35); color: rgba(255,255,255,.92); caret-color: rgba(255,255,255,.92); }
 .p6-help{ margin-top:10px; }
 
 .grid3{ display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
@@ -939,6 +953,10 @@ body.glitch-storm::before{
 
 .p7-grid{ padding-top:10px; }
 .p7-cellBtn{ height:62px; border-radius: 12px; border:1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.04); }
+.p7-cellBtn.checkpoint{ outline:2px solid rgba(255,255,255,.22); background: rgba(255,255,255,.07); }
+.p7-cellBtn.done{ outline:2px solid rgba(180,255,255,.22); background: rgba(180,255,255,.10); }
+.p7-cellBtn.start{ outline:2px solid rgba(120,255,160,.22); background: rgba(120,255,160,.08); }
+.p7-cellBtn.end{ outline:2px solid rgba(255,140,140,.22); background: rgba(255,140,140,.08); }
 
 .p7-cardList{ display:flex; flex-direction:column; gap:10px; }
 .p7-card{ height:48px; border-radius: 12px; border:1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.05); display:flex; align-items:center; justify-content:center; cursor: grab; }
