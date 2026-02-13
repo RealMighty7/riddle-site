@@ -207,6 +207,7 @@
 
     /* ====================== ABORT FLAG ====================== */
     let ABORTED = false;
+    let simStarted = false;
 
     /* ====================== SFX ====================== */
     const __SFX_LAST__ = Object.create(null);
@@ -340,6 +341,8 @@
         GAME.compliance = Number(compliancePoints) || 0;
         GAME.resistance = Number(resistancePoints) || 0;
         if (extra) Object.assign(GAME, extra);
+        // expose for debugging
+        try { window.__GAME = GAME; window.GAME = GAME; } catch {}
       } catch {}
     }
     let clicks = 0;
@@ -517,7 +520,7 @@
         ctx.globalAlpha = 0.05;
         ctx.strokeStyle = "rgba(0,0,0,0.10)";
         // Hairline scratches
-        ctx.lineWidth = 0.22 * dpr;
+        ctx.lineWidth = 0.14 * dpr;
         const scratches = 10 + (crackState.stage === 4 ? 8 : 0);
         for (let i = 0; i < scratches; i++) {
           const x1 = sRand() * c.width;
@@ -539,7 +542,7 @@
       for (const pts of crackState.paths) {
         // under-glow (thin)
         ctx.strokeStyle = "rgba(0,0,0,0.18)";
-        ctx.lineWidth = (0.34 + (crackState.stage - 1) * 0.05) * dpr;
+        ctx.lineWidth = (0.18 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -549,7 +552,7 @@
         // This is intentionally very faint so it reads as glass distortion, not a second crack.
         ctx.globalAlpha = 0.10;
         ctx.strokeStyle = "rgba(255,255,255,0.10)";
-        ctx.lineWidth = (0.32 + (crackState.stage - 1) * 0.05) * dpr;
+        ctx.lineWidth = (0.16 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x - 1.1 * dpr, pts[0].y + 0.9 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 1.1 * dpr, pts[i].y + 0.9 * dpr);
@@ -559,7 +562,7 @@
         ctx.shadowBlur = 1 * dpr;
         ctx.globalAlpha = 0.40 + crackState.stage * 0.05;
         ctx.strokeStyle = "rgba(0,0,0,0.42)";
-        ctx.lineWidth = (0.28 + (crackState.stage - 1) * 0.04) * dpr;
+        ctx.lineWidth = (0.14 + (crackState.stage - 1) * 0.02) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
@@ -874,6 +877,7 @@ async function shatterAndEnterSim() {
       if (dx*dx + dy*dy < 16*16 && now - lastClick < 900) return;
       lastClickPos = { x: cx, y: cy };
       lastClick = now;
+      crackState.cooldownUntil = now + CLICK_COOLDOWN;
 
       // store crack origin at click point
       try {
@@ -1277,7 +1281,9 @@ async function emitLine(line) {
     ====================== */
 
     function normalizePoolName(n) {
-      // Back-compat aliases
+      // Back-compat aliases (accept either naming)
+      if (n === "phase2_pack6") return "phase2_pack6";
+      if (n === "phase2_pack7") return "phase2_pack7";
       if (n === "pack6") return "phase2_pack6";
       if (n === "pack7") return "phase2_pack7";
       return n;
