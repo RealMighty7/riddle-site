@@ -1043,36 +1043,65 @@ async function shatterAndEnterSim() {
         const hintEl = els.impossibleHint || document.getElementById("impossibleHint");
         if (trackEl && toggleEl) {
           let attempts = 0;
-          const moveToggle = () => {
+          let lastMoveAt = 0;
+          const TOGGLE_W = 40;
+          const moveToggle = (biasDir = 0) => {
             const w = trackEl.clientWidth || 200;
             const pad = 10;
-            const maxLeft = Math.max(pad, w - 40 - pad);
-            const left = Math.floor(pad + Math.random() * (maxLeft - pad));
+            const maxLeft = Math.max(pad, w - TOGGLE_W - pad);
+
+            // biasDir: -1 => move left, +1 => move right, 0 => random
+            let left;
+            if (biasDir !== 0) {
+              const half = (maxLeft - pad) / 2;
+              const base = biasDir < 0 ? pad : pad + half;
+              left = Math.floor(base + Math.random() * half);
+            } else {
+              left = Math.floor(pad + Math.random() * (maxLeft - pad));
+            }
             toggleEl.style.left = left + "px";
+            lastMoveAt = performance.now();
           };
-          toggleEl.addEventListener("mouseenter", () => {
+
+          const maybeDodge = (clientX) => {
             if (toggleEl.classList.contains("is-on")) return;
             if (isAdmin) return;
-            if (attempts < 6) {
-              attempts++;
-              if (countEl) countEl.textContent = String(attempts);
-              moveToggle();
-              // small annoyance sfx only
-              try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
-              if (hintEl && attempts >= 4) hintEl.textContent = "attempts: " + attempts + " (stop chasing it)";
-            }
+            if (attempts >= 6) return;
+
+            const now = performance.now();
+            if (now - lastMoveAt < 120) return; // simple cooldown
+
+            const trackRect = trackEl.getBoundingClientRect();
+            const toggleRect = toggleEl.getBoundingClientRect();
+            const toggleCenter = toggleRect.left + toggleRect.width / 2;
+            const dx = Math.abs(clientX - toggleCenter);
+            if (dx > 55) return; // only dodge when you're actually close
+
+            attempts++;
+            if (countEl) countEl.textContent = String(attempts);
+            // move away from cursor direction
+            const biasDir = clientX < toggleCenter ? +1 : -1;
+            moveToggle(biasDir);
+            try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
+            if (hintEl && attempts >= 4) hintEl.textContent = "attempts: " + attempts + " (stop chasing it)";
+          };
+
+          trackEl.addEventListener("mousemove", (e) => maybeDodge(e.clientX));
+          toggleEl.addEventListener("mouseenter", () => {
+            // keep the hover version for touchpads that don't emit mousemove
+            try { maybeDodge(toggleEl.getBoundingClientRect().left + 1); } catch {}
           });
           toggleEl.addEventListener("click", () => {
             if (toggleEl.classList.contains("is-on")) return;
             // after a few attempts, allow it.
-            if (!isAdmin && attempts < 4) { moveToggle(); return; }
+            if (!isAdmin && attempts < 4) { moveToggle(0); return; }
             toggleEl.classList.add("is-on");
             toggleEl.setAttribute("aria-pressed", "true");
             if (hintEl) hintEl.textContent = "authorized";
             if (status) status.textContent = "status: viewer authorized";
           });
-          // initial random position
-          moveToggle();
+          // initial position: centered (so it doesn't look "stuck" randomly)
+          try { toggleEl.style.left = "50%"; toggleEl.style.transform = "translateX(-50%)"; } catch {}
         }
       } catch {}
 async function tryKey() {
@@ -1624,6 +1653,10 @@ async function runTask(taskId, args) {
       const resetTaskButtons = () => {
         try { taskPrimary.onclick = null; } catch {}
         try { taskSecondary.onclick = null; } catch {}
+        // Gate progression by default. Tasks should explicitly set the label
+        // and handler when they are ready to allow completion.
+        taskPrimary.textContent = "verify";
+        taskPrimary.disabled = false;
         taskPrimary.classList.remove("hidden");
         taskSecondary.classList.add("hidden");
       };
