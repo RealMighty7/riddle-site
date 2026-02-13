@@ -30,11 +30,27 @@
 
   function setAnswer(ctx, ans) { try { ctx.setAnswer?.(String(ans ?? "")); } catch {} }
 
-  // -------------------------------------------------
+  
+  function getTaskUI(ctx){
+    const byId = (id) => document.getElementById(id);
+    const taskBody = ctx?.taskBody || byId("taskBody") || byId("taskBodyInner") || byId("taskBodyWrap") || byId("task-body");
+    const taskPrimary = ctx?.taskPrimary || byId("taskPrimary") || byId("taskPrimaryBtn") || byId("task-primary");
+    const taskSecondary = ctx?.taskSecondary || byId("taskSecondary") || byId("taskSecondaryBtn") || byId("task-secondary");
+    const title = ctx?.taskTitle || byId("taskTitle");
+    const desc = ctx?.taskDesc || byId("taskDesc");
+    return { taskBody, taskPrimary, taskSecondary, title, desc };
+  }
+
+// -------------------------------------------------
   // p7_minisudoku — 4x4 with highlights + auto-advance
   // -------------------------------------------------
   defs.p7_minisudoku = async (ctx) => {
-    ctx.showTaskUI?.("minisudoku", "fill the 4×4 so each row/col contains 1–4" );
+    const ui = getTaskUI(ctx);
+    ctx.showTaskUI?.("minisudoku", "fill the 4×4 so each row/col contains 1–4");
+    if (!ctx.showTaskUI) {
+      if (ui.title) ui.title.textContent = "minisudoku";
+      if (ui.desc) ui.desc.textContent = "fill the 4×4 so each row/col contains 1–4";
+    }
     const solution = [
       [1, 2, 3, 4],
       [3, 4, 1, 2],
@@ -82,10 +98,11 @@
     };
 
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "4×4" }), msg]), grid);
-    ctx.taskBody.append(wrap);
+    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    ui.taskBody.append(wrap);
 
-    ctx.taskPrimary.textContent = "verify";
-    ctx.taskPrimary.onclick = () => {
+    if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
+    if (ui.taskPrimary) ui.taskPrimary.onclick = () => {
       if (check()) return ctx.success?.("ok");
       ctx.penalize?.();
       msg.textContent = "conflict";
@@ -105,7 +122,8 @@
     const grid = el("div", { class: "grid3 p7-grid" });
     const msg = el("div", { class: "muted", text: "watch" });
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "sequence" }), msg]), grid);
-    ctx.taskBody.append(wrap);
+    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    ui.taskBody.append(wrap);
 
     const btns = [];
     for (let i = 0; i < 9; i++) {
@@ -193,9 +211,10 @@
     };
 
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "stack" }), msg]), list);
-    ctx.taskBody.append(wrap);
-    ctx.taskPrimary.textContent = "verify";
-    ctx.taskPrimary.onclick = () => {
+    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    ui.taskBody.append(wrap);
+    if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
+    if (ui.taskPrimary) ui.taskPrimary.onclick = () => {
       if (check()) return ctx.success?.("ok");
       ctx.penalize?.();
     };
@@ -226,10 +245,11 @@
     update();
 
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "caesar" }), msg]), out, slider);
-    ctx.taskBody.append(wrap);
+    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    ui.taskBody.append(wrap);
 
-    ctx.taskPrimary.textContent = "verify";
-    ctx.taskPrimary.onclick = () => {
+    if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
+    if (ui.taskPrimary) ui.taskPrimary.onclick = () => {
       if (String(out.textContent).trim() === word) return ctx.success?.("ok");
       ctx.penalize?.();
     };
@@ -269,10 +289,11 @@
     render();
 
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "bits" }), msg]), row, led);
-    ctx.taskBody.append(wrap);
+    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    ui.taskBody.append(wrap);
 
-    ctx.taskPrimary.textContent = "verify";
-    ctx.taskPrimary.onclick = () => {
+    if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
+    if (ui.taskPrimary) ui.taskPrimary.onclick = () => {
       const ok = (ones() % 2 === 0) === wantEven;
       if (ok) return ctx.success?.("ok");
       ctx.penalize?.();
@@ -311,9 +332,10 @@
     render();
 
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "toggle" }), msg]), grid);
-    ctx.taskBody.append(wrap);
-    ctx.taskPrimary.textContent = "verify";
-    ctx.taskPrimary.onclick = () => {
+    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    ui.taskBody.append(wrap);
+    if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
+    if (ui.taskPrimary) ui.taskPrimary.onclick = () => {
       if (state.every((x) => !x)) return ctx.success?.("ok");
       ctx.penalize?.();
     };
@@ -328,7 +350,8 @@
     const grid = el("div", { class: "grid3 p7-maze" });
     const msg = el("div", { class: "muted", text: "" });
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "maze" }), msg]), grid);
-    ctx.taskBody.append(wrap);
+    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    ui.taskBody.append(wrap);
 
     const start = 0;
     const end = 8;
@@ -431,10 +454,11 @@
     const current = () => [...row.children].map((n) => n.textContent).join("");
 
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "letters" }), msg]), row);
-    ctx.taskBody.append(wrap);
+    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    ui.taskBody.append(wrap);
 
-    ctx.taskPrimary.textContent = "verify";
-    ctx.taskPrimary.onclick = () => {
+    if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
+    if (ui.taskPrimary) ui.taskPrimary.onclick = () => {
       if (current() === word) return ctx.success?.("ok");
       ctx.penalize?.();
     };
@@ -452,7 +476,8 @@
     const msg = el("div", { class: "muted", text: "" });
     const grid = el("div", { class: "grid3 p7-route" });
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "route" }), msg]), grid);
-    ctx.taskBody.append(wrap);
+    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    ui.taskBody.append(wrap);
 
     const cells = [];
     for (let i = 0; i < 9; i++) {
@@ -503,7 +528,8 @@
     ring.append(gateEl, needle);
     gateEl.style.transform = `rotate(${gate}deg)`;
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "lock" }), msg]), ring, btn);
-    ctx.taskBody.append(wrap);
+    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    ui.taskBody.append(wrap);
 
     const start = performance.now();
     let running = true;
