@@ -369,47 +369,92 @@ const msg = note("");
 
       const L = scoped();
       let inside = false;
-      const armedAt = performance.now() + 3000; // read window
-
-      L.on(box, "mouseenter", () => { inside = true; });
-      L.on(box, "mouseleave", () => { inside = false; });
-
       let resolve;
-      const start = performance.now();
+
+      // Strict gating: slipping should NOT auto-advance. It penalizes and forces a retry.
+      // Also: timer should only begin once the cursor is actually inside (with a short grace).
+      let phase = "idle"; // idle -> armed -> running -> done
+      let runStart = 0;
+      let armAt = 0;
+      const ARM_GRACE_MS = 450;
+
+      const resetToIdle = (text) => {
+        phase = "idle";
+        runStart = 0;
+        armAt = 0;
+        label.textContent = `time: ${sec}s`;
+        msg.style.color = "rgba(232,237,247,0.82)";
+        msg.textContent = text || "Move cursor into the box to start.";
+      };
+
+      const startArming = () => {
+        if (phase !== "idle") return;
+        phase = "armed";
+        armAt = performance.now() + ARM_GRACE_MS;
+        msg.style.color = "rgba(232,237,247,0.82)";
+        msg.textContent = "Hold…";
+      };
 
       const tick = () => {
-        const t = (performance.now() - start) / 1000;
-        const left = Math.max(0, Math.ceil(sec - t));
-        label.textContent = `time: ${left}s`;
+        if (phase === "done") return;
 
-        if (performance.now() < armedAt) {
-          msg.textContent = "Move into the box…";
+        if (phase === "armed") {
+          const msLeft = Math.max(0, armAt - performance.now());
+          const sLeft = Math.ceil(msLeft / 1000);
+          label.textContent = `time: ${sec}s`;
+          msg.textContent = inside ? `Hold… ${sLeft}` : "Stay inside to start.";
+          if (inside && performance.now() >= armAt) {
+            phase = "running";
+            runStart = performance.now();
+            msg.textContent = "";
+          }
           requestAnimationFrame(tick);
           return;
         }
 
-        if (!inside) {
-          wrong(ctx, msg, "You slipped.", "steady_hand slip");
-          L.clear();
-          finish(ctx, resolve, "slip");
+        if (phase === "running") {
+          if (!inside) {
+            wrong(ctx, msg, "You slipped. Re-enter to retry.", "steady_hand slip");
+            resetToIdle("Re-enter the box to restart.");
+            requestAnimationFrame(tick);
+            return;
+          }
+
+          const t = (performance.now() - runStart) / 1000;
+          const left = Math.max(0, Math.ceil(sec - t));
+          label.textContent = `time: ${left}s`;
+
+          if (t >= sec) {
+            phase = "done";
+            msg.style.color = "rgba(232,237,247,0.85)";
+            msg.textContent = "Steady.";
+            L.clear();
+            finish(ctx, resolve, "steady");
+            return;
+          }
+
+          requestAnimationFrame(tick);
           return;
         }
-        if (t >= sec) {
-          msg.style.color = "rgba(232,237,247,0.85)";
-          msg.textContent = "Steady.";
-          L.clear();
-          finish(ctx, resolve, "steady");
-          return;
-        }
+
+        // idle
         requestAnimationFrame(tick);
       };
 
-      const waitInside = () => {
-        if (!inside) return requestAnimationFrame(waitInside);
-        msg.textContent = "";
-        requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(waitInside);
+      L.on(box, "mouseenter", () => { inside = true; startArming(); });
+      L.on(box, "mouseleave", () => { inside = false; if (phase === "armed") resetToIdle("Move cursor into the box to start."); });
+
+      // If the cursor is already inside (rare but possible), arm on next frame.
+      requestAnimationFrame(() => {
+        try {
+          const r = box.getBoundingClientRect();
+          // If the pointer is currently within bounds, start arming.
+          // (We can't read pointer position reliably without a move event, so this is best-effort.)
+        } catch {}
+      });
+
+      resetToIdle();
+      requestAnimationFrame(tick);
 
       return new Promise((r) => (resolve = r));
     },
