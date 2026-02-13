@@ -305,7 +305,10 @@
     const code = word.split("").map((ch) => map[ch]).join(" ");
     const lamp = el("div", { class: "p6-lamp" });
     const msg = el("div", { class: "muted", text: "press PLAY, then decode" });
-    const inp = el("input", { type: "text", placeholder: "letters", class: "p6-input" });
+    const inp = el("input", { type: "text", placeholder: "type letters…", class: "p6-input" });
+    const echo = el("div", { class: "mono p6-kv", text: "typed: " });
+    const echoSpan = el("span", { class: "mono", text: "" });
+    echo.appendChild(echoSpan);
     const play = el("button", { type: "button", class: "taskBtn", text: "PLAY" });
     const help = el("details", { class: "p6-help" }, [
       el("summary", { class: "muted", text: "show hint" }),
@@ -316,6 +319,7 @@
       el("div", { class: "p6-head" }, [el("div", { class: "mono p6-kv", text: "signal: blink" }), msg]),
       lamp,
       el("div", { class: "p6-row" }, [play, inp]),
+      echo,
       help,
     ]));
 
@@ -345,6 +349,7 @@
     };
     ctx.taskPrimary.textContent = "verify";
     ctx.taskPrimary.onclick = submit;
+    inp.addEventListener("input", () => { echoSpan.textContent = String(inp.value || ""); });
     inp.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
   };
 
@@ -502,14 +507,17 @@
   // p6_checksum2 — keypad entry, rule stays same
   // ------------------------------
   defs.p6_checksum2 = async (ctx) => {
-    ctx.showTaskUI?.("checksum2", "enter checksum: (sum of digits) mod 97" );
+    ctx.showTaskUI?.(
+      "checksum2",
+      "Add the digits. Enter the remainder after dividing by 97 (2 digits)."
+    );
     const n = rint(1000, 9999);
     const sum = String(n).split("").reduce((a, d) => a + Number(d), 0);
     const ans = String(sum % 97).padStart(2, "0");
     setAnswer(ctx, ans);
 
     const wrap = el("div", { class: "p6-panel" });
-    const q = el("div", { class: "mono p6-kv", text: `id: ${n}` });
+    const q = el("div", { class: "mono p6-kv", text: `id: ${String(n).split("").join(" ")}` });
     const out = el("div", { class: "mono p6-out", text: "__" });
     const pad = el("div", { class: "p6-pad" });
     const msg = el("div", { class: "muted", text: "" });
