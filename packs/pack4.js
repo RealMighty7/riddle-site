@@ -256,7 +256,11 @@
 
     // 3) Lowest-risk action
     low_risk_action: async (ctx) => {
-      begin(ctx, "AUDIT CHOICE", "Pick the lowest-risk action. The auditor is watching.");
+      begin(
+        ctx,
+        "AUDIT CHOICE",
+        "Pick the lowest-risk action: choose the one that changes metadata, not people or content. The auditor is watching."
+      );
       const opts = shuffle([
         "REQUEST FULL USER EXPORT",
         "INCREASE AD RETENTION",
