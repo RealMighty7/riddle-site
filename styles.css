@@ -1120,3 +1120,53 @@ body::before{
 body.crack-stage-2 .refShard, body.crack-stage-3 .refShard, body.crack-stage-4 .refShard{opacity:.11;}
 body.crack-stage-3 .refShard{opacity:.14;}
 body.crack-stage-4 .refShard{opacity:.18;}
+
+
+/* Landing "impossible" toggle (lightweight, no libs) */
+.impossibleBox{
+  margin-top:14px;
+  padding:12px 12px 14px;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:14px;
+  background:rgba(255,255,255,.65);
+  box-shadow:0 10px 30px rgba(0,0,0,.06);
+}
+.impossibleTitle{
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:lowercase;
+  margin-bottom:6px;
+}
+.impossibleTrack{
+  position:relative;
+  margin-top:10px;
+  height:54px;
+  border-radius:999px;
+  background:rgba(20,20,20,.08);
+  overflow:hidden;
+}
+.impossibleToggle{
+  position:absolute;
+  top:7px;
+  left:10px;
+  height:40px;
+  width:40px;
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,.12);
+  background:rgba(255,255,255,.9);
+  box-shadow:0 8px 18px rgba(0,0,0,.12);
+  cursor:pointer;
+  transition:transform .12s ease, left .12s ease;
+}
+.impossibleToggle.is-on{
+  background:rgba(30,220,120,.92);
+  border-color:rgba(0,0,0,.12);
+}
+.impossibleHint{
+  position:absolute;
+  right:14px;
+  top:50%;
+  transform:translateY(-50%);
+  font-size:12px;
+  opacity:.8;
+}
