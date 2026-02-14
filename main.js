@@ -1055,19 +1055,23 @@ async function shatterAndEnterSim() {
           let lastMoveAt = 0;
           const TOGGLE_W = 40;
           const moveToggle = (biasDir = 0) => {
-            const w = trackEl.clientWidth || 200;
+            // Ensure layout is measured (clientWidth can be 0 on first paint)
+            const w = Math.max(trackEl.clientWidth || 0, TOGGLE_W + 40);
             const pad = 10;
             const maxLeft = Math.max(pad, w - TOGGLE_W - pad);
 
             // biasDir: -1 => move left, +1 => move right, 0 => random
             let left;
             if (biasDir !== 0) {
-              const half = (maxLeft - pad) / 2;
+              const half = Math.max(0, (maxLeft - pad) / 2);
               const base = biasDir < 0 ? pad : pad + half;
-              left = Math.floor(base + Math.random() * half);
+              left = Math.floor(base + Math.random() * (half || 1));
             } else {
-              left = Math.floor(pad + Math.random() * (maxLeft - pad));
+              left = Math.floor(pad + Math.random() * Math.max(1, (maxLeft - pad)));
             }
+
+            // If we were centered via translate, remove it so left positioning works normally.
+            toggleEl.style.transform = "none";
             toggleEl.style.left = left + "px";
             lastMoveAt = performance.now();
           };
@@ -1096,6 +1100,8 @@ async function shatterAndEnterSim() {
           };
 
           trackEl.addEventListener("mousemove", (e) => maybeDodge(e.clientX));
+          trackEl.addEventListener("pointermove", (e) => maybeDodge(e.clientX));
+          trackEl.addEventListener("touchmove", (e) => { try { const t = e.touches && e.touches[0]; if (t) maybeDodge(t.clientX); } catch {} }, { passive: true });
           toggleEl.addEventListener("mouseenter", () => {
             // keep the hover version for touchpads that don't emit mousemove
             try { maybeDodge(toggleEl.getBoundingClientRect().left + 1); } catch {}
@@ -1110,7 +1116,7 @@ async function shatterAndEnterSim() {
             if (status) status.textContent = "status: viewer authorized";
           });
           // initial position: centered (so it doesn't look "stuck" randomly)
-          try { toggleEl.style.left = "50%"; toggleEl.style.transform = "translateX(-50%)"; } catch {}
+          try { requestAnimationFrame(() => moveToggle(0)); } catch {}
         }
       } catch {}
 async function tryKey() {
