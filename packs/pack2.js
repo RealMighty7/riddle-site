@@ -513,8 +513,10 @@
       flip();
       L.interval(flip, clamp(650 - (ctx.difficultyBoost?.() ?? 0) * 40, 320, 650));
 
-      let resolve;
+            let resolve;
+      let completed = false;
       btn.onclick = () => {
+        if (completed) return;
         if (!stateBlank) {
           wrong(ctx, msg, "Too loud.", "click_when_blank");
           return;
@@ -523,12 +525,15 @@
         msg.style.color = "rgba(232,237,247,0.85)";
         msg.textContent = `ok (${ok}/${need})`;
         if (ok >= need) {
+          completed = true;
           L.clear();
+          try { btn.disabled = true; } catch {}
+          try { btn.classList.add("disabled"); } catch {}
           finish(ctx, resolve, String(need));
         }
       };
 
-      return new Promise((r) => (resolve = r));
+      return new Promise((r) => (resolve = r))((r) => (resolve = r));
     },
 
     // 10
