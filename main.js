@@ -1050,19 +1050,25 @@ async function shatterAndEnterSim() {
         const toggleEl = els.impossibleToggle || document.getElementById("impossibleToggle");
         const countEl = els.impossibleCount || document.getElementById("impossibleCount");
         const hintEl = els.impossibleHint || document.getElementById("impossibleHint");
+
         if (trackEl && toggleEl) {
           let attempts = 0;
           let lastMoveAt = 0;
           let lastMouseX = null; // track-local x of the cursor (for click-dodge)
-          const COOLDOWN_MS = 90;
-          const TRIGGER_RADIUS = 90;
+
+          // Tuned to feel responsive + clearly "dodging".
+          const COOLDOWN_MS = 35;
+          const TRIGGER_RADIUS = 120; // px, within which it will dodge
+
+          const getTrack = () => trackEl.getBoundingClientRect();
 
           // Put the toggle at a specific pixel left; removes translate centering issues.
           const setToggleLeftPx = (leftPx) => {
-            const trackRect = trackEl.getBoundingClientRect();
-            const maxLeft = Math.max(0, trackRect.width - toggleEl.offsetWidth);
+            const rect = getTrack();
+            const maxLeft = Math.max(0, rect.width - toggleEl.offsetWidth);
             const clamped = clamp(leftPx, 0, maxLeft);
             toggleEl.style.left = clamped + "px";
+            toggleEl.style.transform = "none";
           };
 
           const getToggleCenterX = () => {
@@ -1079,61 +1085,75 @@ async function shatterAndEnterSim() {
             const now = performance.now();
             if (now - lastMoveAt < COOLDOWN_MS) return;
 
-            const trackRect = trackEl.getBoundingClientRect();
-            const maxLeft = Math.max(0, trackRect.width - toggleEl.offsetWidth);
+            const rect = getTrack();
+            const maxLeft = Math.max(0, rect.width - toggleEl.offsetWidth);
 
             const centerX = getToggleCenterX();
             const dx = mouseX - centerX;
             const dist = Math.abs(dx);
+
+            // Only dodge when the cursor is actually close.
             if (dist > TRIGGER_RADIUS) return;
 
-            // Push away from the cursor direction (deterministic).
-            // Bigger shove the closer you are.
-            const shove = clamp(35 + (TRIGGER_RADIUS - dist) * 0.55, 35, 85);
-            const dir = dx >= 0 ? -1 : +1; // if cursor is to the right, move left; else move right
+            // Shove away from cursor: stronger the closer you are.
+            const shove = clamp(55 + (TRIGGER_RADIUS - dist) * 0.75, 55, 140);
+            let dir = dx >= 0 ? -1 : +1; // if cursor is right of center -> move left
 
             const currentLeft = parseFloat(toggleEl.style.left || "0") || 0;
-            const nextLeft = clamp(currentLeft + dir * shove, 0, maxLeft);
+            let nextLeft = clamp(currentLeft + dir * shove, 0, maxLeft);
+
+            // If we hit a wall and can't move, bounce the other direction.
+            if (nextLeft === currentLeft) {
+              dir *= -1;
+              nextLeft = clamp(currentLeft + dir * shove, 0, maxLeft);
+            }
 
             attempts++;
             if (countEl) countEl.textContent = String(attempts);
 
-            toggleEl.style.transform = "none";
+            toggleEl.style.transition = "left .08s ease"; // snappy, not floaty
             toggleEl.style.left = nextLeft + "px";
+            toggleEl.style.transform = "none";
             lastMoveAt = now;
 
             try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
             if (hintEl && attempts >= 4) hintEl.textContent = "attempts: " + attempts + " (stop chasing it)";
           };
 
-          // Track pointer position in the bar and dodge when close.
-          const onMove = (clientX) => {
-            const rect = trackEl.getBoundingClientRect();
-            lastMouseX = clamp(clientX - rect.left, 0, rect.width);
+          const toLocalX = (clientX) => {
+            const rect = getTrack();
+            return clamp(clientX - rect.left, 0, rect.width);
+          };
+
+          const onMoveClientX = (clientX) => {
+            lastMouseX = toLocalX(clientX);
             dodgeFromMouse(lastMouseX);
           };
 
-          trackEl.addEventListener("mousemove", (e) => onMove(e.clientX));
-          trackEl.addEventListener("pointermove", (e) => onMove(e.clientX));
+          // Track pointer position in the bar and dodge when close.
+          trackEl.addEventListener("mousemove", (e) => onMoveClientX(e.clientX));
+          trackEl.addEventListener("pointermove", (e) => onMoveClientX(e.clientX));
+          trackEl.addEventListener("mouseenter", (e) => onMoveClientX(e.clientX));
+          trackEl.addEventListener("pointerenter", (e) => onMoveClientX(e.clientX));
           trackEl.addEventListener("touchmove", (e) => {
             const t = e.touches && e.touches[0];
-            if (t) onMove(t.clientX);
+            if (t) onMoveClientX(t.clientX);
           }, { passive: true });
 
-          toggleEl.addEventListener("mouseenter", (e) => {
-            // Some touchpads don't emit mousemove every time; nudge using last known cursor
-            if (typeof lastMouseX === "number") dodgeFromMouse(lastMouseX);
-          });
+          // IMPORTANT: when the cursor enters the knob itself, we must dodge using THAT event's position,
+          // not relying on "lastMouseX" (which may still be null if they moved directly onto the knob).
+          toggleEl.addEventListener("mousemove", (e) => onMoveClientX(e.clientX));
+          toggleEl.addEventListener("pointermove", (e) => onMoveClientX(e.clientX));
+          toggleEl.addEventListener("mouseenter", (e) => onMoveClientX(e.clientX));
+          toggleEl.addEventListener("pointerenter", (e) => onMoveClientX(e.clientX));
 
-          toggleEl.addEventListener("click", () => {
+          toggleEl.addEventListener("click", (e) => {
             if (toggleEl.classList.contains("is-on")) return;
 
             // Viewers must "earn" the toggle.
             if (!isAdmin && attempts < 4) {
-              // Dodge away from the last cursor position (or from center if none).
-              const trackRect = trackEl.getBoundingClientRect();
-              const fallback = trackRect.width / 2;
-              dodgeFromMouse(typeof lastMouseX === "number" ? lastMouseX : fallback);
+              // Dodge away from the click position (best signal).
+              onMoveClientX(e.clientX);
               return;
             }
 
@@ -1146,7 +1166,7 @@ async function shatterAndEnterSim() {
           // Initial position: dead center, in pixels (no translate centering).
           toggleEl.style.transform = "none";
           requestAnimationFrame(() => {
-            const rect = trackEl.getBoundingClientRect();
+            const rect = getTrack();
             setToggleLeftPx(rect.width / 2 - toggleEl.offsetWidth / 2);
           });
         }
