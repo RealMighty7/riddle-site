@@ -1043,7 +1043,7 @@ async function shatterAndEnterSim() {
       });
 
       
-            // "Impossible" authorization toggle (pure JS; harmless, just flavor).
+      // "Impossible" authorization toggle (pure JS; harmless, just flavor).
       // It dodges the cursor a few times before allowing a click. Does NOT affect sim entry.
       try {
         const trackEl = els.impossibleTrack || document.getElementById("impossibleTrack");
@@ -1053,96 +1053,101 @@ async function shatterAndEnterSim() {
         if (trackEl && toggleEl) {
           let attempts = 0;
           let lastMoveAt = 0;
+          let lastMouseX = null; // track-local x of the cursor (for click-dodge)
+          const COOLDOWN_MS = 90;
+          const TRIGGER_RADIUS = 90;
 
-          const pad = 10;
-          const toggleW = () => toggleEl.getBoundingClientRect().width || 40;
-
-          const getBounds = () => {
-            const w = trackEl.clientWidth || trackEl.getBoundingClientRect().width || 200;
-            const maxLeft = Math.max(pad, w - toggleW() - pad);
-            return { w, maxLeft };
-          };
-
-          const getLeftPx = () => {
-            const raw = (toggleEl.style.left || "").trim();
-            if (raw.endsWith("px")) return parseFloat(raw) || 0;
-            // If initial CSS put it at 50% + transform, convert to px once.
-            const tr = trackEl.getBoundingClientRect();
-            const tg = toggleEl.getBoundingClientRect();
-            return Math.max(pad, Math.min(tg.left - tr.left, getBounds().maxLeft));
-          };
-
-          const setLeftPx = (leftPx) => {
-            const { maxLeft } = getBounds();
-            const clamped = Math.max(pad, Math.min(leftPx, maxLeft));
-            toggleEl.style.transform = "none";
+          // Put the toggle at a specific pixel left; removes translate centering issues.
+          const setToggleLeftPx = (leftPx) => {
+            const trackRect = trackEl.getBoundingClientRect();
+            const maxLeft = Math.max(0, trackRect.width - toggleEl.offsetWidth);
+            const clamped = clamp(leftPx, 0, maxLeft);
             toggleEl.style.left = clamped + "px";
           };
 
-          const dodgeFrom = (clientX, clientY) => {
+          const getToggleCenterX = () => {
+            const left = parseFloat(toggleEl.style.left || "0") || 0;
+            return left + toggleEl.offsetWidth / 2;
+          };
+
+          const dodgeFromMouse = (mouseX) => {
+            // mouseX is track-local (0..trackWidth)
             if (toggleEl.classList.contains("is-on")) return;
             if (isAdmin) return;
             if (attempts >= 6) return;
 
             const now = performance.now();
-            if (now - lastMoveAt < 120) return;
+            if (now - lastMoveAt < COOLDOWN_MS) return;
 
-            const tr = trackEl.getBoundingClientRect();
-            const tg = toggleEl.getBoundingClientRect();
-            const cx = tg.left + tg.width / 2;
-            const cy = tg.top + tg.height / 2;
+            const trackRect = trackEl.getBoundingClientRect();
+            const maxLeft = Math.max(0, trackRect.width - toggleEl.offsetWidth);
 
-            const dx = clientX - cx;
-            const dy = clientY - cy;
-            const dist = Math.hypot(dx, dy);
+            const centerX = getToggleCenterX();
+            const dx = mouseX - centerX;
+            const dist = Math.abs(dx);
+            if (dist > TRIGGER_RADIUS) return;
 
-            // Only dodge when you're actually "near" the toggle.
-            const triggerR = 70;
-            if (dist > triggerR) return;
+            // Push away from the cursor direction (deterministic).
+            // Bigger shove the closer you are.
+            const shove = clamp(35 + (TRIGGER_RADIUS - dist) * 0.55, 35, 85);
+            const dir = dx >= 0 ? -1 : +1; // if cursor is to the right, move left; else move right
+
+            const currentLeft = parseFloat(toggleEl.style.left || "0") || 0;
+            const nextLeft = clamp(currentLeft + dir * shove, 0, maxLeft);
 
             attempts++;
             if (countEl) countEl.textContent = String(attempts);
 
-            // Push away horizontally from the cursor, with a bit of extra jump as attempts rise.
-            const awayDir = dx < 0 ? +1 : -1; // cursor left => move right
-            const jump = 120 + attempts * 18;
-
-            const current = getLeftPx();
-            const target = current + awayDir * jump;
-
-            // tiny jitter so it feels alive, but not random.
-            const jitter = (Math.random() * 18 - 9);
-            setLeftPx(target + jitter);
-
+            toggleEl.style.transform = "none";
+            toggleEl.style.left = nextLeft + "px";
             lastMoveAt = now;
+
             try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
             if (hintEl && attempts >= 4) hintEl.textContent = "attempts: " + attempts + " (stop chasing it)";
           };
 
-          // Track pointer near the toggle (mouse + touch + pen).
-          const onMove = (e) => dodgeFrom(e.clientX, e.clientY);
-          trackEl.addEventListener("pointermove", onMove, { passive: true });
-          toggleEl.addEventListener("pointermove", onMove, { passive: true });
+          // Track pointer position in the bar and dodge when close.
+          const onMove = (clientX) => {
+            const rect = trackEl.getBoundingClientRect();
+            lastMouseX = clamp(clientX - rect.left, 0, rect.width);
+            dodgeFromMouse(lastMouseX);
+          };
+
+          trackEl.addEventListener("mousemove", (e) => onMove(e.clientX));
+          trackEl.addEventListener("pointermove", (e) => onMove(e.clientX));
+          trackEl.addEventListener("touchmove", (e) => {
+            const t = e.touches && e.touches[0];
+            if (t) onMove(t.clientX);
+          }, { passive: true });
+
+          toggleEl.addEventListener("mouseenter", (e) => {
+            // Some touchpads don't emit mousemove every time; nudge using last known cursor
+            if (typeof lastMouseX === "number") dodgeFromMouse(lastMouseX);
+          });
 
           toggleEl.addEventListener("click", () => {
             if (toggleEl.classList.contains("is-on")) return;
-            // after a few attempts, allow it.
+
+            // Viewers must "earn" the toggle.
             if (!isAdmin && attempts < 4) {
-              // force a dodge on click-tries
-              const tg = toggleEl.getBoundingClientRect();
-              dodgeFrom(tg.left + tg.width / 2 - 1, tg.top + tg.height / 2);
+              // Dodge away from the last cursor position (or from center if none).
+              const trackRect = trackEl.getBoundingClientRect();
+              const fallback = trackRect.width / 2;
+              dodgeFromMouse(typeof lastMouseX === "number" ? lastMouseX : fallback);
               return;
             }
+
             toggleEl.classList.add("is-on");
             toggleEl.setAttribute("aria-pressed", "true");
             if (hintEl) hintEl.textContent = "authorized";
             if (status) status.textContent = "status: viewer authorized";
           });
 
-          // Initial position: center in px after layout is ready (no translateX).
+          // Initial position: dead center, in pixels (no translate centering).
+          toggleEl.style.transform = "none";
           requestAnimationFrame(() => {
-            const { maxLeft } = getBounds();
-            setLeftPx(maxLeft / 2);
+            const rect = trackEl.getBoundingClientRect();
+            setToggleLeftPx(rect.width / 2 - toggleEl.offsetWidth / 2);
           });
         }
       } catch {}
