@@ -1043,7 +1043,7 @@ async function shatterAndEnterSim() {
       });
 
       
-      // "Impossible" authorization toggle (pure JS; harmless, just flavor).
+            // "Impossible" authorization toggle (pure JS; harmless, just flavor).
       // It dodges the cursor a few times before allowing a click. Does NOT affect sim entry.
       try {
         const trackEl = els.impossibleTrack || document.getElementById("impossibleTrack");
@@ -1053,70 +1053,97 @@ async function shatterAndEnterSim() {
         if (trackEl && toggleEl) {
           let attempts = 0;
           let lastMoveAt = 0;
-          const TOGGLE_W = 40;
-          const moveToggle = (biasDir = 0) => {
-            // Ensure layout is measured (clientWidth can be 0 on first paint)
-            const w = Math.max(trackEl.clientWidth || 0, TOGGLE_W + 40);
-            const pad = 10;
-            const maxLeft = Math.max(pad, w - TOGGLE_W - pad);
 
-            // biasDir: -1 => move left, +1 => move right, 0 => random
-            let left;
-            if (biasDir !== 0) {
-              const half = Math.max(0, (maxLeft - pad) / 2);
-              const base = biasDir < 0 ? pad : pad + half;
-              left = Math.floor(base + Math.random() * (half || 1));
-            } else {
-              left = Math.floor(pad + Math.random() * Math.max(1, (maxLeft - pad)));
-            }
+          const pad = 10;
+          const toggleW = () => toggleEl.getBoundingClientRect().width || 40;
 
-            // If we were centered via translate, remove it so left positioning works normally.
-            toggleEl.style.transform = "none";
-            toggleEl.style.left = left + "px";
-            lastMoveAt = performance.now();
+          const getBounds = () => {
+            const w = trackEl.clientWidth || trackEl.getBoundingClientRect().width || 200;
+            const maxLeft = Math.max(pad, w - toggleW() - pad);
+            return { w, maxLeft };
           };
 
-          const maybeDodge = (clientX) => {
+          const getLeftPx = () => {
+            const raw = (toggleEl.style.left || "").trim();
+            if (raw.endsWith("px")) return parseFloat(raw) || 0;
+            // If initial CSS put it at 50% + transform, convert to px once.
+            const tr = trackEl.getBoundingClientRect();
+            const tg = toggleEl.getBoundingClientRect();
+            return Math.max(pad, Math.min(tg.left - tr.left, getBounds().maxLeft));
+          };
+
+          const setLeftPx = (leftPx) => {
+            const { maxLeft } = getBounds();
+            const clamped = Math.max(pad, Math.min(leftPx, maxLeft));
+            toggleEl.style.transform = "none";
+            toggleEl.style.left = clamped + "px";
+          };
+
+          const dodgeFrom = (clientX, clientY) => {
             if (toggleEl.classList.contains("is-on")) return;
             if (isAdmin) return;
             if (attempts >= 6) return;
 
             const now = performance.now();
-            if (now - lastMoveAt < 120) return; // simple cooldown
+            if (now - lastMoveAt < 120) return;
 
-            const trackRect = trackEl.getBoundingClientRect();
-            const toggleRect = toggleEl.getBoundingClientRect();
-            const toggleCenter = toggleRect.left + toggleRect.width / 2;
-            const dx = Math.abs(clientX - toggleCenter);
-            if (dx > 55) return; // only dodge when you're actually close
+            const tr = trackEl.getBoundingClientRect();
+            const tg = toggleEl.getBoundingClientRect();
+            const cx = tg.left + tg.width / 2;
+            const cy = tg.top + tg.height / 2;
+
+            const dx = clientX - cx;
+            const dy = clientY - cy;
+            const dist = Math.hypot(dx, dy);
+
+            // Only dodge when you're actually "near" the toggle.
+            const triggerR = 70;
+            if (dist > triggerR) return;
 
             attempts++;
             if (countEl) countEl.textContent = String(attempts);
-            // move away from cursor direction
-            const biasDir = clientX < toggleCenter ? +1 : -1;
-            moveToggle(biasDir);
+
+            // Push away horizontally from the cursor, with a bit of extra jump as attempts rise.
+            const awayDir = dx < 0 ? +1 : -1; // cursor left => move right
+            const jump = 120 + attempts * 18;
+
+            const current = getLeftPx();
+            const target = current + awayDir * jump;
+
+            // tiny jitter so it feels alive, but not random.
+            const jitter = (Math.random() * 18 - 9);
+            setLeftPx(target + jitter);
+
+            lastMoveAt = now;
             try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
             if (hintEl && attempts >= 4) hintEl.textContent = "attempts: " + attempts + " (stop chasing it)";
           };
 
-          trackEl.addEventListener("mousemove", (e) => maybeDodge(e.clientX));
-          trackEl.addEventListener("pointermove", (e) => maybeDodge(e.clientX));
-          trackEl.addEventListener("touchmove", (e) => { try { const t = e.touches && e.touches[0]; if (t) maybeDodge(t.clientX); } catch {} }, { passive: true });
-          toggleEl.addEventListener("mouseenter", () => {
-            // keep the hover version for touchpads that don't emit mousemove
-            try { maybeDodge(toggleEl.getBoundingClientRect().left + 1); } catch {}
-          });
+          // Track pointer near the toggle (mouse + touch + pen).
+          const onMove = (e) => dodgeFrom(e.clientX, e.clientY);
+          trackEl.addEventListener("pointermove", onMove, { passive: true });
+          toggleEl.addEventListener("pointermove", onMove, { passive: true });
+
           toggleEl.addEventListener("click", () => {
             if (toggleEl.classList.contains("is-on")) return;
             // after a few attempts, allow it.
-            if (!isAdmin && attempts < 4) { moveToggle(0); return; }
+            if (!isAdmin && attempts < 4) {
+              // force a dodge on click-tries
+              const tg = toggleEl.getBoundingClientRect();
+              dodgeFrom(tg.left + tg.width / 2 - 1, tg.top + tg.height / 2);
+              return;
+            }
             toggleEl.classList.add("is-on");
             toggleEl.setAttribute("aria-pressed", "true");
             if (hintEl) hintEl.textContent = "authorized";
             if (status) status.textContent = "status: viewer authorized";
           });
-          // initial position: centered (so it doesn't look "stuck" randomly)
-          try { requestAnimationFrame(() => moveToggle(0)); } catch {}
+
+          // Initial position: center in px after layout is ready (no translateX).
+          requestAnimationFrame(() => {
+            const { maxLeft } = getBounds();
+            setLeftPx(maxLeft / 2);
+          });
         }
       } catch {}
 async function tryKey() {
