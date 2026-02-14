@@ -221,12 +221,12 @@
     ctx.showTaskUI?.("freq dial", "tune until the trace locks" );
     const target = rint(180, 620);
     const tol = 8;
-    setAnswer(ctx, `${target}±${tol}`);
+    setAnswer(ctx, `${target}+/-${tol}`);
 
     const wrap = el("div", { class: "p6-panel" });
     const canvas = el("canvas", { class: "p6-scope", width: "560", height: "160" });
     const read = el("div", { class: "mono p6-kv", text: "hz: ---" });
-    const hint = el("div", { class: "muted", text: `target band: ${target} ±${tol}` });
+    const hint = el("div", { class: "muted", text: `target band: ${target} +/-${tol}` });
 
     const dial = el("input", { type: "range", min: "100", max: "700", value: String(rint(100, 700)), class: "p6-range" });
     wrap.append(el("div", { class: "p6-head" }, [read, hint]), canvas, dial);
@@ -426,7 +426,7 @@
     let activeL = null;
 
     const makeJack = (side, i) => {
-      const j = el("button", { type: "button", class: `p6-jack ${side}`, text: side === "L" ? String(i + 1) : String(perm.indexOf(i) + 1) });
+      const j = el("button", { type: "button", class: `p6-jack ${side}`, text: side === "L" ? String(i + 1) : String(perm[i] + 1) });
       j.dataset.i = String(i);
       j.dataset.side = side;
       return j;
@@ -468,20 +468,28 @@
       return true;
     };
 
-    const bind = () => {
+        const bind = () => {
       L.forEach((b, li) => {
         b.onclick = () => {
           activeL = li;
-          L.forEach((x) => x.classList.remove("sel"));
+          // clear highlights
+          [...L, ...R].forEach((x) => x.classList.remove("sel"));
           b.classList.add("sel");
         };
       });
       R.forEach((b, ri) => {
         b.onclick = () => {
           if (activeL == null) { ctx.penalize?.(); return; }
+
+          // connect
           lines.set(activeL, ri);
+
+          // mark both endpoints and clear current selection highlight
+          try { L[activeL]?.classList.add("done"); } catch {}
+          try { R[ri]?.classList.add("done"); } catch {}
           activeL = null;
-          L.forEach((x) => x.classList.remove("sel"));
+          [...L, ...R].forEach((x) => x.classList.remove("sel"));
+
           draw();
           if (check()) ctx.success?.("ok");
         };
