@@ -1043,8 +1043,10 @@ async function shatterAndEnterSim() {
       });
 
       
+      
       // "Impossible" authorization toggle (pure JS; harmless, just flavor).
       // It dodges the cursor a few times before allowing a click. Does NOT affect sim entry.
+      // NOTE: implemented as transform-based motion (more reliable than changing `left`).
       try {
         const trackEl = els.impossibleTrack || document.getElementById("impossibleTrack");
         const toggleEl = els.impossibleToggle || document.getElementById("impossibleToggle");
@@ -1053,107 +1055,119 @@ async function shatterAndEnterSim() {
 
         if (trackEl && toggleEl) {
           let attempts = 0;
-          let lastMoveAt = 0;
-          let lastMouseX = null; // track-local x of the cursor (for click-dodge)
+          let disabled = false;
 
-          // Tuned to feel responsive + clearly "dodging".
-          const COOLDOWN_MS = 35;
-          const TRIGGER_RADIUS = 120; // px, within which it will dodge
+          // Two-layer motion: a "snap" target + a small "drift" away from the cursor.
+          let snapX = 0;
+          let driftX = 0;
 
-          const getTrack = () => trackEl.getBoundingClientRect();
+          const PAD = 10;            // keep some padding inside the track
+          const SNAP_COOLDOWN = 80;  // ms; prevents jitter spam
+          const DODGE_RADIUS = 84;   // px; how close the cursor needs to be for drift
+          const SAMPLES = 10;        // random candidates for "farthest" snap
 
-          // Put the toggle at a specific pixel left; removes translate centering issues.
-          const setToggleLeftPx = (leftPx) => {
-            const rect = getTrack();
-            const maxLeft = Math.max(0, rect.width - toggleEl.offsetWidth);
-            const clamped = clamp(leftPx, 0, maxLeft);
-            toggleEl.style.left = clamped + "px";
-            toggleEl.style.transform = "none";
+          const randomBetween = (min, max) => Math.random() * (max - min) + min;
+
+          const maxX = () => {
+            const r = trackEl.getBoundingClientRect();
+            return Math.max(0, r.width - toggleEl.offsetWidth - PAD * 2);
           };
 
-          const getToggleCenterX = () => {
-            const left = parseFloat(toggleEl.style.left || "0") || 0;
-            return left + toggleEl.offsetWidth / 2;
+          const setX = (x) => {
+            const clamped = clamp(x, 0, maxX());
+            toggleEl.style.left = PAD + "px";
+            toggleEl.style.top = "7px";
+            toggleEl.style.transform = `translate3d(${clamped}px, 0px, 0px)`;
+            return clamped;
           };
 
-          const dodgeFromMouse = (mouseX) => {
-            // mouseX is track-local (0..trackWidth)
+          const getX = () => snapX + driftX;
+
+          const setAttempts = (n) => {
+            attempts = n;
+            if (countEl) countEl.textContent = String(attempts);
+            if (hintEl && attempts >= 4) hintEl.textContent = "attempts: " + attempts + " (stop chasing it)";
+          };
+
+          const snapAway = (clientX, clientY) => {
+            if (toggleEl.classList.contains("is-on")) return;
+            if (isAdmin) return;
+            if (disabled) return;
+            if (attempts >= 6) return;
+
+            disabled = true;
+            setTimeout(() => (disabled = false), SNAP_COOLDOWN);
+
+            const trackRect = trackEl.getBoundingClientRect();
+            const cursorX = clientX - trackRect.left;
+
+            const max = maxX();
+            let bestX = clamp(getX(), 0, max);
+            let bestD = -1;
+
+            // Sample several random positions and pick the farthest from the cursor.
+            for (let i = 0; i < SAMPLES; i++) {
+              const candidate = randomBetween(0, max);
+              const candidateCenter = PAD + candidate + toggleEl.offsetWidth / 2;
+              const d = Math.abs(candidateCenter - cursorX);
+              if (d > bestD) {
+                bestD = d;
+                bestX = candidate;
+              }
+            }
+
+            snapX = bestX;
+            driftX = 0;
+            setX(snapX);
+
+            setAttempts(attempts + 1);
+            try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
+          };
+
+          const driftAway = (clientX) => {
             if (toggleEl.classList.contains("is-on")) return;
             if (isAdmin) return;
             if (attempts >= 6) return;
 
-            const now = performance.now();
-            if (now - lastMoveAt < COOLDOWN_MS) return;
+            const trackRect = trackEl.getBoundingClientRect();
+            const cursorX = clientX - trackRect.left;
 
-            const rect = getTrack();
-            const maxLeft = Math.max(0, rect.width - toggleEl.offsetWidth);
-
-            const centerX = getToggleCenterX();
-            const dx = mouseX - centerX;
+            const btnCenterX = PAD + getX() + toggleEl.offsetWidth / 2;
+            const dx = cursorX - btnCenterX;
             const dist = Math.abs(dx);
 
-            // Only dodge when the cursor is actually close.
-            if (dist > TRIGGER_RADIUS) return;
+            if (dist > DODGE_RADIUS) return;
 
-            // Shove away from cursor: stronger the closer you are.
-            const shove = clamp(55 + (TRIGGER_RADIUS - dist) * 0.75, 55, 140);
-            let dir = dx >= 0 ? -1 : +1; // if cursor is right of center -> move left
+            // Move a small fraction away from the cursor.
+            driftX += (-dx / 140);
 
-            const currentLeft = parseFloat(toggleEl.style.left || "0") || 0;
-            let nextLeft = clamp(currentLeft + dir * shove, 0, maxLeft);
-
-            // If we hit a wall and can't move, bounce the other direction.
-            if (nextLeft === currentLeft) {
-              dir *= -1;
-              nextLeft = clamp(currentLeft + dir * shove, 0, maxLeft);
-            }
-
-            attempts++;
-            if (countEl) countEl.textContent = String(attempts);
-
-            toggleEl.style.transition = "left .08s ease"; // snappy, not floaty
-            toggleEl.style.left = nextLeft + "px";
-            toggleEl.style.transform = "none";
-            lastMoveAt = now;
-
-            try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
-            if (hintEl && attempts >= 4) hintEl.textContent = "attempts: " + attempts + " (stop chasing it)";
+            // Clamp combined offset and keep drift consistent with snap.
+            const combined = clamp(snapX + driftX, 0, maxX());
+            driftX = combined - snapX;
+            setX(combined);
           };
 
-          const toLocalX = (clientX) => {
-            const rect = getTrack();
-            return clamp(clientX - rect.left, 0, rect.width);
-          };
+          // Ensure smooth transform motion.
+          toggleEl.style.willChange = "transform";
+          toggleEl.style.transition = "transform 120ms ease";
 
-          const onMoveClientX = (clientX) => {
-            lastMouseX = toLocalX(clientX);
-            dodgeFromMouse(lastMouseX);
-          };
+          // Track movement while the cursor is in the bar.
+          trackEl.addEventListener("mousemove", (e) => driftAway(e.clientX));
+          trackEl.addEventListener("pointermove", (e) => driftAway(e.clientX));
 
-          // Track pointer position in the bar and dodge when close.
-          trackEl.addEventListener("mousemove", (e) => onMoveClientX(e.clientX));
-          trackEl.addEventListener("pointermove", (e) => onMoveClientX(e.clientX));
-          trackEl.addEventListener("mouseenter", (e) => onMoveClientX(e.clientX));
-          trackEl.addEventListener("pointerenter", (e) => onMoveClientX(e.clientX));
-          trackEl.addEventListener("touchmove", (e) => {
-            const t = e.touches && e.touches[0];
-            if (t) onMoveClientX(t.clientX);
-          }, { passive: true });
-
-          // IMPORTANT: when the cursor enters the knob itself, we must dodge using THAT event's position,
-          // not relying on "lastMouseX" (which may still be null if they moved directly onto the knob).
-          toggleEl.addEventListener("mousemove", (e) => onMoveClientX(e.clientX));
-          toggleEl.addEventListener("pointermove", (e) => onMoveClientX(e.clientX));
-          toggleEl.addEventListener("mouseenter", (e) => onMoveClientX(e.clientX));
-          toggleEl.addEventListener("pointerenter", (e) => onMoveClientX(e.clientX));
+          // When the cursor gets onto the knob, we "snap" away.
+          // (This is what makes it feel like it avoids you.)
+          toggleEl.addEventListener("mouseenter", (e) => snapAway(e.clientX, e.clientY));
+          toggleEl.addEventListener("mousemove", (e) => snapAway(e.clientX, e.clientY));
+          toggleEl.addEventListener("pointerenter", (e) => snapAway(e.clientX, e.clientY));
+          toggleEl.addEventListener("pointermove", (e) => snapAway(e.clientX, e.clientY));
 
           toggleEl.addEventListener("click", (e) => {
             if (toggleEl.classList.contains("is-on")) return;
 
             // Viewers must "earn" the toggle.
             if (!isAdmin && attempts < 4) {
-              // Dodge away from the click position (best signal).
-              onMoveClientX(e.clientX);
+              snapAway(e.clientX, e.clientY);
               return;
             }
 
@@ -1163,14 +1177,16 @@ async function shatterAndEnterSim() {
             if (status) status.textContent = "status: viewer authorized";
           });
 
-          // Initial position: dead center, in pixels (no translate centering).
-          toggleEl.style.transform = "none";
+          // Initial position: center-ish after layout.
           requestAnimationFrame(() => {
-            const rect = getTrack();
-            setToggleLeftPx(rect.width / 2 - toggleEl.offsetWidth / 2);
+            const m = maxX();
+            snapX = m / 2;
+            driftX = 0;
+            setX(snapX);
           });
         }
       } catch {}
+
 async function tryKey() {
         const raw = (keyInput?.value || "").trim();
         if (!raw) { if (keyMsg) keyMsg.textContent = "status: enter a key"; return; }
