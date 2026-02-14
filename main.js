@@ -1334,7 +1334,7 @@ async function emitLine(line) {
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
       simChoices.classList.add("hidden");
-      hackRoom.classList.add("hidden");
+      if (String(taskId) !== "hack_final") { hackRoom.classList.add("hidden"); } else { hackRoom.classList.remove("hidden"); taskUI.classList.add("hidden"); }
 
       simText.textContent = "";
       playSfx("static1", { volume: 0.22, overlap: false });
@@ -1519,8 +1519,14 @@ async function emitLine(line) {
         await playLines([line]);
       }
 
-      if (Array.isArray(plan.afterTasks)) await playLines(plan.afterTasks);
-    }
+  if (Array.isArray(plan.afterTasks)) await playLines(plan.afterTasks);
+
+  // Final hack terminal (if present). This is the end-cap of the run.
+  // Can be disabled by setting plan.finalHack === false.
+  if (plan.finalHack !== false && window.TASKS && typeof window.TASKS.hack_final === "function") {
+    await runTask("hack_final", { pack: "final", index: 0, ordinal: (plan.totalTasks || 20) + 1, total: (plan.totalTasks || 20) + 1 });
+  }
+}
 
 /* ======================
        STEPS RUNNER (dialogue → choice → task)
@@ -1604,7 +1610,7 @@ async function runTask(taskId, args) {
       console.debug("[TNR] task:start", taskId, args);
       simChoices.classList.add("hidden");
       taskUI.classList.remove("hidden");
-      hackRoom.classList.add("hidden");
+      if (String(taskId) !== "hack_final") { hackRoom.classList.add("hidden"); } else { hackRoom.classList.remove("hidden"); taskUI.classList.add("hidden"); }
 
       // Music: task intensity scene
       try { window.Music?.setScene?.("task"); } catch {}
@@ -1691,11 +1697,22 @@ async function runTask(taskId, args) {
         },
 
         // packs call this to store per-task answer for admin
-        setAnswer: (phrase) => {
-          simState.storedAnswer = String(phrase || "");
+                setAnswer: (phrase) => {
+          const raw = String(phrase || "");
+          simState.storedAnswer = raw;
+
+          // Prettify for admin display only (do NOT change the stored raw answer).
+          // Helps with long digit strings like "3822013" by spacing digits: "3 8 2 2 0 1 3".
+          let pretty = raw;
           try {
-            if (els.adminStoredAnswer) els.adminStoredAnswer.textContent = simState.storedAnswer || "—";
-            if (els.adminAnswer) els.adminAnswer.value = simState.storedAnswer || "";
+            if (/^[0-9]{5,}$/.test(raw)) {
+              pretty = raw.split("").join(" ");
+            }
+          } catch {}
+
+          try {
+            if (els.adminStoredAnswer) els.adminStoredAnswer.textContent = pretty || "—";
+            if (els.adminAnswer) els.adminAnswer.value = raw || "";
           } catch {}
         },
 
@@ -1822,11 +1839,15 @@ async function runTask(taskId, args) {
       timerStop = true;
 
       // Hide task UI, return to sim
-      taskUI.classList.add("hidden");
-      simRoom.classList.remove("hidden");
+      if (String(taskId) !== "hack_final") {
+        taskUI.classList.add("hidden");
+        simRoom.classList.remove("hidden");
+      }
 
       // back to sim scene
-      try { window.Music?.setScene?.("sim"); } catch {}
+      if (String(taskId) !== "hack_final") {
+        try { window.Music?.setScene?.("sim"); } catch {}
+      }
       console.debug("[TNR] task:end", taskId);
 
       await wait(120);
