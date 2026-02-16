@@ -1532,6 +1532,22 @@ async function emitLine(line) {
       syncGameState({ stage });
       await unlockAudio();
 
+      // The landing "verification" toggle can be moved to <body> (fixed positioning)
+      // when it gets knocked off the slider. Hide it for the rest of the run once
+      // the simulation begins.
+      try {
+        const t = document.getElementById("impossibleToggle");
+        if (t) {
+          t.style.display = "none";
+          t.style.pointerEvents = "none";
+        }
+        const tr = document.getElementById("impossibleTrack");
+        if (tr) {
+          tr.style.display = "none";
+          tr.style.pointerEvents = "none";
+        }
+      } catch {}
+
       // Music: start only once we are actually in the sim (never on the landing page).
       try {
         await window.Music?.unlock?.();
@@ -1831,8 +1847,15 @@ async function runTask(taskId, args) {
       taskUI.classList.remove("hidden");
       if (String(taskId) !== "hack_final") { hackRoom.classList.add("hidden"); } else { hackRoom.classList.remove("hidden"); taskUI.classList.add("hidden"); }
 
-      // Music: task intensity scene
-      try { window.Music?.setScene?.("task"); } catch {}
+      // Music: task intensity scene (except final hack which has its own scene)
+      if (String(taskId) === "hack_final") {
+        try { window.Music?.setScene?.("finalhack"); } catch {}
+      } else {
+        try { window.Music?.setScene?.("task"); } catch {}
+      }
+
+      // HUD timer: disable during final hack (it can exceed 2:30 by design)
+      try { document.body.classList.toggle("no-task-timer", String(taskId) === "hack_final"); } catch {}
 
       // Reset task UI content
       taskTitle.textContent = "";
@@ -1882,7 +1905,15 @@ async function runTask(taskId, args) {
           await wait(120);
         }
       };
-      tickTimer();
+      // Final hack has no timeout.
+      if (String(taskId) !== "hack_final") {
+        tickTimer();
+      } else {
+        try {
+          if (hudTimer) hudTimer.style.width = "100%";
+          if (hudTimerTxt) hudTimerTxt.textContent = "--:--";
+        } catch {}
+      }
 
       const resetTaskButtons = () => {
         try { taskPrimary.onclick = null; } catch {}
