@@ -316,20 +316,21 @@ body.in-sim::before{
   /* Clean overlay frame (fills included) */
   /* Use contain so the whole monitor UI is always visible (no cropping) */
   background: url("./assets/monitor_ui_clean.svg") center/contain no-repeat;
-  opacity: 1;
-  /* Make the UI lines pop against the dark sim background */
-  mix-blend-mode: screen;
-  filter: contrast(1.35) brightness(1.18) drop-shadow(0 0 10px rgba(0,0,0,.35));
+  /* The SVG contains mostly dark strokes; screen-blending makes them vanish.
+     Invert + normal blend makes the monitor shell visible on the sim background. */
+  opacity: .62;
+  mix-blend-mode: normal;
+  filter: invert(1) contrast(1.18) brightness(1.12) drop-shadow(0 0 10px rgba(0,0,0,.35));
 }
 
 /* Different "modes" slightly tint the monitor */
-body.hack-open::before{ filter: contrast(1.10) brightness(1.08); }
-body.task-open::before{ filter: contrast(1.10) brightness(1.08); }
+body.hack-open::before{ filter: invert(1) contrast(1.12) brightness(1.08) drop-shadow(0 0 10px rgba(0,0,0,.35)); }
+body.task-open::before{ filter: invert(1) contrast(1.12) brightness(1.08) drop-shadow(0 0 10px rgba(0,0,0,.35)); }
 
 /* override the tints above to keep the monitor UI readable */
 body.hack-open::before,
 body.task-open::before{
-  filter: contrast(1.35) brightness(1.18) drop-shadow(0 0 10px rgba(0,0,0,.35));
+  filter: invert(1) contrast(1.18) brightness(1.12) drop-shadow(0 0 10px rgba(0,0,0,.35));
 }
 
 /* ===================== PACK 7 TASK VISUALS ===================== */
