@@ -1160,9 +1160,10 @@ async function shatterAndEnterSim() {
             fallen = true;
             readyToAuthorize = false;
 
-            // Capture the *current* viewport position BEFORE moving DOM nodes.
-            // Moving the element first can change its layout/rect, which was
-            // causing the "teleport/fling" behavior on some browsers.
+            // Capture the *current* viewport position BEFORE any DOM moves.
+            // If we append the toggle into <body> first, its layout position changes and
+            // the subsequent rect can be wildly different (causing huge dx/dy and an
+            // off-screen fling).
             const r0 = toggleEl.getBoundingClientRect();
 
             // IMPORTANT: if the landing UI/card (or any ancestor) uses transforms,
@@ -1174,17 +1175,16 @@ async function shatterAndEnterSim() {
               placeholder = document.createElement("span");
               placeholder.style.display = "none";
               toggleEl.parentNode?.insertBefore(placeholder, toggleEl);
-              // Move to <body> so position:fixed is truly viewport-relative.
               document.body.appendChild(toggleEl);
             } catch {}
 
-            // Freeze at the captured visual position in viewport space.
+            // Freeze at current visual position in viewport space.
             const r = r0;
             toggleEl.style.transition = "none";
             toggleEl.style.transform = "none";
-            toggleEl.style.position = "fixed";
             toggleEl.style.left = r.left + "px";
             toggleEl.style.top = r.top + "px";
+            toggleEl.style.position = "fixed";
             toggleEl.style.right = "auto";
             toggleEl.style.bottom = "auto";
             toggleEl.style.zIndex = "9999";
@@ -1244,6 +1244,11 @@ async function shatterAndEnterSim() {
           // Hover drift (does NOT count attempts).
           trackEl.addEventListener("mousemove", (e) => driftAway(e.clientX));
           trackEl.addEventListener("pointermove", (e) => driftAway(e.clientX));
+          // If the cursor is directly over the knob, some browsers stop dispatching
+          // move events on the track. Mirror the drift handler on the knob so it
+          // still "runs" away when you get close.
+          toggleEl.addEventListener("mousemove", (e) => driftAway(e.clientX));
+          toggleEl.addEventListener("pointermove", (e) => driftAway(e.clientX));
 
           // Attempts are counted ONLY on click.
           const onAttemptClick = (e) => {
