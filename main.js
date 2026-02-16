@@ -1104,8 +1104,7 @@ async function shatterAndEnterSim() {
 
           const snapAway = (clientX) => {
             if (toggleEl.classList.contains("is-on")) return;
-            if (isAdmin) return;
-            if (fallen) return;
+if (fallen) return;
             if (disabled) return;
 
             disabled = true;
@@ -1134,57 +1133,24 @@ async function shatterAndEnterSim() {
             setX(snapX);
           };
 
-          // Robust "run away" behavior.
-          // We listen on the document in capture mode so the knob still dodges
-          // even when the cursor is directly over it (some browsers won't
-          // dispatch move events to the track behind the knob).
-          let _lastMove = { x: 0, y: 0 };
-          let _raf = 0;
-          const queueDodge = (clientX, clientY) => {
-            _lastMove.x = clientX;
-            _lastMove.y = clientY;
-            if (_raf) return;
-            _raf = requestAnimationFrame(() => {
-              _raf = 0;
-              dodgeNow(_lastMove.x, _lastMove.y);
-            });
-          };
-
-          const dodgeNow = (clientX, clientY) => {
+          const driftAway = (clientX) => {
             if (toggleEl.classList.contains("is-on")) return;
-            if (isAdmin) return;
-            if (fallen) return;
+if (fallen) return;
 
             const trackRect = trackEl.getBoundingClientRect();
-            // Only dodge if the pointer is near the track (prevents random motion).
-            const nearTrack =
-              clientX >= trackRect.left - 40 &&
-              clientX <= trackRect.right + 40 &&
-              clientY >= trackRect.top - 60 &&
-              clientY <= trackRect.bottom + 60;
-            if (!nearTrack) return;
-
-            // Compute in track-local space.
-            const cx = clientX - trackRect.left;
-            const cy = clientY - trackRect.top;
+            const cursorX = clientX - trackRect.left;
 
             const btnCenterX = PAD + getX() + toggleEl.offsetWidth / 2;
-            const btnCenterY = 7 + toggleEl.offsetHeight / 2;
-            const dx = cx - btnCenterX;
-            const dy = cy - btnCenterY;
-            const dist = Math.hypot(dx, dy);
+            const dx = cursorX - btnCenterX;
+            const dist = Math.abs(dx);
             if (dist > DODGE_RADIUS) return;
 
-            // Push away from the cursor direction (deterministic).
-            const push = 22; // px per frame when close
-            const dirX = (dx === 0 ? (sRand() > 0.5 ? 1 : -1) : Math.sign(dx));
-            // Move opposite of cursor -> if cursor is right of knob (dx>0), move left.
-            const nextX = clamp(getX() - dirX * push, 0, maxX());
+            // Move a small fraction away from the cursor.
+            driftX += (-dx / 140);
 
-            // Blend into snapX/driftX so subsequent clamps remain stable.
-            snapX = nextX;
-            driftX = 0;
-            setX(nextX);
+            const combined = clamp(snapX + driftX, 0, maxX());
+            driftX = combined - snapX;
+            setX(combined);
           };
 
           const knockOffAndDrop = () => {
@@ -1280,16 +1246,29 @@ async function shatterAndEnterSim() {
           toggleEl.style.willChange = "transform, top, left";
           toggleEl.style.transition = "transform 120ms ease";
 
-          // "Run away" motion (does NOT count attempts).
-          // Use a document capture listener so it works even when the mouse is
-          // directly over the knob.
-          const onDocMove = (e) => {
-            const x = e.clientX;
-            const y = e.clientY;
-            if (typeof x === "number" && typeof y === "number") queueDodge(x, y);
+          // Hover drift (does NOT count attempts).
+          trackEl.addEventListener("mousemove", (e) => driftAway(e.clientX));
+          trackEl.addEventListener("pointermove", (e) => driftAway(e.clientX));
+          // If the cursor is directly over the knob, some browsers stop dispatching
+          // move events on the track. Mirror the drift handler on the knob so it
+          // still "runs" away when you get close.
+          toggleEl.addEventListener("mousemove", (e) => driftAway(e.clientX));
+          toggleEl.addEventListener("pointermove", (e) => driftAway(e.clientX));
+
+          // Some layouts/overlays can prevent the track from receiving move events.
+          // Add a document-level move listener (capture) so the toggle always "runs".
+          const docDrift = (ev) => {
+            if (toggleEl.classList.contains("is-on")) return;
+            if (fallen) return;
+            const r = trackEl.getBoundingClientRect();
+            const x = ev.clientX;
+            const y = ev.clientY;
+            // Only drift when the pointer is near the verification track.
+            if (x < r.left - 220 || x > r.right + 220 || y < r.top - 140 || y > r.bottom + 140) return;
+            driftAway(x);
           };
-          document.addEventListener("mousemove", onDocMove, true);
-          document.addEventListener("pointermove", onDocMove, true);
+          document.addEventListener("pointermove", docDrift, { capture: true, passive: true });
+          document.addEventListener("mousemove", docDrift, { capture: true, passive: true });
 
           // Attempts are counted ONLY on click.
           const onAttemptClick = (e) => {
