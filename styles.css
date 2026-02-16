@@ -122,13 +122,13 @@ body.page-fracture .fracture-piece{
   display:block;
   opacity:1;
   transform:none;
-  mix-blend-mode: screen;
+  /* Darker, more readable cracks on the (mostly white) landing page */
+  mix-blend-mode: multiply;
   filter:
-    drop-shadow(0 0 6px rgba(120,190,255,.12))
-    drop-shadow(0 0 26px rgba(120,190,255,.10))
-    contrast(1.06) brightness(0.54);
-  /* darker crack presence (requested) */
-  opacity: 0.55;
+    drop-shadow(0 0 10px rgba(0,0,0,.18))
+    drop-shadow(0 0 26px rgba(0,0,0,.10))
+    contrast(1.14) brightness(0.38);
+  opacity: 0.82;
 }
 
 /* shatter burst boosts crack readability */
@@ -313,8 +313,11 @@ body.in-sim::before{
   inset: 0;
   pointer-events: none;
   z-index: 100;
-  /* Clean overlay frame (fills included) */
-  background: url("./assets/monitor_ui_clean.svg") center/cover no-repeat;
+  /* Clean overlay frame (fills included)
+     Use `contain` so the bezel is never cropped on tall / ultra-wide viewports. */
+  background:
+    radial-gradient(1200px 700px at 50% 50%, rgba(0,0,0,.05), rgba(0,0,0,.55)),
+    url("./assets/monitor_ui_clean.svg") center/contain no-repeat;
   opacity: 0.92;
   mix-blend-mode: normal;
   filter: contrast(1.10) brightness(1.08);
@@ -345,10 +348,16 @@ body.in-sim::after{
   display:flex;
   align-items:center;
   justify-content:center;
-  padding: 24px 18px 120px;
+  /* Space content into the monitor's visible "screen" area */
+  padding: clamp(70px, 10vh, 120px) clamp(22px, 6vw, 110px) clamp(110px, 12vh, 180px);
   /* keep sim above any lingering glassFX / transition overlays */
   z-index:110;
 }
+
+/* Hide the green verification bubble once the simulation takes over.
+   Note: the toggle gets moved into <body> during the knock-off sequence, so
+   we must target it globally, not only inside #wrap. */
+body.in-sim #impossibleToggle{ display:none !important; }
 
 /* (scanlines moved to body.in-sim::after so tasks/hack feel inside the same monitor) */
 @keyframes sim_scan{
