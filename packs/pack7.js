@@ -349,7 +349,7 @@
   };
 
   // -------------------------------------------------
-  // p7_patternflip — keep concept, add stronger visuals
+  // p7_patternflip — 4×4 lights-out (clear tiles, no auto-success)
   // -------------------------------------------------
   defs.p7_patternflip = async (ctx) => {
     const ui = getTaskUI(ctx);
@@ -358,39 +358,52 @@
       if (ui.title) ui.title.textContent = "PATTERN FLIP";
       if (ui.desc) ui.desc.textContent = "flip all tiles to OFF";
     }
-    const n = 12;
-    const state = Array.from({ length: n }, () => Math.random() < 0.5);
+
+    // 4×4 grid so it reads as "tiles" (not lines).
+    const size = 4;
+    const n = size * size;
+    // Ensure we don't start solved.
+    const state = Array.from({ length: n }, () => Math.random() < 0.55);
+    if (state.every((x) => !x)) state[rint(0, n - 1)] = true;
     setAnswer(ctx, "all off");
 
     const wrap = el("div", { class: "p7-panel" });
     const grid = el("div", { class: "p7-flip" });
-    const msg = el("div", { class: "muted", text: "each flip toggles neighbors" });
+    const msg = el("div", { class: "muted", text: "tap a tile to flip it and its neighbors" });
 
+    const idx = (r, c) => r * size + c;
+    const neighbors = (i) => {
+      const r = Math.floor(i / size);
+      const c = i % size;
+      const out = [i];
+      if (r > 0) out.push(idx(r - 1, c));
+      if (r < size - 1) out.push(idx(r + 1, c));
+      if (c > 0) out.push(idx(r, c - 1));
+      if (c < size - 1) out.push(idx(r, c + 1));
+      return out;
+    };
     const toggle = (i) => { state[i] = !state[i]; };
+    const isSolved = () => state.every((x) => !x);
     const render = () => {
       [...grid.children].forEach((b, i) => b.classList.toggle("on", state[i]));
-      if (state.every((x) => !x)) ctx.success?.("ok");
+      msg.textContent = isSolved() ? "ready • press verify" : "tap a tile to flip it and its neighbors";
     };
 
     for (let i = 0; i < n; i++) {
       const b = el("button", { type: "button", class: "p7-flipTile" });
-      b.onclick = () => {
-        toggle(i);
-        if (i > 0) toggle(i - 1);
-        if (i < n - 1) toggle(i + 1);
-        render();
-      };
+      b.onclick = () => { neighbors(i).forEach(toggle); render(); };
       grid.appendChild(b);
     }
     render();
 
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "toggle" }), msg]), grid);
-    if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
+    if (!ui.taskBody) { console.error('[p7_patternflip] Missing taskBody element.'); return; }
     ui.taskBody.append(wrap);
     if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
     if (ui.taskPrimary) ui.taskPrimary.onclick = () => {
-      if (state.every((x) => !x)) return ctx.success?.("ok");
+      if (isSolved()) return ctx.success?.("ok");
       ctx.penalize?.();
+      msg.textContent = "not solved";
     };
   };
 
@@ -528,7 +541,7 @@
   };
 
   // -------------------------------------------------
-  // p7_gridroute — draw a route by dragging through lit checkpoints
+  // p7_gridroute — drag an *adjacent* path START → END hitting all checkpoints
   // -------------------------------------------------
   defs.p7_gridroute = async (ctx) => {
     const ui = getTaskUI(ctx);
@@ -550,7 +563,7 @@
 
     const wrap = el("div", { class: "p7-panel" });
     const msg = el("div", { class: "muted", text: "" });
-    const grid = el("div", { class: "grid3 p7-route" });
+    const grid = el("div", { class: "p7-route" });
     wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "route" }), msg]), grid);
     if (!ui.taskBody) { console.error('[p7_minisudoku] Missing taskBody element.'); return; }
     ui.taskBody.append(wrap);
@@ -576,27 +589,44 @@
     let dragging = false;
     let started = false;
     let endedOnEnd = false;
+    let cur = start;
     const hit = new Set();
+    const neigh = (i) => {
+      const r = Math.floor(i / 3), c = i % 3;
+      const out = [];
+      if (r > 0) out.push(i - 3);
+      if (r < 2) out.push(i + 3);
+      if (c > 0) out.push(i - 1);
+      if (c < 2) out.push(i + 1);
+      return out;
+    };
+
+    const update = () => {
+      msg.textContent = `checkpoints: ${hit.size}/${checkpoints.length} • drag START → END • adjacent moves only`;
+    };
     const reset = () => {
       dragging = false;
       started = false;
       endedOnEnd = false;
+      cur = start;
       hit.clear();
-      cells.forEach((c) => c.classList.remove("hit"));
+      cells.forEach((c) => c.classList.remove("hit", "path"));
+      cells[start].classList.add("path");
       update();
     };
-    const update = () => {
-      msg.textContent = `checkpoints: ${hit.size}/${checkpoints.length}  •  drag START → END  •  then verify`;
+    reset();
+
+    const cellFromEvent = (e) => {
+      const elAt = document.elementFromPoint(e.clientX, e.clientY);
+      const cell = elAt ? elAt.closest?.(".p7-routeCell") : null;
+      if (!cell) return -1;
+      const idx = Number(cell.dataset.idx);
+      return Number.isFinite(idx) ? idx : -1;
     };
-    update();
 
     grid.addEventListener("pointerdown", (e) => {
-      const idx = cells.indexOf(e.target);
-      if (idx !== start) {
-        // Wrong starting cell: reset feedback but do not penalize instantly.
-        reset();
-        return;
-      }
+      const idx = cellFromEvent(e);
+      if (idx !== start) { reset(); return; }
       reset();
       started = true;
       dragging = true;
@@ -604,18 +634,23 @@
     });
     grid.addEventListener("pointerup", (e) => {
       dragging = false;
-      const idx = cells.indexOf(e.target);
+      const idx = cellFromEvent(e);
       endedOnEnd = started && idx === end;
+      if (idx === end) cells[end].classList.add("path");
     });
     grid.addEventListener("pointermove", (e) => {
       if (!dragging || !started) return;
-      const idx = cells.indexOf(e.target);
-      if (idx < 0) return;
+      const idx = cellFromEvent(e);
+      if (idx < 0 || idx === cur) return;
+      // enforce adjacent pathing
+      if (!neigh(cur).includes(idx)) { ctx.penalize?.(); reset(); return; }
+      cur = idx;
+      cells[idx].classList.add("path");
       if (checkpoints.includes(idx)) {
         hit.add(idx);
         cells[idx].classList.add("hit");
-        update();
       }
+      update();
     });
 
     if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
