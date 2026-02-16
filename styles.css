@@ -1169,6 +1169,7 @@ body.crack-stage-4 .refShard{opacity:.18;}
   position:absolute;
   top:7px;
   left:10px;
+  z-index:2;
   height:40px;
   width:40px;
   border-radius:999px;
@@ -1189,4 +1190,11 @@ body.crack-stage-4 .refShard{opacity:.18;}
   transform:translateY(-50%);
   font-size:12px;
   opacity:.8;
+  pointer-events:none;
+}
+
+/* Lock landing UI until verification completes */
+body.launch-locked .row,
+body.launch-locked #viewerToken{
+  opacity:.65;
 }
