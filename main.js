@@ -551,13 +551,13 @@
       // Main fractures: hairline fractures with a subtle refracted edge (not thick marker lines).
       // NOTE: darkened further so the lines read clearly against the landing UI.
       ctx.globalAlpha = 1;
-      ctx.shadowColor = "rgba(0,0,0,0.70)";
-      ctx.shadowBlur = 6 * dpr;
+      ctx.shadowColor = "rgba(0,0,0,0.48)";
+      ctx.shadowBlur = 4 * dpr;
 
       for (const pts of crackState.paths) {
         // under-glow (thin)
-        ctx.strokeStyle = "rgba(0,0,0,0.66)";
-        ctx.lineWidth = (0.20 + (crackState.stage - 1) * 0.04) * dpr;
+        ctx.strokeStyle = "rgba(0,0,0,0.46)";
+        ctx.lineWidth = (0.18 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -565,8 +565,8 @@
 
         // Subtle split-refraction ghost (gives the "mirrored" feel without heavy filters)
         // This is intentionally very faint so it reads as glass distortion, not a second crack.
-        ctx.globalAlpha = 0.18;
-        ctx.strokeStyle = "rgba(255,255,255,0.14)";
+        ctx.globalAlpha = 0.20;
+        ctx.strokeStyle = "rgba(255,255,255,0.18)";
         ctx.lineWidth = (0.16 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x - 1.1 * dpr, pts[0].y + 0.9 * dpr);
@@ -575,9 +575,9 @@
 
         // inner line (hairline)
         ctx.shadowBlur = 1 * dpr;
-        ctx.globalAlpha = Math.min(0.96, 0.72 + crackState.stage * 0.07);
-        ctx.strokeStyle = "rgba(0,0,0,0.92)";
-        ctx.lineWidth = (0.16 + (crackState.stage - 1) * 0.03) * dpr;
+        ctx.globalAlpha = Math.min(0.88, 0.62 + crackState.stage * 0.07);
+        ctx.strokeStyle = "rgba(0,0,0,0.78)";
+        ctx.lineWidth = (0.14 + (crackState.stage - 1) * 0.02) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
@@ -1160,6 +1160,11 @@ async function shatterAndEnterSim() {
             fallen = true;
             readyToAuthorize = false;
 
+            // Capture the *current* viewport position BEFORE moving DOM nodes.
+            // Moving the element first can change its layout/rect, which was
+            // causing the "teleport/fling" behavior on some browsers.
+            const r0 = toggleEl.getBoundingClientRect();
+
             // IMPORTANT: if the landing UI/card (or any ancestor) uses transforms,
             // `position:fixed` can become relative to that transformed ancestor in
             // some browsers. To guarantee viewport-relative coordinates, move the
@@ -1169,26 +1174,26 @@ async function shatterAndEnterSim() {
               placeholder = document.createElement("span");
               placeholder.style.display = "none";
               toggleEl.parentNode?.insertBefore(placeholder, toggleEl);
+              // Move to <body> so position:fixed is truly viewport-relative.
               document.body.appendChild(toggleEl);
             } catch {}
 
-            // Freeze at current visual position in viewport space.
-            const r = toggleEl.getBoundingClientRect();
+            // Freeze at the captured visual position in viewport space.
+            const r = r0;
             toggleEl.style.transition = "none";
             toggleEl.style.transform = "none";
+            toggleEl.style.position = "fixed";
             toggleEl.style.left = r.left + "px";
             toggleEl.style.top = r.top + "px";
-            toggleEl.style.position = "fixed";
             toggleEl.style.right = "auto";
             toggleEl.style.bottom = "auto";
             toggleEl.style.zIndex = "9999";
             toggleEl.style.willChange = "transform";
 
-            // Target: bottom of the screen, CENTERED.
-            // We intentionally do NOT use the slider/card rect here because on some
-            // zoom/scale/layout combinations the card can report surprising rects,
-            // which made the knob land off to the side.
-            const desiredLeft = (window.innerWidth / 2) - (r.width / 2);
+            // Target: bottom of the screen, but horizontally aligned with the slider.
+            // This prevents the knob from "teleporting" far to the side.
+            const trackRect = trackEl.getBoundingClientRect();
+            const desiredLeft = (trackRect.left + trackRect.width / 2) - (r.width / 2);
             const targetLeft = clamp(desiredLeft, 16, window.innerWidth - r.width - 16);
             const targetTop = clamp(window.innerHeight - r.height - 24, 16, window.innerHeight - r.height - 16);
             const dx = targetLeft - r.left;
@@ -1533,9 +1538,7 @@ async function emitLine(line) {
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
       simChoices.classList.add("hidden");
-      // Always start the sim with the hack room hidden.
-      // (The hack room is only shown by the hack_final task later.)
-      hackRoom.classList.add("hidden");
+      if (String(taskId) !== "hack_final") { hackRoom.classList.add("hidden"); } else { hackRoom.classList.remove("hidden"); taskUI.classList.add("hidden"); }
 
       simText.textContent = "";
       playSfx("static1", { volume: 0.22, overlap: false });
