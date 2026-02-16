@@ -548,15 +548,16 @@
         }
       }
 
-      // Main fractures: darker + clearer (player requested more contrast).
+      // Main fractures: hairline fractures with a subtle refracted edge (not thick marker lines).
+      // NOTE: darkened further so the lines read clearly against the landing UI.
       ctx.globalAlpha = 1;
-      ctx.shadowColor = "rgba(0,0,0,0.70)";
-      ctx.shadowBlur = 6 * dpr;
+      ctx.shadowColor = "rgba(0,0,0,0.48)";
+      ctx.shadowBlur = 4 * dpr;
 
       for (const pts of crackState.paths) {
-        // under-glow (thin but darker)
-        ctx.strokeStyle = "rgba(0,0,0,0.66)";
-        ctx.lineWidth = (0.24 + (crackState.stage - 1) * 0.04) * dpr;
+        // under-glow (thin)
+        ctx.strokeStyle = "rgba(0,0,0,0.46)";
+        ctx.lineWidth = (0.18 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -564,19 +565,19 @@
 
         // Subtle split-refraction ghost (gives the "mirrored" feel without heavy filters)
         // This is intentionally very faint so it reads as glass distortion, not a second crack.
-        ctx.globalAlpha = 0.16;
-        ctx.strokeStyle = "rgba(255,255,255,0.16)";
-        ctx.lineWidth = (0.18 + (crackState.stage - 1) * 0.03) * dpr;
+        ctx.globalAlpha = 0.20;
+        ctx.strokeStyle = "rgba(255,255,255,0.18)";
+        ctx.lineWidth = (0.16 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x - 1.1 * dpr, pts[0].y + 0.9 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 1.1 * dpr, pts[i].y + 0.9 * dpr);
         ctx.stroke();
 
         // inner line (hairline)
-        ctx.shadowBlur = 2 * dpr;
-        ctx.globalAlpha = Math.min(0.98, 0.76 + crackState.stage * 0.06);
-        ctx.strokeStyle = "rgba(0,0,0,0.92)";
-        ctx.lineWidth = (0.18 + (crackState.stage - 1) * 0.03) * dpr;
+        ctx.shadowBlur = 1 * dpr;
+        ctx.globalAlpha = Math.min(0.88, 0.62 + crackState.stage * 0.07);
+        ctx.strokeStyle = "rgba(0,0,0,0.78)";
+        ctx.lineWidth = (0.14 + (crackState.stage - 1) * 0.02) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
@@ -1159,6 +1160,18 @@ async function shatterAndEnterSim() {
             fallen = true;
             readyToAuthorize = false;
 
+            // IMPORTANT: if the landing UI/card (or any ancestor) uses transforms,
+            // `position:fixed` can become relative to that transformed ancestor in
+            // some browsers. To guarantee viewport-relative coordinates, move the
+            // toggle to <body> before animating.
+            let placeholder = null;
+            try {
+              placeholder = document.createElement("span");
+              placeholder.style.display = "none";
+              toggleEl.parentNode?.insertBefore(placeholder, toggleEl);
+              document.body.appendChild(toggleEl);
+            } catch {}
+
             // Freeze at current visual position in viewport space.
             const r = toggleEl.getBoundingClientRect();
             toggleEl.style.transition = "none";
@@ -1171,13 +1184,12 @@ async function shatterAndEnterSim() {
             toggleEl.style.zIndex = "9999";
             toggleEl.style.willChange = "transform";
 
-            // Target: bottom of the viewport, but keep it *near the slider* so
-            // the player never has to zoom out to find it.
-            // Center under the track/card when possible; clamp to viewport bounds.
+            // Target: bottom of the screen, but horizontally aligned with the slider.
+            // This prevents the knob from "teleporting" far to the side.
             const trackRect = trackEl.getBoundingClientRect();
-            const idealLeft = (trackRect.left + trackRect.width * 0.5) - (r.width * 0.5);
-            const targetLeft = Math.max(16, Math.min(window.innerWidth - r.width - 16, idealLeft));
-            const targetTop = Math.max(16, window.innerHeight - r.height - 24);
+            const desiredLeft = (trackRect.left + trackRect.width / 2) - (r.width / 2);
+            const targetLeft = clamp(desiredLeft, 16, window.innerWidth - r.width - 16);
+            const targetTop = clamp(window.innerHeight - r.height - 24, 16, window.innerHeight - r.height - 16);
             const dx = targetLeft - r.left;
             const dy = targetTop - r.top;
 
@@ -1201,6 +1213,10 @@ async function shatterAndEnterSim() {
               toggleEl.style.transform = "none";
               toggleEl.style.willChange = "auto";
               readyToAuthorize = true;
+
+              // placeholder is intentionally left in place (hidden) to avoid layout shift.
+              // (We don't reinsert the toggle back into the track once it has fallen.)
+              void placeholder;
             };
           };
 
@@ -1516,9 +1532,7 @@ async function emitLine(line) {
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
       simChoices.classList.add("hidden");
-      // On initial sim entry we are never inside the hack room.
-      // (Previous builds referenced an undefined `taskId` here, which broke sim start.)
-      try { hackRoom.classList.add("hidden"); } catch {}
+      if (String(taskId) !== "hack_final") { hackRoom.classList.add("hidden"); } else { hackRoom.classList.remove("hidden"); taskUI.classList.add("hidden"); }
 
       simText.textContent = "";
       playSfx("static1", { volume: 0.22, overlap: false });
