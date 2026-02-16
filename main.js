@@ -1258,12 +1258,13 @@ async function shatterAndEnterSim() {
           toggleEl.addEventListener("pointermove", (e) => driftAway(e.clientX));
 
           // Attempts are counted ONLY on click.
-          const onAttemptClick = (e) => {
+          const onAttemptClick = (e, source) => {
             if (toggleEl.classList.contains("is-on")) return;
 
-            // If it has fallen off, it no longer dodges; it just waits to be clicked.
+            // If it has fallen off, only the *fallen knob* can authorize.
+            // Clicking the track should NOT authorize.
             if (fallen) {
-              if (readyToAuthorize) authorize();
+              if (source === "toggle" && readyToAuthorize) authorize();
               return;
             }
 
@@ -1295,11 +1296,11 @@ async function shatterAndEnterSim() {
           trackEl.addEventListener("click", (e) => {
             // Avoid double-count if the knob itself is clicked.
             if (e.target === toggleEl) return;
-            onAttemptClick(e);
+            onAttemptClick(e, "track");
           });
 
           toggleEl.addEventListener("click", (e) => {
-            onAttemptClick(e);
+            onAttemptClick(e, "toggle");
           });
 
           // Hard reset visual state on each load (prevents any cached/inline styles from earlier runs).
@@ -1340,12 +1341,12 @@ async function tryKey() {
           if (ok) {
             setAdminUI(true);
             if (keyMsg) keyMsg.textContent = "status: admin unlocked";
-            if (status) status.textContent = "status: viewer authorized";
+            if (status) status.textContent = "status: verification required";
             keyInput.value = "";
           } else {
             setAdminUI(false);
             if (keyMsg) keyMsg.textContent = "status: invalid key";
-            if (status) status.textContent = "status: viewer authorized";
+            if (status) status.textContent = "status: verification required";
           }
         } catch {
           if (keyMsg) keyMsg.textContent = "status: verify failed";
@@ -1364,7 +1365,7 @@ async function tryKey() {
 
         // For non-admin users, this is just an acknowledgement.
         try {
-          if (status) status.textContent = "status: viewer authorized";
+          
           if (keyMsg && !isAdmin) keyMsg.textContent = "status: interaction required";
         } catch {}
 
