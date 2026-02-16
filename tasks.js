@@ -612,11 +612,23 @@
       return `!! ${patterns[i % patterns.length]}  // DELETE THIS`;
     };
 
+    // helpers: hackTargets is a <select>; never overwrite its textContent (that nukes options).
+    const setTargetsEnabled = (on) => {
+      if (!targets) return;
+      try { targets.disabled = !on; } catch {}
+      targets.classList.toggle("disabled", !on);
+    };
+    const setFilename = (v) => {
+      if (!filename) return;
+      if ("value" in filename) filename.value = v;
+      else filename.textContent = v;
+    };
+
     // Show room
     room?.classList.remove("hidden");
     ctx.showTaskUI?.("LOGIN", "enter your discord username (this is the login)");
-    if (targets) targets.textContent = "login: username required";
-    if (filename) filename.textContent = "file: —";
+    setTargetsEnabled(false);
+    setFilename("campaign_manifest.log");
 
     const prior = (sessionStorage.getItem("tnr_discord") || "").trim();
     if (userInput) {
@@ -645,8 +657,8 @@
 
     const fileChooser = async (u) => {
       ctx.showTaskUI?.("FILES", "select your file");
-      if (targets) targets.textContent = "files:";
-      if (filename) filename.textContent = "file: /sim/lock/registry.lua";
+      setTargetsEnabled(true);
+      setFilename("/sim/lock/registry.lua");
 
       const bar = document.createElement("div");
       bar.className = "fileBar";
