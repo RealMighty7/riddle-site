@@ -551,13 +551,13 @@
       // Main fractures: hairline fractures with a subtle refracted edge (not thick marker lines).
       // NOTE: darkened further so the lines read clearly against the landing UI.
       ctx.globalAlpha = 1;
-      ctx.shadowColor = "rgba(0,0,0,0.48)";
-      ctx.shadowBlur = 4 * dpr;
+      ctx.shadowColor = "rgba(0,0,0,0.72)";
+      ctx.shadowBlur = 6 * dpr;
 
       for (const pts of crackState.paths) {
         // under-glow (thin)
-        ctx.strokeStyle = "rgba(0,0,0,0.46)";
-        ctx.lineWidth = (0.18 + (crackState.stage - 1) * 0.03) * dpr;
+        ctx.strokeStyle = "rgba(0,0,0,0.64)";
+        ctx.lineWidth = (0.24 + (crackState.stage - 1) * 0.04) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -565,19 +565,19 @@
 
         // Subtle split-refraction ghost (gives the "mirrored" feel without heavy filters)
         // This is intentionally very faint so it reads as glass distortion, not a second crack.
-        ctx.globalAlpha = 0.20;
-        ctx.strokeStyle = "rgba(255,255,255,0.18)";
-        ctx.lineWidth = (0.16 + (crackState.stage - 1) * 0.03) * dpr;
+        ctx.globalAlpha = 0.16;
+        ctx.strokeStyle = "rgba(255,255,255,0.14)";
+        ctx.lineWidth = (0.14 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x - 1.1 * dpr, pts[0].y + 0.9 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x - 1.1 * dpr, pts[i].y + 0.9 * dpr);
         ctx.stroke();
 
         // inner line (hairline)
-        ctx.shadowBlur = 1 * dpr;
-        ctx.globalAlpha = Math.min(0.88, 0.62 + crackState.stage * 0.07);
-        ctx.strokeStyle = "rgba(0,0,0,0.78)";
-        ctx.lineWidth = (0.14 + (crackState.stage - 1) * 0.02) * dpr;
+        ctx.shadowBlur = 2 * dpr;
+        ctx.globalAlpha = Math.min(0.95, 0.72 + crackState.stage * 0.06);
+        ctx.strokeStyle = "rgba(0,0,0,0.92)";
+        ctx.lineWidth = (0.18 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
         for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x + 0.8 * dpr, pts[i].y - 0.6 * dpr);
@@ -1178,12 +1178,19 @@ async function shatterAndEnterSim() {
               document.body.appendChild(toggleEl);
             } catch {}
 
+            // After moving into <body>, the element may render at a different scale/size
+            // (if the landing card/ancestors were transformed). Re-measure and compensate
+            // so the toggle stays visually where it was when it got knocked off.
+            const r1 = toggleEl.getBoundingClientRect();
+            const freezeLeft = r0.left + (r0.width - r1.width) / 2;
+            const freezeTop  = r0.top  + (r0.height - r1.height) / 2;
+
             // Freeze at current visual position in viewport space.
-            const r = r0;
+            const r = r1;
             toggleEl.style.transition = "none";
             toggleEl.style.transform = "none";
-            toggleEl.style.left = r.left + "px";
-            toggleEl.style.top = r.top + "px";
+            toggleEl.style.left = freezeLeft + "px";
+            toggleEl.style.top = freezeTop + "px";
             toggleEl.style.position = "fixed";
             toggleEl.style.right = "auto";
             toggleEl.style.bottom = "auto";
@@ -1196,8 +1203,8 @@ async function shatterAndEnterSim() {
             const desiredLeft = (trackRect.left + trackRect.width / 2) - (r.width / 2);
             const targetLeft = clamp(desiredLeft, 16, window.innerWidth - r.width - 16);
             const targetTop = clamp(window.innerHeight - r.height - 24, 16, window.innerHeight - r.height - 16);
-            const dx = targetLeft - r.left;
-            const dy = targetTop - r.top;
+            const dx = targetLeft - freezeLeft;
+            const dy = targetTop - freezeTop;
 
             // Visually "knocked" off the slider: small hop up, then a tracked fall.
             const anim = toggleEl.animate(
@@ -1543,7 +1550,8 @@ async function emitLine(line) {
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
       simChoices.classList.add("hidden");
-      if (String(taskId) !== "hack_final") { hackRoom.classList.add("hidden"); } else { hackRoom.classList.remove("hidden"); taskUI.classList.add("hidden"); }
+      // Always hide the hack room on initial sim entry. It will be shown only by the hack task.
+      hackRoom.classList.add("hidden");
 
       simText.textContent = "";
       playSfx("static1", { volume: 0.22, overlap: false });
