@@ -549,14 +549,14 @@
       }
 
       // Main fractures: hairline fractures with a subtle refracted edge (not thick marker lines).
-      // NOTE: darkened ~50% per feedback so the lines read clearly against the landing UI.
+      // NOTE: darkened further so the lines read clearly against the landing UI.
       ctx.globalAlpha = 1;
-      ctx.shadowColor = "rgba(0,0,0,0.34)";
+      ctx.shadowColor = "rgba(0,0,0,0.48)";
       ctx.shadowBlur = 4 * dpr;
 
       for (const pts of crackState.paths) {
         // under-glow (thin)
-        ctx.strokeStyle = "rgba(0,0,0,0.30)";
+        ctx.strokeStyle = "rgba(0,0,0,0.46)";
         ctx.lineWidth = (0.18 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
@@ -565,8 +565,8 @@
 
         // Subtle split-refraction ghost (gives the "mirrored" feel without heavy filters)
         // This is intentionally very faint so it reads as glass distortion, not a second crack.
-        ctx.globalAlpha = 0.16;
-        ctx.strokeStyle = "rgba(255,255,255,0.14)";
+        ctx.globalAlpha = 0.20;
+        ctx.strokeStyle = "rgba(255,255,255,0.18)";
         ctx.lineWidth = (0.16 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x - 1.1 * dpr, pts[0].y + 0.9 * dpr);
@@ -575,8 +575,8 @@
 
         // inner line (hairline)
         ctx.shadowBlur = 1 * dpr;
-        ctx.globalAlpha = Math.min(0.72, 0.52 + crackState.stage * 0.07);
-        ctx.strokeStyle = "rgba(0,0,0,0.55)";
+        ctx.globalAlpha = Math.min(0.88, 0.62 + crackState.stage * 0.07);
+        ctx.strokeStyle = "rgba(0,0,0,0.78)";
         ctx.lineWidth = (0.14 + (crackState.stage - 1) * 0.02) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
@@ -1066,6 +1066,7 @@ async function shatterAndEnterSim() {
           let attempts = 0;
           let disabled = false;
           let fallen = false;
+          let readyToAuthorize = false;
 
           // Two-layer motion: a "snap" target + a small "drift" away from the cursor.
           let snapX = 0;
@@ -1097,9 +1098,7 @@ async function shatterAndEnterSim() {
             attempts = n;
             if (countEl) countEl.textContent = String(attempts);
             if (hintEl) {
-              hintEl.textContent = attempts >= REQUIRED
-                ? "attempts: " + attempts + " (too fast)"
-                : "attempts: " + attempts;
+              hintEl.textContent = "attempts: " + attempts;
             }
           };
 
@@ -1156,29 +1155,50 @@ async function shatterAndEnterSim() {
             setX(combined);
           };
 
-          const fallOff = () => {
+          const knockOffAndDrop = () => {
             if (fallen) return;
             fallen = true;
+            readyToAuthorize = false;
 
-            // Freeze current visual position in viewport space, then animate down.
+            // Freeze at current visual position in viewport space.
             const r = toggleEl.getBoundingClientRect();
-            toggleEl.style.transition = "transform 120ms ease";
+            toggleEl.style.transition = "none";
             toggleEl.style.transform = "none";
             toggleEl.style.left = r.left + "px";
             toggleEl.style.top = r.top + "px";
             toggleEl.style.position = "fixed";
+            toggleEl.style.right = "auto";
+            toggleEl.style.bottom = "auto";
             toggleEl.style.zIndex = "9999";
+            toggleEl.style.willChange = "transform";
 
-            // A tiny sideways drift + fall.
-            toggleEl.style.transition = "top 700ms cubic-bezier(.2,.9,.2,1), left 700ms cubic-bezier(.2,.9,.2,1), transform 260ms ease";
-            requestAnimationFrame(() => {
-              toggleEl.style.left = Math.max(16, Math.min(window.innerWidth - r.width - 16, r.left + (sRand() - 0.5) * 120)) + "px";
-              toggleEl.style.top = (window.innerHeight - r.height - 18) + "px";
-              toggleEl.style.transform = `rotate(${(sRand() - 0.5) * 18}deg)`;
-            });
+            // Target: bottom of the page, slightly inset.
+            const targetLeft = Math.max(16, Math.min(window.innerWidth - r.width - 16, window.innerWidth - r.width - 24));
+            const targetTop = Math.max(16, window.innerHeight - r.height - 24);
+            const dx = targetLeft - r.left;
+            const dy = targetTop - r.top;
 
-            if (hintEl) hintEl.textContent = "too fast — retrieve it";
+            // Visually "knocked" off the slider: small hop up, then a tracked fall.
+            const anim = toggleEl.animate(
+              [
+                { transform: "translate3d(0px, 0px, 0px) rotate(0deg)" },
+                { transform: `translate3d(${dx * 0.20}px, -46px, 0px) rotate(${(sRand() - 0.5) * 10}deg)`, offset: 0.28 },
+                { transform: `translate3d(${dx}px, ${dy}px, 0px) rotate(${(sRand() - 0.5) * 14}deg)` }
+              ],
+              { duration: 1300, easing: "cubic-bezier(.2,.9,.2,1)", fill: "forwards" }
+            );
+
+            if (hintEl) hintEl.textContent = "attempts: " + attempts;
             try { playSfx("glitch1", { volume: 0.10, overlap: true }); } catch {}
+
+            anim.onfinish = () => {
+              // Lock into the final resting spot for reliable clicking.
+              toggleEl.style.left = targetLeft + "px";
+              toggleEl.style.top = targetTop + "px";
+              toggleEl.style.transform = "none";
+              toggleEl.style.willChange = "auto";
+              readyToAuthorize = true;
+            };
           };
 
           const setLockedUI = (locked) => {
@@ -1203,18 +1223,20 @@ async function shatterAndEnterSim() {
           // Attempts are counted ONLY on click.
           const onAttemptClick = (e) => {
             if (toggleEl.classList.contains("is-on")) return;
-            if (isAdmin) {
-              // Admin can just click it.
-              authorize();
+
+            // If it has fallen off, it no longer dodges; it just waits to be clicked.
+            if (fallen) {
+              if (readyToAuthorize) authorize();
               return;
             }
-            if (fallen) return;
 
-            setAttempts(attempts + 1);
+            // Count attempts ONLY on click.
+            const next = attempts + 1;
+            setAttempts(next);
             try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
 
-            if (attempts >= REQUIRED) {
-              fallOff();
+            if (next >= REQUIRED) {
+              knockOffAndDrop();
               return;
             }
             snapAway(e.clientX);
@@ -1240,16 +1262,27 @@ async function shatterAndEnterSim() {
           });
 
           toggleEl.addEventListener("click", (e) => {
-            if (fallen) {
-              authorize();
-              return;
-            }
             onAttemptClick(e);
           });
 
+          // Hard reset visual state on each load (prevents any cached/inline styles from earlier runs).
+          try {
+            toggleEl.classList.remove("is-on");
+            toggleEl.setAttribute("aria-pressed", "false");
+            toggleEl.style.position = "";
+            toggleEl.style.left = "";
+            toggleEl.style.top = "";
+            toggleEl.style.right = "";
+            toggleEl.style.bottom = "";
+            toggleEl.style.transform = "";
+            toggleEl.style.zIndex = "";
+            toggleEl.style.transition = "transform 120ms ease";
+          } catch {}
+
           // Initial: lock UI + center-ish after layout.
           setLockedUI(true);
-          if (hintEl) hintEl.textContent = "attempts: 0";
+          landingVerified = false;
+          setAttempts(0);
           requestAnimationFrame(() => {
             const m = maxX();
             snapX = m / 2;
