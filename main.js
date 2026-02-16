@@ -1104,7 +1104,8 @@ async function shatterAndEnterSim() {
 
           const snapAway = (clientX) => {
             if (toggleEl.classList.contains("is-on")) return;
-if (fallen) return;
+            if (isAdmin) return;
+            if (fallen) return;
             if (disabled) return;
 
             disabled = true;
@@ -1135,7 +1136,8 @@ if (fallen) return;
 
           const driftAway = (clientX) => {
             if (toggleEl.classList.contains("is-on")) return;
-if (fallen) return;
+            if (isAdmin) return;
+            if (fallen) return;
 
             const trackRect = trackEl.getBoundingClientRect();
             const cursorX = clientX - trackRect.left;
@@ -1218,10 +1220,17 @@ if (fallen) return;
             try { playSfx("glitch1", { volume: 0.10, overlap: true }); } catch {}
 
             anim.onfinish = () => {
+              // IMPORTANT: With `fill: "forwards"`, some browsers keep the
+              // animation's final transform applied even after we set inline
+              // styles, which can cause a "teleport" on the next layout tick.
+              // Cancel the animation before locking the final position.
+              try { anim.cancel(); } catch {}
+
               // Lock into the final resting spot for reliable clicking.
               toggleEl.style.left = targetLeft + "px";
               toggleEl.style.top = targetTop + "px";
               toggleEl.style.transform = "none";
+              toggleEl.style.transition = "none";
               toggleEl.style.willChange = "auto";
               readyToAuthorize = true;
 
@@ -1254,21 +1263,6 @@ if (fallen) return;
           // still "runs" away when you get close.
           toggleEl.addEventListener("mousemove", (e) => driftAway(e.clientX));
           toggleEl.addEventListener("pointermove", (e) => driftAway(e.clientX));
-
-          // Some layouts/overlays can prevent the track from receiving move events.
-          // Add a document-level move listener (capture) so the toggle always "runs".
-          const docDrift = (ev) => {
-            if (toggleEl.classList.contains("is-on")) return;
-            if (fallen) return;
-            const r = trackEl.getBoundingClientRect();
-            const x = ev.clientX;
-            const y = ev.clientY;
-            // Only drift when the pointer is near the verification track.
-            if (x < r.left - 220 || x > r.right + 220 || y < r.top - 140 || y > r.bottom + 140) return;
-            driftAway(x);
-          };
-          document.addEventListener("pointermove", docDrift, { capture: true, passive: true });
-          document.addEventListener("mousemove", docDrift, { capture: true, passive: true });
 
           // Attempts are counted ONLY on click.
           const onAttemptClick = (e) => {
