@@ -549,13 +549,14 @@
       }
 
       // Main fractures: hairline fractures with a subtle refracted edge (not thick marker lines).
+      // NOTE: darkened ~50% per feedback so the lines read clearly against the landing UI.
       ctx.globalAlpha = 1;
-      ctx.shadowColor = "rgba(0,0,0,0.22)";
+      ctx.shadowColor = "rgba(0,0,0,0.34)";
       ctx.shadowBlur = 4 * dpr;
 
       for (const pts of crackState.paths) {
         // under-glow (thin)
-        ctx.strokeStyle = "rgba(0,0,0,0.18)";
+        ctx.strokeStyle = "rgba(0,0,0,0.30)";
         ctx.lineWidth = (0.18 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
@@ -564,8 +565,8 @@
 
         // Subtle split-refraction ghost (gives the "mirrored" feel without heavy filters)
         // This is intentionally very faint so it reads as glass distortion, not a second crack.
-        ctx.globalAlpha = 0.10;
-        ctx.strokeStyle = "rgba(255,255,255,0.10)";
+        ctx.globalAlpha = 0.16;
+        ctx.strokeStyle = "rgba(255,255,255,0.14)";
         ctx.lineWidth = (0.16 + (crackState.stage - 1) * 0.03) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x - 1.1 * dpr, pts[0].y + 0.9 * dpr);
@@ -574,8 +575,8 @@
 
         // inner line (hairline)
         ctx.shadowBlur = 1 * dpr;
-        ctx.globalAlpha = 0.40 + crackState.stage * 0.05;
-        ctx.strokeStyle = "rgba(0,0,0,0.42)";
+        ctx.globalAlpha = Math.min(0.72, 0.52 + crackState.stage * 0.07);
+        ctx.strokeStyle = "rgba(0,0,0,0.55)";
         ctx.lineWidth = (0.14 + (crackState.stage - 1) * 0.02) * dpr;
         ctx.beginPath();
         ctx.moveTo(pts[0].x + 0.8 * dpr, pts[0].y - 0.6 * dpr);
@@ -870,14 +871,19 @@ async function shatterAndEnterSim() {
       if (!t) return true;
       if (t.closest && t.closest("input, textarea, select")) return false;
       // Landing UI buttons/fields must NOT count toward crack progression.
-      if (t.closest && t.closest("#viewerToken, #launchBtn, #viewerEnter")) return false;
+      if (t.closest && t.closest("#viewerToken, #launchBtn, #viewerEnter, #impossibleBox, #impossibleTrack")) return false;
       if (t.closest && t.closest("#finalOverlay, #hackRoom, #taskUI, #adminPanel")) return false;
       return true;
     }
 
+    // Gate crack progression until the landing verification toggle is completed.
+    // This keeps the landing page "locked" until the viewer is authorized.
+    let landingVerified = false;
+
     function registerLandingClick(e) {
       if (stage !== 1) return;
       if (document.body.classList.contains("sim-transition")) return;
+      if (!landingVerified) return;
       if (!isClickableTarget(e)) return;
 
       const now = Date.now();
@@ -1044,8 +1050,10 @@ async function shatterAndEnterSim() {
 
       
       
-      // "Impossible" authorization toggle (pure JS; harmless, just flavor).
-      // It dodges the cursor a few times before allowing a click. Does NOT affect sim entry.
+      // "Impossible" authorization toggle.
+      // - Attempts count ONLY when the viewer CLICKS.
+      // - After 10 attempts, the toggle "slips" off the bar and becomes clickable.
+      // - Until authorized, the landing page stays locked and crack clicks DO NOT progress.
       // NOTE: implemented as transform-based motion (more reliable than changing `left`).
       try {
         const trackEl = els.impossibleTrack || document.getElementById("impossibleTrack");
@@ -1054,8 +1062,10 @@ async function shatterAndEnterSim() {
         const hintEl = els.impossibleHint || document.getElementById("impossibleHint");
 
         if (trackEl && toggleEl) {
+          const REQUIRED = 10;
           let attempts = 0;
           let disabled = false;
+          let fallen = false;
 
           // Two-layer motion: a "snap" target + a small "drift" away from the cursor.
           let snapX = 0;
@@ -1086,14 +1096,18 @@ async function shatterAndEnterSim() {
           const setAttempts = (n) => {
             attempts = n;
             if (countEl) countEl.textContent = String(attempts);
-            if (hintEl && attempts >= 4) hintEl.textContent = "attempts: " + attempts + " (stop chasing it)";
+            if (hintEl) {
+              hintEl.textContent = attempts >= REQUIRED
+                ? "attempts: " + attempts + " (too fast)"
+                : "attempts: " + attempts;
+            }
           };
 
-          const snapAway = (clientX, clientY) => {
+          const snapAway = (clientX) => {
             if (toggleEl.classList.contains("is-on")) return;
             if (isAdmin) return;
+            if (fallen) return;
             if (disabled) return;
-            if (attempts >= 6) return;
 
             disabled = true;
             setTimeout(() => (disabled = false), SNAP_COOLDOWN);
@@ -1119,15 +1133,12 @@ async function shatterAndEnterSim() {
             snapX = bestX;
             driftX = 0;
             setX(snapX);
-
-            setAttempts(attempts + 1);
-            try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
           };
 
           const driftAway = (clientX) => {
             if (toggleEl.classList.contains("is-on")) return;
             if (isAdmin) return;
-            if (attempts >= 6) return;
+            if (fallen) return;
 
             const trackRect = trackEl.getBoundingClientRect();
             const cursorX = clientX - trackRect.left;
@@ -1135,49 +1146,110 @@ async function shatterAndEnterSim() {
             const btnCenterX = PAD + getX() + toggleEl.offsetWidth / 2;
             const dx = cursorX - btnCenterX;
             const dist = Math.abs(dx);
-
             if (dist > DODGE_RADIUS) return;
 
             // Move a small fraction away from the cursor.
             driftX += (-dx / 140);
 
-            // Clamp combined offset and keep drift consistent with snap.
             const combined = clamp(snapX + driftX, 0, maxX());
             driftX = combined - snapX;
             setX(combined);
           };
 
+          const fallOff = () => {
+            if (fallen) return;
+            fallen = true;
+
+            // Freeze current visual position in viewport space, then animate down.
+            const r = toggleEl.getBoundingClientRect();
+            toggleEl.style.transition = "transform 120ms ease";
+            toggleEl.style.transform = "none";
+            toggleEl.style.left = r.left + "px";
+            toggleEl.style.top = r.top + "px";
+            toggleEl.style.position = "fixed";
+            toggleEl.style.zIndex = "9999";
+
+            // A tiny sideways drift + fall.
+            toggleEl.style.transition = "top 700ms cubic-bezier(.2,.9,.2,1), left 700ms cubic-bezier(.2,.9,.2,1), transform 260ms ease";
+            requestAnimationFrame(() => {
+              toggleEl.style.left = Math.max(16, Math.min(window.innerWidth - r.width - 16, r.left + (sRand() - 0.5) * 120)) + "px";
+              toggleEl.style.top = (window.innerHeight - r.height - 18) + "px";
+              toggleEl.style.transform = `rotate(${(sRand() - 0.5) * 18}deg)`;
+            });
+
+            if (hintEl) hintEl.textContent = "too fast — retrieve it";
+            try { playSfx("glitch1", { volume: 0.10, overlap: true }); } catch {}
+          };
+
+          const setLockedUI = (locked) => {
+            // Keep only the verification control interactive until authorized.
+            try {
+              if (els.launchBtn) els.launchBtn.disabled = !!locked;
+              if (document.getElementById("viewerEnter")) document.getElementById("viewerEnter").disabled = !!locked;
+              if (document.getElementById("viewerKey")) document.getElementById("viewerKey").disabled = !!locked;
+            } catch {}
+            document.body.classList.toggle("launch-locked", !!locked);
+            if (status && locked) status.textContent = "status: verification required";
+          };
+
           // Ensure smooth transform motion.
-          toggleEl.style.willChange = "transform";
+          toggleEl.style.willChange = "transform, top, left";
           toggleEl.style.transition = "transform 120ms ease";
 
-          // Track movement while the cursor is in the bar.
+          // Hover drift (does NOT count attempts).
           trackEl.addEventListener("mousemove", (e) => driftAway(e.clientX));
           trackEl.addEventListener("pointermove", (e) => driftAway(e.clientX));
 
-          // When the cursor gets onto the knob, we "snap" away.
-          // (This is what makes it feel like it avoids you.)
-          toggleEl.addEventListener("mouseenter", (e) => snapAway(e.clientX, e.clientY));
-          toggleEl.addEventListener("mousemove", (e) => snapAway(e.clientX, e.clientY));
-          toggleEl.addEventListener("pointerenter", (e) => snapAway(e.clientX, e.clientY));
-          toggleEl.addEventListener("pointermove", (e) => snapAway(e.clientX, e.clientY));
-
-          toggleEl.addEventListener("click", (e) => {
+          // Attempts are counted ONLY on click.
+          const onAttemptClick = (e) => {
             if (toggleEl.classList.contains("is-on")) return;
-
-            // Viewers must "earn" the toggle.
-            if (!isAdmin && attempts < 4) {
-              snapAway(e.clientX, e.clientY);
+            if (isAdmin) {
+              // Admin can just click it.
+              authorize();
               return;
             }
+            if (fallen) return;
 
+            setAttempts(attempts + 1);
+            try { playSfx("tick", { volume: 0.07, overlap: true }); } catch {}
+
+            if (attempts >= REQUIRED) {
+              fallOff();
+              return;
+            }
+            snapAway(e.clientX);
+          };
+
+          const authorize = () => {
+            if (toggleEl.classList.contains("is-on")) return;
             toggleEl.classList.add("is-on");
             toggleEl.setAttribute("aria-pressed", "true");
             if (hintEl) hintEl.textContent = "authorized";
             if (status) status.textContent = "status: viewer authorized";
+            landingVerified = true;
+            setLockedUI(false);
+          };
+
+          // Click handlers:
+          // - Clicking the track anywhere counts as an attempt (unless already fallen).
+          // - Clicking the knob after it falls authorizes.
+          trackEl.addEventListener("click", (e) => {
+            // Avoid double-count if the knob itself is clicked.
+            if (e.target === toggleEl) return;
+            onAttemptClick(e);
           });
 
-          // Initial position: center-ish after layout.
+          toggleEl.addEventListener("click", (e) => {
+            if (fallen) {
+              authorize();
+              return;
+            }
+            onAttemptClick(e);
+          });
+
+          // Initial: lock UI + center-ish after layout.
+          setLockedUI(true);
+          if (hintEl) hintEl.textContent = "attempts: 0";
           requestAnimationFrame(() => {
             const m = maxX();
             snapX = m / 2;
