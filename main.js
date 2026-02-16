@@ -1134,25 +1134,57 @@ async function shatterAndEnterSim() {
             setX(snapX);
           };
 
-          const driftAway = (clientX) => {
+          // Robust "run away" behavior.
+          // We listen on the document in capture mode so the knob still dodges
+          // even when the cursor is directly over it (some browsers won't
+          // dispatch move events to the track behind the knob).
+          let _lastMove = { x: 0, y: 0 };
+          let _raf = 0;
+          const queueDodge = (clientX, clientY) => {
+            _lastMove.x = clientX;
+            _lastMove.y = clientY;
+            if (_raf) return;
+            _raf = requestAnimationFrame(() => {
+              _raf = 0;
+              dodgeNow(_lastMove.x, _lastMove.y);
+            });
+          };
+
+          const dodgeNow = (clientX, clientY) => {
             if (toggleEl.classList.contains("is-on")) return;
             if (isAdmin) return;
             if (fallen) return;
 
             const trackRect = trackEl.getBoundingClientRect();
-            const cursorX = clientX - trackRect.left;
+            // Only dodge if the pointer is near the track (prevents random motion).
+            const nearTrack =
+              clientX >= trackRect.left - 40 &&
+              clientX <= trackRect.right + 40 &&
+              clientY >= trackRect.top - 60 &&
+              clientY <= trackRect.bottom + 60;
+            if (!nearTrack) return;
+
+            // Compute in track-local space.
+            const cx = clientX - trackRect.left;
+            const cy = clientY - trackRect.top;
 
             const btnCenterX = PAD + getX() + toggleEl.offsetWidth / 2;
-            const dx = cursorX - btnCenterX;
-            const dist = Math.abs(dx);
+            const btnCenterY = 7 + toggleEl.offsetHeight / 2;
+            const dx = cx - btnCenterX;
+            const dy = cy - btnCenterY;
+            const dist = Math.hypot(dx, dy);
             if (dist > DODGE_RADIUS) return;
 
-            // Move a small fraction away from the cursor.
-            driftX += (-dx / 140);
+            // Push away from the cursor direction (deterministic).
+            const push = 22; // px per frame when close
+            const dirX = (dx === 0 ? (sRand() > 0.5 ? 1 : -1) : Math.sign(dx));
+            // Move opposite of cursor -> if cursor is right of knob (dx>0), move left.
+            const nextX = clamp(getX() - dirX * push, 0, maxX());
 
-            const combined = clamp(snapX + driftX, 0, maxX());
-            driftX = combined - snapX;
-            setX(combined);
+            // Blend into snapX/driftX so subsequent clamps remain stable.
+            snapX = nextX;
+            driftX = 0;
+            setX(nextX);
           };
 
           const knockOffAndDrop = () => {
@@ -1248,23 +1280,24 @@ async function shatterAndEnterSim() {
           toggleEl.style.willChange = "transform, top, left";
           toggleEl.style.transition = "transform 120ms ease";
 
-          // Hover drift (does NOT count attempts).
-          trackEl.addEventListener("mousemove", (e) => driftAway(e.clientX));
-          trackEl.addEventListener("pointermove", (e) => driftAway(e.clientX));
-          // If the cursor is directly over the knob, some browsers stop dispatching
-          // move events on the track. Mirror the drift handler on the knob so it
-          // still "runs" away when you get close.
-          toggleEl.addEventListener("mousemove", (e) => driftAway(e.clientX));
-          toggleEl.addEventListener("pointermove", (e) => driftAway(e.clientX));
+          // "Run away" motion (does NOT count attempts).
+          // Use a document capture listener so it works even when the mouse is
+          // directly over the knob.
+          const onDocMove = (e) => {
+            const x = e.clientX;
+            const y = e.clientY;
+            if (typeof x === "number" && typeof y === "number") queueDodge(x, y);
+          };
+          document.addEventListener("mousemove", onDocMove, true);
+          document.addEventListener("pointermove", onDocMove, true);
 
           // Attempts are counted ONLY on click.
-          const onAttemptClick = (e, source) => {
+          const onAttemptClick = (e) => {
             if (toggleEl.classList.contains("is-on")) return;
 
-            // If it has fallen off, only the *fallen knob* can authorize.
-            // Clicking the track should NOT authorize.
+            // If it has fallen off, it no longer dodges; it just waits to be clicked.
             if (fallen) {
-              if (source === "toggle" && readyToAuthorize) authorize();
+              if (readyToAuthorize) authorize();
               return;
             }
 
@@ -1296,11 +1329,11 @@ async function shatterAndEnterSim() {
           trackEl.addEventListener("click", (e) => {
             // Avoid double-count if the knob itself is clicked.
             if (e.target === toggleEl) return;
-            onAttemptClick(e, "track");
+            onAttemptClick(e);
           });
 
           toggleEl.addEventListener("click", (e) => {
-            onAttemptClick(e, "toggle");
+            onAttemptClick(e);
           });
 
           // Hard reset visual state on each load (prevents any cached/inline styles from earlier runs).
@@ -1341,12 +1374,12 @@ async function tryKey() {
           if (ok) {
             setAdminUI(true);
             if (keyMsg) keyMsg.textContent = "status: admin unlocked";
-            if (status) status.textContent = "status: verification required";
+            if (status) status.textContent = "status: viewer authorized";
             keyInput.value = "";
           } else {
             setAdminUI(false);
             if (keyMsg) keyMsg.textContent = "status: invalid key";
-            if (status) status.textContent = "status: verification required";
+            if (status) status.textContent = "status: viewer authorized";
           }
         } catch {
           if (keyMsg) keyMsg.textContent = "status: verify failed";
@@ -1365,7 +1398,7 @@ async function tryKey() {
 
         // For non-admin users, this is just an acknowledgement.
         try {
-          
+          if (status) status.textContent = "status: viewer authorized";
           if (keyMsg && !isAdmin) keyMsg.textContent = "status: interaction required";
         } catch {}
 
