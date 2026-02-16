@@ -122,13 +122,13 @@ body.page-fracture .fracture-piece{
   display:block;
   opacity:1;
   transform:none;
-  /* Darker, more readable cracks on the (mostly white) landing page */
-  mix-blend-mode: multiply;
+  mix-blend-mode: screen;
   filter:
-    drop-shadow(0 0 10px rgba(0,0,0,.18))
-    drop-shadow(0 0 26px rgba(0,0,0,.10))
-    contrast(1.14) brightness(0.38);
-  opacity: 0.82;
+    drop-shadow(0 0 6px rgba(120,190,255,.12))
+    drop-shadow(0 0 26px rgba(120,190,255,.10))
+    contrast(1.06) brightness(0.54);
+  /* darker crack presence (requested) */
+  opacity: 0.55;
 }
 
 /* shatter burst boosts crack readability */
@@ -313,19 +313,77 @@ body.in-sim::before{
   inset: 0;
   pointer-events: none;
   z-index: 100;
-  /* Clean overlay frame (fills included)
-     Use `contain` so the bezel is never cropped on tall / ultra-wide viewports. */
-  background:
-    radial-gradient(1200px 700px at 50% 50%, rgba(0,0,0,.05), rgba(0,0,0,.55)),
-    url("./assets/monitor_ui_clean.svg") center/contain no-repeat;
-  opacity: 0.92;
-  mix-blend-mode: normal;
-  filter: contrast(1.10) brightness(1.08);
+  /* Clean overlay frame (fills included) */
+  /* Use contain so the whole monitor UI is always visible (no cropping) */
+  background: url("./assets/monitor_ui_clean.svg") center/contain no-repeat;
+  opacity: 1;
+  /* Make the UI lines pop against the dark sim background */
+  mix-blend-mode: screen;
+  filter: contrast(1.35) brightness(1.18) drop-shadow(0 0 10px rgba(0,0,0,.35));
 }
 
 /* Different "modes" slightly tint the monitor */
 body.hack-open::before{ filter: contrast(1.10) brightness(1.08); }
 body.task-open::before{ filter: contrast(1.10) brightness(1.08); }
+
+/* override the tints above to keep the monitor UI readable */
+body.hack-open::before,
+body.task-open::before{
+  filter: contrast(1.35) brightness(1.18) drop-shadow(0 0 10px rgba(0,0,0,.35));
+}
+
+/* ===================== PACK 7 TASK VISUALS ===================== */
+.p7-flip{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  width: min(520px, 100%);
+  margin: 12px auto;
+}
+.p7-flipTile{
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.30);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+  cursor:pointer;
+}
+.p7-flipTile.on{
+  background: rgba(255,255,255,.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.10),
+    0 0 18px rgba(255,255,255,.08);
+}
+.p7-flipTile:active{ transform: translateY(1px); }
+
+/* grid route: JS uses .p7-route and .p7-routeCell */
+.p7-route{
+  display:grid;
+  grid-template-columns: repeat(3, 72px);
+  gap: 12px;
+  justify-content:center;
+  margin: 12px 0;
+}
+.p7-routeCell{
+  width:72px;
+  height:72px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.14);
+  background:rgba(0,0,0,.28);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  user-select:none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-size: 12px;
+  letter-spacing: .02em;
+  color: rgba(255,255,255,.82);
+}
+.p7-routeCell.checkpoint{ outline:2px solid rgba(255,255,255,.22); background:rgba(255,255,255,.06); }
+.p7-routeCell.start{ outline:2px solid rgba(120,255,160,.28); background:rgba(120,255,160,.06); }
+.p7-routeCell.end{ outline:2px solid rgba(255,120,120,.28); background:rgba(255,120,120,.06); }
+.p7-routeCell.path{ outline:2px solid rgba(180,255,255,.26); background:rgba(180,255,255,.08); }
+.p7-routeCell.hit{ box-shadow: 0 0 18px rgba(255,255,255,.10); }
 
 /* global scanlines live above the bezel but below text */
 body.in-sim::after{
@@ -348,16 +406,10 @@ body.in-sim::after{
   display:flex;
   align-items:center;
   justify-content:center;
-  /* Space content into the monitor's visible "screen" area */
-  padding: clamp(70px, 10vh, 120px) clamp(22px, 6vw, 110px) clamp(110px, 12vh, 180px);
+  padding: 24px 18px 120px;
   /* keep sim above any lingering glassFX / transition overlays */
   z-index:110;
 }
-
-/* Hide the green verification bubble once the simulation takes over.
-   Note: the toggle gets moved into <body> during the knock-off sequence, so
-   we must target it globally, not only inside #wrap. */
-body.in-sim #impossibleToggle{ display:none !important; }
 
 /* (scanlines moved to body.in-sim::after so tasks/hack feel inside the same monitor) */
 @keyframes sim_scan{
