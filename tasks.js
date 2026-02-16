@@ -571,13 +571,25 @@
     const removeSelected = () => {
       const selected = Array.from(view.querySelectorAll(".hackLine.sel"));
       if (!selected.length) return 0;
+
+      // Anti-cheese: deleting non-flagged lines is a mistake.
+      // Penalize and do NOT remove the non-red lines.
+      const nonRed = selected.filter((eln) => eln.dataset.red !== "1");
+      if (nonRed.length) {
+        try { ctx.penalize?.(Math.min(6, nonRed.length * 2)); } catch {}
+        setStatus(`warning: protected line selected (${nonRed.length})`);
+        for (const eln of selected) {
+          eln.dataset.selected = "0";
+          eln.classList.remove("sel");
+        }
+        return 0;
+      }
+
       let removedRed = 0;
       for (const eln of selected) {
-        if (eln.dataset.red === "1") {
-          removedRed++;
-          const k = eln.dataset.key;
-          if (k && state.redMap.has(k)) state.redMap.get(k).deleted = true;
-        }
+        removedRed++;
+        const k = eln.dataset.key;
+        if (k && state.redMap.has(k)) state.redMap.get(k).deleted = true;
         eln.remove();
       }
       return removedRed;
@@ -612,23 +624,23 @@
       return `!! ${patterns[i % patterns.length]}  // DELETE THIS`;
     };
 
-    // helpers: hackTargets is a <select>; never overwrite its textContent (that nukes options).
-    const setTargetsEnabled = (on) => {
-      if (!targets) return;
-      try { targets.disabled = !on; } catch {}
-      targets.classList.toggle("disabled", !on);
-    };
-    const setFilename = (v) => {
-      if (!filename) return;
-      if ("value" in filename) filename.value = v;
-      else filename.textContent = v;
-    };
-
     // Show room
     room?.classList.remove("hidden");
     ctx.showTaskUI?.("LOGIN", "enter your discord username (this is the login)");
-    setTargetsEnabled(false);
-    setFilename("campaign_manifest.log");
+    if (targets) {
+      if (targets.tagName === "SELECT") {
+        targets.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "login";
+        opt.textContent = "login: username required";
+        targets.appendChild(opt);
+        targets.value = "login";
+        targets.disabled = true;
+      } else {
+        targets.textContent = "login: username required";
+      }
+    }
+    if (filename) filename.textContent = "file: —";
 
     const prior = (sessionStorage.getItem("tnr_discord") || "").trim();
     if (userInput) {
@@ -657,8 +669,20 @@
 
     const fileChooser = async (u) => {
       ctx.showTaskUI?.("FILES", "select your file");
-      setTargetsEnabled(true);
-      setFilename("/sim/lock/registry.lua");
+      if (targets) {
+        if (targets.tagName === "SELECT") {
+          targets.innerHTML = "";
+          const opt = document.createElement("option");
+          opt.value = "files";
+          opt.textContent = "files:";
+          targets.appendChild(opt);
+          targets.value = "files";
+          targets.disabled = true;
+        } else {
+          targets.textContent = "files:";
+        }
+      }
+      if (filename) filename.textContent = "file: /sim/lock/registry.lua";
 
       const bar = document.createElement("div");
       bar.className = "fileBar";
@@ -732,26 +756,43 @@
 
     // User request: background music only in the simulation room.
     const startFinal = (u) => {
+      // UI header fields
+      if (targets) {
+        const txt = `target: /users/${u}`;
+        if (targets.tagName === "SELECT") {
+          targets.innerHTML = "";
+          const opt = document.createElement("option");
+          opt.value = "local";
+          opt.textContent = txt;
+          targets.appendChild(opt);
+          targets.value = "local";
+          targets.disabled = true;
+        } else {
+          targets.textContent = txt;
+        }
+      }
+      if (filename) filename.textContent = `file: campaign_manifest.log`;
+
       clearView();
       state.lineIndex = 0;
       state.removedCount = 0;
       state.redMap.clear();
       setStatus("running…");
 
+      // Final hack has its own music scene.
+      try { window.Music?.setScene?.("finalhack"); } catch {}
+
       // seed
       for (let i = 0; i < 10; i++) addDomLine(mkLine(i), false);
 
-      const baseIntervalMs = 2000; // 1 line / 2 seconds
-      const maxDurationMs = Math.max(110000, Math.min(260000, Number(args.durationMs) || 170000));
+      const baseIntervalMs = 2000; // base: 1 line / 2 seconds
+      // Kept for potential future telemetry; no timeout is enforced.
       const startT = Date.now();
 
       const tick = () => {
         if (state.done) return;
-        const elapsed = Date.now() - startT;
-        if (elapsed > maxDurationMs) {
-          if (state.removedCount >= state.removedNeeded) return succeed();
-          return fail("timeout: record still present");
-        }
+        // No global timeout here — this task can exceed the HUD timer by design.
+        void startT; // noop (prevents unused warnings in some bundlers)
 
         state.lineIndex += 1;
         const isRed = (state.lineIndex % 6 === 0) || (Math.random() < 0.08);
@@ -778,7 +819,8 @@
 
         // compute dynamic interval from resistance
         const r = Number(ctx.getResistancePoints?.() || 0);
-        const speedMult = 1 + 0.02 * Math.max(0, r);
+        // Each resistance point makes the lines scroll in faster.
+        const speedMult = 1 + 0.04 * Math.max(0, r);
         const nextIn = Math.max(220, Math.floor(baseIntervalMs / speedMult));
         clearTimeout(state.timer);
         state.timer = setTimeout(tick, nextIn);
