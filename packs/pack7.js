@@ -51,7 +51,9 @@
       if (ui.title) ui.title.textContent = "minisudoku";
       if (ui.desc) ui.desc.textContent = "fill the 4×4 so each row/col contains 1–4";
     }
-    const solution = [
+    // NOTE: validate by rule (each row/col contains 1–4) rather than a single fixed solution.
+    // We still use a base grid for the disabled givens.
+    const base = [
       [1, 2, 3, 4],
       [3, 4, 1, 2],
       [2, 1, 4, 3],
@@ -70,7 +72,7 @@
       const r = Math.floor(i / 4), c = i % 4;
       const input = el("input", { class: "p7-cell mono", maxlength: "1", inputmode: "numeric" });
       if (givens.has(i)) {
-        input.value = String(solution[r][c]);
+        input.value = String(base[r][c]);
         input.disabled = true;
         input.classList.add("given");
       }
@@ -90,9 +92,35 @@
     }
 
     const check = () => {
+      // Must be filled with digits 1–4
+      const vals = Array.from({ length: 4 }, () => Array(4).fill(0));
       for (let i = 0; i < 16; i++) {
         const r = Math.floor(i / 4), c = i % 4;
-        if (String(cells[i].value || "").trim() !== String(solution[r][c])) return false;
+        const v = parseInt(String(cells[i].value || "").trim(), 10);
+        if (!(v >= 1 && v <= 4)) return false;
+        vals[r][c] = v;
+      }
+
+      // Each row contains 1–4 exactly once
+      for (let r = 0; r < 4; r++) {
+        const s = new Set(vals[r]);
+        if (s.size !== 4) return false;
+        for (let n = 1; n <= 4; n++) if (!s.has(n)) return false;
+      }
+
+      // Each column contains 1–4 exactly once
+      for (let c = 0; c < 4; c++) {
+        const col = [vals[0][c], vals[1][c], vals[2][c], vals[3][c]];
+        const s = new Set(col);
+        if (s.size !== 4) return false;
+        for (let n = 1; n <= 4; n++) if (!s.has(n)) return false;
+      }
+
+      // Givens are already enforced by disabled cells, but keep it explicit.
+      for (let i = 0; i < 16; i++) {
+        if (!cells[i].disabled) continue;
+        const r = Math.floor(i / 4), c = i % 4;
+        if (vals[r][c] !== base[r][c]) return false;
       }
       return true;
     };
