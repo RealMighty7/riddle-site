@@ -1104,7 +1104,6 @@ async function shatterAndEnterSim() {
 
           const snapAway = (clientX) => {
             if (toggleEl.classList.contains("is-on")) return;
-            if (isAdmin) return;
             if (fallen) return;
             if (disabled) return;
 
@@ -1136,7 +1135,6 @@ async function shatterAndEnterSim() {
 
           const driftAway = (clientX) => {
             if (toggleEl.classList.contains("is-on")) return;
-            if (isAdmin) return;
             if (fallen) return;
 
             const trackRect = trackEl.getBoundingClientRect();
@@ -1220,17 +1218,14 @@ async function shatterAndEnterSim() {
             try { playSfx("glitch1", { volume: 0.10, overlap: true }); } catch {}
 
             anim.onfinish = () => {
-              // IMPORTANT: With `fill: "forwards"`, some browsers keep the
-              // animation's final transform applied even after we set inline
-              // styles, which can cause a "teleport" on the next layout tick.
-              // Cancel the animation before locking the final position.
+              // Some browsers keep the animation's final transform "alive" for a tick
+              // even after onfinish. Cancel it first so we don't get a later teleport.
               try { anim.cancel(); } catch {}
 
               // Lock into the final resting spot for reliable clicking.
               toggleEl.style.left = targetLeft + "px";
               toggleEl.style.top = targetTop + "px";
               toggleEl.style.transform = "none";
-              toggleEl.style.transition = "none";
               toggleEl.style.willChange = "auto";
               readyToAuthorize = true;
 
