@@ -38,10 +38,23 @@
 
   if (verifyBtn) verifyBtn.classList.add("hidden");
 
-  sessionStorage.removeItem("tnr_escape_code");
+  // Generate a one-time escape code (what gets emailed to you).
+  // This is the "answer" that the /api/complete endpoint expects.
+  const ALPH = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const randCode = (len = 10) => {
+    let out = "";
+    for (let i = 0; i < len; i++) out += ALPH[Math.floor(Math.random() * ALPH.length)];
+    return out;
+  };
+
+  let escapeCode = (sessionStorage.getItem("tnr_escape_code") || "").trim();
+  if (!escapeCode) {
+    escapeCode = randCode(10);
+    try { sessionStorage.setItem("tnr_escape_code", escapeCode); } catch {}
+  }
 
   if (userEl) userEl.textContent = `user: ${user}`;
-  if (codeEl) codeEl.textContent = "";
+  if (codeEl) codeEl.textContent = escapeCode;
 
   async function submit() {
     try {
@@ -50,6 +63,7 @@
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           discord: user,
+          answer: escapeCode,
           // Turnstile optional; keep empty if not present
           turnstile: "",
         }),
