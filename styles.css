@@ -1,6 +1,3 @@
-html, body{height:100%;
-  overflow:hidden;
-}
 :root{
   --ink: #111318;
   --muted: rgba(17,19,24,.62);
@@ -305,6 +302,7 @@ h1{
 body.in-sim{
   background: var(--sim-bg);
   color: var(--sim-fg);
+  overflow: hidden;
 }
 body.in-sim #wrap{ display:none; }
 body.in-sim #glassFX{ opacity:0 !important; }
@@ -326,9 +324,9 @@ body.in-sim::before{
   background: url("./assets/monitor_ui_clean.svg") center/contain no-repeat;
   /* The SVG art is mostly dark strokes; using `screen` can make those strokes
      disappear. Invert + normal blend keeps the frame readable everywhere. */
-  opacity: 1;
+  opacity: .88;
   mix-blend-mode: normal;
-  filter: invert(1) contrast(2.4) brightness(1.4) drop-shadow(0 0 12px rgba(120,180,255,0.25));
+  filter: invert(1) contrast(1.55) brightness(1.08) drop-shadow(0 0 14px rgba(0,0,0,.45));
 }
 
 /* Different "modes" slightly tint the monitor */
@@ -1152,16 +1150,17 @@ body.in-sim #simRoom{
 
 body.in-sim #hud{
   position:fixed;
+  /* Match monitor_ui_clean.svg HUD cluster (x=1320,y=100,w=580,h=70) */
   left: calc(var(--mon-left) + (1320px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (134px  * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (100px * var(--mon-scale)));
   pointer-events:auto;
   z-index:120;
-  transform-origin: top left;
-  transform: scale(var(--mon-scale));
 }
 
 body.in-sim #hud .hudRow{
-  gap: 10px;
+  gap: calc(18px * var(--mon-scale));
+  transform-origin: top left;
+  transform: scale(var(--mon-scale));
 }
 
 body.in-sim #simRoom .simCard{
@@ -1173,8 +1172,16 @@ body.in-sim #simRoom .simCard{
   max-width:none;
   margin:0;
   pointer-events:auto;
-  overflow:auto;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
   border-radius: calc(20px * var(--mon-scale));
+}
+
+body.in-sim #simRoom .simCard #simText{
+  flex: 1;
+  overflow: auto;
+  padding-bottom: 10px;
 }
 
 body.in-sim #simChoices{
@@ -1182,7 +1189,7 @@ body.in-sim #simChoices{
   left: calc(var(--mon-left) + (150px * var(--mon-scale)));
   top:  calc(var(--mon-top)  + (565px * var(--mon-scale)));
   width: calc(1200px * var(--mon-scale));
-  height: calc(100px  * var(--mon-scale));
+  height: calc(120px  * var(--mon-scale));
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -1201,9 +1208,10 @@ body.in-sim #simChoices button{
 /* Admin console aligns to right panel box */
 body.in-sim #adminPanel{
   position:fixed;
-  left: calc(var(--mon-left) + (1385px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (220px  * var(--mon-scale)));
-  width: calc(435px  * var(--mon-scale));
+  left: calc(var(--mon-left) + (1400px * var(--mon-scale)));
+  /* Match monitor_ui_clean.svg right-top panel (x=1400,y=220,w=430,h=240) */
+  top:  calc(var(--mon-top)  + (220px * var(--mon-scale)));
+  width: calc(430px  * var(--mon-scale));
   height: calc(240px  * var(--mon-scale));
   max-width:none;
   margin:0;
@@ -1240,7 +1248,7 @@ body.task-open #taskUI .taskCard{
   left: calc(var(--mon-left) + (150px * var(--mon-scale)));
   top:  calc(var(--mon-top)  + (710px * var(--mon-scale)));
   width: calc(1200px * var(--mon-scale));
-  height: calc(320px  * var(--mon-scale));
+  height: calc(300px  * var(--mon-scale));
   max-width:none;
   margin:0;
   pointer-events:auto;
@@ -1262,7 +1270,7 @@ body.hack-open #hackRoom .hackCard{
   left: calc(var(--mon-left) + (150px * var(--mon-scale)));
   top:  calc(var(--mon-top)  + (710px * var(--mon-scale)));
   width: calc(1200px * var(--mon-scale));
-  height: calc(320px  * var(--mon-scale));
+  height: calc(300px  * var(--mon-scale));
   max-width:none;
   margin:0;
   pointer-events:auto;
@@ -1272,9 +1280,9 @@ body.hack-open #hackRoom .hackCard{
 
 /* Ensure the monitor overlay is visible as designed (no invert washout) */
 body.in-sim::before{
-  opacity: 1;
+  opacity: .98;
   mix-blend-mode: normal;
-  filter: invert(1) contrast(2.4) brightness(1.4) drop-shadow(0 0 12px rgba(120,180,255,0.25));
+  filter: contrast(1.12) brightness(1.08) drop-shadow(0 0 18px rgba(0,0,0,.55));
 }
 body.hack-open::before,
 body.task-open::before{
