@@ -128,6 +128,7 @@
 
     const simRoom = els.simRoom;
     const simText = els.simText;
+    simText && simText.classList.add("scroll-ok");
     const simChoices = els.simChoices;
     const choiceNeed = els.choiceNeed;
     const choiceLie = els.choiceLie;
@@ -137,6 +138,7 @@
     const taskTitle = els.taskTitle;
     const taskDesc = els.taskDesc;
     const taskBody = els.taskBody;
+    taskBody && taskBody.classList.add("scroll-ok");
     const taskPrimary = els.taskPrimary;
     const taskSecondary = els.taskSecondary;
 
@@ -344,7 +346,22 @@
       return Math.max(1100, w * MS_PER_WORD + 650);
     }
 
-    /* ====================== STATE ====================== */
+    
+  // Prevent page scroll while in the simulation (keep scrolling inside textareas only)
+  window.addEventListener("wheel", (e) => {
+    if (document.body.classList.contains("in-sim")) {
+      const t = e.target;
+      // Allow scrolling in elements explicitly scrollable (e.g., textareas, scroll panes)
+      if (t && (t.closest && (t.closest("textarea") || t.closest(".scroll-ok")))) return;
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  window.addEventListener("touchmove", (e) => {
+    if (document.body.classList.contains("in-sim")) e.preventDefault();
+  }, { passive: false });
+
+/* ====================== STATE ====================== */
     let stage = 1;
 
     // Stable debug/state surface (used for console testing + avoids "undefined" state reads)
