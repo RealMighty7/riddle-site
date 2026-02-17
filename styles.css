@@ -323,10 +323,9 @@ body.in-sim::before{
   background: url("./assets/monitor_ui_clean.svg") center/contain no-repeat;
   /* The SVG art is mostly dark strokes; using `screen` can make those strokes
      disappear. Invert + normal blend keeps the frame readable everywhere. */
-  /* Match the intended dark/blue UI art (no invert). */
-  opacity: 1;
+  opacity: .88;
   mix-blend-mode: normal;
-  filter: drop-shadow(0 0 14px rgba(0,0,0,.45));
+  filter: invert(1) contrast(1.55) brightness(1.08) drop-shadow(0 0 14px rgba(0,0,0,.45));
 }
 
 /* Different "modes" slightly tint the monitor */
@@ -335,89 +334,8 @@ body.task-open::before{ filter: contrast(1.10) brightness(1.08); }
 
 /* override the tints above to keep the monitor UI readable */
 body.hack-open::before,
-body.task-open::before{ filter: drop-shadow(0 0 14px rgba(0,0,0,.45)); }
-
-/* ====== Monitor coordinate system (16:9 stage) ======
-   We anchor all sim/task/hack UI to the monitor art so everything lines up.
-   The SVG is 1920x1080 (16:9), rendered with background-size: contain.
-*/
-body.in-sim,
-body.sim-open,
-body.task-open,
-body.hack-open{
-  --stageW: min(100vw, calc(100vh * 1.7777778));
-  --stageH: calc(var(--stageW) / 1.7777778);
-  --stageL: calc(50vw - (var(--stageW) / 2));
-  --stageT: calc(50vh - (var(--stageH) / 2));
-}
-
-/* Hide verification UI once sim starts (some builds use sim-open instead of in-sim). */
-body.sim-open #impossibleBox,
-body.task-open #impossibleBox,
-body.hack-open #impossibleBox{
-  display:none !important;
-  pointer-events:none !important;
-}
-
-/* ====== Docking layout to match monitor_ui_clean.svg ====== */
-body.in-sim #simRoom,
-body.task-open #taskUI,
-body.hack-open #hackRoom{
-  padding: 0;
-  display:block;
-}
-
-/* Main dialogue window (large left pane) */
-body.in-sim #simRoom .simCard{
-  position: fixed;
-  left: calc(var(--stageL) + (0.17 * var(--stageW)));
-  top:  calc(var(--stageT) + (0.18 * var(--stageH)));
-  width: calc(0.58 * var(--stageW));
-  max-width: none;
-}
-
-/* Task + Hack windows live in the same large left pane */
-body.task-open #taskUI .taskCard,
-body.hack-open #hackRoom .hackCard{
-  position: fixed;
-  left: calc(var(--stageL) + (0.17 * var(--stageW)));
-  top:  calc(var(--stageT) + (0.18 * var(--stageH)));
-  width: calc(0.58 * var(--stageW));
-  max-width:none;
-}
-
-/* Keep the content heights sensible inside the pane */
-body.in-sim #simText{ max-height: calc(0.34 * var(--stageH)); }
-body.hack-open .hackArea{ min-height: calc(0.26 * var(--stageH)); }
-
-/* HUD meters dock into the top-left pills area */
-body.in-sim #hud,
-body.task-open #hud,
-body.hack-open #hud{
-  position: fixed;
-  left: calc(var(--stageL) + (0.04 * var(--stageW)));
-  top:  calc(var(--stageT) + (0.05 * var(--stageH)));
-}
-
-/* Admin console docks into the right pane */
-body.in-sim #adminPanel,
-body.task-open #adminPanel,
-body.hack-open #adminPanel{
-  position: fixed;
-  left: calc(var(--stageL) + (0.77 * var(--stageW)));
-  top:  calc(var(--stageT) + (0.18 * var(--stageH)));
-  right: auto;
-  width: calc(0.20 * var(--stageW));
-  max-width: calc(0.20 * var(--stageW));
-}
-
-/* Subtitles sit inside the bottom bar area */
-body.in-sim #subs,
-body.task-open #subs,
-body.hack-open #subs{
-  left: calc(var(--stageL) + (0.50 * var(--stageW)));
-  bottom: calc(100vh - (var(--stageT) + (0.92 * var(--stageH))));
-  width: calc(0.62 * var(--stageW));
+body.task-open::before{
+  filter: invert(1) contrast(1.55) brightness(1.08) drop-shadow(0 0 14px rgba(0,0,0,.45));
 }
 
 /* ===================== PACK 7 TASK VISUALS ===================== */
@@ -1207,72 +1125,157 @@ body.in-sim #system{ display:none; }
 #simRoom{ background: radial-gradient(1400px 900px at 50% 10%, rgba(255,255,255,.06), rgba(0,0,0,1) 60%); }
 
 
+
 /* =========================
-   Monitor layout pass (B)
-   Align HUD / dialogue / choices / admin with monitor UI frame
+   Monitor layout (viewBox-anchored)
+   Positions HUD / dialogue / choices / tasks / admin to the monitor_ui_clean.svg slots.
+   Uses CSS vars set by main.js: --mon-scale (unitless), --mon-left/--mon-top (px).
    ========================= */
-body.sim-open #simRoom{
+:root{
+  --mon-scale: 1;
+  --mon-left: 0px;
+  --mon-top: 0px;
+}
+
+/* The sim containers stay full-screen, but the "cards" are anchored into the monitor frame. */
+body.in-sim #simRoom{
   position:fixed;
   inset:0;
   display:block;
   padding:0;
   z-index:110;
-  pointer-events:none; /* re-enable on children */
+  pointer-events:none;
 }
 
-body.sim-open #simRoom .simCard{
+body.in-sim #hud{
   position:fixed;
-  left:6.5vw;
-  top:13.5vh;
-  width:57vw;
-  height:33vh;
+  left: calc(var(--mon-left) + (80px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (60px * var(--mon-scale)));
+  pointer-events:auto;
+  z-index:120;
+}
+
+body.in-sim #hud .hudRow{
+  gap: calc(18px * var(--mon-scale));
+  transform-origin: top left;
+  transform: scale(var(--mon-scale));
+}
+
+body.in-sim #simRoom .simCard{
+  position:fixed;
+  left: calc(var(--mon-left) + (150px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (220px * var(--mon-scale)));
+  width: calc(1200px * var(--mon-scale));
+  height: calc(330px  * var(--mon-scale));
   max-width:none;
   margin:0;
   pointer-events:auto;
   overflow:auto;
+  border-radius: calc(20px * var(--mon-scale));
 }
 
-body.sim-open #simChoices{
+body.in-sim #simChoices{
   position:fixed;
-  left:6.5vw;
-  top:49.5vh;
-  width:57vw;
-  gap:14px;
+  left: calc(var(--mon-left) + (150px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (565px * var(--mon-scale)));
+  width: calc(1200px * var(--mon-scale));
+  height: calc(100px  * var(--mon-scale));
+  display:flex;
+  align-items:center;
   justify-content:space-between;
+  gap: calc(16px * var(--mon-scale));
   pointer-events:auto;
+  z-index:130;
 }
 
-body.sim-open #hud{
-  position:fixed;
-  left:6.5vw;
-  top:6.3vh;
-  pointer-events:auto;
+body.in-sim #simChoices button{
+  height: calc(44px * var(--mon-scale));
+  padding: 0 calc(18px * var(--mon-scale));
+  border-radius: calc(14px * var(--mon-scale));
+  font-size: calc(14px * var(--mon-scale));
 }
 
-body.sim-open #adminPanel{
+/* Admin console aligns to right panel box */
+body.in-sim #adminPanel{
   position:fixed;
-  right:6.0vw;
-  top:13.5vh;
-  width:29vw;
-  max-width:520px;
+  left: calc(var(--mon-left) + (1400px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (150px * var(--mon-scale)));
+  width: calc(430px  * var(--mon-scale));
+  height: calc(350px  * var(--mon-scale));
+  max-width:none;
   margin:0;
   pointer-events:auto;
+  z-index:140;
 }
-
-body.sim-open #adminPanel .card{
+body.in-sim #adminPanel .card{
+  height:100%;
   margin-top:0 !important;
+  transform-origin: top left;
+  transform: scale(var(--mon-scale));
 }
 
-/* keep task overlay centered without washing out background */
+/* Task UI sits in the task panel slot instead of centering */
 body.task-open #taskUI{
-  backdrop-filter: blur(8px);
+  position:fixed;
+  inset:0;
+  padding:0;
+  z-index:135;
+  pointer-events:none;
+  background: transparent;
 }
 body.task-open #taskUI::before{
   content:"";
   position:fixed;
   inset:0;
-  background: rgba(0,0,0,0.35);
+  background: rgba(0,0,0,0.22);
+  backdrop-filter: blur(6px);
   pointer-events:none;
+}
+
+body.task-open #taskUI .taskCard{
+  position:fixed;
+  left: calc(var(--mon-left) + (150px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (710px * var(--mon-scale)));
+  width: calc(1200px * var(--mon-scale));
+  height: calc(320px  * var(--mon-scale));
+  max-width:none;
+  margin:0;
+  pointer-events:auto;
+  overflow:auto;
+  border-radius: calc(20px * var(--mon-scale));
+}
+
+/* Hack room uses the same task panel slot */
+body.hack-open #hackRoom{
+  position:fixed;
+  inset:0;
+  padding:0;
+  z-index:135;
+  pointer-events:none;
+  background: transparent;
+}
+body.hack-open #hackRoom .hackCard{
+  position:fixed;
+  left: calc(var(--mon-left) + (150px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (710px * var(--mon-scale)));
+  width: calc(1200px * var(--mon-scale));
+  height: calc(320px  * var(--mon-scale));
+  max-width:none;
+  margin:0;
+  pointer-events:auto;
+  overflow:auto;
+  border-radius: calc(20px * var(--mon-scale));
+}
+
+/* Ensure the monitor overlay is visible as designed (no invert washout) */
+body.in-sim::before{
+  opacity: .98;
+  mix-blend-mode: normal;
+  filter: contrast(1.12) brightness(1.08) drop-shadow(0 0 18px rgba(0,0,0,.55));
+}
+body.hack-open::before,
+body.task-open::before{
+  filter: contrast(1.12) brightness(1.08) drop-shadow(0 0 18px rgba(0,0,0,.55));
 }
 
 /* Keep the landing overlay readable without clobbering the SIM monitor frame. */
