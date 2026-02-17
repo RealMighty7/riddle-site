@@ -311,6 +311,12 @@ body.in-sim #impossibleTrack,
 body.in-sim .impossibleToggle,
 body.in-sim .impossibleTrack{ display:none !important; pointer-events:none !important; }
 
+/* Some flows use .sim-open without toggling .in-sim immediately; keep it hidden there too. */
+body.sim-open #impossibleToggle,
+body.sim-open #impossibleTrack,
+body.sim-open .impossibleToggle,
+body.sim-open .impossibleTrack{ display:none !important; pointer-events:none !important; }
+
 /* ========= Monitor shell overlay (applies to sim + task + hack so it feels connected) ========= */
 body.in-sim::before{
   content:"";
@@ -323,9 +329,12 @@ body.in-sim::before{
   background: url("./assets/monitor_ui_clean.svg") center/contain no-repeat;
   /* The SVG art is mostly dark strokes; using `screen` can make those strokes
      disappear. Invert + normal blend keeps the frame readable everywhere. */
-  opacity: .88;
+  opacity: 1;
   mix-blend-mode: normal;
-  filter: invert(1) contrast(1.55) brightness(1.08) drop-shadow(0 0 14px rgba(0,0,0,.45));
+  /* Push the frame visibility (users reported it was still too faint). */
+  filter: invert(1) contrast(2.15) brightness(1.22)
+          drop-shadow(0 0 10px rgba(0,0,0,.55))
+          drop-shadow(0 0 10px rgba(255,255,255,.12));
 }
 
 /* Different "modes" slightly tint the monitor */
@@ -335,7 +344,9 @@ body.task-open::before{ filter: contrast(1.10) brightness(1.08); }
 /* override the tints above to keep the monitor UI readable */
 body.hack-open::before,
 body.task-open::before{
-  filter: invert(1) contrast(1.55) brightness(1.08) drop-shadow(0 0 14px rgba(0,0,0,.45));
+  filter: invert(1) contrast(2.15) brightness(1.22)
+          drop-shadow(0 0 10px rgba(0,0,0,.55))
+          drop-shadow(0 0 10px rgba(255,255,255,.12));
 }
 
 /* ===================== PACK 7 TASK VISUALS ===================== */
@@ -973,6 +984,13 @@ body.glitch-storm::before{
   box-shadow: 0 18px 50px rgba(0,0,0,.35);
 }
 .p6-head,.p7-head{ display:flex; gap:12px; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
+.p7-headLeft{ display:flex; align-items:baseline; gap:12px; }
+
+/* Tiny ON/OFF legend for lights-out style tasks */
+.p7-legend{ display:flex; align-items:center; gap:10px; opacity:.9; }
+.p7-legendItem{ display:flex; align-items:center; gap:6px; }
+.p7-legendSwatch{ width:14px; height:14px; border-radius:4px; border:1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.30); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
+.p7-legendSwatch.on{ background: rgba(255,255,255,.12); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 0 12px rgba(255,255,255,.10); }
 .p6-kv{ letter-spacing: .04em; }
 .p6-row{ display:flex; gap:10px; align-items:center; }
 
@@ -1132,53 +1150,61 @@ body.in-sim #system{ display:none; }
 body.sim-open #simRoom{
   position:fixed;
   inset:0;
-  display:block;
-  padding:0;
   z-index:110;
-  pointer-events:none; /* re-enable on children */
+  /* Layout everything consistently so it reads "inside" the monitor frame */
+  display:grid;
+  grid-template-columns: minmax(520px, 1fr) minmax(300px, 460px);
+  grid-template-rows: auto auto 1fr;
+  gap: 14px 18px;
+  padding: clamp(48px, 7vh, 86px) clamp(18px, 6vw, 86px) clamp(18px, 5vh, 64px);
+  align-content:start;
+  pointer-events:auto;
 }
 
 body.sim-open #simRoom .simCard{
-  position:fixed;
-  left:6.5vw;
-  top:13.5vh;
-  width:57vw;
-  height:33vh;
-  max-width:none;
-  margin:0;
-  pointer-events:auto;
+  grid-column: 1;
+  grid-row: 2;
+  width: 100%;
+  height: min(36vh, 320px);
+  max-width: none;
+  margin: 0;
   overflow:auto;
 }
 
 body.sim-open #simChoices{
-  position:fixed;
-  left:6.5vw;
-  top:49.5vh;
-  width:57vw;
+  grid-column: 1;
+  grid-row: 3;
+  width:100%;
   gap:14px;
   justify-content:space-between;
-  pointer-events:auto;
 }
 
 body.sim-open #hud{
-  position:fixed;
-  left:6.5vw;
-  top:6.3vh;
-  pointer-events:auto;
+  grid-column: 1;
+  grid-row: 1;
+  justify-self:start;
 }
 
 body.sim-open #adminPanel{
-  position:fixed;
-  right:6.0vw;
-  top:13.5vh;
-  width:29vw;
-  max-width:520px;
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self:start;
+  width: 100%;
+  max-width: 520px;
   margin:0;
-  pointer-events:auto;
 }
 
 body.sim-open #adminPanel .card{
   margin-top:0 !important;
+}
+
+@media (max-width: 980px){
+  body.sim-open #simRoom{
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto 1fr;
+  }
+  body.sim-open #adminPanel{ grid-column:1; grid-row:4; max-width:none; }
+  body.sim-open #simChoices{ grid-row:3; }
 }
 
 /* keep task overlay centered without washing out background */
