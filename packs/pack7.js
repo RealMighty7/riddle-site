@@ -362,14 +362,26 @@
     // 4×4 grid so it reads as "tiles" (not lines).
     const size = 4;
     const n = size * size;
-    // Ensure we don't start solved.
-    const state = Array.from({ length: n }, () => Math.random() < 0.55);
-    if (state.every((x) => !x)) state[rint(0, n - 1)] = true;
+    // Always start from a solvable configuration by applying random legal moves
+    // to the solved state (all OFF). This avoids the "unsolvable 4×4" complaint.
+    const state = Array.from({ length: n }, () => false);
     setAnswer(ctx, "all off");
 
     const wrap = el("div", { class: "p7-panel" });
     const grid = el("div", { class: "p7-flip" });
     const msg = el("div", { class: "muted", text: "tap a tile to flip it and its neighbors" });
+
+    // Tiny ON/OFF legend so players know what the game counts as on/off.
+    const legend = el("div", { class: "p7-legend" }, [
+      el("div", { class: "p7-legendItem" }, [
+        el("span", { class: "p7-legendSwatch on", text: "" }),
+        el("span", { class: "mono", text: "ON" }),
+      ]),
+      el("div", { class: "p7-legendItem" }, [
+        el("span", { class: "p7-legendSwatch", text: "" }),
+        el("span", { class: "mono", text: "OFF" }),
+      ]),
+    ]);
 
     const idx = (r, c) => r * size + c;
     const neighbors = (i) => {
@@ -389,6 +401,15 @@
       msg.textContent = isSolved() ? "ready • press verify" : "tap a tile to flip it and its neighbors";
     };
 
+    // Scramble with random clicks (guaranteed solvable).
+    const scrambleMoves = rint(6, 12);
+    for (let m = 0; m < scrambleMoves; m++) {
+      const pick = rint(0, n - 1);
+      neighbors(pick).forEach(toggle);
+    }
+    // Ensure we don't start solved.
+    if (state.every((x) => !x)) neighbors(rint(0, n - 1)).forEach(toggle);
+
     for (let i = 0; i < n; i++) {
       const b = el("button", { type: "button", class: "p7-flipTile" });
       b.onclick = () => { neighbors(i).forEach(toggle); render(); };
@@ -396,7 +417,16 @@
     }
     render();
 
-    wrap.append(el("div", { class: "p7-head" }, [el("div", { class: "mono", text: "toggle" }), msg]), grid);
+    wrap.append(
+      el("div", { class: "p7-head" }, [
+        el("div", { class: "p7-headLeft" }, [
+          el("div", { class: "mono", text: "toggle" }),
+          legend,
+        ]),
+        msg,
+      ]),
+      grid
+    );
     if (!ui.taskBody) { console.error('[p7_patternflip] Missing taskBody element.'); return; }
     ui.taskBody.append(wrap);
     if (ui.taskPrimary) ui.taskPrimary.textContent = "verify";
