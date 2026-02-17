@@ -9,6 +9,20 @@
     function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
     function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
+
+    function setMonitorVars() {
+      // Align UI to monitor_ui_clean.svg viewBox (1920x1080) using CSS vars
+      const vw = window.innerWidth || document.documentElement.clientWidth || 1920;
+      const vh = window.innerHeight || document.documentElement.clientHeight || 1080;
+      const baseW = 1920, baseH = 1080;
+      const s = Math.min(vw / baseW, vh / baseH);
+      const left = (vw - baseW * s) / 2;
+      const top = (vh - baseH * s) / 2;
+      const root = document.documentElement;
+      root.style.setProperty("--mon-scale", String(s));
+      root.style.setProperty("--mon-left", `${left}px`);
+      root.style.setProperty("--mon-top", `${top}px`);
+    }
     const DIALOGUE = window.DIALOGUE;
     const TASKS = window.TASKS;
 
@@ -94,6 +108,10 @@
       console.error("Missing required element IDs:", missingRequired);
       return;
     }
+
+    // Keep monitor-aligned layout variables up to date.
+    setMonitorVars();
+    window.addEventListener("resize", setMonitorVars);
 
     // Keep admin panel visible in simulation (the sim hides #wrap).
     try {
@@ -854,6 +872,7 @@ async function shatterAndEnterSim() {
       // Pre-stage sim styling while black (prevents landing flash)
       try { els.system && els.system.classList.add("hidden"); } catch {}
       document.body.classList.add("in-sim");
+      setMonitorVars();
 
       // Open the sim while fully black to avoid any landing flash.
       await openSimRoom();
@@ -1567,6 +1586,8 @@ async function emitLine(line) {
 
       simRoom.classList.remove("hidden");
       taskUI.classList.add("hidden");
+      document.body.classList.remove("task-open");
+      document.body.classList.remove("hack-open");
       simChoices.classList.add("hidden");
       // Always hide the hack room on initial sim entry. It will be shown only by the hack task.
       hackRoom.classList.add("hidden");
@@ -1845,6 +1866,10 @@ async function runTask(taskId, args) {
       console.debug("[TNR] task:start", taskId, args);
       simChoices.classList.add("hidden");
       taskUI.classList.remove("hidden");
+        document.body.classList.add("task-open");
+        if (taskId === "hack_final") document.body.classList.add("hack-open");
+        else document.body.classList.remove("hack-open");
+        setMonitorVars();
       if (String(taskId) !== "hack_final") { hackRoom.classList.add("hidden"); } else { hackRoom.classList.remove("hidden"); taskUI.classList.add("hidden"); }
 
       // Music: task intensity scene (except final hack which has its own scene)
