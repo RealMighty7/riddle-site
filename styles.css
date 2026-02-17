@@ -1,3 +1,6 @@
+html, body{height:100%;
+  overflow:hidden;
+}
 :root{
   --ink: #111318;
   --muted: rgba(17,19,24,.62);
@@ -323,9 +326,9 @@ body.in-sim::before{
   background: url("./assets/monitor_ui_clean.svg") center/contain no-repeat;
   /* The SVG art is mostly dark strokes; using `screen` can make those strokes
      disappear. Invert + normal blend keeps the frame readable everywhere. */
-  opacity: .88;
+  opacity: 1;
   mix-blend-mode: normal;
-  filter: invert(1) contrast(1.55) brightness(1.08) drop-shadow(0 0 14px rgba(0,0,0,.45));
+  filter: invert(1) contrast(2.4) brightness(1.4) drop-shadow(0 0 12px rgba(120,180,255,0.25));
 }
 
 /* Different "modes" slightly tint the monitor */
@@ -1149,16 +1152,16 @@ body.in-sim #simRoom{
 
 body.in-sim #hud{
   position:fixed;
-  left: calc(var(--mon-left) + (80px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (60px * var(--mon-scale)));
+  left: calc(var(--mon-left) + (1320px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (134px  * var(--mon-scale)));
   pointer-events:auto;
   z-index:120;
+  transform-origin: top left;
+  transform: scale(var(--mon-scale));
 }
 
 body.in-sim #hud .hudRow{
-  gap: calc(18px * var(--mon-scale));
-  transform-origin: top left;
-  transform: scale(var(--mon-scale));
+  gap: 10px;
 }
 
 body.in-sim #simRoom .simCard{
@@ -1198,10 +1201,10 @@ body.in-sim #simChoices button{
 /* Admin console aligns to right panel box */
 body.in-sim #adminPanel{
   position:fixed;
-  left: calc(var(--mon-left) + (1400px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (150px * var(--mon-scale)));
-  width: calc(430px  * var(--mon-scale));
-  height: calc(350px  * var(--mon-scale));
+  left: calc(var(--mon-left) + (1385px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (220px  * var(--mon-scale)));
+  width: calc(435px  * var(--mon-scale));
+  height: calc(240px  * var(--mon-scale));
   max-width:none;
   margin:0;
   pointer-events:auto;
@@ -1269,9 +1272,9 @@ body.hack-open #hackRoom .hackCard{
 
 /* Ensure the monitor overlay is visible as designed (no invert washout) */
 body.in-sim::before{
-  opacity: .98;
+  opacity: 1;
   mix-blend-mode: normal;
-  filter: contrast(1.12) brightness(1.08) drop-shadow(0 0 18px rgba(0,0,0,.55));
+  filter: invert(1) contrast(2.4) brightness(1.4) drop-shadow(0 0 12px rgba(120,180,255,0.25));
 }
 body.hack-open::before,
 body.task-open::before{
