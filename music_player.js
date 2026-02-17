@@ -92,7 +92,9 @@
 
       const audio = new Audio();
       audio.src = url;
-      audio.loop = (key.startsWith("s")); // stems loop, scene tracks loop too (safe for long sessions)
+      // Stems loop, and long-form scene beds should loop as well.
+      // (final hack + escaped pages are intentionally continuous.)
+      audio.loop = (key.startsWith("s") || key === "finalHack" || key === "escaped");
       audio.crossOrigin = "anonymous";
       audio.preload = "auto";
 
@@ -192,7 +194,19 @@
     }
 
 setScene(scene) {
-      this.mode.scene = scene || "landing";
+      const next = String(scene || "landing").toLowerCase();
+      this._prevScene = this.mode.scene;
+      this.mode.scene = next;
+
+      // When entering the long-form beds, restart them so they feel intentional.
+      if (next === "finalhack" || next === "escaped") {
+        const k = (next === "finalhack") ? "finalHack" : "escaped";
+        const node = this.nodes.get(k);
+        if (node?.audio) {
+          try { node.audio.currentTime = 0; } catch {}
+        }
+      }
+
       this._apply();
     }
 
