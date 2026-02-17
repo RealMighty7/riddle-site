@@ -533,7 +533,10 @@
         }
       };
 
-      return new Promise((r) => (resolve = r))((r) => (resolve = r));
+      // NOTE: this task must return a real Promise. The previous code accidentally
+      // *called* the Promise as if it were a function, which throws and can hard
+      // reset the whole app even if the user never clicks.
+      return new Promise((r) => (resolve = r));
     },
 
     // 10
