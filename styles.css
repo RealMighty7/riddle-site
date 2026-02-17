@@ -311,12 +311,6 @@ body.in-sim #impossibleTrack,
 body.in-sim .impossibleToggle,
 body.in-sim .impossibleTrack{ display:none !important; pointer-events:none !important; }
 
-/* Some flows use .sim-open without toggling .in-sim immediately; keep it hidden there too. */
-body.sim-open #impossibleToggle,
-body.sim-open #impossibleTrack,
-body.sim-open .impossibleToggle,
-body.sim-open .impossibleTrack{ display:none !important; pointer-events:none !important; }
-
 /* ========= Monitor shell overlay (applies to sim + task + hack so it feels connected) ========= */
 body.in-sim::before{
   content:"";
@@ -329,12 +323,10 @@ body.in-sim::before{
   background: url("./assets/monitor_ui_clean.svg") center/contain no-repeat;
   /* The SVG art is mostly dark strokes; using `screen` can make those strokes
      disappear. Invert + normal blend keeps the frame readable everywhere. */
+  /* Match the intended dark/blue UI art (no invert). */
   opacity: 1;
   mix-blend-mode: normal;
-  /* Push the frame visibility (users reported it was still too faint). */
-  filter: invert(1) contrast(2.15) brightness(1.22)
-          drop-shadow(0 0 10px rgba(0,0,0,.55))
-          drop-shadow(0 0 10px rgba(255,255,255,.12));
+  filter: drop-shadow(0 0 14px rgba(0,0,0,.45));
 }
 
 /* Different "modes" slightly tint the monitor */
@@ -343,10 +335,89 @@ body.task-open::before{ filter: contrast(1.10) brightness(1.08); }
 
 /* override the tints above to keep the monitor UI readable */
 body.hack-open::before,
-body.task-open::before{
-  filter: invert(1) contrast(2.15) brightness(1.22)
-          drop-shadow(0 0 10px rgba(0,0,0,.55))
-          drop-shadow(0 0 10px rgba(255,255,255,.12));
+body.task-open::before{ filter: drop-shadow(0 0 14px rgba(0,0,0,.45)); }
+
+/* ====== Monitor coordinate system (16:9 stage) ======
+   We anchor all sim/task/hack UI to the monitor art so everything lines up.
+   The SVG is 1920x1080 (16:9), rendered with background-size: contain.
+*/
+body.in-sim,
+body.sim-open,
+body.task-open,
+body.hack-open{
+  --stageW: min(100vw, calc(100vh * 1.7777778));
+  --stageH: calc(var(--stageW) / 1.7777778);
+  --stageL: calc(50vw - (var(--stageW) / 2));
+  --stageT: calc(50vh - (var(--stageH) / 2));
+}
+
+/* Hide verification UI once sim starts (some builds use sim-open instead of in-sim). */
+body.sim-open #impossibleBox,
+body.task-open #impossibleBox,
+body.hack-open #impossibleBox{
+  display:none !important;
+  pointer-events:none !important;
+}
+
+/* ====== Docking layout to match monitor_ui_clean.svg ====== */
+body.in-sim #simRoom,
+body.task-open #taskUI,
+body.hack-open #hackRoom{
+  padding: 0;
+  display:block;
+}
+
+/* Main dialogue window (large left pane) */
+body.in-sim #simRoom .simCard{
+  position: fixed;
+  left: calc(var(--stageL) + (0.17 * var(--stageW)));
+  top:  calc(var(--stageT) + (0.18 * var(--stageH)));
+  width: calc(0.58 * var(--stageW));
+  max-width: none;
+}
+
+/* Task + Hack windows live in the same large left pane */
+body.task-open #taskUI .taskCard,
+body.hack-open #hackRoom .hackCard{
+  position: fixed;
+  left: calc(var(--stageL) + (0.17 * var(--stageW)));
+  top:  calc(var(--stageT) + (0.18 * var(--stageH)));
+  width: calc(0.58 * var(--stageW));
+  max-width:none;
+}
+
+/* Keep the content heights sensible inside the pane */
+body.in-sim #simText{ max-height: calc(0.34 * var(--stageH)); }
+body.hack-open .hackArea{ min-height: calc(0.26 * var(--stageH)); }
+
+/* HUD meters dock into the top-left pills area */
+body.in-sim #hud,
+body.task-open #hud,
+body.hack-open #hud{
+  position: fixed;
+  left: calc(var(--stageL) + (0.04 * var(--stageW)));
+  top:  calc(var(--stageT) + (0.05 * var(--stageH)));
+}
+
+/* Admin console docks into the right pane */
+body.in-sim #adminPanel,
+body.task-open #adminPanel,
+body.hack-open #adminPanel{
+  position: fixed;
+  left: calc(var(--stageL) + (0.77 * var(--stageW)));
+  top:  calc(var(--stageT) + (0.18 * var(--stageH)));
+  right: auto;
+  width: calc(0.20 * var(--stageW));
+  max-width: calc(0.20 * var(--stageW));
+}
+
+/* Subtitles sit inside the bottom bar area */
+body.in-sim #subs,
+body.task-open #subs,
+body.hack-open #subs{
+  left: calc(var(--stageL) + (0.50 * var(--stageW)));
+  bottom: calc(100vh - (var(--stageT) + (0.92 * var(--stageH))));
+  width: calc(0.62 * var(--stageW));
 }
 
 /* ===================== PACK 7 TASK VISUALS ===================== */
@@ -984,13 +1055,6 @@ body.glitch-storm::before{
   box-shadow: 0 18px 50px rgba(0,0,0,.35);
 }
 .p6-head,.p7-head{ display:flex; gap:12px; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
-.p7-headLeft{ display:flex; align-items:baseline; gap:12px; }
-
-/* Tiny ON/OFF legend for lights-out style tasks */
-.p7-legend{ display:flex; align-items:center; gap:10px; opacity:.9; }
-.p7-legendItem{ display:flex; align-items:center; gap:6px; }
-.p7-legendSwatch{ width:14px; height:14px; border-radius:4px; border:1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.30); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
-.p7-legendSwatch.on{ background: rgba(255,255,255,.12); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 0 12px rgba(255,255,255,.10); }
 .p6-kv{ letter-spacing: .04em; }
 .p6-row{ display:flex; gap:10px; align-items:center; }
 
@@ -1150,61 +1214,53 @@ body.in-sim #system{ display:none; }
 body.sim-open #simRoom{
   position:fixed;
   inset:0;
+  display:block;
+  padding:0;
   z-index:110;
-  /* Layout everything consistently so it reads "inside" the monitor frame */
-  display:grid;
-  grid-template-columns: minmax(520px, 1fr) minmax(300px, 460px);
-  grid-template-rows: auto auto 1fr;
-  gap: 14px 18px;
-  padding: clamp(48px, 7vh, 86px) clamp(18px, 6vw, 86px) clamp(18px, 5vh, 64px);
-  align-content:start;
-  pointer-events:auto;
+  pointer-events:none; /* re-enable on children */
 }
 
 body.sim-open #simRoom .simCard{
-  grid-column: 1;
-  grid-row: 2;
-  width: 100%;
-  height: min(36vh, 320px);
-  max-width: none;
-  margin: 0;
+  position:fixed;
+  left:6.5vw;
+  top:13.5vh;
+  width:57vw;
+  height:33vh;
+  max-width:none;
+  margin:0;
+  pointer-events:auto;
   overflow:auto;
 }
 
 body.sim-open #simChoices{
-  grid-column: 1;
-  grid-row: 3;
-  width:100%;
+  position:fixed;
+  left:6.5vw;
+  top:49.5vh;
+  width:57vw;
   gap:14px;
   justify-content:space-between;
+  pointer-events:auto;
 }
 
 body.sim-open #hud{
-  grid-column: 1;
-  grid-row: 1;
-  justify-self:start;
+  position:fixed;
+  left:6.5vw;
+  top:6.3vh;
+  pointer-events:auto;
 }
 
 body.sim-open #adminPanel{
-  grid-column: 2;
-  grid-row: 1 / span 3;
-  align-self:start;
-  width: 100%;
-  max-width: 520px;
+  position:fixed;
+  right:6.0vw;
+  top:13.5vh;
+  width:29vw;
+  max-width:520px;
   margin:0;
+  pointer-events:auto;
 }
 
 body.sim-open #adminPanel .card{
   margin-top:0 !important;
-}
-
-@media (max-width: 980px){
-  body.sim-open #simRoom{
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto 1fr;
-  }
-  body.sim-open #adminPanel{ grid-column:1; grid-row:4; max-width:none; }
-  body.sim-open #simChoices{ grid-row:3; }
 }
 
 /* keep task overlay centered without washing out background */
