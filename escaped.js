@@ -27,8 +27,23 @@
     }
   } catch {}
 
-  try { window.Music?.stopAll?.(); } catch {}
-  try { window.Music?.setScene?.("escaped"); } catch {}
+  // Music: a fresh page load can trigger autoplay restrictions.
+  // We attempt immediately (works in some navigations), and also arm a one-time
+  // gesture unlock so the Escaped bed reliably plays.
+  let musicArmed = false;
+  function startEscapedMusic() {
+    if (musicArmed) return;
+    musicArmed = true;
+    try {
+      window.Music?.unlock?.();
+      window.Music?.loadAll?.();
+      window.Music?.stopAll?.();
+      window.Music?.setScene?.("escaped");
+    } catch {}
+  }
+  startEscapedMusic();
+  document.addEventListener("pointerdown", startEscapedMusic, { once: true, passive: true });
+  document.addEventListener("keydown", startEscapedMusic, { once: true });
 
   const userEl = document.getElementById("escapeUser");
   const codeEl = document.getElementById("escapeCode");
