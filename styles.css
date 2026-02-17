@@ -305,6 +305,11 @@ body.in-sim{
 }
 body.in-sim #wrap{ display:none; }
 body.in-sim #glassFX{ opacity:0 !important; }
+/* Never show the green verification toggle once the simulation is entered */
+body.in-sim #impossibleToggle,
+body.in-sim #impossibleTrack,
+body.in-sim .impossibleToggle,
+body.in-sim .impossibleTrack{ display:none !important; pointer-events:none !important; }
 
 /* ========= Monitor shell overlay (applies to sim + task + hack so it feels connected) ========= */
 body.in-sim::before{
@@ -316,10 +321,11 @@ body.in-sim::before{
   /* Clean overlay frame (fills included) */
   /* Use contain so the whole monitor UI is always visible (no cropping) */
   background: url("./assets/monitor_ui_clean.svg") center/contain no-repeat;
-  opacity: 1;
-  /* Make the UI lines pop against the dark sim background */
-  mix-blend-mode: screen;
-  filter: contrast(1.35) brightness(1.18) drop-shadow(0 0 10px rgba(0,0,0,.35));
+  /* The SVG art is mostly dark strokes; using `screen` can make those strokes
+     disappear. Invert + normal blend keeps the frame readable everywhere. */
+  opacity: .88;
+  mix-blend-mode: normal;
+  filter: invert(1) contrast(1.55) brightness(1.08) drop-shadow(0 0 14px rgba(0,0,0,.45));
 }
 
 /* Different "modes" slightly tint the monitor */
@@ -329,7 +335,7 @@ body.task-open::before{ filter: contrast(1.10) brightness(1.08); }
 /* override the tints above to keep the monitor UI readable */
 body.hack-open::before,
 body.task-open::before{
-  filter: contrast(1.35) brightness(1.18) drop-shadow(0 0 10px rgba(0,0,0,.35));
+  filter: invert(1) contrast(1.55) brightness(1.08) drop-shadow(0 0 14px rgba(0,0,0,.45));
 }
 
 /* ===================== PACK 7 TASK VISUALS ===================== */
@@ -1187,8 +1193,8 @@ body.task-open #taskUI::before{
   pointer-events:none;
 }
 
-/* Ensure monitor overlay is visible (not just the corner glow) */
-body::before{
+/* Keep the landing overlay readable without clobbering the SIM monitor frame. */
+body:not(.in-sim)::before{
   opacity: 1 !important;
   filter: contrast(1.08) brightness(1.06) !important;
 }
