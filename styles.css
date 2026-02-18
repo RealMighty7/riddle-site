@@ -302,7 +302,6 @@ h1{
 body.in-sim{
   background: var(--sim-bg);
   color: var(--sim-fg);
-  overflow: hidden;
 }
 body.in-sim #wrap{ display:none; }
 body.in-sim #glassFX{ opacity:0 !important; }
@@ -680,6 +679,11 @@ body.in-sim #adminPanel{
   border:1px solid rgba(255,255,255,0.14);
   border-radius:12px;
   overflow:hidden;
+}
+
+body.in-sim #adminPanel .adminBody{
+  height: calc(240px * var(--mon-scale) - (44px * var(--mon-scale)));
+  overflow:auto;
 }
 #adminPanel .apHead{
   display:flex;
@@ -1150,10 +1154,10 @@ body.in-sim #simRoom{
 
 body.in-sim #hud{
   position:fixed;
-  /* Match monitor_ui_clean.svg HUD cluster (x=1320,y=100,w=580,h=70) */
+  /* monitor_ui_clean.svg: stat chips at x=1320/1480/1640, y=134 */
   left: calc(var(--mon-left) + (1320px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (100px * var(--mon-scale)));
-  pointer-events:auto;
+  top:  calc(var(--mon-top)  + (134px  * var(--mon-scale)));
+  pointer-events:none;
   z-index:120;
 }
 
@@ -1162,6 +1166,12 @@ body.in-sim #hud .hudRow{
   transform-origin: top left;
   transform: scale(var(--mon-scale));
 }
+
+/* Size the three chips to the SVG boxes (140/140/160 wide, 56 tall) */
+body.in-sim #hud .hudMeter{ width:140px; height:56px; padding:10px 12px; }
+body.in-sim #hud .hudTimer{ width:160px; height:56px; padding:10px 12px; }
+body.in-sim #hud .hudLabel{ font-size:12px; }
+body.in-sim #hud .hudNum{ font-size:14px; }
 
 body.in-sim #simRoom .simCard{
   position:fixed;
@@ -1173,15 +1183,7 @@ body.in-sim #simRoom .simCard{
   margin:0;
   pointer-events:auto;
   overflow:hidden;
-  display:flex;
-  flex-direction:column;
   border-radius: calc(20px * var(--mon-scale));
-}
-
-body.in-sim #simRoom .simCard #simText{
-  flex: 1;
-  overflow: auto;
-  padding-bottom: 10px;
 }
 
 body.in-sim #simChoices{
@@ -1192,31 +1194,34 @@ body.in-sim #simChoices{
   height: calc(120px  * var(--mon-scale));
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap: calc(16px * var(--mon-scale));
+  justify-content:flex-start;
+  padding-left: calc(30px * var(--mon-scale));
+  gap: calc(30px * var(--mon-scale));
   pointer-events:auto;
   z-index:130;
 }
 
 body.in-sim #simChoices button{
-  height: calc(44px * var(--mon-scale));
+  width: calc(300px * var(--mon-scale));
+  height: calc(60px * var(--mon-scale));
   padding: 0 calc(18px * var(--mon-scale));
-  border-radius: calc(14px * var(--mon-scale));
+  border-radius: calc(16px * var(--mon-scale));
   font-size: calc(14px * var(--mon-scale));
 }
 
 /* Admin console aligns to right panel box */
 body.in-sim #adminPanel{
   position:fixed;
-  left: calc(var(--mon-left) + (1400px * var(--mon-scale)));
-  /* Match monitor_ui_clean.svg right-top panel (x=1400,y=220,w=430,h=240) */
-  top:  calc(var(--mon-top)  + (220px * var(--mon-scale)));
-  width: calc(430px  * var(--mon-scale));
+  /* monitor_ui_clean.svg: right console bay at x=1385, y=220, w=435, h=240 */
+  left: calc(var(--mon-left) + (1385px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (220px  * var(--mon-scale)));
+  width: calc(435px  * var(--mon-scale));
   height: calc(240px  * var(--mon-scale));
   max-width:none;
   margin:0;
   pointer-events:auto;
   z-index:140;
+  overflow:hidden;
 }
 body.in-sim #adminPanel .card{
   height:100%;
@@ -1248,7 +1253,7 @@ body.task-open #taskUI .taskCard{
   left: calc(var(--mon-left) + (150px * var(--mon-scale)));
   top:  calc(var(--mon-top)  + (710px * var(--mon-scale)));
   width: calc(1200px * var(--mon-scale));
-  height: calc(300px  * var(--mon-scale));
+  height: calc(320px  * var(--mon-scale));
   max-width:none;
   margin:0;
   pointer-events:auto;
@@ -1270,7 +1275,7 @@ body.hack-open #hackRoom .hackCard{
   left: calc(var(--mon-left) + (150px * var(--mon-scale)));
   top:  calc(var(--mon-top)  + (710px * var(--mon-scale)));
   width: calc(1200px * var(--mon-scale));
-  height: calc(300px  * var(--mon-scale));
+  height: calc(320px  * var(--mon-scale));
   max-width:none;
   margin:0;
   pointer-events:auto;
