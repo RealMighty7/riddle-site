@@ -680,11 +680,6 @@ body.in-sim #adminPanel{
   border-radius:12px;
   overflow:hidden;
 }
-
-body.in-sim #adminPanel .adminBody{
-  height: calc(240px * var(--mon-scale) - (44px * var(--mon-scale)));
-  overflow:auto;
-}
 #adminPanel .apHead{
   display:flex;
   align-items:center;
@@ -1152,12 +1147,17 @@ body.in-sim #simRoom{
   pointer-events:none;
 }
 
+/* Lock viewport in simulation so layout can't drift via scroll */
+body.in-sim, body.in-sim #system{
+  overflow:hidden;
+}
+
 body.in-sim #hud{
   position:fixed;
-  /* monitor_ui_clean.svg: stat chips at x=1320/1480/1640, y=134 */
-  left: calc(var(--mon-left) + (1320px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (134px  * var(--mon-scale)));
-  pointer-events:none;
+  /* HUD slots live on the TOP-RIGHT of monitor_ui_clean.svg */
+  left: calc(var(--mon-left) + (1225px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (145px * var(--mon-scale)));
+  pointer-events:auto;
   z-index:120;
 }
 
@@ -1167,61 +1167,53 @@ body.in-sim #hud .hudRow{
   transform: scale(var(--mon-scale));
 }
 
-/* Size the three chips to the SVG boxes (140/140/160 wide, 56 tall) */
-body.in-sim #hud .hudMeter{ width:140px; height:56px; padding:10px 12px; }
-body.in-sim #hud .hudTimer{ width:160px; height:56px; padding:10px 12px; }
-body.in-sim #hud .hudLabel{ font-size:12px; }
-body.in-sim #hud .hudNum{ font-size:14px; }
-
 body.in-sim #simRoom .simCard{
   position:fixed;
-  left: calc(var(--mon-left) + (150px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (220px * var(--mon-scale)));
-  width: calc(1200px * var(--mon-scale));
-  height: calc(330px  * var(--mon-scale));
+  /* Main dialogue window aligns to the large LEFT panel in the SVG */
+  left: calc(var(--mon-left) + (170px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (240px * var(--mon-scale)));
+  width: calc(1120px * var(--mon-scale));
+  height: calc(380px  * var(--mon-scale));
   max-width:none;
   margin:0;
   pointer-events:auto;
-  overflow:hidden;
+  overflow:auto;
   border-radius: calc(20px * var(--mon-scale));
 }
 
 body.in-sim #simChoices{
   position:fixed;
-  left: calc(var(--mon-left) + (150px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (565px * var(--mon-scale)));
-  width: calc(1200px * var(--mon-scale));
-  height: calc(120px  * var(--mon-scale));
+  /* Choice buttons row beneath dialogue */
+  left: calc(var(--mon-left) + (190px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (640px * var(--mon-scale)));
+  width: calc(1080px * var(--mon-scale));
+  height: calc(90px  * var(--mon-scale));
   display:flex;
   align-items:center;
-  justify-content:flex-start;
-  padding-left: calc(30px * var(--mon-scale));
-  gap: calc(30px * var(--mon-scale));
+  justify-content:space-between;
+  gap: calc(16px * var(--mon-scale));
   pointer-events:auto;
   z-index:130;
 }
 
 body.in-sim #simChoices button{
-  width: calc(300px * var(--mon-scale));
-  height: calc(60px * var(--mon-scale));
+  height: calc(44px * var(--mon-scale));
   padding: 0 calc(18px * var(--mon-scale));
-  border-radius: calc(16px * var(--mon-scale));
+  border-radius: calc(14px * var(--mon-scale));
   font-size: calc(14px * var(--mon-scale));
 }
 
 /* Admin console aligns to right panel box */
 body.in-sim #adminPanel{
   position:fixed;
-  /* monitor_ui_clean.svg: right console bay at x=1385, y=220, w=435, h=240 */
-  left: calc(var(--mon-left) + (1385px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (220px  * var(--mon-scale)));
-  width: calc(435px  * var(--mon-scale));
-  height: calc(240px  * var(--mon-scale));
+  left: calc(var(--mon-left) + (1400px * var(--mon-scale)));
+  top:  calc(var(--mon-top)  + (150px * var(--mon-scale)));
+  width: calc(430px  * var(--mon-scale));
+  height: calc(350px  * var(--mon-scale));
   max-width:none;
   margin:0;
   pointer-events:auto;
   z-index:140;
-  overflow:hidden;
 }
 body.in-sim #adminPanel .card{
   height:100%;
