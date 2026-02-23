@@ -1361,3 +1361,108 @@ body.launch-locked .row,
 body.launch-locked #viewerToken{
   opacity:.65;
 }
+
+
+/* =====================================================================
+   MONITOR UI ALIGNMENT OVERRIDES (auto-generated)
+   Aligns HUD / Dialogue / Task / Admin panels to monitor_ui_clean.svg
+   SVG viewBox: 1920x1080
+===================================================================== */
+
+body.in-sim { overflow: hidden !important; }
+html, body { overscroll-behavior: none; }
+body.in-sim #impossibleToggle,
+body.in-sim #impossibleBox { display: none !important; }
+
+body.in-sim {
+  --ui-w: 1920;
+  --ui-h: 1080;
+  --ui-scale: min(calc(100vw / var(--ui-w)), calc(100vh / var(--ui-h)));
+  --ui-left: calc((100vw - (var(--ui-w) * var(--ui-scale))) / 2);
+  --ui-top:  calc((100vh - (var(--ui-h) * var(--ui-scale))) / 2);
+}
+
+body.in-sim::before {
+  background: url('assets/monitor_ui_clean.svg') no-repeat !important;
+  background-size: calc(var(--ui-w) * var(--ui-scale)) calc(var(--ui-h) * var(--ui-scale)) !important;
+  background-position: var(--ui-left) var(--ui-top) !important;
+  opacity: 0.92 !important;
+}
+
+#simRoom { position: fixed !important; inset: 0 !important; display: block !important; pointer-events: none !important; }
+#simCard {
+  pointer-events: auto !important;
+  position: fixed !important;
+  left: calc(var(--ui-left) + (175 * var(--ui-scale))) !important;
+  top:  calc(var(--ui-top)  + (215 * var(--ui-scale))) !important;
+  width: calc(1200 * var(--ui-scale)) !important;
+  height: calc(360 * var(--ui-scale)) !important;
+  max-width: none !important;
+}
+
+#simText {
+  height: calc(285 * var(--ui-scale)) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  scrollbar-width: none;
+}
+#simText::-webkit-scrollbar { width: 0; height: 0; }
+
+#simChoices {
+  position: absolute !important;
+  left: calc(40 * var(--ui-scale)) !important;
+  right: calc(40 * var(--ui-scale)) !important;
+  bottom: calc(18 * var(--ui-scale)) !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr !important;
+  gap: calc(16 * var(--ui-scale)) !important;
+}
+#simChoices .choiceBtn { width: 100% !important; justify-content: center !important; }
+
+#hud {
+  position: fixed !important;
+  left: calc(var(--ui-left) + (1240 * var(--ui-scale))) !important;
+  top:  calc(var(--ui-top)  + (150 * var(--ui-scale))) !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, auto) !important;
+  gap: calc(12 * var(--ui-scale)) !important;
+}
+
+#adminPanel {
+  position: fixed !important;
+  left: calc(var(--ui-left) + (1320 * var(--ui-scale))) !important;
+  top:  calc(var(--ui-top)  + (280 * var(--ui-scale))) !important;
+  width: calc(520 * var(--ui-scale)) !important;
+  height: calc(330 * var(--ui-scale)) !important;
+}
+
+#taskUI {
+  position: fixed !important;
+  left: calc(var(--ui-left) + (175 * var(--ui-scale))) !important;
+  top:  calc(var(--ui-top)  + (585 * var(--ui-scale))) !important;
+  width: calc(1200 * var(--ui-scale)) !important;
+  height: calc(420 * var(--ui-scale)) !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+
+#taskBody {
+  max-height: calc(270 * var(--ui-scale)) !important;
+  overflow: auto !important;
+  scrollbar-width: none;
+}
+#taskBody::-webkit-scrollbar { width: 0; height: 0; }
+
+/* Ensure internal task text doesn't force horizontal scrollbars */
+.taskBody pre, #taskBody pre, #hackBuffer {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+}
+
+/* Prevent accidental page scrollbars during any task overlay */
+body.in-sim, body.in-task { overflow: hidden !important; }
+
+/* Hide browser scrollbars inside modal windows by default */
+.taskCard, .simCard { overflow: hidden; }
