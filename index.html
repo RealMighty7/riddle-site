@@ -15,6 +15,9 @@
 
   <div id="glassFX"></div>
 
+  <!-- Fixed 16:9 stage aligned to monitor_ui_clean.svg (all sim UI lives inside) -->
+  <div id="simStage" aria-hidden="true">
+
   <div id="cracks" aria-hidden="true">
     <canvas id="cracksCanvas"></canvas>
   </div>
@@ -71,7 +74,7 @@
 
     </header>
 
-    <section id="adminPanel" class="hidden" aria-label="admin console">
+    <section id="adminPanel" class="hidden" aria-label="admin console" data-lock="1">
       <div class="card" style="margin-top:14px;">
         <div class="adminCard">
           <div class="adminLeft" id="adminDragHandle">
@@ -218,6 +221,8 @@
       </div>
     </div>
   </section>
+
+  </div><!-- /#simStage -->
 
   <script src="./tasks.js?v=1001"></script>
   <script src="./packs/pack1.js?v=1001"></script>
