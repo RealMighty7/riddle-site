@@ -38,6 +38,116 @@ body{
   overflow-x:hidden;
 }
 
+/* ====================== SIM LAYOUT (monitor_ui_clean.svg) ======================
+   The simulation UI is designed to sit inside a 16:9 monitor frame.
+   We size a fixed "stage" that matches the SVG's contain layout, then place
+   the dialogue, meters, admin panel, task UI, and hack UI into the
+   corresponding slots. */
+
+body.in-sim{ overflow:hidden; }
+
+/* Stage: centered 16:9 area that matches the background SVG's contain size */
+body.in-sim #simRoom,
+body.in-sim #taskUI,
+body.in-sim #hackRoom{
+  position:fixed;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  width:min(96vw,1600px);
+  aspect-ratio:16/9;
+  height:auto;
+  max-height:92vh;
+  background:transparent;
+  overflow:visible;
+}
+
+body.in-sim #simRoom .simCard{
+  position:absolute;
+  left:6.5%;
+  top:17.5%;
+  width:63.5%;
+  height:45.5%;
+  box-sizing:border-box;
+}
+
+body.in-sim #simText{
+  height:calc(100% - 64px);
+  overflow-y:auto;
+  padding-right:10px;
+}
+
+body.in-sim #simChoices{
+  position:absolute;
+  left:6.5%;
+  top:66.0%;
+  width:63.5%;
+  height:10.5%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+}
+
+body.in-sim #meters{
+  position:absolute;
+  left:71.0%;
+  top:16.0%;
+  width:25.0%;
+  display:flex;
+  gap:10px;
+}
+body.in-sim #meters .meter{ flex:1 1 0; }
+
+body.in-sim #adminPanel{
+  position:absolute;
+  left:71.0%;
+  top:28.8%;
+  width:25.0%;
+  height:36.0%;
+  box-sizing:border-box;
+}
+
+body.in-sim #taskUI .taskCard{
+  position:absolute;
+  left:6.5%;
+  top:60.2%;
+  width:63.5%;
+  height:31.0%;
+  box-sizing:border-box;
+}
+
+body.in-sim #taskBody{
+  height:calc(100% - 120px);
+  overflow-y:auto;
+  padding-right:10px;
+}
+
+body.in-sim #hackRoom .hackCard{
+  position:absolute;
+  left:6.5%;
+  top:58.0%;
+  width:89.0%;
+  height:34.0%;
+  box-sizing:border-box;
+}
+
+/* Hide visible scrollbars while still allowing programmatic scrolling */
+body.in-sim #simText,
+body.in-sim #taskBody,
+body.in-sim .hackCard,
+body.in-sim .hackCard *{
+  scrollbar-width:none;
+  scrollbar-color:transparent transparent;
+}
+body.in-sim #simText::-webkit-scrollbar,
+body.in-sim #taskBody::-webkit-scrollbar,
+body.in-sim .hackCard::-webkit-scrollbar,
+body.in-sim .hackCard *::-webkit-scrollbar{
+  width:0;
+  height:0;
+}
+
 /* ===================== OVERLAYS ===================== */
 #glassFX{
   position:fixed;
@@ -1224,12 +1334,8 @@ body.in-sim #adminPanel .card{
 
 /* Task UI sits in the task panel slot instead of centering */
 body.task-open #taskUI{
-  position:fixed;
-  inset:0;
-  padding:0;
   z-index:135;
-  pointer-events:none;
-  background: transparent;
+  /* stage positioning handled by body.in-sim */
 }
 body.task-open #taskUI::before{
   content:"";
@@ -1241,38 +1347,32 @@ body.task-open #taskUI::before{
 }
 
 body.task-open #taskUI .taskCard{
-  position:fixed;
-  left: calc(var(--mon-left) + (150px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (710px * var(--mon-scale)));
-  width: calc(1200px * var(--mon-scale));
-  height: calc(320px  * var(--mon-scale));
+  position:absolute;
+  left:6.5%;
+  top:60.2%;
+  width:63.5%;
+  height:31.0%;
   max-width:none;
   margin:0;
   pointer-events:auto;
-  overflow:auto;
-  border-radius: calc(20px * var(--mon-scale));
+  overflow:hidden;
 }
 
 /* Hack room uses the same task panel slot */
 body.hack-open #hackRoom{
-  position:fixed;
-  inset:0;
-  padding:0;
   z-index:135;
-  pointer-events:none;
-  background: transparent;
+  /* stage positioning handled by body.in-sim */
 }
 body.hack-open #hackRoom .hackCard{
-  position:fixed;
-  left: calc(var(--mon-left) + (150px * var(--mon-scale)));
-  top:  calc(var(--mon-top)  + (710px * var(--mon-scale)));
-  width: calc(1200px * var(--mon-scale));
-  height: calc(320px  * var(--mon-scale));
+  position:absolute;
+  left:6.5%;
+  top:58.0%;
+  width:89.0%;
+  height:34.0%;
   max-width:none;
   margin:0;
   pointer-events:auto;
-  overflow:auto;
-  border-radius: calc(20px * var(--mon-scale));
+  overflow:hidden;
 }
 
 /* Ensure the monitor overlay is visible as designed (no invert washout) */
@@ -1362,107 +1462,122 @@ body.launch-locked #viewerToken{
   opacity:.65;
 }
 
+/* ====================== FINAL SIM STAGE OVERRIDES ======================
+   Guarantees aligned monitor layout + no visible scrollbars. */
 
-/* =====================================================================
-   MONITOR UI ALIGNMENT OVERRIDES (auto-generated)
-   Aligns HUD / Dialogue / Task / Admin panels to monitor_ui_clean.svg
-   SVG viewBox: 1920x1080
-===================================================================== */
+body.in-sim{ overflow:hidden; }
 
-body.in-sim { overflow: hidden !important; }
-html, body { overscroll-behavior: none; }
-body.in-sim #impossibleToggle,
-body.in-sim #impossibleBox { display: none !important; }
-
-body.in-sim {
-  --ui-w: 1920;
-  --ui-h: 1080;
-  --ui-scale: min(calc(100vw / var(--ui-w)), calc(100vh / var(--ui-h)));
-  --ui-left: calc((100vw - (var(--ui-w) * var(--ui-scale))) / 2);
-  --ui-top:  calc((100vh - (var(--ui-h) * var(--ui-scale))) / 2);
+body.in-sim #simStage{
+  position:fixed;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  width:min(96vw,1600px);
+  aspect-ratio:16/9;
+  max-height:92vh;
+  height:auto;
+  pointer-events:none;
 }
 
-body.in-sim::before {
-  background: url('assets/monitor_ui_clean.svg') no-repeat !important;
-  background-size: calc(var(--ui-w) * var(--ui-scale)) calc(var(--ui-h) * var(--ui-scale)) !important;
-  background-position: var(--ui-left) var(--ui-top) !important;
-  opacity: 0.92 !important;
+body.in-sim #simRoom,
+body.in-sim #taskUI,
+body.in-sim #hackRoom,
+body.in-sim #hud{
+  position:absolute;
+  inset:0;
+  background:transparent;
 }
 
-#simRoom { position: fixed !important; inset: 0 !important; display: block !important; pointer-events: none !important; }
-#simCard {
-  pointer-events: auto !important;
-  position: fixed !important;
-  left: calc(var(--ui-left) + (175 * var(--ui-scale))) !important;
-  top:  calc(var(--ui-top)  + (215 * var(--ui-scale))) !important;
-  width: calc(1200 * var(--ui-scale)) !important;
-  height: calc(360 * var(--ui-scale)) !important;
-  max-width: none !important;
+body.in-sim #simRoom{ pointer-events:none; }
+body.in-sim #simRoom .simCard,
+body.in-sim #simChoices{ pointer-events:auto; }
+
+body.in-sim #simRoom .simCard{
+  position:absolute;
+  left:6.5%;
+  top:17.5%;
+  width:63.5%;
+  height:45.5%;
+}
+body.in-sim #simText{
+  height:calc(100% - 64px);
+  overflow-y:auto;
+  padding-right:10px;
+}
+body.in-sim #simChoices{
+  position:absolute;
+  left:6.5%;
+  top:66.0%;
+  width:63.5%;
+  height:10.5%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
 }
 
-#simText {
-  height: calc(285 * var(--ui-scale)) !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  white-space: pre-wrap !important;
-  word-break: break-word !important;
-  scrollbar-width: none;
-}
-#simText::-webkit-scrollbar { width: 0; height: 0; }
-
-#simChoices {
-  position: absolute !important;
-  left: calc(40 * var(--ui-scale)) !important;
-  right: calc(40 * var(--ui-scale)) !important;
-  bottom: calc(18 * var(--ui-scale)) !important;
-  display: grid !important;
-  grid-template-columns: 1fr 1fr 1fr !important;
-  gap: calc(16 * var(--ui-scale)) !important;
-}
-#simChoices .choiceBtn { width: 100% !important; justify-content: center !important; }
-
-#hud {
-  position: fixed !important;
-  left: calc(var(--ui-left) + (1240 * var(--ui-scale))) !important;
-  top:  calc(var(--ui-top)  + (150 * var(--ui-scale))) !important;
-  display: grid !important;
-  grid-template-columns: repeat(3, auto) !important;
-  gap: calc(12 * var(--ui-scale)) !important;
+body.in-sim #hud{ pointer-events:none; }
+body.in-sim #hud .hudRow{ pointer-events:auto; }
+body.in-sim #hud .hudRow{
+  position:absolute;
+  left:71.0%;
+  top:16.0%;
+  width:25.0%;
+  display:flex;
+  gap:10px;
 }
 
-#adminPanel {
-  position: fixed !important;
-  left: calc(var(--ui-left) + (1320 * var(--ui-scale))) !important;
-  top:  calc(var(--ui-top)  + (280 * var(--ui-scale))) !important;
-  width: calc(520 * var(--ui-scale)) !important;
-  height: calc(330 * var(--ui-scale)) !important;
+body.in-sim #adminPanel{
+  position:absolute;
+  left:71.0%;
+  top:28.8%;
+  width:25.0%;
+  height:36.0%;
+  pointer-events:auto;
 }
 
-#taskUI {
-  position: fixed !important;
-  left: calc(var(--ui-left) + (175 * var(--ui-scale))) !important;
-  top:  calc(var(--ui-top)  + (585 * var(--ui-scale))) !important;
-  width: calc(1200 * var(--ui-scale)) !important;
-  height: calc(420 * var(--ui-scale)) !important;
-  max-width: none !important;
-  overflow: hidden !important;
+body.in-sim #taskUI{ pointer-events:none; }
+body.in-sim #taskUI .taskCard{ pointer-events:auto; }
+body.in-sim #taskUI .taskCard{
+  position:absolute;
+  left:6.5%;
+  top:60.2%;
+  width:63.5%;
+  height:31.0%;
+  margin:0;
+  max-width:none;
+  overflow:hidden;
+}
+body.in-sim #taskBody{
+  height:calc(100% - 120px);
+  overflow-y:auto;
+  padding-right:10px;
 }
 
-#taskBody {
-  max-height: calc(270 * var(--ui-scale)) !important;
-  overflow: auto !important;
-  scrollbar-width: none;
+body.in-sim #hackRoom{ pointer-events:none; }
+body.in-sim #hackRoom .hackCard{ pointer-events:auto; }
+body.in-sim #hackRoom .hackCard{
+  position:absolute;
+  left:6.5%;
+  top:58.0%;
+  width:89.0%;
+  height:34.0%;
+  margin:0;
+  max-width:none;
+  overflow:hidden;
 }
-#taskBody::-webkit-scrollbar { width: 0; height: 0; }
 
-/* Ensure internal task text doesn't force horizontal scrollbars */
-.taskBody pre, #taskBody pre, #hackBuffer {
-  white-space: pre-wrap !important;
-  word-break: break-word !important;
+body.in-sim #simText,
+body.in-sim #taskBody,
+body.in-sim .hackCard,
+body.in-sim .hackCard *{
+  scrollbar-width:none;
+  scrollbar-color:transparent transparent;
 }
-
-/* Prevent accidental page scrollbars during any task overlay */
-body.in-sim, body.in-task { overflow: hidden !important; }
-
-/* Hide browser scrollbars inside modal windows by default */
-.taskCard, .simCard { overflow: hidden; }
+body.in-sim #simText::-webkit-scrollbar,
+body.in-sim #taskBody::-webkit-scrollbar,
+body.in-sim .hackCard::-webkit-scrollbar,
+body.in-sim .hackCard *::-webkit-scrollbar{
+  width:0;
+  height:0;
+}
