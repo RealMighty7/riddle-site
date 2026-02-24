@@ -985,6 +985,9 @@ async function shatterAndEnterSim() {
 
 
     function makeAdminDraggable(panel) {
+      // In the simulation UI we lock the admin panel to the monitor layout.
+      // (Dragging + persisted positions breaks alignment and can create scrollbars.)
+      if (panel?.dataset?.lock === "1") return;
       const handle = panel.querySelector("#adminDragHandle") || panel.querySelector(".adminLeft") || panel;
       const POS_KEY = "tnr_admin_pos_v1";
       try {
