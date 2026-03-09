@@ -31,12 +31,12 @@
   // We attempt immediately (works in some navigations), and also arm a one-time
   // gesture unlock so the Escaped bed reliably plays.
   let musicArmed = false;
-  function startEscapedMusic() {
+  async function startEscapedMusic() {
     if (musicArmed) return;
     musicArmed = true;
     try {
-      window.Music?.unlock?.();
-      window.Music?.loadAll?.();
+      await window.Music?.unlock?.();
+      await window.Music?.loadAll?.();
       window.Music?.stopAll?.();
       window.Music?.setScene?.("escaped");
     } catch {}
@@ -73,7 +73,7 @@
 
   async function submit() {
     try {
-      const res = await fetch("/api/complete", {
+      const res = await fetch(new URL("api/complete", document.baseURI).toString(), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
