@@ -4,15 +4,23 @@
    GLOBAL SFX (uses /assets)
 ========================================================= */
 
+function assetUrl(path) {
+  try {
+    return new URL(path.replace(/^\//, ""), document.baseURI).toString();
+  } catch {
+    return `./${String(path || "").replace(/^\//, "")}`;
+  }
+}
+
 const SFX_MAP = {
-  click: "/assets/glitch1.wav",
-  glitch: "/assets/glitch2.wav",
-  thud: "/assets/thud.wav",
-  static: "/assets/static1.wav",
-  staticSoft: "/assets/static2.wav",
-  ambience: "/assets/ambience.wav",
-  glassBreak: "/assets/glassbreaking.mp3",
-  mclick: "/assets/click.mp3",
+  click: assetUrl("assets/glitch1.wav"),
+  glitch: assetUrl("assets/glitch2.wav"),
+  thud: assetUrl("assets/thud.wav"),
+  static: assetUrl("assets/static1.wav"),
+  staticSoft: assetUrl("assets/static2.wav"),
+  ambience: assetUrl("assets/ambience.wav"),
+  glassBreak: assetUrl("assets/glassbreaking.mp3"),
+  mclick: assetUrl("assets/click.mp3"),
 };
 
 function clamp01(v) {
@@ -93,7 +101,7 @@ function speakerToFolder(speaker) {
 }
 
 class VoiceBank {
-  constructor({ voicesUrl = "/audio/data/voices.json", onTag = null } = {}) {
+  constructor({ voicesUrl = assetUrl("audio/data/voices.json"), onTag = null } = {}) {
     this.voicesUrl = voicesUrl;
     this.onTag = typeof onTag === "function" ? onTag : null;
 
@@ -215,7 +223,7 @@ class VoiceBank {
     }
 
     const folder = speakerToFolder(line.speaker || "system");
-    const src = `/audio/${folder}/${key}.wav`;
+    const src = assetUrl(`audio/${folder}/${key}.wav`);
     const audio = new Audio(src);
     this._currentAudio = audio;
     this._activeAudios.add(audio);
