@@ -492,6 +492,13 @@
     const room = document.getElementById("hackRoom");
     const userInput = document.getElementById("hackUser");
     const status = document.getElementById("hackStatus");
+
+    const setFieldText = (node, value) => {
+      if (!node) return;
+      const v = String(value ?? "");
+      if ("value" in node) node.value = v;
+      else node.textContent = v;
+    };
     const delBtn = document.getElementById("hackDelete");
     const resetBtn = document.getElementById("hackReset");
     const targets = document.getElementById("hackTargets");
@@ -564,7 +571,7 @@
       setStatus("record removed");
       setTimeout(() => {
         sessionStorage.setItem("tnr_escape_ok", "1");
-        window.location.href = "/escaped.html";
+        window.location.href = new URL("escaped.html", document.baseURI).toString();
       }, 650);
     };
 
@@ -682,7 +689,7 @@
           targets.textContent = "files:";
         }
       }
-      if (filename) filename.textContent = "file: /sim/lock/registry.lua";
+      setFieldText(filename, "file: /sim/lock/registry.lua");
 
       const bar = document.createElement("div");
       bar.className = "fileBar";
@@ -771,7 +778,7 @@
           targets.textContent = txt;
         }
       }
-      if (filename) filename.textContent = `file: campaign_manifest.log`;
+      setFieldText(filename, `file: campaign_manifest.log`);
 
       clearView();
       state.lineIndex = 0;
